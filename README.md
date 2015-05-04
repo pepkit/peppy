@@ -30,3 +30,7 @@ Developing pipelines
 If you plan to develop pipelines, either by contributing a new pipeline or making changes to an existing pipeline, you should think about things differently. Instead of a project-specific clone, you should just clone the repos to your personal space, where you do the development. Push changes from there. Use this personal repo to run any tests or whatever, but this _is not your final project-specific result_, which should all be run from a frozen clone of the pipeline.
 
 
+Accessory scripts
+-----------------
+
+I created a folder called `/bin` where I am putting some small scripts that help with things like monitoring running pipelines, summarizing pipeline outputs, etc. I see this as a folder of __accessory scripts__, not needed by the pipelines. Any scripts used by the pipelines themselevs, on the other hand, can live with them for now.
