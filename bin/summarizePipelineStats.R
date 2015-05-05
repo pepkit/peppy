@@ -125,10 +125,10 @@ for (p in pipelines) {
 	message("Writing pipeline stats table: ", pipeStatFile)
 	write.table(resultsMat[[p]], pipeStatFile, sep="\t",row.names=FALSE,quote=FALSE)
 }
-
+if (length(names(resultsMat)) > 1 ) { # only if there are multiple pipelines
 # Produce an additional table with only common features
 commonTableFile = paste0(inputFolder, "/ALL_stats_summary.tsv");
 message("Writing common table: ", commonTableFile);
 write.table(commonTable, commonTableFile,sep="\t",row.names=FALSE,quote=FALSE)
-
+}
 
