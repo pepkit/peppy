@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 # This script loops through all the samples,
 # creates trackhubs for them.
 import csv
@@ -19,7 +21,9 @@ if not args.conf_file:
 	raise SystemExit
 
 #get configurations
-config = ConfigParser.ConfigParser()
+config = ConfigParser.ConfigParser({
+	"results": "$ROOT/results_pipeline/"
+})
 config.readfp(open(args.conf_file))
 
 #organism-genome translation
@@ -34,6 +38,8 @@ paths.home = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 paths.project_root = config.get("paths","project_root")
 paths.psa = config.get("paths","psa")
 paths.track_dir = config.get("paths","track_dir")
+paths.results = config.get("paths","results")
+
 
 # Include the path to the config file
 paths.config = os.path.dirname(os.path.realpath(args.conf_file))
@@ -108,16 +114,25 @@ try:
 		present_subGroups = "\tsubGroups "
 		genome = genomes[row["organism"]][0]
 		if args.filter:
-			tophat_bw_file = paths.project_root + "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln.filt_sorted.bw"
+			tophat_bw_file = paths.results+ "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln.filt_sorted.bw"
 		else:
-			tophat_bw_file = paths.project_root + "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln_sorted.bw"
+			tophat_bw_file = paths.results+ "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln_sorted.bw"
 
-		bismark_bw_file = paths.project_root + "/" + row["sample_name"] + "/bismark_" + genome + "/extractor/" + row["sample_name"] + ".aln.dedup.filt.bw"
+
+		bismark_bw_file = paths.results+ "/" + row["sample_name"] + "/bismark_" + genome + "/extractor/" + row["sample_name"] + ".aln.dedup.filt.bw"
 		tophat_bw_name = os.path.basename(tophat_bw_file)
 		bismark_bw_name = os.path.basename(bismark_bw_file)
 
+		# With the new meth bigbeds, RRBS pipeline should yield this file:
+		meth_bb_file = paths.results+ "/" + row["sample_name"] + "/bigbed_" + genome + "/RRBS_" + row["sample_name"] + ".bb"
+		meth_bb_name = os.path.basename(meth_bb_file)
 
-		if os.path.isfile(tophat_bw_file) or os.path.isfile(bismark_bw_file):
+		#bigwigs are better actually
+		if not os.path.isfile(bismark_bw_file):
+			bismark_bw_file = paths.results + "/" + row["sample_name"] + "/bigwig_" + genome + "/RRBS_" + row["sample_name"] + ".bw"
+			bismark_bw_name = os.path.basename(bismark_bw_file)
+
+		if os.path.isfile(tophat_bw_file) or os.path.isfile(bismark_bw_file)  or os.path.isfile(meth_bb_file):
 			track_out = paths.track_dir + genome
 			track_out_file = track_out + "/" + "trackDB.txt"
 			if not track_out_file in present_genomes.keys():
@@ -139,9 +154,21 @@ try:
 					if not row[key] in subGroups_perGenome[track_out_file][key]:
 						subGroups_perGenome[track_out_file][key][row[key]] = row[key]
 
+
+		# TODO NS: we should only have build these once; like so:
+		# Build short label
+		shortLabel = "sl_"
+		if ("Library" in row.keys()):
+			shortLabel += row["library"][0]
+		if ("cell_type" in row.keys()):
+			shortLabel += "_" + row["cell_type"]
+		if ("cell_count" in row.keys()):
+			shortLabel += "_" + row["cell_count"]
+
+
 		#For RNA (tophat) files
 		if os.path.isfile(tophat_bw_file):
-			print "FOUND tophat bw : " + tophat_bw_file
+			print "  FOUND tophat bw : " + tophat_bw_file
 			#copy the file to the hub directory
 			cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
 			cmd += "chmod o+r " + track_out + "/" + tophat_bw_name
@@ -155,18 +182,18 @@ try:
 			track_text += "\tparent " + parent_track_name + " on\n"
 			track_text += "\ttype bigWig\n"
 			track_text += present_subGroups + "data_type=RNA" + "\n"
-			track_text += "\tshortLabel " + row["library"][0] + "_" + row["cell_type"] + "_" + row["cell_count"] + "\n"
+			track_text += "\tshortLabel " + shortLabel + "\n"
 			track_text += "\tlongLabel " + row["sample_name"] +  "_RNA" + "\n"
 			track_text += "\tbigDataUrl " + tophat_bw_name + "\n"
 			track_text += "\tautoScale on" + "\n"
 
 			present_genomes[track_out_file].append(track_text)
 		else:
-			print "No tophat bw found: " + tophat_bw_file
+			print ("  No tophat bw found: " + tophat_bw_file)
 
-		#For Methylation (bismark) files
+		# For Methylation (bismark) files
 		if os.path.isfile(bismark_bw_file):
-			print "FOUND bismark bw : " + bismark_bw_file
+			print "  FOUND bismark bw : " + bismark_bw_file
 			#copy the file to the hub directory
 			cmd = "cp " + bismark_bw_file + " " + track_out
 			print(cmd)
@@ -179,7 +206,7 @@ try:
 			track_text += "\tparent " + parent_track_name + " on\n"
 			track_text += "\ttype bigWig\n"
 			track_text += present_subGroups + "data_type=Meth" + "\n"
-			track_text += "\tshortLabel " + row["library"][0] + "_" + row["cell_type"] + "_" + row["cell_count"] + "\n"
+			track_text += "\tshortLabel " + shortLabel + "\n"
 			track_text += "\tlongLabel " + row["sample_name"] + "_Meth" + "\n"
 			track_text += "\tbigDataUrl " + bismark_bw_name + "\n"
 			track_text += "\tviewLimits 0:100" + "\n"
@@ -188,7 +215,33 @@ try:
 
 			present_genomes[track_out_file].append(track_text)
 		else:
-			print "No bismark bw found: " + bismark_bw_file
+			print ("  No bismark bw found: " + bismark_bw_file)
+
+		# For Methylation (bigbed) files
+#		if os.path.isfile(meth_bb_file):
+#			print "  FOUND meth bb : " + meth_bb_file
+#			#copy the file to the hub directory
+#			cmd = "cp " + meth_bb_file + " " + track_out
+#			print(cmd)
+#			subprocess.call(cmd, shell=True)
+#			#add data_type subgroup (not included in sampleAnnotation)
+#			if not "Meth" in subGroups_perGenome[track_out_file]["data_type"]:
+#						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
+#			#costruct track for data file
+#			track_text = "\n\ttrack " + meth_bb_name + "_Meth" + "\n"
+#			track_text += "\tparent " + parent_track_name + " on\n"
+		# 	track_text += "\ttype bigBed\n"
+		# 	track_text += present_subGroups + "data_type=Meth" + "\n"
+		# 	track_text += "\tshortLabel " + shortLabel + "\n"
+		# 	track_text += "\tlongLabel " + row["sample_name"] + "_Meth" + "\n"
+		# 	track_text += "\tbigDataUrl " + meth_bb_name + "\n"
+		# 	track_text += "\tviewLimits 0:100" + "\n"
+		# 	track_text += "\tviewLimitsMax 0:100" + "\n"
+		# 	track_text += "\tmaxHeightPixels 100:30:10" + "\n"
+		#
+		# 	present_genomes[track_out_file].append(track_text)
+		# else:
+		# 	print ("  No meth bb file found: " + meth_bb_file)
 
 
 	#write composit-header followed by the individual tracks to a genome specific trackDB.txt
