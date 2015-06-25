@@ -8,6 +8,7 @@ email: arendeiro@cemm.oeaw.ac.at
 paths:
     parent: /data/groups/lab_bock/shared/projects
     parenthtml: /data/groups/lab_bock/public_html/arendeiro
+    resources: /data/groups/lab_bock/shared/resources
 
 # Parent Project root url
 url: http://www.biomedical-sequencing.at/bocklab/arendeiro/
