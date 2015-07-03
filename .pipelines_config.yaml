@@ -1,0 +1,163 @@
+# pipelines YAML configuration file
+
+# User info
+user: arendeiro
+email: arendeiro@cemm.oeaw.ac.at
+
+# Parent paths where Project is going to be created
+paths:
+    parent: /data/groups/lab_bock/shared/projects
+    parenthtml: /data/groups/lab_bock/public_html/arendeiro
+    resources: /data/groups/lab_bock/shared/resources
+
+# Parent Project root url
+url: http://www.biomedical-sequencing.at/bocklab/arendeiro/
+
+# Project and pipeline options
+options:
+    slurm:
+        cpus: 4
+        memorypercpu: 4000
+        queue: shortq
+        time: "10:00:00"
+    mergetechnical: True
+    mergebiological: True
+
+# Supported genomes
+# if sample.genome not in genomes, fail
+genomes:
+    - hg19
+    - mm10
+
+# Paths to genome annotations
+annotations:
+    genomes:
+        hg19: /data/prod/ngs_resources/genomes/hg19/forBowtie2/withoutRandom/hg19
+        mm10: /data/prod/ngs_resources/genomes/hg19/forBowtie2/withoutRandom/mm10
+        ercc: /fhgfs/groups/lab_bock/shared/resources/genomes/ERCC92/indexed_bowtie2/ERCC92
+    transcriptomes:
+        hg38: /home/arendeiro/Homo_sapiens.GRCh38.80.gtf
+        hg19: /home/arendeiro/Homo_sapiens.GRCh37.75.gtf
+        mm10: /fhgfs/groups/lab_bock/shared/resources/genomes/mm10/ucsc_mm10_ensembl_genes.gtf
+        ercc: /home/arendeiro/ERCC92.gtf
+    chrsizes:
+        hg19: /fhgfs/groups/lab_bock/arendeiro/share/hg19.chrom.sizes
+        mm10: /fhgfs/groups/lab_bock/arendeiro/share/mm10.chrom.sizes
+    kallistoindex:
+        hg38: /home/arendeiro/kallisto/Homo_sapiens.GRCh38.rel79.cdna.all.ERCC_nopolyA.idx
+        hg19: /home/arendeiro/kallisto/Homo_sapiens.GRCh37.75.cdna.all.ERCC_nopolyA.idx
+        dr7: /home/arendeiro/kallisto/Danio_rerio.Zv9.rel79.cdna.all.ERCC.idx
+    genomewindows:
+        hg19: /fhgfs/groups/lab_bock/arendeiro/share/hg19.genomeWindows_1kb.bed
+        mm10: /fhgfs/groups/lab_bock/arendeiro/share/mm10.genomeWindows_1kb.bed
+    tss:
+        hg19: /fhgfs/groups/lab_bock/arendeiro/share/GRCh37_hg19_refSeq.tss.bed
+        mm10: /fhgfs/groups/lab_bock/arendeiro/share/GRCm38_mm19_refSeq.tss.bed
+    alignability:
+        hg19:
+            36: /data/prod/ngs_resources/genomes/hg19/mappability/wgEncodeCrgMapabilityAlign36mer.bed
+            50: /data/prod/ngs_resources/genomes/hg19/mappability/wgEncodeCrgMapabilityAlign50mer.bed
+
+# Adapters to use for read trimming
+adapters: /fhgfs/groups/lab_bock/shared/cm.fa
+
+# Mandatory columns in sample annotation sheet
+sheet: 
+    - "cellLine"
+    - "numberCells"
+    - "technique"
+    - "ip"
+    - "patient"
+    - "treatment"
+    - "biologicalReplicate"
+    - "technicalReplicate"
+    - "genome"
+
+# Supported techniques;
+# techniques under cm, dnase and atacseq
+# are considered for "cuts/tagment" analysis
+techniques:
+    chipseq:
+        - "CHIP"
+        - "CHIPSEQ"
+        - "CHIP-SEQ"
+    cm:
+        - "CM"
+    dnase:
+        - "DNASE"
+        - "DNASESEQ"
+        - "DNASE-SEQ"
+    atacseq:
+        - "ATAC"
+        - "ATAC-SEQ"
+        - "ATACSEQ"
+    quantseq:
+        - "QUANT"
+        - "QUANT-SEQ"
+        - "QUANTSEQ"
+
+# Factors considered as histones
+# Factors matching this as substring
+# will be considered as well (e.g. H3K4ME3)
+histones:
+    - "H2A"
+    - "H2B"
+    - "H3"
+    - "H4"
+
+# Factors considered as broad
+broadfactors:
+    - "H3K27ME1"
+    - "H3K27ME2"
+    - "H3K27ME3"
+    - "H3K36ME1"
+    - "H3K36ME2"
+    - "H3K36ME3"
+    - "H3K9ME1"
+    - "H3K9ME2"
+    - "H3K9ME3"
+    - "H3K72ME1"
+    - "H3K72ME2"
+    - "H3K72ME3"
+
+# Colours for genome browser tracks
+trackcolours:
+    IGG: "153,153,153"  # grey
+    INPUT: "153,153,153"
+    H3K36ME1: "230,159,0"  # orange
+    H3K36ME2: "230,159,0"
+    H3K36ME3: "230,159,0"
+    H3K4ME3: "0,158,115"  # bluish green
+    H3K4ME1: "120,114,33"  # yellow
+    H3K14ac: "120,114,33"
+    H3K27ME1: "0,114,178"  # blue
+    H3K27ME2: "0,114,178"
+    H3K27ME3: "0,114,178"
+    H3K9ME1: "86,180,233"  # sky blue
+    H3K9ME2: "86,180,233"
+    H3K9ME3: "86,180,233"
+    H3AC: "213,94,0"  # vermillion
+    H3K9AC: "213,94,0"
+    H3K27AC: "213,94,0"
+    H3K56AC: "213,94,0"
+    H3K56AC: "213,94,0"
+    H3K79ME1: "204,121,167"  # reddish purple
+    H3K79ME2: "204,121,167"
+    H3K79ME3: "204,121,167"
+    ATAC: "0,158,115"
+    DNASE: "0,158,115"
+
+# Additional colours to be chosen
+colourgradient: # 10 colour gradient from red to blue
+    - "155,3,5"
+    - "140,2,18"
+    - "125,2,31"
+    - "110,2,44"
+    - "96,2,57"
+    - "81,2,70"
+    - "66,2,83"
+    - "52,2,96"
+    - "37,2,109"
+    - "22,2,122"
+
+defaultposition: "chr21:28,049,584-38,023,583"
