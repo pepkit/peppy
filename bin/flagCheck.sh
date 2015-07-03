@@ -6,17 +6,17 @@ echo "running: $running"
 echo "failed: $failed" 
 ls  */*.flag | xargs -n1 basename | sort | uniq -c
 
-if [ $failed -lt 10 ]; then
+if [ $failed -lt 30 ]; then
 echo "List of failed flags:"
 ls */*failed.flag 2> /dev/null
 fi
 
-if [ $completed -lt 10 ]; then
+if [ $completed -lt 30 ]; then
 echo "List of completed flags:"
 ls */*completed.flag 2> /dev/null
 fi
 
-if [ $running -lt 10 ]; then
+if [ $running -lt 30 ]; then
 echo "List of running flags:"
 ls */*running.flag 2> /dev/null
 fi

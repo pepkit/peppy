@@ -24,6 +24,12 @@ chmod -R 544 pipelines
 
 In short, *do not develop pipelines from an active, shared, project-specific clone*. If you want to make changes, consider the following:
 
+Running pipelines
+-----------------
+
+`python ~/repo/pipelines/src_pipeline/project_sample_loop.py -c metadata/config.txt`
+
+
 Developing pipelines
 --------------------
 
