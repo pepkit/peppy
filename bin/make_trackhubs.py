@@ -22,7 +22,8 @@ if not args.conf_file:
 
 #get configurations
 config = ConfigParser.ConfigParser({
-	"results": "$ROOT/results_pipeline/"
+	"results": "$ROOT/results_pipeline/",
+	"email": "jklughammer@cemm.oeaw.ac.at"
 })
 config.readfp(open(args.conf_file))
 
@@ -58,6 +59,9 @@ matrix_y = config.get("track configurations","matrix_y")
 sortOrder = config.get("track configurations","sortOrder")
 parent_track_name = config.get("track configurations","parent_track_name")
 hub_name = config.get("track configurations","hub_name")
+short_label_column = config.get("track configurations", "short_label_column")
+email = config.get("track configurations", "email")
+
 
 # This loop checks for absolute paths; if a path is relative, it
 # converts it to an absolute path *relative to the config file*.
@@ -96,20 +100,26 @@ try:
 		os.makedirs(paths.track_dir)
 	genomes_file = open(paths.track_dir + "/" + "genomes.txt", 'w')
 
-	#write hub.txt
+	# write hub.txt
 	hub_file = open(paths.track_dir + "/" + "hub.txt", 'w')
 	hub_file.writelines("hub " + hub_name + "\n")
 	hub_file.writelines("shortLabel " + hub_name + "\n")
 	hub_file.writelines("longLabel " + hub_name + "\n")
 	hub_file.writelines("genomesFile genomes.txt\n")
-	hub_file.writelines("email jklughammer@cemm.oeaw.ac.at\n")
+	hub_file.writelines("email " + email + "\n")
+
 
 	for row in input_file:  # iterates the rows of the file in orders
-		if not row["run"] == "1":
-			print(row["sample_name"] + ": not selected")
-			continue
+		# if 'run' column is absent, assume we should run them all.
+		if 'run' in row:
+			if not row["run"] == "1":
+				print(row["sample_name"] + ": not selected")
+				continue
+			else:
+				print(row["sample_name"] + ": SELECTED")
 		else:
-			print(row["sample_name"] + ": SELECTED")
+			print(row["sample_name"] + ":")
+			
 
 		present_subGroups = "\tsubGroups "
 		genome = genomes[row["organism"]][0]
@@ -157,13 +167,16 @@ try:
 
 		# TODO NS: we should only have build these once; like so:
 		# Build short label
-		shortLabel = "sl_"
-		if ("Library" in row.keys()):
-			shortLabel += row["library"][0]
-		if ("cell_type" in row.keys()):
-			shortLabel += "_" + row["cell_type"]
-		if ("cell_count" in row.keys()):
-			shortLabel += "_" + row["cell_count"]
+		if short_label_column is not None:
+			shortLabel = row[short_label_column]
+		else:
+			shortLabel = "sl_"
+			if ("Library" in row.keys()):
+				shortLabel += row["library"][0]
+			if ("cell_type" in row.keys()):
+				shortLabel += "_" + row["cell_type"]
+			if ("cell_count" in row.keys()):
+				shortLabel += "_" + row["cell_count"]
 
 
 		#For RNA (tophat) files
