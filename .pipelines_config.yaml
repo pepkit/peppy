@@ -55,6 +55,7 @@ annotations:
         mm10: /fhgfs/groups/lab_bock/arendeiro/share/GRCm38_mm19_refSeq.tss.bed
     alignability:
         hg19:
+            24: /data/prod/ngs_resources/genomes/hg19/mappability/wgEncodeCrgMapabilityAlign24mer.bed
             36: /data/prod/ngs_resources/genomes/hg19/mappability/wgEncodeCrgMapabilityAlign36mer.bed
             50: /data/prod/ngs_resources/genomes/hg19/mappability/wgEncodeCrgMapabilityAlign50mer.bed
 
