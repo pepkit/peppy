@@ -32,10 +32,10 @@ genomes:
 # Paths to genome annotations
 annotations:
     genomes:
-        hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/indexed_bowtie2
-        hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/indexed_bowtie2
-        mm10: /data/groups/lab_bock/shared/resources/genomes/mm10/indexed_bowtie2
-        ercc: /data/groups/lab_bock/shared/resources/genomes/ERCC92/indexed_bowtie2
+        hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/indexed_bowtie2/hg38
+        hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/indexed_bowtie2/hg19
+        mm10: /data/groups/lab_bock/shared/resources/genomes/mm10/indexed_bowtie2/mm10
+        ercc: /data/groups/lab_bock/shared/resources/genomes/ERCC92/indexed_bowtie2/ERCC92
     transcriptomes:
         hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/ucsc_hg38_ensembl_genes.gtf
         hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/ucsc_hg19_ensembl_genes.gtf
