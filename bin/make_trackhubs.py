@@ -23,12 +23,28 @@ if not args.conf_file:
 #get configurations
 config = ConfigParser.ConfigParser({
 	"results": "$ROOT/results_pipeline/",
-	"email": "jklughammer@cemm.oeaw.ac.at"
+	"email": "jklughammer@cemm.oeaw.ac.at",
+	"short_label_column": None
 })
 config.readfp(open(args.conf_file))
 
 #organism-genome translation
 genomes = {"human": ["hg19", "hg19_cdna"], "mouse": ["mm10", "m38_cdna"]}
+
+# Pick the genome matching the organism from the sample annotation sheet.
+# If no mapping exists in  the organism-genome translation dictionary, then
+# we assume the given organism name directly corresponds to the name of a 
+# reference genome. This enables the use of additional genomes without any
+# need to modify the code.
+# (REPLICATED FROM project_sample_loop.py -- TODO resolve rundandancy)
+def get_genome(organism,dna=True):
+	if organism in genomes.keys():
+		if dna:
+			return genomes[organism][0]
+		else:
+			return genomes[organism][1]
+	else:
+		return organism
 
 # Create an empty object to hold paths
 class Container:
@@ -92,6 +108,9 @@ present_genomes = {}
 subGroups_perGenome = {}
 subGroups = {"exp_category":{},"FACS_marker":{},"cell_type":{},"treatment":{},"treatment_length":{},"cell_count":{},"library":{},"data_type":{}}
 
+# add x- and y-dimension to subGroups even if they are not in the standard column selection:
+subGroups[matrix_x] = {}
+subGroups[matrix_y] = {}
 
 
 try:
@@ -122,7 +141,7 @@ try:
 			
 
 		present_subGroups = "\tsubGroups "
-		genome = genomes[row["organism"]][0]
+		genome = get_genome(row["organism"])
 		if args.filter:
 			tophat_bw_file = paths.results+ "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln.filt_sorted.bw"
 		else:
