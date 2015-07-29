@@ -32,17 +32,19 @@ genomes:
 # Paths to genome annotations
 annotations:
     genomes:
-        hg19: /data/prod/ngs_resources/genomes/hg19/forBowtie2/withoutRandom/hg19
-        mm10: /data/prod/ngs_resources/genomes/hg19/forBowtie2/withoutRandom/mm10
-        ercc: /fhgfs/groups/lab_bock/shared/resources/genomes/ERCC92/indexed_bowtie2/ERCC92
+        hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/indexed_bowtie2
+        hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/indexed_bowtie2
+        mm10: /data/groups/lab_bock/shared/resources/genomes/mm10/indexed_bowtie2
+        ercc: /data/groups/lab_bock/shared/resources/genomes/ERCC92/indexed_bowtie2
     transcriptomes:
-        hg38: /home/arendeiro/Homo_sapiens.GRCh38.80.gtf
-        hg19: /home/arendeiro/Homo_sapiens.GRCh37.75.gtf
-        mm10: /fhgfs/groups/lab_bock/shared/resources/genomes/mm10/ucsc_mm10_ensembl_genes.gtf
-        ercc: /home/arendeiro/ERCC92.gtf
+        hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/ucsc_hg38_ensembl_genes.gtf
+        hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/ucsc_hg19_ensembl_genes.gtf
+        mm10: /data/groups/lab_bock/shared/resources/genomes/mm10/ucsc_mm10_ensembl_genes.gtf
+        ercc: /data/groups/lab_bock/shared/resources/genomes/ERCC92/ERCC92.gtf
     chrsizes:
-        hg19: /fhgfs/groups/lab_bock/arendeiro/share/hg19.chrom.sizes
-        mm10: /fhgfs/groups/lab_bock/arendeiro/share/mm10.chrom.sizes
+        hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/hg38.chromSizes
+        hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/hg19.chromSizes
+        mm10: /data/groups/lab_bock/shared/resources/genomes/mm10/mm10.chromSizes
     kallistoindex:
         hg38: /home/arendeiro/kallisto/Homo_sapiens.GRCh38.rel79.cdna.all.ERCC_nopolyA.idx
         hg19: /home/arendeiro/kallisto/Homo_sapiens.GRCh37.75.cdna.all.ERCC_nopolyA.idx
