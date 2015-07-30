@@ -65,14 +65,8 @@ annotations:
 adapters: /fhgfs/groups/lab_bock/shared/cm.fa
 
 # Mandatory columns in sample annotation sheet
-sheet: 
-    - "cellLine"
-    - "numberCells"
+sheet:
     - "technique"
-    - "ip"
-    - "patient"
-    - "treatment"
-    - "biologicalReplicate"
     - "technicalReplicate"
     - "genome"
 
@@ -98,6 +92,9 @@ techniques:
         - "QUANT"
         - "QUANT-SEQ"
         - "QUANTSEQ"
+    chemseq:
+        - "CHEM"
+        - "CHEM-SEQ"
 
 # Factors considered as histones
 # Factors matching this as substring
