@@ -11,13 +11,13 @@ from argparse import ArgumentParser
 # #######################################################################################
 parser = ArgumentParser(description='make_trackhubs')
 
-parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file. Example: /fhgfs/groups/lab_bock/shared/COREseq/config.txt")
+parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]. Example: /fhgfs/groups/lab_bock/shared/COREseq/config.txt")
 parser.add_argument('-f', dest='filter', action='store_false', default=True)
 
 args = parser.parse_args()
 
 if not args.conf_file:
-	print "Supply config file. Example: /fhgfs/groups/lab_bock/shared/COREseq/config.txt"
+	parser.print_help() #or, print_usage() for less verbosity
 	raise SystemExit
 
 #get configurations
@@ -33,7 +33,7 @@ genomes = {"human": ["hg19", "hg19_cdna"], "mouse": ["mm10", "m38_cdna"]}
 
 # Pick the genome matching the organism from the sample annotation sheet.
 # If no mapping exists in  the organism-genome translation dictionary, then
-# we assume the given organism name directly corresponds to the name of a 
+# we assume the given organism name directly corresponds to the name of a
 # reference genome. This enables the use of additional genomes without any
 # need to modify the code.
 # (REPLICATED FROM project_sample_loop.py -- TODO resolve rundandancy)
@@ -138,7 +138,7 @@ try:
 				print(row["sample_name"] + ": SELECTED")
 		else:
 			print(row["sample_name"] + ":")
-			
+
 
 		present_subGroups = "\tsubGroups "
 		genome = get_genome(row["organism"])
