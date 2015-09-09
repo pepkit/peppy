@@ -25,6 +25,8 @@ resources/
 
 
 !*.xlsx
+!*.yaml
+!*.tsv
 
 #make sure to track .gitignore
 !.gitignore
