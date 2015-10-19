@@ -37,6 +37,7 @@ genomes = {"human": ["hg19", "hg19_cdna"], "mouse": ["mm10", "m38_cdna"]}
 # reference genome. This enables the use of additional genomes without any
 # need to modify the code.
 # (REPLICATED FROM project_sample_loop.py -- TODO resolve rundandancy)
+
 def get_genome(organism,dna=True):
 	if organism in genomes.keys():
 		if dna:
