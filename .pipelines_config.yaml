@@ -24,8 +24,9 @@ options:
     mergebiological: True
 
 # Supported genomes
-# if sample.genome not in genomes, fail
+# if sample.genome not in config["genomes"], fail
 genomes:
+    - hg38
     - hg19
     - mm10
 
@@ -50,8 +51,9 @@ annotations:
         hg19: /home/arendeiro/kallisto/Homo_sapiens.GRCh37.75.cdna.all.ERCC_nopolyA.idx
         dr7: /home/arendeiro/kallisto/Danio_rerio.Zv9.rel79.cdna.all.ERCC.idx
     genomewindows:
-        hg19: /fhgfs/groups/lab_bock/arendeiro/share/hg19.genomeWindows_1kb.bed
-        mm10: /fhgfs/groups/lab_bock/arendeiro/share/mm10.genomeWindows_1kb.bed
+        hg38: /data/groups/lab_bock/shared/resources/genomes/hg38/hg38.genomeWindows_1kb.bed
+        hg19: /data/groups/lab_bock/shared/resources/genomes/hg19/hg19.genomeWindows_1kb.bed
+        mm10: /data/groups/lab_bock/shared/resources/genomes/mm10/mm10.genomeWindows_1kb.bed
     tss:
         hg19: /fhgfs/groups/lab_bock/arendeiro/share/GRCh37_hg19_refSeq.tss.bed
         mm10: /fhgfs/groups/lab_bock/arendeiro/share/GRCm38_mm19_refSeq.tss.bed
@@ -62,7 +64,7 @@ annotations:
             50: /data/groups/lab_bock/shared/resources/genomes/hg19/mappability/wgEncodeCrgMapabilityAlign50mer.bed
 
 # Adapters to use for read trimming
-adapters: /fhgfs/groups/lab_bock/shared/cm.fa
+adapters: /data/groups/lab_bock/shared/resources/adapters/ATAC_ChIPmentation_adapters.fa
 
 # Mandatory columns in sample annotation sheet
 sheet:
