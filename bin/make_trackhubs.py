@@ -13,6 +13,7 @@ parser = ArgumentParser(description='make_trackhubs')
 
 parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]. Example: /fhgfs/groups/lab_bock/shared/COREseq/config.txt")
 parser.add_argument('-f', dest='filter', action='store_false', default=True)
+parser.add_argument('--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
 
 args = parser.parse_args()
 
@@ -299,7 +300,7 @@ try:
 		composit_text += "type bigWig" + "\n"
 		composit_text += "color 0,60,120" + "\n"
 		composit_text += "spectrum on" + "\n"
-		composit_text += "visibility dense" + "\n"
+		composit_text += "visibility " + args.visibililty + "\n"
 		composit_text += dim_text + "\n"
 		composit_text += "sortOrder " + sortOrder + "\n"
 
