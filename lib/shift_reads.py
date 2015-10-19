@@ -16,10 +16,12 @@ def getChrSizes(chrmFile):
     return chrmSizes
 
 chrSizes = {
-    "hg19": "/fhgfs/groups/lab_bock/arendeiro/share/hg19.chrom.sizes",
-    "mm10": "/fhgfs/groups/lab_bock/arendeiro/share/mm10.chrom.sizes",
-    "dr7": "/fhgfs/groups/lab_bock/arendeiro/share/danRer7.chrom.sizes"
+    "hg38": "/data/groups/lab_bock/shared/resources/genomes/hg38/hg38.chromSizes",
+    "hg19": "/data/groups/lab_bock/shared/resources/genomes/hg19/hg19.chromSizes",
+    "mm10": "/data/groups/lab_bock/shared/resources/genomes/mm10/mm10.chromSizes",
+    "dr7": "/data/groups/lab_bock/shared/resources/genomes/dr7/dr7.chromSizes"
 }
+
 
 genome = sys.argv[1]
 chrms = getChrSizes(chrSizes[genome])  # get size of chromosomes
