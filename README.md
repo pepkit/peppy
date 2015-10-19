@@ -24,6 +24,8 @@ In short, *do not develop pipelines from an active, shared, project-specific clo
 
 # Environment variables
 
+These are our agreed names for environment variables, which can then be used to do change global locations.
+
 ```
 # Pointer to the 'raw data' filesystem
 export RAWDATA="/fhgfs/groups/lab_bsf/samples/"
@@ -32,7 +34,7 @@ export RAWDATA="/fhgfs/groups/lab_bsf/samples/"
 export PROCESSED="/fhgfs/groups/lab_bock/shared/projects/"
 
 # Pointer to web exported filesystem
-export WEB="/data/groups/lab_bock/public_html/nsheffield/"
+export WEB="/data/groups/lab_bock/public_html/$USERNAME/"
 
 # Pointer to the common shared resources directory
 export RESOURCES="/data/groups/lab_bock/shared/resources/"
@@ -52,20 +54,36 @@ We use the Looper to run pipelines, with the script `src_pipeline/project_sample
 Config files are just `.ini` files. Here's an example:
 
 ```
-  [paths]
-  project_root=/fhgfs/groups/lab_bock/shared/projects/ews_patients
-  psa=table_experiments_BS.csv
-  merge_table=table_merge.csv
-  track_dir=/data/groups/lab_bock/public_html/nsheffield/b8ab8bs9b8d/ews_rrbs/
-  [track configurations]
-  matrix_x=cell_type
-  matrix_y=cell_count
-  sortOrder= cell_type=+
-  parent_track_name=ews_rrbs
-  hub_name=ews_hub
-  short_label_column=sample_name
-  email=nathan@code.databio.org
+ [paths]
+project_root=/fhgfs/groups/lab_bock/shared/projects/ews_patients
+psa=table_experiments_BS.csv
+merge_table=table_merge.csv
+track_dir=/data/groups/lab_bock/public_html/nsheffield/b8ab8bs9b8d/ews_rrbs/
+[track configurations]
+matrix_x=cell_type
+matrix_y=cell_count
+sortOrder= cell_type=+
+parent_track_name=ews_rrbs
+hub_name=ews_hub
+short_label_column=sample_name
+email=nathan@code.databio.org
+[genomes]
+human=hg38
+[transcriptomes]
+human=hg38_cdna
+[data_sources]
+bsf_samples={RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam
+encode_rrbs={PROCESSED}epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz
 ```
+
+## Data sources section
+The data sources can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}` are populated in this order:
+
+Highest priority: sample annotation sheet
+Second priority: config file
+Lowest priority: environment variables
+
+The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
 
 The `track_configurations` section is for making trackhubs (see below).
 
