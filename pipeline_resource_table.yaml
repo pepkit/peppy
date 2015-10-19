@@ -1,0 +1,32 @@
+wgbs_pipeline.py:
+  default:
+    cores: 12
+    mem: 8000
+    time: 20D
+    partition: "n001:n006"
+  5:
+    mem: 4000
+    time: 2D
+  20:
+    time: 5D
+
+rrbs:
+  default:
+    cores: 4
+    mem: 6000
+    time: 3D
+  5:
+    time: 1D
+    mem: 4000
+
+biseq:
+ default:
+    cores: 6
+    mem: 6000
+    time: 2D
+
+tophat:
+  default:
+    cores: 2
+    mem: 30000
+    time: 10D
