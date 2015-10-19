@@ -22,6 +22,25 @@ chmod -R 544 pipelines
 
 In short, *do not develop pipelines from an active, shared, project-specific clone*. If you want to make changes, consider the following:
 
+# Environment variables
+
+```
+# Pointer to the 'raw data' filesystem
+export RAWDATA="/fhgfs/groups/lab_bsf/samples/"
+
+# Pointer to the 'processed data' filesystem
+export PROCESSED="/fhgfs/groups/lab_bock/shared/projects/"
+
+# Pointer to web exported filesystem
+export WEB="/data/groups/lab_bock/public_html/nsheffield/"
+
+# Pointer to the common shared resources directory
+export RESOURCES="/data/groups/lab_bock/shared/resources/"
+
+# Pointer to the collection of git repos
+export CODEBASE="$HOME/code/"
+```
+
 # Running pipelines
 
 We use the Looper to run pipelines, with the script `src_pipeline/project_sample_loop.py`. This just requires a config file passed as an argument, which contains all the settings that the looper needs to run. It submits each job to SLURM.
