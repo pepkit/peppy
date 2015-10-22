@@ -109,6 +109,10 @@ rnaCombined=get(cacheName)
 rnaCombined_wide=dcast.data.table(unique(rnaCombined[!is.na(RPKM)]),ensT+ensG+gene+transcript~sample_name,value.var="RPKM")
 write.table(rnaCombined_wide,paste0(QC_dir,"/RPKM_combined.tsv"),sep="\t",row.names=FALSE,quote=FALSE)
 
+#provide unchanged table of count values
+rnaCombined_wide=dcast.data.table(unique(rnaCombined[!is.na(count)]),ensT+ensG+gene+transcript~sample_name,value.var="count")
+write.table(rnaCombined_wide,paste0(QC_dir,"/counts_combined.tsv"),sep="\t",row.names=FALSE,quote=FALSE)
+
 #rnaCombined_unique=unique(rnaCombined[!is.na(RPKM),names(rnaCombined)[!names(rnaCombined)%in%c("GO_term","GO_ID")],with=FALSE])
 rnaCombined_unique=unique(rnaCombined[!is.na(RPKM)])
 
