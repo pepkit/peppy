@@ -12,6 +12,9 @@ sampleAnnotation_path="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypipe
 genome="ERCC92"
 organism="mouse"
 
+system(paste0("mkdir -p ",getwd(),"/RCache/"))
+setCacheDir(paste0(getwd(),"/RCache/"))
+
 cacheName=paste0("setdb2_RNA_",genome)
 
 QC_dir=paste0("results_analysis/QC_",genome)
