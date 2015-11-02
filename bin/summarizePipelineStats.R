@@ -24,7 +24,7 @@ results=list()
 dir = pipeDirs[[1]];
 for (dir in pipeDirs) {
 	message(dir);
-	statFiles = list.files(dir, pattern="_stats.txt", recursive=FALSE)
+	statFiles = list.files(dir, pattern="_stats", recursive=FALSE)
 	statFiles2 = list.files(dir, pattern="stats_", recursive=FALSE)
 	statFiles = c(statFiles, statFiles2)
 	for (statFile in statFiles) {
