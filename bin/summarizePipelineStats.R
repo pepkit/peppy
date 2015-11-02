@@ -24,8 +24,8 @@ results=list()
 dir = pipeDirs[[1]];
 for (dir in pipeDirs) {
 	message(dir);
-	statFiles = list.files(dir, pattern="_stats.txt")
-	statFiles2 = list.files(dir, pattern="stats_")
+	statFiles = list.files(dir, pattern="_stats", recursive=FALSE)
+	statFiles2 = list.files(dir, pattern="stats_", recursive=FALSE)
 	statFiles = c(statFiles, statFiles2)
 	for (statFile in statFiles) {
 		message(statFile);
@@ -34,7 +34,9 @@ for (dir in pipeDirs) {
 		statPath = paste0(dir, "/", statFile);
 		# Not the best, but I had to put this in just in case
 		# there are empty lines in the stat file; this removes them
+		message(":")
 		system(paste0("sed -i '/^\\s*$/d' ", statPath))
+		message(":")
 		a = fread(statPath)
 		setnames(a, c("key", "value"))
 		a[,key:=gsub(" ", "_", key)] # Change spaces to underscores
