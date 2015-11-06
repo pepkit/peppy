@@ -300,7 +300,7 @@ try:
 		composit_text += "type bigWig" + "\n"
 		composit_text += "color 0,60,120" + "\n"
 		composit_text += "spectrum on" + "\n"
-		composit_text += "visibility " + args.visibililty + "\n"
+		composit_text += "visibility " + args.visibility + "\n"
 		composit_text += dim_text + "\n"
 		composit_text += "sortOrder " + sortOrder + "\n"
 
