@@ -6,18 +6,18 @@ suppressPackageStartupMessages(library(reshape2))
 suppressPackageStartupMessages(library(cummeRbund))
 
 #things to set
-setwd("/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/")
-results_pipeline="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/results_pipeline/"
-sampleAnnotation_path="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/metadata/projectSampleAnnotation.csv"
-genome="m38_cdna"
-organism="mouse"
+setwd("/scratch/lab_bock/shared/projects/hap1-knockouts/")
+results_pipeline="/scratch/lab_bock/shared/projects/hap1-knockouts/results_pipeline"
+sampleAnnotation_path="/data/groups/lab_bock/jklughammer/gitRepos/hap1-knockouts/metadata/rna.sample_annotation.csv"
+genome="hg19_cdna"
+organism="human"
 
 system(paste0("mkdir -p ",getwd(),"/RCache/"))
 setCacheDir(paste0(getwd(),"/RCache/"))
 
-cacheName=paste0("setdb2_RNA_",genome)
+cacheName=paste0("hap1-KO_RNA-comp_",genome)
 
-QC_dir=paste0("results_analysis/QC_",genome)
+QC_dir=paste0("results_analysis/QC_RNA-comp",genome)
 system(paste0("mkdir -p ",QC_dir))
 
 
@@ -103,7 +103,8 @@ sampleAnnotationFile=sampleAnnotationFile[organism==organism]
 transcriptAnnotation=fread(tail(system(paste0("ls /data/groups/lab_bock/shared/resources/genomes/",genome,"/transcripts_*"),intern=TRUE),n=1))
 #only for m38 transcript and chromosome are includes so far. Need to be included for pther genomes.
 setnames(transcriptAnnotation,names(transcriptAnnotation),c("ensG","ensT","transc_start","transc_end","transcript","gene","biotype","strand","chr","ensP"))
-
+#Use for hg19_cdna
+setnames(transcriptAnnotation,names(transcriptAnnotation),c("ensG","ensT","transc_start","transc_end","gene","biotype","strand","ensP"))
 
 simpleCache(recreate=FALSE,cacheName,instruction="collectBitSeqData(results_pipeline,sampleAnnotationFile,transcriptAnnotation,genome,resultsStats)")
 rnaCombined=get(cacheName)
@@ -134,7 +135,7 @@ publish=publish[order(as.numeric(spl[seq(2,length(spl),2)]))]
 write.table(publish,paste0(QC_dir,"/combined_sequencing_stats.tsv"),sep="\t",row.names=FALSE,quote=FALSE)
 
 #------------------Filtering-------------------------------------------
-covThrs=25
+covThrs=5
 rnaCombined_unique[,covPass:=ifelse(count<covThrs,FALSE,TRUE),]
 rnaCombined_unique[count<covThrs,RPKM:=min(RPKM),]
 
@@ -166,12 +167,13 @@ write.table(RPKM_transcPass,paste0(QC_dir,"/RPKM_transcPass_covThrs",covThrs,".t
 #covered transcripts
 covered_transc=rnaCombined_unique[covPass==TRUE,list(covered_transcripts=.N,mean_rpkm=mean(RPKM)),by=c("sampleID","sample_name","Raw_reads", "Aligned_reads")]
 covered_transc[,sampleID:=factor(sampleID,levels=unique(sampleID[order(covered_transcripts)]))]
+#covered_transc[,sample_name:=factor(sample_name,levels=unique(sample_name[order(covered_transcripts)]))]
 
-svg(paste0(QC_dir,"/count-passFilter.svg"),width=7,height=10)
+svg(paste0(QC_dir,"/count-passFilter",covThrs,".svg"),width=9,height=10)
 ggplot(covered_transc,aes(x=factor(sampleID),y=covered_transcripts,fill=Aligned_reads))+geom_bar(stat="identity")+xlab("")+coord_flip()+geom_hline(yintercept=500,col="red")
 dev.off()
 
-svg(paste0(QC_dir,"/meanRPKMvsCoveredTranscripts-covPass.svg"),width=6,height=6)
+svg(paste0(QC_dir,"/meanRPKMvsCoveredTranscripts-covPass","_",covThrs,".svg"),width=6,height=6)
 ggplot(covered_transc,aes(x=covered_transcripts,y=log(mean_rpkm),col=Aligned_reads))+geom_point()+theme_bw()
 dev.off()
 
@@ -180,15 +182,15 @@ dev.off()
 mean_expr_perTransript=rnaCombined_unique[covPass==TRUE,list(mean_rpkm=mean(RPKM),sd=sd(RPKM)),by=c("ensT")]
 mean_expr_perSample=rnaCombined_unique[covPass==TRUE,list(mean_rpkm=mean(RPKM),sd=sd(RPKM)),by=c("sample_name","Raw_reads", "Aligned_reads")]
 
-svg(paste0(QC_dir,"/meanRPKM_perSample-covPass.svg"),width=6,height=6)
+svg(paste0(QC_dir,"/meanRPKM_perSample-covPass","_",covThrs,".svg"),width=6,height=6)
 ggplot(mean_expr_perSample,aes(x=log(mean_rpkm)))+geom_bar()+ylab("number of samples")
 dev.off()
-svg(paste0(QC_dir,"/meanRPKM_perTranscripts-covPass.svg"),width=6,height=6)
+svg(paste0(QC_dir,"/meanRPKM_perTranscripts-covPass","_",covThrs,".svg"),width=6,height=6)
 ggplot(mean_expr_perTransript,aes(x=log(mean_rpkm)))+geom_bar()+ylab("number of transcripts")
 dev.off()
 
 #correlation between single cells
-choose=sample(c(4:ncol(RPKM)),24)
+choose=sample(c(4:ncol(RPKM)),10)
 panel.dens=function(x,y){
   points(x,y,col=densCols(x,y),pch=16,cex=1)
 }
@@ -202,31 +204,33 @@ panel.cor <- function(x, y, digits=2, prefix="", cex.cor, ...)
   if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
   text(0.5, 0.5, txt, cex = cex.cor * r)
 }
-png(paste0(QC_dir,"/correlationScatter_logRPKM-covPass.png"),width=6000,height=6000)
+png(paste0(QC_dir,"/correlationScatter_logRPKM-covPass","_",covThrs,".png"),width=6000,height=6000)
 pairs(log(RPKM_covPass[,choose,with=FALSE]),lower.panel=panel.dens,upper.panel=panel.cor)
 dev.off()
 
 #MDS
+group="treatment"#"exp_category" # needs to be column from sample annotation sheet
+
 MDS=callMDS(RPKM_sampleName,3)
 MDS_annot=merge(sampleAnnotationFile,MDS,by="sample_name")
-svg(paste0(QC_dir,"/MDS-allTranscripts.svg"),width=7,height=6)
+svg(paste0(QC_dir,"/MDS-allTranscripts_",group,"_",covThrs,".svg"),width=7,height=6)
 #ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(exp_category)))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
-ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(treatment)))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
+ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(get(group))))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
 dev.off()
 
 #[,-grep("Patient",names(RPKM_transcPass_sampleName)),with=FALSE]
 MDS=callMDS(RPKM_transcPass_sampleName,3)
 MDS_annot=merge(sampleAnnotationFile,MDS,by="sample_name")
-svg(paste0(QC_dir,"/MDS-allTranscripts-transcPass.svg"),width=7,height=6)
+svg(paste0(QC_dir,"/MDS-allTranscripts-transcPass_",group,"_",covThrs,".svg"),width=7,height=6)
 #ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(exp_category)))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
-ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(treatment)))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
+ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(get(group))))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
 dev.off()
 
 MDS=callMDS(RPKM_transcPass,3)
 setnames(MDS,"sample_name","sampleID")
 MDS_annot=merge(sampleAnnotationFile,MDS,by="sampleID")
-svg(paste0(QC_dir,"/MDS-allTranscripts-transcPass_ID.svg"),width=7,height=6)
+svg(paste0(QC_dir,"/MDS-allTranscripts-transcPass_ID_",group,"_",covThrs,".svg"),width=7,height=6)
 #ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(exp_category)))+geom_point()+geom_text(aes(label=sample_name),size=3)+theme_bw()
-ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(treatment)))+geom_point()+geom_text(aes(label=sampleID),size=3)+theme_bw()
+ggplot(MDS_annot,aes(x=MDS1,y=MDS2,col=factor(get(group))))+geom_point()+geom_text(aes(label=sampleID),size=3)+theme_bw()
 dev.off()
 
