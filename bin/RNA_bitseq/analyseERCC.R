@@ -4,13 +4,15 @@ suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(simpleCache))
 suppressPackageStartupMessages(library(reshape2))
 suppressPackageStartupMessages(library(cummeRbund))
+suppressPackageStartupMessages(library(gtools))
 
 #things to set
-setwd("/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/")
-results_pipeline="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/results_pipeline/"
-sampleAnnotation_path="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/metadata/projectSampleAnnotation.csv"
+setwd("/scratch/lab_bock/shared/projects/hap1-knockouts/")
+results_pipeline="/scratch/lab_bock/shared/projects/hap1-knockouts/results_pipeline/"
+sampleAnnotation_path="/data/groups/lab_bock/jklughammer/gitRepos/hap1-knockouts/metadata/rna.sample_annotation.csv"
 genome="ERCC92"
-organism="mouse"
+organism="human"
+sampleAnnotationFile=fread(sampleAnnotation_path)
 
 system(paste0("mkdir -p ",getwd(),"/RCache/"))
 setCacheDir(paste0(getwd(),"/RCache/"))
@@ -98,7 +100,7 @@ callMDS=function(RPKM,offset){
 
 transcriptAnnotation=fread("/data/groups/lab_bock/shared/resources/genomes/ERCC92/ERCC_Controls_Analysis.txt")
 setnames(transcriptAnnotation,names(transcriptAnnotation),c("sortID","ID","subgroup","concMix1","concMix2","expectedFoldChange","log2_Mix1-Mix2"))
-
+resultsStats=fread(paste0(results_pipeline,"/rnaBitSeq_stats_summary.tsv"))
 
 #-------------------------
 
@@ -110,7 +112,7 @@ rnaCombined[,sampleID:=factor(sampleID,levels=unique(mixedsort(sampleID))),]
 
 
 #-------------Filter-----------------------------
-covThrs=25
+covThrs=5
 rnaCombined[,covPass:=ifelse(count<covThrs,FALSE,TRUE),]
 #rnaCombined[count<covThrs,RPKM:=min(RPKM),]
 
@@ -124,6 +126,24 @@ write.table(sampleStats,paste0(QC_dir,"/sampleStats_",covThrs,".tsv"),sep="\t",r
 
 
 #--------------QC plots----------------------------
+
+#influence of length of transcript
+rnaCombined[,measurements:=.N,by=c("ERCC_molecules","sampleID")]
+rnaCombined[,correlation_RPKM:=round(cor(length,log(RPKM),method="pearson"),2),by="ERCC_molecules"]  #correlation probably not very reasonable if there are only two measurements
+rnaCombined[,correlation_count:=round(cor(length,log(count),method="pearson"),2),by="ERCC_molecules"]
+rnaCombined[,ERCC_molecules_round:=round(ERCC_molecules,0),]
+rnaCombined[,length_n:=paste0(ERCC_molecules_round," molecules/sample"),]
+rnaCombined[,length_n:=factor(length_n,levels=unique(length_n[order(ERCC_molecules_round)])),]
+
+svg(paste0(QC_dir,"/length-RPKM.svg"),width=4.5,height=8)
+ggplot(rnaCombined[measurements>=2&ERCC_molecules>10],aes(y=log(RPKM),x=factor(length),col=covPass))+geom_point(size=2.6,position=position_jitter(width=0.16),alpha=0.5)+facet_wrap(~length_n,scale="free_x",ncol=2)+geom_smooth(aes(group = covPass,col=covPass),method=lm,se=FALSE,size=1)+xlab("ERCC length (bases)")+scale_color_discrete(name=paste0("coverage\n> ",covThrs," reads"))+theme(legend.position="bottom")
+dev.off()
+
+svg(paste0(QC_dir,"/length-count.svg"),width=4.5,height=8)
+ggplot(rnaCombined[measurements>=2&ERCC_molecules>10],aes(y=log(count),x=factor(length),col=covPass))+geom_point(size=2.6,position=position_jitter(width=0.16),alpha=0.5)+facet_wrap(~length_n,scale="free_x",ncol=2)+geom_smooth(aes(group = covPass,col=covPass),method=lm,se=FALSE,size=1)+xlab("ERCC length (bases)")+scale_color_discrete(name=paste0("coverage\n> ",covThrs," reads"))+theme(legend.position="bottom")
+dev.off()
+
+
 
 #boxplot of RPKM vs. ERCC concemtration
 svg(paste0(QC_dir,"/log10RPKM_boxplot.svg"),width=12,height=7)
