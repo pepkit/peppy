@@ -91,47 +91,12 @@ class PipelineLogic(object):
 		return("Name: " + str(self.name) + "\tCommands: " + str(self.commands))
 
 
-class ResourceTableLookup(object):
-	''' This class parses, holds, and returns information for a yaml 
-	resource file that specifies for given pipelines and file sizes, 
-	what resource variables should be used for the given file.
-	'''
-
-	def __init__(self, yaml_config_file):
-		#self.resources = defaultdict(dict)
-		self.resources = yaml.load(open(yaml_config_file, 'r'))
-		print(config)
-
-	def resource_lookup(self, tag, size):
-	'''
-	Given a pipeline name (tag) and a file size (size), return the
-	resource configuratio specified by the config file.
-	'''
-		current_pick=1000000000
-
-		table = self.resources[tag]
-		for alloc in table:
-			print(alloc)
-			if alloc == "default":
-				continue
-			if size > float(alloc):
-				continue
-			elif float(alloc) < current_pick:
-				current_pick = float(alloc)
-
-		if current_pick==1000000000:
-			current_pick = 'default'
-
-		print("choose:" + str(current_pick))
-		return(current_pick)
-
-
 
 psa = "basic_sample_table.tsv"
 llt = "lurker_logic_table.tsv"
 prt = "pipeline_resource_table.tsv"
 
-pry = "pipeline_resource_table.yaml"
+
 
 
 f = open(psa, 'rb')  # opens the csv file
