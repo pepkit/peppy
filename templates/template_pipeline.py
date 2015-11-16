@@ -46,6 +46,12 @@ with open(args.config_file, 'r') as config_file:
 pipeline_outfolder = os.path.abspath(os.path.join(args.output_parent, args.sample_name))
 pipe = Pypiper(name="CpGseq", outfolder=pipeline_outfolder, args=args)  
 
+pipe.timestamp("### Running procedure")
 
-except:
-  raise SystemExit("error creating pypiper object")
+# Add pipeline commands here
+
+
+# Terminate
+pipe.stop_pipeline()
+
+
