@@ -1,34 +1,41 @@
-# The project config file, originally in .cfg format
-# This file describes all *project-specific variables*
+# This project config file describes all *project-specific variables*
 # Its primary purpose as as input to Looper, which will submit jobs as appropriate
 # for each sample in the project.
-# But it is also read by multiple other tools, including:
+# But it is also read by other tools, including:
 # - project sample loop (primary purpose)
 # - make_trackhubs scripts to produce web accessible results
 # - stats summary scripts
 # - analysis scripts requiring pointers to metadata, results, and other options.
 
-# Relative paths are considered relative to this project config file.
-
 paths:
-  # output_dir: the parent, shared space where results will go
-  output_dir: /fhgfs/groups/lab_bock/shared/projects/ews_patients
+  # output_dir: the parent, shared space for this project where results will go
+  output_dir: /fhgfs/groups/lab_bock/shared/projects/example
+  # results and submission subdirs are subdirectors directories under parent output_dir
+  # results: where output sample folders will go
+  # submission: where cluster submit scripts and log files will go
+  results_subdir: results_pipeline
+  submission_subdir: submission
+  # pipelines_dir: the directory where the Looper will find pipeline
+  # scripts (and accompanying pipeline config files) for submission.
+  pipelines_dir: /fhgfs/groups/lab_bock/shared/projects/example/pipelines
+  
+metadata:
+  # Relative paths are considered relative to this project config file.
+  # Typically, this project config file is stored with the project metadata
   # sample_annotation: one-row-per-sample metadata
-  sample_annotation: table_experiments_BS.csv
+  sample_annotation: table_experiments.csv
   # merge_table: input for samples with more than one input file
   merge_table: table_merge.csv
   # compare_table: comparison pairs or groups, like normalization samples
-  compare_table: null
-  # pipelines_dir: the directory where the Looper will find pipeline
-  # scripts (and accompanying pipeline config files) for submission.
-  pipelines_dir: ~/code/pipelines
+  compare_table: table_compare.csv
 
 data_sources:
   # specify the location of input files using variable path expressions
   # entries correspond to values in the data_source column in sample_annotation table
   # {variable} can be used to replace environment variables or other sample_annotation columns
-  bsf_samples: {RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam
-  encode_rrbs: /fhgfs/groups/lab_bock/shared/projects/epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz
+  # If you use {variable} codes, you should quote the field so python can parse it.
+  bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
+  encode_rrbs: "/fhgfs/groups/lab_bock/shared/projects/epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
 
 genomes:
   human: hg19
