@@ -18,7 +18,7 @@ paths:
   # pipelines_dir: the directory where the Looper will find pipeline
   # scripts (and accompanying pipeline config files) for submission.
   pipelines_dir: /fhgfs/groups/lab_bock/shared/projects/example/pipelines
-  
+
 metadata:
   # Relative paths are considered relative to this project config file.
   # Typically, this project config file is stored with the project metadata
