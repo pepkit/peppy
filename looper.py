@@ -305,7 +305,7 @@ def main():
 			#slurm_settings["VAR_PARTITION"] = rtl.get_resources(pl, opt, "partition")
 			#slurm_settings["VAR_CODE"] = cmd
 
-			cluster_submit(submit_template, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		if bitseq:
 			# Submit the RNA BitSeq analysis
