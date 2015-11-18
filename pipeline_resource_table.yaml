@@ -1,14 +1,24 @@
 wgbs_pipeline.py:
-  default:
-    cores: 12
-    mem: 8000
-    time: 20D
-    partition: "n001:n006"
-  5:
-    mem: 4000
-    time: 2D
-  20:
-    time: 5D
+  default: # You must have 1 option named 'default' with file_size=0.
+    file_size: "0"
+    cores: "4"
+    mem: "6000"
+    time: "2D"
+    partition: "longq"
+  # Add as many additional resource packages as you want. The names are decided
+  # by you.
+  medium:
+    file_size: "5"
+    cores: "4"
+    mem: "8000"
+    time: "5D"
+    partition: "longq"
+  high:
+    file_size: "20"
+    cores: "12"
+    mem: "12000"
+    time: "20D"
+    partition: "longq"
 
 rrbs:
   default:

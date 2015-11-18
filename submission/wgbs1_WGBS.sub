@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH --job-name='wgbs1_wgbs'
+#SBATCH --mem-per-cpu=4000
+#SBATCH --cpus-per-task=6
+#SBATCH -m block
+
+#SBATCH --partition=develop
+#SBATCH --ntasks=1
+#SBATCH --time=20-00:00:00
+#SBATCH --output='/fhgfs/groups/lab_bock/shared/projects/example/pipelines/submission/wgbs1_WGBS.log'
+
+echo 'Compute node:' `hostname`
+echo 'Start time:' `date +'%Y-%m-%d %T'`
+
+python /fhgfs/groups/lab_bock/shared/projects/example/pipelines/src_pipeline/wgbs_pipeline.py -i /data/groups/lab_bock/shared/resources/microtest/wgbs1.bam -s wgbs1 -g hg19 --project-root=/fhgfs/groups/lab_bock/shared/projects/example/pipelines/results_pipeline  -q 
+
+
