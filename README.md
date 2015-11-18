@@ -71,7 +71,7 @@ data_sources:
   encode_rrbs: "/fhgfs/groups/lab_bock/shared/projects/epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
 ```
 
-However, there are more options. See the [project config template](templates/template_pipeline_config.yaml) for a more comprehensive list of options.
+However, there are more options. See the [project config template](examples/template_pipeline_config.yaml) for a more comprehensive list of options.
 
 We need better documentation on all the options for the config files.
 
