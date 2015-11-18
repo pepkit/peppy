@@ -24,7 +24,8 @@ class ResourceTableLookup(object):
 	"""
 	This class parses, holds, and returns information for a yaml
 	resource file that specifies for given pipelines and file sizes,
-	what resource variables should be used for the given file.
+	what resource variables for cluster submission
+	should be used for the given input file.
 	"""
 
 	def __init__(self, yaml_config_file):
@@ -34,7 +35,7 @@ class ResourceTableLookup(object):
 		self.resources = yaml.load(open(yaml_config_file, 'r'))
 		print(self.resources)
 
-	def resource_lookup(self, tag, size):
+	def resource_lookup(self, tag, file_size):
 		'''
 		Given a pipeline name (tag) and a file size (size), return the
 		resource configuratio specified by the config file.
@@ -46,13 +47,21 @@ class ResourceTableLookup(object):
 			print(option)
 			if table[option]['file_size'] == "0":
 				continue
-			if size < float(table[option]['file_size']):
+			if file_size < float(table[option]['file_size']):
 				continue
 			elif float(table[option]['file_size']) > table[current_pick]['file_size']:
 				current_pick = option
 
 		print("choose:" + str(current_pick))
 		return(current_pick)
+
+	def get_resource_dict(self, tag, file_size):
+		'''
+		Given a pipeline name (tag) and a file_size,
+		identify and return the resource set
+		'''
+		resource_package_name = choose_resource_package(tag, file_size)
+		return(self.resources[tag][resource_package_name])
 
 	def get_resources(self, tag, option, var):
 		print(self.resources[tag].keys())
@@ -119,28 +128,32 @@ def make_sure_path_exists(path):
 			raise
 
 
-def slurm_submit(sample, template, variables_dict, slurm_folder, pipeline_outfolder,
-				 pipeline_name, submit=False, dry_run=False, remaining_args=list()):
+
+def cluster_submit(submit_template, submission_command, variables_dict, submission_folder,
+				pipeline_outfolder, pipeline_name, 
+				submit=False, dry_run=False, remaining_args=list()):
 	"""
-	Submit job to slurm.
+	Submit job to cluster manager.
 	"""
 	# Some generic variables
-	submit_script = os.path.join(slurm_folder, sample.sample_name + "_" + pipeline_name + ".sub")
-	submit_log = os.path.join(slurm_folder, sample.sample_name + "_" + pipeline_name + ".log")
-	variables_dict["VAR_LOGFILE"] = submit_log
+	submit_script = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name + ".sub")
+	submit_log = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name + ".log")
+	variables_dict["LOGFILE"] = submit_log
 
 	# Prepare and write submission script
 	sys.stdout.write("  SUBMIT_SCRIPT: " + submit_script + " ")
 	make_sure_path_exists(os.path.dirname(submit_script))
-	# read in submission template
-	with open(template, 'r') as handle:
+	# read in submit_template
+	with open(submit_template, 'r') as handle:
 		filedata = handle.read()
 	# update variable dict with any additionall arguments
-	print(variables_dict["VAR_CODE"] + " " + str(" ".join(remaining_args)))
-	variables_dict["VAR_CODE"] += " " + str(" ".join(remaining_args))
-	# fill in submission template with variables
+	print(variables_dict["CODE"] + " " + str(" ".join(remaining_args)))
+	variables_dict["CODE"] += " " + str(" ".join(remaining_args))
+	# fill in submit_template with variables
 	for key, value in variables_dict.items():
-		filedata = filedata.replace(str(key), str(value))
+		# Here we add brackets around the key names and use uppercase because
+		# this is how they are encoded as variables in the submit templates.
+		filedata = filedata.replace("{"+str(key).upper()+"}", str(value))
 	# save submission file
 	with open(submit_script, 'w') as handle:
 		handle.write(filedata)
@@ -160,7 +173,8 @@ def slurm_submit(sample, template, variables_dict, slurm_folder, pipeline_outfol
 		if dry_run:
 			print("DRY RUN: I would have submitted this")
 		else:
-			subprocess.call("sbatch " + submit_script, shell=True)
+			subprocess.call(submission_command + " " + submit_script, shell=True)
+
 
 
 def main():
@@ -205,6 +219,7 @@ def main():
 				fail_message += "Run column deselected."
 				# fail = True
 				sys.stdout.write(fail_message + "\n")
+
 				continue
 
 		# drop "-end", "_end", or just "end" from the end of the column value:
@@ -274,20 +289,23 @@ def main():
 			cmd += wgbs_param
 
 			print("input file size: ", get_file_size(sample.data_path))
-			pl = "wgbs_pipeline.py"
-			opt = rtl.resource_lookup(pl, get_file_size(sample.data_path))
+			pl = "wgbs"
+			#opt = rtl.resource_lookup(pl, get_file_size(sample.data_path))
+			submit_settings = rtl.get_resource_dict(pl, get_file_size(sample.data_path))
+			submit_settings["JOBNAME"] = sample.sample_name + "_wgbs"
+			submit_settings["CODE"] = cmd
 
 			# Create new dict
-			slurm_settings = {}
+			#slurm_settings = {}
 
-			slurm_settings["VAR_JOBNAME"] = sample.sample_name + "_wgbs"
-			slurm_settings["VAR_MEM"] = rtl.get_resources(pl, opt, "mem")
-			slurm_settings["VAR_CORES"] = rtl.get_resources(pl, opt, "cores")
-			slurm_settings["VAR_TIME"] = rtl.get_resources(pl, opt, "time")
-			slurm_settings["VAR_PARTITION"] = rtl.get_resources(pl, opt, "partition")
-			slurm_settings["VAR_CODE"] = cmd
+			#slurm_settings["VAR_JOBNAME"] = sample.sample_name + "_wgbs"
+			#slurm_settings["VAR_MEM"] = rtl.get_resources(pl, opt, "mem")
+			#slurm_settings["VAR_CORES"] = rtl.get_resources(pl, opt, "cores")
+			#slurm_settings["VAR_TIME"] = rtl.get_resources(pl, opt, "time")
+			#slurm_settings["VAR_PARTITION"] = rtl.get_resources(pl, opt, "partition")
+			#slurm_settings["VAR_CODE"] = cmd
 
-			slurm_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(submit_template, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		if bitseq:
 			# Submit the RNA BitSeq analysis
@@ -359,3 +377,4 @@ if __name__ == '__main__':
 	except KeyboardInterrupt:
 		print("Program canceled by user!")
 		sys.exit(1)
+

@@ -1,12 +1,24 @@
-wgbs_pipeline.py:
-  default: # You must have 1 option named 'default' with file_size=0.
+# Basic structure:
+# pipeline_name:
+#  resource_package_name:
+#     file_size: "0"
+#     cores: "4"
+#     mem: "6000"
+#     time: "2D"
+#     partition: "longq"
+
+# For each pipeline,
+# You must define at least 1 option named 'default' with file_size=0.
+# Add as many additional resource sets as you want, with any names.
+# The determining component is the file_size.
+
+ wgbs:
+  default:
     file_size: "0"
     cores: "4"
     mem: "6000"
     time: "2D"
     partition: "longq"
-  # Add as many additional resource packages as you want. The names are decided
-  # by you.
   medium:
     file_size: "5"
     cores: "4"
@@ -22,21 +34,47 @@ wgbs_pipeline.py:
 
 rrbs:
   default:
-    cores: 4
-    mem: 6000
-    time: 3D
-  5:
-    time: 1D
-    mem: 4000
+    file_size: "0"
+    cores: "4"
+    mem: "6000"
+    time: "2D"
+    partition: "longq"
+  high:
+    file_size: "0"
+    cores: "4"
+    mem: "6000"
+    time: "2D"
+    partition: "longq"
 
 biseq:
  default:
-    cores: 6
-    mem: 6000
-    time: 2D
+    file_size: "0"
+    cores: "6"
+    mem: "6000"
+    time: "2D"
+    partition: "longq"
 
 tophat:
   default:
-    cores: 2
-    mem: 30000
-    time: 10D
+    file_size: "0"
+    cores: "2"
+    mem: "30000"
+    time: "10D"
+    partition: "longq"
+
+atacseq:
+  default:
+    file_size: "0"
+    cores: "2"
+    mem: "30000"
+    time: "10D"
+    partition: "longq"
+
+chipseq:
+  default:
+    file_size: "0"
+    cores: "2"
+    mem: "30000"
+    time: "10D"
+    partition: "longq"
+    
