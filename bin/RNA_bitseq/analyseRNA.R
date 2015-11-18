@@ -6,16 +6,16 @@ suppressPackageStartupMessages(library(reshape2))
 suppressPackageStartupMessages(library(cummeRbund))
 
 #things to set
-setwd("/scratch/lab_bock/shared/projects/hap1-knockouts/")
-results_pipeline="/scratch/lab_bock/shared/projects/hap1-knockouts/results_pipeline"
-sampleAnnotation_path="/data/groups/lab_bock/jklughammer/gitRepos/hap1-knockouts/metadata/rna.sample_annotation.csv"
+setwd("/data/scratch/lab_bock/jklughammer/projects/compEpi/")
+results_pipeline="/data/scratch/lab_bock/jklughammer/projects/compEpi/results_pipeline/"
+sampleAnnotation_path="/data/groups/lab_bock/jklughammer/gitRepos/compEpi/meta/projectSampleAnnotation.csv"
 genome="hg19_cdna"
 organism="human"
 
 system(paste0("mkdir -p ",getwd(),"/RCache/"))
 setCacheDir(paste0(getwd(),"/RCache/"))
 
-cacheName=paste0("hap1-KO_RNA-comp_",genome)
+cacheName=paste0("Leukos_Hum_RNA_",genome)
 
 QC_dir=paste0("results_analysis/QC_RNA-comp",genome)
 system(paste0("mkdir -p ",QC_dir))
@@ -110,11 +110,18 @@ simpleCache(recreate=FALSE,cacheName,instruction="collectBitSeqData(results_pipe
 rnaCombined=get(cacheName)
 
 #provide unchanged table of rpkm values
+#Mouse
 rnaCombined_wide=dcast.data.table(unique(rnaCombined[!is.na(RPKM)]),ensT+ensG+gene+transcript~sample_name,value.var="RPKM")
+#Human
+rnaCombined_wide=dcast.data.table(unique(rnaCombined[!is.na(RPKM)]),ensT+ensG+gene~sample_name,value.var="RPKM")
 write.table(rnaCombined_wide,paste0(QC_dir,"/RPKM_combined.tsv"),sep="\t",row.names=FALSE,quote=FALSE)
 
 #provide unchanged table of count values
+#Mouse
 rnaCombined_wide=dcast.data.table(unique(rnaCombined[!is.na(count)]),ensT+ensG+gene+transcript~sample_name,value.var="count")
+#Human
+rnaCombined_wide=dcast.data.table(unique(rnaCombined[!is.na(count)]),ensT+ensG+gene~sample_name,value.var="count")
+
 write.table(rnaCombined_wide,paste0(QC_dir,"/counts_combined.tsv"),sep="\t",row.names=FALSE,quote=FALSE)
 
 #rnaCombined_unique=unique(rnaCombined[!is.na(RPKM),names(rnaCombined)[!names(rnaCombined)%in%c("GO_term","GO_ID")],with=FALSE])
@@ -135,7 +142,7 @@ publish=publish[order(as.numeric(spl[seq(2,length(spl),2)]))]
 write.table(publish,paste0(QC_dir,"/combined_sequencing_stats.tsv"),sep="\t",row.names=FALSE,quote=FALSE)
 
 #------------------Filtering-------------------------------------------
-covThrs=5
+covThrs=25
 rnaCombined_unique[,covPass:=ifelse(count<covThrs,FALSE,TRUE),]
 rnaCombined_unique[count<covThrs,RPKM:=min(RPKM),]
 
@@ -209,7 +216,7 @@ pairs(log(RPKM_covPass[,choose,with=FALSE]),lower.panel=panel.dens,upper.panel=p
 dev.off()
 
 #MDS
-group="treatment"#"exp_category" # needs to be column from sample annotation sheet
+group="FACS_marker"#"exp_category" # needs to be column from sample annotation sheet
 
 MDS=callMDS(RPKM_sampleName,3)
 MDS_annot=merge(sampleAnnotationFile,MDS,by="sample_name")

@@ -7,9 +7,9 @@ suppressPackageStartupMessages(library(cummeRbund))
 suppressPackageStartupMessages(library(gtools))
 
 #things to set
-setwd("/scratch/lab_bock/shared/projects/hap1-knockouts/")
-results_pipeline="/scratch/lab_bock/shared/projects/hap1-knockouts/results_pipeline/"
-sampleAnnotation_path="/data/groups/lab_bock/jklughammer/gitRepos/hap1-knockouts/metadata/rna.sample_annotation.csv"
+setwd("/data/scratch/lab_bock/jklughammer/projects/compEpi/")
+results_pipeline="/data/scratch/lab_bock/jklughammer/projects/compEpi/results_pipeline/"
+sampleAnnotation_path="/data/groups/lab_bock/jklughammer/gitRepos/compEpi/meta/projectSampleAnnotation.csv"
 genome="ERCC92"
 organism="human"
 sampleAnnotationFile=fread(sampleAnnotation_path)
@@ -17,7 +17,7 @@ sampleAnnotationFile=fread(sampleAnnotation_path)
 system(paste0("mkdir -p ",getwd(),"/RCache/"))
 setCacheDir(paste0(getwd(),"/RCache/"))
 
-cacheName=paste0("setdb2_RNA_",genome)
+cacheName=paste0("Leukos_Hum_RNA_",genome)
 
 QC_dir=paste0("results_analysis/QC_",genome)
 system(paste0("mkdir -p ",QC_dir))
@@ -112,7 +112,7 @@ rnaCombined[,sampleID:=factor(sampleID,levels=unique(mixedsort(sampleID))),]
 
 
 #-------------Filter-----------------------------
-covThrs=5
+covThrs=4
 rnaCombined[,covPass:=ifelse(count<covThrs,FALSE,TRUE),]
 #rnaCombined[count<covThrs,RPKM:=min(RPKM),]
 
@@ -135,17 +135,34 @@ rnaCombined[,ERCC_molecules_round:=round(ERCC_molecules,0),]
 rnaCombined[,length_n:=paste0(ERCC_molecules_round," molecules/sample"),]
 rnaCombined[,length_n:=factor(length_n,levels=unique(length_n[order(ERCC_molecules_round)])),]
 
-svg(paste0(QC_dir,"/length-RPKM.svg"),width=4.5,height=8)
-ggplot(rnaCombined[measurements>=2&ERCC_molecules>10],aes(y=log(RPKM),x=factor(length),col=covPass))+geom_point(size=2.6,position=position_jitter(width=0.16),alpha=0.5)+facet_wrap(~length_n,scale="free_x",ncol=2)+geom_smooth(aes(group = covPass,col=covPass),method=lm,se=FALSE,size=1)+xlab("ERCC length (bases)")+scale_color_discrete(name=paste0("coverage\n> ",covThrs," reads"))+theme(legend.position="bottom")
+svg(paste0(QC_dir,"/length-RPKM.svg"),width=10,height=14)
+ggplot(rnaCombined[measurements>=2&ERCC_molecules>200000],aes(y=log(RPKM),x=factor(length),col=covPass))+geom_point(size=2.6,position=position_jitter(width=0.16),alpha=0.5)+facet_wrap(~length_n,scale="free_x",ncol=2)+geom_smooth(aes(group = covPass,col=covPass),method=lm,se=FALSE,size=1)+xlab("ERCC length (bases)")+scale_color_discrete(name=paste0("coverage\n> ",covThrs," reads"))+theme(legend.position="bottom")
 dev.off()
 
-svg(paste0(QC_dir,"/length-count.svg"),width=4.5,height=8)
-ggplot(rnaCombined[measurements>=2&ERCC_molecules>10],aes(y=log(count),x=factor(length),col=covPass))+geom_point(size=2.6,position=position_jitter(width=0.16),alpha=0.5)+facet_wrap(~length_n,scale="free_x",ncol=2)+geom_smooth(aes(group = covPass,col=covPass),method=lm,se=FALSE,size=1)+xlab("ERCC length (bases)")+scale_color_discrete(name=paste0("coverage\n> ",covThrs," reads"))+theme(legend.position="bottom")
+svg(paste0(QC_dir,"/length-count.svg"),width=10,height=14)
+ggplot(rnaCombined[measurements>=2&ERCC_molecules>200000],aes(y=log(count),x=factor(length),col=covPass))+geom_point(size=2.6,position=position_jitter(width=0.16),alpha=0.5)+facet_wrap(~length_n,scale="free_x",ncol=2)+geom_smooth(aes(group = covPass,col=covPass),method=lm,se=FALSE,size=1)+xlab("ERCC length (bases)")+scale_color_discrete(name=paste0("coverage\n> ",covThrs," reads"))+theme(legend.position="bottom")
+dev.off()
+
+#Mean coverage of ERCCs
+covered_transc=rnaCombined[covPass==TRUE,list(covered_transcripts=.N,mean_rpkm=mean(RPKM)),by=c("sampleID","sample_name","Raw_reads", "ERCC_aligned_reads")]
+covered_transc[,sampleID:=factor(sampleID,levels=unique(sampleID[order(covered_transcripts)]))]
+#covered_transc[,sample_name:=factor(sample_name,levels=unique(sample_name[order(covered_transcripts)]))]
+
+svg(paste0(QC_dir,"/count-passFilter",covThrs,".svg"),width=9,height=10)
+ggplot(covered_transc,aes(x=factor(sampleID),y=covered_transcripts,fill=ERCC_aligned_reads))+geom_bar(stat="identity")+xlab("")+coord_flip()+geom_hline(yintercept=92,col="red")
+dev.off()
+
+#plot expression of selected ERCCs in selected samples
+sub=rnaCombined[ERCC_spikein=="mix1"&ERCC_spikein_dilution==250]
+sub[,ID:=factor(ID,levels=unique(ID[order(concMix1)])),]
+sub[,sel:=all(count>=4),by=ID]
+
+svg(paste0(QC_dir,"/log10RPKM_boxplot_sel.svg"),width=9,height=6)
+ggplot(sub[sel==TRUE],aes(x=ID,y=log(RPKM)))+geom_point(aes(fill=log(concMix1)),col="black",alpha=0.6,size=3.5,shape=21,position=position_jitter(width=0.2,height=0))+geom_boxplot(fill="transparent",col="darkgrey",outlier.shape=NA,width=1,size=0.8)+theme(axis.text.x=element_text(angle=90,vjust=0.5))+scale_fill_gradient(low="blue",high="red")
 dev.off()
 
 
-
-#boxplot of RPKM vs. ERCC concemtration
+#boxplot of RPKM vs. ERCC concentration
 svg(paste0(QC_dir,"/log10RPKM_boxplot.svg"),width=12,height=7)
 ggplot(rnaCombined[],aes(x=ID,y=log10(RPKM),fill=factor(ERCC_molecules_group)))+geom_boxplot()+theme(axis.text.x = element_text(angle = 90, hjust = 1))+theme(legend.position="bottom")+guides(fill = guide_legend(nrow = 1,title="ERCC_molecules_group"))+facet_wrap(~library,nrow=2,scales="free")+theme_bw()
 dev.off()
@@ -172,6 +189,7 @@ rnaCombined[,col:=ifelse(ERCC_molecules>1,ifelse(covPass==TRUE,NA,paste0("< ",co
 
 svg(paste0(QC_dir,"/log2RPKMvsERCCmol_perSample.svg"),width=22,height=20)
 ggplot(rnaCombined,aes(x=log2(ERCC_molecules),y=log2(RPKM)))+geom_point(aes(col=factor(col)))+geom_text(data=cors,aes(hjust=1,x=log2(max_molERCC),y=0.5,label=cor),col="black")+geom_text(data=cors,aes(hjust=0,y=log2(max_rpkm),x=-2,label=paste0(round(ERCC_aligned_reads/1000000,2),"M")),col="black")+facet_wrap(~sampleID,nrow=sqrt(nrow(cors)),scales="free")+guides(col = guide_legend(title=""))+theme(legend.position="bottom")+theme_bw()
+#+geom_smooth(aes(group=col),method=lm,se=FALSE,size=1)
 dev.off()
 
 
