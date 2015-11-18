@@ -30,9 +30,10 @@ comparison_column=args[10]
 
 
 transcriptAnnotation=fread(tail(system(paste0("ls /data/groups/lab_bock/shared/resources/genomes/",genome,"/transcripts_*"),intern=TRUE),n=1))
-setnames(transcriptAnnotation,names(transcriptAnnotation),c("ensG","ensT","transc_start","transc_end","transcript","gene","biotype","strand","chr","ensP"))
-transcriptAnnotation=unique(transcriptAnnotation[,c("ensG","ensT","transc_start","transc_end","transcript","gene","biotype","strand","chr","ensP"),with=FALSE])
-
+#setnames(transcriptAnnotation,names(transcriptAnnotation),c("ensG","ensT","transc_start","transc_end","transcript","gene","biotype","strand","chr","ensP")) #mm10/m38_cdna
+setnames(transcriptAnnotation,names(transcriptAnnotation),c("ensG","ensT","transc_start","transc_end","gene","biotype","strand","ensP")) #hg19_cdna
+#transcriptAnnotation=unique(transcriptAnnotation[,c("ensG","ensT","transc_start","transc_end","transcript","gene","biotype","strand","chr","ensP"),with=FALSE])
+transcriptAnnotation=unique(transcriptAnnotation[,c("ensG","ensT","transc_start","transc_end","gene","biotype","strand","ensP"),with=FALSE])
 
 setwd(wd)
 IDmatrix=fread(sampleAnnotationFile,select=c("sample_name",groups_column,comparison_column,"run"))
