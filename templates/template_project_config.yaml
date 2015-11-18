@@ -18,7 +18,10 @@ paths:
   # pipelines_dir: the directory where the Looper will find pipeline
   # scripts (and accompanying pipeline config files) for submission.
   pipelines_dir: /fhgfs/groups/lab_bock/shared/projects/example/pipelines
-
+  # submission_template: the submission form which will be replaced with compute resource parameters
+  # Relative paths are relative to the pipelines_dir
+  submission_template: templates/slurm_template.sub
+  
 metadata:
   # Relative paths are considered relative to this project config file.
   # Typically, this project config file is stored with the project metadata
@@ -30,7 +33,7 @@ metadata:
   compare_table: table_compare.csv
 
 data_sources:
-  # specify the location of input files using variable path expressions
+  # specify the ABSOLUTE PATH of input files using variable path expressions
   # entries correspond to values in the data_source column in sample_annotation table
   # {variable} can be used to replace environment variables or other sample_annotation columns
   # If you use {variable} codes, you should quote the field so python can parse it.
@@ -56,6 +59,8 @@ pipeline_config:
 
 trackhubs:
   trackhub_dir: /data/groups/lab_bock/public_html/nsheffield/b8ab8bs9b8d/ews_rrbs/
+  # url: if you include this, the make_trackhubs will produce a link to your track hub in the project folder.
+  url: http://www.whatever.com/
   matrix_x: cell_type
   matrix_y: cell_count
   sort_order: cell_type=+
@@ -64,3 +69,6 @@ trackhubs:
   hub_name: ews_hub
   short_label_column: sample_name
   email: nathan@code.databio.org
+
+username: user
+email: user@email.com
