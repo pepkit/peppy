@@ -1,17 +1,17 @@
 #! /bin/bash
 
-wd="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/"
-dataDir="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/results_pipeline/"
+wd="/scratch/lab_bock/shared/projects/hap1-knockouts/"
+dataDir="/scratch/lab_bock/shared/projects/hap1-knockouts/results_pipeline/"
 outDir=$wd/differentialExpression
-sampleAnnpotationFile="/fhgfs/groups/lab_bock/shared/projects/setdb2/data/pypiper_pipeline/metadata/projectSampleAnnotation.csv"
-genome="m38_cdna"
+sampleAnnpotationFile="/data/groups/lab_bock/jklughammer/gitRepos/hap1-knockouts/metadata/rna.sample_annotation.csv"
+genome="hg19_cdna"
 
-groups_column="treatment_length"
+groups_column="exp_category"
 comparison_column="treatment"
 
-groups="0h 2h 8h 24h"
+groups="QUANT TRUSEQ"
 cond1="WT"
-cond2="KO"
+cond2s="DNMT3B-KO MECP2-KO TET2-KO DNMT1-KO"
 
 
 script_dir=`dirname $0`
@@ -28,6 +28,8 @@ local_sampleAnnpotationFile=$outDir/$(basename $sampleAnnpotationFile)
 
 
 for group in $groups;do
+
+	for cond2 in $cond2s;do
   	
 	job=${group}_${cond1}-${cond2}_DE
 	
@@ -38,7 +40,7 @@ sbatch --export=NONE --get-user-env=L --job-name=$job --ntasks=1 --cpus-per-task
 else
   echo "file found. Not submitting!"
 fi
-
+	done
 done
 
 
