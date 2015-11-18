@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH --job-name='VAR_JOBNAME'
+#SBATCH --mem-per-cpu=VAR_MEM
+#SBATCH --cpus-per-task=VAR_CORES
+#SBATCH -m block
+
+#SBATCH --partition=VAR_PARTITION
+#SBATCH --ntasks=1
+#SBATCH --time=VAR_TIME
+#SBATCH --output='VAR_LOGFILE'
+
+echo 'Compute node:' `hostname`
+echo 'Start time:' `date +'%Y-%m-%d %T'`
+
+VAR_CODE
+
+
