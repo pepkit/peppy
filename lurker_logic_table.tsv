@@ -1,7 +1,0 @@
-CORE	wgbs_pipeline.py			
-CORE	rna_pipeline.py			
-WGBSNM	wgbs_pipeline.py	(nnm.py, pdr.py)		
-WGBS	wgbs_pipeline.py			
-RRBS	rrbs_pipeline.py			
-WGBSNM	(one.py, two.py)			
-WGBSNM	first	second	third	(fourth, fifth)
