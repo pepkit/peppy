@@ -201,8 +201,13 @@ def get_file_size(filename):
 	"""
 	Get file stats. Gives in GB....
 	"""
-	st = os.stat(filename)
-	return float(st.st_size) / 1000000
+	# filename can actually be a (space-separated) string listing multiple files
+	if ' ' in filename:
+		filesplit = filename.split()
+		return(get_file_size(filesplit[0]) + get_file_size(filesplit[1:]))
+	else:
+		st = os.stat(filename)
+		return float(st.st_size) / 1000000
 
 
 def make_sure_path_exists(path):
@@ -214,7 +219,6 @@ def make_sure_path_exists(path):
 	except OSError as exception:
 		if exception.errno != errno.EEXIST:
 			raise
-
 
 
 def cluster_submit(sample, submit_template, submission_command, variables_dict,
@@ -229,8 +233,6 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 	submit_script = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name_short + ".sub")
 	submit_log = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name_short + ".log")
 	variables_dict["LOGFILE"] = submit_log
-
-
 
 	# Prepare and write submission script
 	sys.stdout.write("  SUBMIT_SCRIPT: " + submit_script + " ")
@@ -280,7 +282,7 @@ def main():
 	# keep track of submited samples
 	prj.processed_samples = list()
 
-	# Look up the resource table:
+	# Look up the looper config files:
 	pipeline_interface_file = os.path.join(prj.paths.pipelines_dir, "config/pipeline_interface.yaml")
 
 	print("Pipeline interface config: " + pipeline_interface_file)
@@ -293,33 +295,28 @@ def main():
 	for sample in prj.samples:
 		fail = False
 		fail_message = ""
-		wgbs = False
-		tophat = False
-		bitseq = False
-		rrbs = False
-
 		sys.stdout.write("### " + sample.sample_name + "\t")
 
+		# Don't submit samples with duplicate names
 		if sample.sample_name in prj.processed_samples:
-			fail_message += "Duplicate sample name detected. "
+			fail_message += "Duplicate sample name. "
 			fail = True
 
-		# Check if sample should be ran
+		# Check if sample should be run
 		if hasattr(sample, "run"):
 			if not sample.run:
 				fail_message += "Run column deselected."
-				# fail = True
-				sys.stdout.write(fail_message + "\n")
-
-				continue
-
-		# drop "-end", "_end", or just "end" from the end of the column value:
-		if hasattr(sample, "single_or_paired"):
-			sample.single_or_paired = re.sub('[_\\-]?end$', '', sample.single_or_paired)
-			if sample.single_or_paired not in ["single", "paired"]:
-				fail_message += "Value in column single_or_paired not recognized. Needs to be either single or paired."
 				fail = True
 
+		# Check if single_or_paired value is recognized
+		if hasattr(sample, "single_or_paired"):
+			# drop "-end", "_end", or just "end" from the end of the column value:
+			sample.single_or_paired = re.sub('[_\\-]?end$', '', sample.single_or_paired)
+			if sample.single_or_paired not in ["single", "paired"]:
+				fail_message += "single_or_paired must be either 'single' or 'paired'."
+				fail = True
+
+		# Make sure the input data exists
 		if not os.path.isfile(sample.data_path):
 			fail_message += "Sample input file does not exist."
 			fail = True
@@ -331,9 +328,8 @@ def main():
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
-		slurm_template = os.path.join(prj.paths.pipelines_dir, "src_pipeline", "slurm_template.sub")
 
-		print("input file size: ", get_file_size(sample.data_path))
+		print("Input file size: ", get_file_size(sample.data_path))
 		# Get the base protocl to pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library)
 		# Go through all pipelines to submit for this protocol
