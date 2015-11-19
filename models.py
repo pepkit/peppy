@@ -66,13 +66,13 @@ class Project(object):
 	from pipelines import Project
 	prj = Project("config.yaml")
 	"""
-	def __init__(self, conf_file, dry=False):
+	def __init__(self, config_file, dry=False):
 		super(Project, self).__init__()
 		# Path structure
 		self.paths = Paths()
 
 		# include the path to the config file
-		self.paths.config = _os.path.abspath(conf_file)
+		self.config_file = _os.path.abspath(config_file)
 
 		# Parse config file
 		self.parse_config_file()
@@ -99,7 +99,7 @@ class Project(object):
 		"""
 		Parse provided yaml config file and check required fields exist.
 		"""
-		with open(self.paths.config, 'r') as handle:
+		with open(self.config_file, 'r') as handle:
 			self.config = _yaml.load(handle)
 
 		# parse yaml into the project's attributes
@@ -132,7 +132,7 @@ class Project(object):
 		for var in metadata:
 			if hasattr(self.metadata, var):
 				if not _os.path.isabs(self.metadata.sample_annotation):
-					self.metadata.sample_annotation = _os.path.join(_os.path.dirname(self.paths.config), self.metadata.sample_annotation)
+					self.metadata.sample_annotation = _os.path.join(_os.path.dirname(self.config_file), self.metadata.sample_annotation)
 
 		if not hasattr(self.metadata, "sample_annotation"):
 			raise KeyError("Required field not in config file: %s" % "sample_annotation")
