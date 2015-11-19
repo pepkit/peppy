@@ -1,5 +1,9 @@
 # Basic structure:
 # pipeline_name:
+#  arguments:
+#   "-k" : value
+#   "--key2" : value
+#   "--key3" : null # value-less argument flags
 #  resource_package_name:
 #     file_size: "0"
 #     cores: "4"
@@ -14,43 +18,55 @@
 
 wgbs_pipeline.py:
   arguments:
-    s: sample_name
-    g: genome
-    i: data_path
-    q: null
+    "-s": sample_name
+    "-g": genome
+    "-i": data_path
+    "-q": null
+    #"--test": null
   resources:
     default:
       file_size: "0"
       cores: "4"
       mem: "6000"
-      time: "2D"
+      time: "2-00:00:00"
       partition: "longq"
     medium:
-      file_size: "5"
-      cores: "4"
+      file_size: "3"
+      cores: "8"
       mem: "8000"
-      time: "5D"
+      time: "6-00:00:00"
       partition: "longq"
     high:
       file_size: "20"
-      cores: "12"
+      cores: "16"
       mem: "12000"
-      time: "20D"
+      time: "20-00:00:00"
+      partition: "longq"
+    huge:
+      file_size: "50"
+      cores: "24"
+      mem: "16000"
+      time: "50-00:00:00"
       partition: "longq"
 
 rrbs_pipeline.py:
+  arguments:
+    "-s": sample_name
+    "-g": genome
+    "-i": data_path
+    "-q": null
   resources:
     default:
       file_size: "0"
       cores: "4"
       mem: "6000"
-      time: "2D"
+      time: "2-00:00:00"
       partition: "longq"
     high:
       file_size: "0"
       cores: "4"
       mem: "6000"
-      time: "2D"
+      time: "2-00:00:00"
       partition: "longq"
 
 biseq:
@@ -58,7 +74,7 @@ biseq:
     file_size: "0"
     cores: "6"
     mem: "6000"
-    time: "2D"
+    time: "2-00:00:00"
     partition: "longq"
 
 tophat:
@@ -66,7 +82,7 @@ tophat:
     file_size: "0"
     cores: "2"
     mem: "30000"
-    time: "10D"
+    time: "10-00:00:00"
     partition: "longq"
 
 atacseq:
@@ -74,7 +90,7 @@ atacseq:
     file_size: "0"
     cores: "2"
     mem: "30000"
-    time: "10D"
+    time: "10-00:00:00"
     partition: "longq"
 
 chipseq:
@@ -82,5 +98,5 @@ chipseq:
     file_size: "0"
     cores: "2"
     mem: "30000"
-    time: "10D"
+    time: "10-00:00:00"
     partition: "longq"
