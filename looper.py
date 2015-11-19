@@ -75,7 +75,10 @@ class PipelineInterface(object):
 		return(table[current_pick])
 
 
-	def get_arg_string(self, tag, sample, prj):
+	def get_arg_string(self, tag, sample):
+		"""
+		For a given pipeline and sample, return the argument string
+		"""
 		config = self.select_pipeline(tag)
 
 		if not config.has_key('arguments'):
@@ -89,8 +92,6 @@ class PipelineInterface(object):
 			print(key, value)
 			if value is None:
 				arg = ""
-			elif value == "genome":
-				arg = get_genome(prj.config, sample.organism, kind="dna")
 			else:
 				try:
 					arg = getattr(sample, value)
@@ -119,7 +120,7 @@ class ProtocolMapper(object):
 
 
 	def build_pipeline(self, protocol):
-		print("Building pipeline for protocol '" + protocol + "'")
+		# print("Building pipeline for protocol '" + protocol + "'")
 
 		if not self.mappings.has_key(protocol):
 			print("Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
@@ -128,13 +129,14 @@ class ProtocolMapper(object):
 		# print(self.mappings[protocol]) # The raw string with mappings
 		# First list level
 		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
-		print(split_jobs) # Split into a list
+		# print(split_jobs) # Split into a list
 		return(split_jobs) # hack works if no parllelism
-		for i in range(0,len(split_jobs)):
+
+		for i in range(0, len(split_jobs)):
 			if i == 0:
 				self.parse_parallel_jobs(split_jobs[i], None)
 			else:
-				self.parse_parallel_jobs(split_jobs[i], split_jobs[i-1])
+				self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
 
 
 	def parse_parallel_jobs(self, job, dep):
@@ -279,23 +281,14 @@ def main():
 	prj.processed_samples = list()
 
 	# Look up the resource table:
-	resource_table = os.path.join(prj.paths.pipelines_dir, "config/pipeline_interface.yaml")
-	if os.path.exists(resource_table):
-		print("Using compute table: " + resource_table)
-		rtl = PipelineInterface(resource_table)
-		# Call for resources with:
-		#rtl.choose_resource_package("pipeline", file_size)
-		print("resource test:")
-		rtl.choose_resource_package("wgbs_pipeline.py", 25)
-	else:
-		print("Can't find resource table")
+	pipeline_interface_file = os.path.join(prj.paths.pipelines_dir, "config/pipeline_interface.yaml")
 
+	print("Pipeline interface config: " + pipeline_interface_file)
+	pipeline_interface = PipelineInterface(pipeline_interface_file)
 
 	protocol_mappings_file = os.path.join(prj.paths.pipelines_dir, "config/protocol_mappings.yaml")
+	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
-
-
-
 
 	for sample in prj.samples:
 		fail = False
@@ -345,129 +338,16 @@ def main():
 		pl_list = protocol_mappings.build_pipeline(sample.library)
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
-
 			cmd = os.path.join(prj.paths.pipelines_dir, pl)
 			# Process arguments for this pipeline
-			argstring = rtl.get_arg_string(pl, sample, prj)
+			argstring = pipeline_interface.get_arg_string(pl, sample)
 			cmd += argstring
-			# TODO: put this in the sample-level?
-			cmd += " --project-root=" + prj.paths.results_subdir
-			submit_settings = rtl.choose_resource_package(pl, get_file_size(sample.data_path))
+			submit_settings = pipeline_interface.choose_resource_package(pl, get_file_size(sample.data_path))
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
 			submit_settings["CODE"] = cmd
 
+			# Submit job!
 			cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
-
-		continue
-		#everything below here is no longer necessary...
-
-
-		wgbs_param = " "
-		tophat_param = " "
-		bitseq_param = " "
-		rrbs_param = " "
-
-		if sample.library == "CORE":
-			wgbs = True
-			bitseq = True
-			tophat = True
-			tophat_param += " --core-seq"
-			bitseq_param += " --core-seq"
-
-		if sample.library == "SMART":
-			wgbs = False
-			bitseq = True
-			tophat = True
-			tophat_param += " -f -l " + str(sample.read_length)
-			bitseq_param += " -f"
-
-		if sample.library == "EG" or sample.library == "WGBS":
-			wgbs = True
-			bitseq = False
-			tophat = False
-
-		if sample.library == "RRBS":
-			wgbs = False
-			bitseq = False
-			tophat = False
-			if sample.single_or_paired == "single":
-				wgbs_param += " -q"
-				tophat_param += " -q"
-				bitseq_param += " -q"
-				rrbs_param += " -q"
-
-		if wgbs:
-			# Submit the methylation analysis
-			cmd = "python " + prj.paths.pipelines_dir + "/src_pipeline/wgbs_pipeline.py"
-			cmd += " -i " + sample.data_path
-			cmd += " -s " + sample.sample_name
-			cmd += " -g " + get_genome(prj.config, sample.organism, kind="dna")
-			cmd += " --project-root=" + prj.paths.results_subdir
-
-			cmd += wgbs_param
-
-		if bitseq:
-			# Submit the RNA BitSeq analysis
-			cmd = "python " + prj.paths.pipelines_dir + "/src_pipeline/rnaBitSeq_pipeline.py"
-			cmd += " -i " + sample.data_path
-			cmd += " -s " + sample.sample_name
-			cmd += " -g " + get_genome(prj.config, sample.organism, kind="rna")
-			cmd += " --project-root=" + prj.paths.results_subdir
-			cmd += bitseq_param
-
-			# Create new dict
-			slurm_settings = {}
-
-			slurm_settings["VAR_JOBNAME"] = sample.sample_name + "_rnaBitSeq"
-			slurm_settings["VAR_MEM"] = "6000"
-			slurm_settings["VAR_CORES"] = "6"
-			slurm_settings["VAR_TIME"] = "2-00:00:00"
-			slurm_settings["VAR_PARTITION"] = args.partition
-			slurm_settings["VAR_CODE"] = cmd
-
-			cluster_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "rnaBitSeq", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
-
-		if tophat:
-			# Submit the RNA TopHat analysis
-			cmd = "python " + prj.paths.pipelines_dir + "/src_pipeline/rnaTopHat_pipeline.py"
-			cmd += " -i " + sample.data_path
-			cmd += " -s " + sample.sample_name
-			cmd += " -g " + get_genome(prj.config, sample.organism, kind="dna")
-			cmd += " --project-root=" + prj.paths.results_subdir
-			cmd += tophat_param
-
-			# Create new dict
-			slurm_settings = {}
-
-			slurm_settings["VAR_JOBNAME"] = sample.sample_name + "_rnatopHat"
-			slurm_settings["VAR_MEM"] = "30000"
-			slurm_settings["VAR_CORES"] = "2"
-			slurm_settings["VAR_TIME"] = "6-00:00:00"
-			slurm_settings["VAR_PARTITION"] = args.partition
-			slurm_settings["VAR_CODE"] = cmd
-
-			cluster_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "rnaTopHat", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
-
-		if rrbs:
-			# Submit the RRBS analysis
-			cmd = "python " + prj.paths.pipelines_dir + "/src_pipeline/rrbs_pipeline.py"
-			cmd += " -i " + sample.data_path
-			cmd += " -s " + sample.sample_name
-			cmd += " -g " + get_genome(prj.config, sample.organism, kind="dna")
-			cmd += " --project-root=" + prj.paths.results_subdir
-			cmd += rrbs_param
-
-			# Create new dict
-			slurm_settings = {}
-
-			slurm_settings["VAR_JOBNAME"] = sample.sample_name + "_rrbs"
-			slurm_settings["VAR_MEM"] = "4000"
-			slurm_settings["VAR_CORES"] = "2"
-			slurm_settings["VAR_TIME"] = "1-00:00:00"
-			slurm_settings["VAR_PARTITION"] = args.partition
-			slurm_settings["VAR_CODE"] = cmd
-
-			#cluster_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "RRBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 
 if __name__ == '__main__':
