@@ -570,10 +570,10 @@ class Sample(object):
 
 		# parent
 		self.results_subdir = self.prj.paths.results_subdir
-		self.sample_root = _os.path.join(self.prj.paths.results_subdir, self.sample_name)
+		self.paths.sample_root = _os.path.join(self.prj.paths.results_subdir, self.sample_name)
 
 		# Files in the root of the sample dir
-		self.fastqc = self.paths.sample_root
+		self.fastqc = _os.path.join(self.paths.sample_root, self.sample_name + ".fastqc.zip")
 		self.trimlog = _os.path.join(self.paths.sample_root, self.sample_name + ".trimlog.txt")
 		self.aln_rates = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_rates.txt")
 		self.aln_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_metrics.txt")
