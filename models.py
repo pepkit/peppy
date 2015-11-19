@@ -87,7 +87,7 @@ class Project(object):
 		# Set project's directory structure
 		if not dry:
 			self.make_project_dirs()
-			self.set_project_permissions()
+			# self.set_project_permissions()
 
 		# samples
 		self.samples = list()
@@ -156,7 +156,7 @@ class Project(object):
 		"""
 		Makes the project's public_html folder executable.
 		"""
-		for d in [self.paths.trackhub_dir]:
+		for d in [self.trackhubs.trackhub_dir]:
 			try:
 				_os.chmod(d, 0755)
 			except OSError:
@@ -589,7 +589,7 @@ class Sample(object):
 		self.filtered = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.filtered.bam")
 
 		# Project's public_html folder
-		self.bigwig = _os.path.join(self.prj.paths.trackhub_dir, self.sample_name + ".bigWig")
+		self.bigwig = _os.path.join(self.prj.trackhubs.trackhub_dir, self.sample_name + ".bigWig")
 
 		# TODO: add a "base" url to the config
 		# Track url
