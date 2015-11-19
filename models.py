@@ -103,7 +103,6 @@ class Project(object):
 			self.config = _yaml.load(handle)
 
 		# parse yaml into the project's attributes
-		self.paths = Paths()
 		self.paths.output_dir = self.config['paths']['output_dir']
 
 		# if "results_subdir" and "submission_subdir" aren't specified, they default to "results" and "submission"
@@ -122,23 +121,33 @@ class Project(object):
 						if value2 is not None:
 							setattr(getattr(self, key), key2, value2)
 
+		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
 		for var in mandatory:
 			if not hasattr(self.paths, var):
 				raise KeyError("Required field not in config file: %s" % var)
 
-		if not hasattr(self.metadata, "sample_annotation"):
-			raise KeyError("Required field not in config file: %s" % var)
+		# This is a required variable which can be relative to the config file
+		metadata = ["sample_annotation", "merge_table", "compare_table"]
+		for var in metadata:
+			if hasattr(self.metadata, var):
+				if not _os.path.isabs(self.metadata.sample_annotation):
+					self.metadata.sample_annotation = _os.path.join(_os.path.dirname(self.paths.config), self.metadata.sample_annotation)
 
-		defaults = ["results_subdir", "submission_subdir"]
-		for var in defaults:
-			if not hasattr(self.paths, var):
-				raise KeyError("Required field not in config file.")
+		if not hasattr(self.metadata, "sample_annotation"):
+			raise KeyError("Required field not in config file: %s" % "sample_annotation")
+
+		# These are optional because there are defaults
+		config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
+			"results_subdir": "results_pipeline",
+			"submission_subdir": "submission"
+		}
+		for key, value in config_vars.items():
+			if hasattr(self.paths, key):
+				if not _os.path.isabs(getattr(self.paths, key)):
+					setattr(self.paths, key, _os.path.join(_os.path.dirname(self.paths.output_dir), getattr(self.paths, key)))
 			else:
-				if var == "results_subdir":
-					setattr(self.paths, var, "results_pipelines")
-				elif var == "submission_subdir":
-					setattr(self.paths, var, "submission")
+				setattr(self.paths, key, _os.path.join(_os.path.dirname(self.paths.output_dir), value))
 
 	def make_project_dirs(self):
 		"""
