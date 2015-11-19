@@ -234,9 +234,18 @@ class Project(object):
 
 		# With all samples, prepare make sample dirs and get read type
 		for sample in self.samples:
-			sample.check_input_exists()
+			sample.get_genome()
+			if not sample.check_input_exists():
+				continue
+
+			# get read type and length if not provided
+			if not hasattr(sample, "read_type"):
+				sample.get_read_type()
+			if not hasattr(sample, "read_type"):
+				sample.get_read_length()
+
+			# make sample directory structure
 			# sample.make_sample_dirs()
-			sample.get_read_type()
 
 	def add_sample(self, sample):
 		"""
@@ -276,16 +285,6 @@ class SampleSheet(object):
 		super(SampleSheet, self).__init__()
 
 		self.csv = csv
-
-		# Sample merging options:
-		# If kwargs were passed, overule options specified in the config with new ones.
-		# parse kwargs
-		self.opts = dict()
-		for key in ('merge_technical', 'merge_biological'):
-			if key in kwargs:
-				# if provided this will overide the default
-				self.opts[key] = kwargs[key]
-
 		self.samples = list()
 		self.check_sheet()
 
@@ -306,9 +305,6 @@ class SampleSheet(object):
 			raise e
 
 		# Check mandatory items are there
-		# this will require sample_name
-		# later I should implement in a way that sample names are not mandatory,
-		# but created from the sample's attributes
 		req = ["sample_name", "library", "organism"]
 		missing = [col for col in req if col not in self.df.columns]
 
@@ -536,6 +532,21 @@ class Sample(object):
 		else:
 			self.data_path = default_regex.format(**self.__dict__)
 
+	def get_genome(self):
+		"""
+		Get genome and transcriptome, based on project config file.
+		If not available (matching config), genome and transcriptome will be set to sample.organism.
+		"""
+		try:
+			self.genome = getattr(self.prj.config.genomes, self.organism)
+		except:
+			self.genome = self.organism
+		# get transcriptome
+		try:
+			self.transcriptome = getattr(self.prj.config.transcriptomes, self.organism)
+		except:
+			self.transcriptome = self.organism
+
 	def set_file_paths(self):
 		"""
 		Sets the paths of all files for this sample.
@@ -596,12 +607,18 @@ class Sample(object):
 		"""
 		Creates sample directory structure if it doesn't exist.
 		"""
+		l = list()
 		for path in self.data_path.split(" "):
 			if not _os.path.exists(path):
-				if not permissive:
-					raise IOError("Input file does not exist or cannot be read: %s" % path)
-				else:
-					print("Input file does not exist or cannot be read: %s" % path)
+				l.append(path)
+
+		if len(l) > 0:
+			if not permissive:
+				raise IOError("Input file does not exist or cannot be read: %s" % path)
+			else:
+				print("Input file does not exist or cannot be read: %s" % ", ".join(l))
+				return False
+		return True
 
 	def get_read_type(self, n=10, permissive=True):
 		"""
@@ -652,10 +669,10 @@ class Sample(object):
 
 		# If at least half is paired, consider paired end reads
 		if paired > (n / 2):
-			self.read_type = "PE"
+			self.read_type = "paired"
 			self.paired = True
 		else:
-			self.read_type = "SE"
+			self.read_type = "single"
 			self.paired = False
 
 	def getTrackColour(self):
