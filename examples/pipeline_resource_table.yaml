@@ -12,11 +12,11 @@
 # Add as many additional resource sets as you want, with any names.
 # The determining component is the file_size.
 
-wgbs:
+wgbs_pipeline.py:
   arguments:
     s: sample_name
     g: genome
-    i: inputs
+    i: data_path
     q: null
   resources:
     default:
