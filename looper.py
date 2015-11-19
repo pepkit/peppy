@@ -30,21 +30,35 @@ class PipelineInterface(object):
 
 	def __init__(self, yaml_config_file):
 		import yaml
+		self.looper_config_file = yaml_config_file
 		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
+
+	def select_pipeline(self, tag):
+		"""
+		Check to make sure that pipeline has an entry and if so, return it
+		"""
+		if not self.looper_config.has_key(tag):
+			print("Missing pipeline description: '" + tag +"' not found in '" +
+					self.looper_config_file + "'")
+			# Should I just use defaults or force you to define this?
+			raise Exception("You need to teach the looper about that pipeline")
+
+		return(self.looper_config[tag])
 
 	def choose_resource_package(self, tag, file_size):
 		'''
 		Given a pipeline name (tag) and a file size (size), return the
 		resource configuratio specified by the config file.
 		'''
-		if not self.looper_config.has_key(tag):
-			raise Exception("You need to teach the looper about that pipeline")
+		config = self.select_pipeline(tag)
 
-		if self.looper_config[tag].has_key("resources"):
-			table = self.looper_config[tag]['resources']
-		else:
-			table = self.looper_config[tag]
+		if not config.has_key('resources'):
+			print("No resources found for '" + tag +"' in '" +
+					self.looper_config_file + "'")
+			# Should I just use defaults or force you to define this?
+			raise Exception("You need to teach the looper about " + tag)
 
+		table = config['resources']
 		current_pick = "default"
 
 		for option in table:
@@ -60,13 +74,17 @@ class PipelineInterface(object):
 
 		return(table[current_pick])
 
-	def get_resources(self, tag, option, var):
-		print(self.looper_config[tag].keys())
-		return(self.looper_config[tag][option][var])
 
 	def get_arg_string(self, tag, sample, prj):
+		config = self.select_pipeline(tag)
+
+		if not config.has_key('arguments'):
+			print("No arguments found for '" + tag +"' in '" +
+					self.looper_config_file + "'")
+			return("") # empty argstring
+
 		argstring = ""
-		args = self.looper_config[tag]['arguments']
+		args = config['arguments']
 		for key, value in args.iteritems():
 			print(key, value)
 			if value is None:
@@ -93,14 +111,20 @@ class ProtocolMapper(object):
 	This class maps protocols (the library column) to pipelines. For example,
 	WGBS is mapped to wgbs.py
 	"""
-	def __init__(self, lurker_file):
+	def __init__(self, mappings_file):
 		import yaml
 		# mapping libraries to pipelines
-		self.mappings = yaml.load(open(lurker_file, 'r'))
+		self.mappings_file = mappings_file
+		self.mappings = yaml.load(open(mappings_file, 'r'))
 
 
 	def build_pipeline(self, protocol):
-		print("Building pipeline " + protocol)
+		print("Building pipeline for protocol '" + protocol + "'")
+
+		if not self.mappings.has_key(protocol):
+			print("Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
+			return([]) #empty list
+
 		# print(self.mappings[protocol]) # The raw string with mappings
 		# First list level
 		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
@@ -310,6 +334,28 @@ def main():
 		prj.processed_samples.append(sample.sample_name)
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 		slurm_template = os.path.join(prj.paths.pipelines_dir, "src_pipeline", "slurm_template.sub")
+
+		print("input file size: ", get_file_size(sample.data_path))
+		# Get the base protocl to pipeline mappings
+		pl_list = protocol_mappings.build_pipeline(sample.library)
+		# Go through all pipelines to submit for this protocol
+		for pl in pl_list:
+
+			cmd = os.path.join(prj.paths.pipelines_dir, pl)
+			# Process arguments for this pipeline
+			argstring = rtl.get_arg_string(pl, sample, prj)
+			cmd += argstring
+
+			submit_settings = rtl.choose_resource_package(pl, get_file_size(sample.data_path))
+			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
+			submit_settings["CODE"] = cmd
+
+			cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+
+		continue
+		#everything below here is no longer necessary...
+
+
 		wgbs_param = " "
 		tophat_param = " "
 		bitseq_param = " "
@@ -353,23 +399,6 @@ def main():
 			cmd += " --project-root=" + prj.paths.results_subdir
 
 			cmd += wgbs_param
-
-			print("input file size: ", get_file_size(sample.data_path))
-			# Get the base protocl to pipeline mappings
-			pl_list = protocol_mappings.build_pipeline(sample.library)
-			# Go through all pipelines to submit for this protocol
-			for pl in pl_list:
-
-				cmd = os.path.join(prj.paths.pipelines_dir, pl)
-				# Process arguments for this pipeline
-				argstring = rtl.get_arg_string(pl, sample, prj)
-				cmd += argstring
-
-				submit_settings = rtl.choose_resource_package(pl, get_file_size(sample.data_path))
-				submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
-				submit_settings["CODE"] = cmd
-
-				cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		if bitseq:
 			# Submit the RNA BitSeq analysis

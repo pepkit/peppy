@@ -38,19 +38,20 @@ wgbs_pipeline.py:
       time: "20D"
       partition: "longq"
 
-rrbs:
-  default:
-    file_size: "0"
-    cores: "4"
-    mem: "6000"
-    time: "2D"
-    partition: "longq"
-  high:
-    file_size: "0"
-    cores: "4"
-    mem: "6000"
-    time: "2D"
-    partition: "longq"
+rrbs_pipeline.py:
+  resources:
+    default:
+      file_size: "0"
+      cores: "4"
+      mem: "6000"
+      time: "2D"
+      partition: "longq"
+    high:
+      file_size: "0"
+      cores: "4"
+      mem: "6000"
+      time: "2D"
+      partition: "longq"
 
 biseq:
  default:
