@@ -99,70 +99,46 @@ class Project(object):
 		"""
 		Parse provided yaml config file and check required fields exist.
 		"""
-		with open(self.paths.config, 'r') as handle:
+		with open("examples/example_project_config.yaml", 'r') as handle:
 			self.config = _yaml.load(handle)
 
-		self.metadata = Paths()
-		self.data_sources = Paths()
-
-		# Set projectconfig path variables
-		# these are mandatory!
-		variables = ["output_dir", "pipelines_dir"]
-		for var in variables:
-			if self.config["paths"][var] is not None:
-				try:
-					setattr(self.paths, var, _os.path.abspath(self.config["paths"][var]))
-				except KeyError("Required field not in config file.") as e:
-					raise e
-			else:
-				raise KeyError("Required field not in config file.")
+		# parse yaml into the project's attributes
+		self.paths = Paths()
+		self.paths.output_dir = self.config['paths']['output_dir']
 
 		# if "results_subdir" and "submission_subdir" aren't specified, they default to "results" and "submission"
-		variables = ["results_subdir", "submission_subdir"]
-		for var in variables:
-			if self.config["paths"][var] is not None:
-				if var in self.config["paths"].keys():
-					setattr(self.paths, var, _os.path.join(self.paths.output_dir, self.config["paths"][var]))
-				else:
-					setattr(self.paths, var, _os.path.join(self.paths.output_dir, var.split("_")[0]))
+		for key, value in self.config.items():
+			# set that attribute to a holder
+				if not hasattr(self, key):
+					if type(value) is dict:
+						setattr(self, key, Paths())
+					else:
+						print key
+						if value is not None:
+							setattr(self, key, value)
+
+				if type(value) is dict:
+					for key2, value2 in value.items():
+						if value2 is not None:
+							setattr(getattr(self, key), key2, value2)
+
+		mandatory = ["output_dir", "pipelines_dir"]
+		for var in mandatory:
+			if not hasattr(self.paths, var):
+				raise KeyError("Required field not in config file: %s" % var)
+
+		if not hasattr(self.metadata, "sample_annotation"):
+			raise KeyError("Required field not in config file: %s" % var)
+
+		defaults = ["results_subdir", "submission_subdir"]
+		for var in defaults:
+			if not hasattr(self.paths, var):
+				raise KeyError("Required field not in config file.")
 			else:
-				setattr(self.paths, var, _os.path.join(self.paths.output_dir, var.split("_")[0]))
-
-		# parse metadata section
-		variables = ["sample_annotation"]
-		for var in variables:
-			if self.config["metadata"][var] is not None:
-				try:
-					parent = _os.path.split(self.paths.config)[0]
-					setattr(self.metadata, var, _os.path.abspath(_os.path.join(parent, self.config["metadata"][var])))
-				except KeyError("Required field not in config file.") as e:
-					raise e
-
-		variables = ["merge_table", "compare_table"]
-		for var in variables:
-			if var in self.config["metadata"].keys():
-				if self.config["metadata"][var] is not None:
-					parent = _os.path.split(self.paths.config)[0]
-					setattr(self.metadata, var, _os.path.abspath(_os.path.join(parent, self.config["metadata"][var])))
-
-		# parse data sources section
-		for source in self.config["data_sources"].keys():
-			setattr(self.data_sources, var, source)
-
-		# parse trackhub dir
-		try:
-			setattr(self.paths, "trackhub_dir", _os.path.abspath(self.config["trackhubs"]["trackhub_dir"]))
-		except:
-			pass
-
-		# parse pipeline config section
-		# this is not mandatory.
-		# pipelines should get it's own default if not provided
-		variables = ["rrbs"]
-		for var in variables:
-			if var in self.config["metadata"].keys():
-				if self.config["metadata"][var] is not None:
-					setattr(self.pipeline_config, var, _os.path.abspath(self.config["pipeline_config"][var]))
+				if var == "results_subdir":
+					setattr(self.paths, var, "results_pipelines")
+				elif var == "submission_subdir":
+					setattr(self.paths, var, "submission")
 
 	def make_project_dirs(self):
 		"""
@@ -572,7 +548,9 @@ class Sample(object):
 		else:
 			self.locate_data_source()
 
-		self.paths.sample_root = _os.path.join(self.prj.paths.results_subdir, self.sample_name)
+		# parent
+		self.results_subdir = self.prj.paths.results_subdir
+		self.sample_root = _os.path.join(self.prj.paths.results_subdir, self.sample_name)
 
 		# Files in the root of the sample dir
 		self.fastqc = self.paths.sample_root
