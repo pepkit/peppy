@@ -23,9 +23,10 @@ except:
 class PipelineInterface(object):
 	"""
 	This class parses, holds, and returns information for a yaml
-	resource file that specifies for given pipelines and file sizes,
-	what resource variables for cluster submission
-	should be used for the given input file.
+	file that specifies tells the looper how to interact with each individual
+	pipeline. This includes both resources to request for cluster job submission,
+	as well as arguments to be passed from the sample annotation metadata to
+	the pipeline
 	"""
 
 	def __init__(self, yaml_config_file):
@@ -33,30 +34,30 @@ class PipelineInterface(object):
 		self.looper_config_file = yaml_config_file
 		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
 
-	def select_pipeline(self, tag):
+	def select_pipeline(self, pipeline_name):
 		"""
 		Check to make sure that pipeline has an entry and if so, return it
 		"""
-		if not self.looper_config.has_key(tag):
-			print("Missing pipeline description: '" + tag +"' not found in '" +
+		if not self.looper_config.has_key(pipeline_name):
+			print("Missing pipeline description: '" + pipeline_name +"' not found in '" +
 					self.looper_config_file + "'")
 			# Should I just use defaults or force you to define this?
 			raise Exception("You need to teach the looper about that pipeline")
 
-		return(self.looper_config[tag])
+		return(self.looper_config[pipeline_name])
 
-	def choose_resource_package(self, tag, file_size):
+	def choose_resource_package(self, pipeline_name, file_size):
 		'''
-		Given a pipeline name (tag) and a file size (size), return the
+		Given a pipeline name (pipeline_name) and a file size (size), return the
 		resource configuratio specified by the config file.
 		'''
-		config = self.select_pipeline(tag)
+		config = self.select_pipeline(pipeline_name)
 
 		if not config.has_key('resources'):
-			print("No resources found for '" + tag +"' in '" +
+			print("No resources found for '" + pipeline_name +"' in '" +
 					self.looper_config_file + "'")
 			# Should I just use defaults or force you to define this?
-			raise Exception("You need to teach the looper about " + tag)
+			raise Exception("You need to teach the looper about " + pipeline_name)
 
 		table = config['resources']
 		current_pick = "default"
@@ -75,14 +76,14 @@ class PipelineInterface(object):
 		return(table[current_pick])
 
 
-	def get_arg_string(self, tag, sample):
+	def get_arg_string(self, pipeline_name, sample):
 		"""
 		For a given pipeline and sample, return the argument string
 		"""
-		config = self.select_pipeline(tag)
+		config = self.select_pipeline(pipeline_name)
 
 		if not config.has_key('arguments'):
-			print("No arguments found for '" + tag +"' in '" +
+			print("No arguments found for '" + pipeline_name +"' in '" +
 					self.looper_config_file + "'")
 			return("") # empty argstring
 
@@ -96,7 +97,7 @@ class PipelineInterface(object):
 				try:
 					arg = getattr(sample, value)
 				except AttributeError as e:
-					print("Pipeline '" + tag + "' requests for argument '" +
+					print("Pipeline '" + pipeline_name + "' requests for argument '" +
 							key + "' a sample attribute named '" + value + "'" +
 							" but no such attribute exists for sample '" +
 							sample.sample_name + "'")
@@ -317,7 +318,7 @@ def main():
 				fail = True
 
 		# Make sure the input data exists
-		if not all([os.path.isfile(f) for f in sample.data_path.split(" ")]):
+		if not os.path.isfile(sample.data_path):
 			fail_message += "Sample input file does not exist."
 			fail = True
 
