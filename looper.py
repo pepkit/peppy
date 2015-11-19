@@ -279,7 +279,7 @@ def main():
 	prj.processed_samples = list()
 
 	# Look up the resource table:
-	resource_table = "examples/pipeline_resource_table.yaml"
+	resource_table = os.path.join(prj.paths.pipelines_dir, "config/pipeline_interface.yaml")
 	if os.path.exists(resource_table):
 		print("Using compute table: " + resource_table)
 		rtl = PipelineInterface(resource_table)
@@ -290,7 +290,8 @@ def main():
 	else:
 		print("Can't find resource table")
 
-	protocol_mappings_file = "examples/protocol_mappings.yaml"
+
+	protocol_mappings_file = os.path.join(prj.paths.pipelines_dir, "config/protocol_mappings.yaml")
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
 
