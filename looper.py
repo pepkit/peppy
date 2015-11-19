@@ -317,7 +317,7 @@ def main():
 				fail = True
 
 		# Make sure the input data exists
-		if not os.path.isfile(sample.data_path):
+		if not all([os.path.isfile(f) for f in sample.data_path.split(" ")]):
 			fail_message += "Sample input file does not exist."
 			fail = True
 
