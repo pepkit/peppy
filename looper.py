@@ -101,7 +101,7 @@ class PipelineInterface(object):
 							sample.sample_name + "'")
 					raise e
 
-			argstring += " -" + key + " " + arg
+			argstring += " " + key + " " + arg
 		return(argstring)
 
 
@@ -222,9 +222,13 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 	Submit job to cluster manager.
 	"""
 	# Some generic variables
-	submit_script = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name + ".sub")
-	submit_log = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name + ".log")
+	# Toss the file extension
+	pipeline_name_short = os.path.splitext(pipeline_name)[0]
+	submit_script = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name_short + ".sub")
+	submit_log = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name_short + ".log")
 	variables_dict["LOGFILE"] = submit_log
+
+
 
 	# Prepare and write submission script
 	sys.stdout.write("  SUBMIT_SCRIPT: " + submit_script + " ")
@@ -345,12 +349,13 @@ def main():
 			# Process arguments for this pipeline
 			argstring = rtl.get_arg_string(pl, sample, prj)
 			cmd += argstring
-
+			# TODO: put this in the sample-level?
+			cmd += " --project-root=" + prj.paths.results_subdir
 			submit_settings = rtl.choose_resource_package(pl, get_file_size(sample.data_path))
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
 			submit_settings["CODE"] = cmd
 
-			cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		continue
 		#everything below here is no longer necessary...
