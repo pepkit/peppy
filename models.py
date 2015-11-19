@@ -99,7 +99,7 @@ class Project(object):
 		"""
 		Parse provided yaml config file and check required fields exist.
 		"""
-		with open("examples/example_project_config.yaml", 'r') as handle:
+		with open(self.paths.config, 'r') as handle:
 			self.config = _yaml.load(handle)
 
 		# parse yaml into the project's attributes
