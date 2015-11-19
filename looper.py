@@ -20,7 +20,7 @@ except:
 	from models import Project
 
 
-class ResourceTableLookup(object):
+class PipelineInterface(object):
 	"""
 	This class parses, holds, and returns information for a yaml
 	resource file that specifies for given pipelines and file sizes,
@@ -30,19 +30,23 @@ class ResourceTableLookup(object):
 
 	def __init__(self, yaml_config_file):
 		import yaml
+		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
 
-		# self.resources = defaultdict(dict)
-		self.resources = yaml.load(open(yaml_config_file, 'r'))
-		print(self.resources)
-
-	def resource_lookup(self, tag, file_size):
+	def choose_resource_package(self, tag, file_size):
 		'''
 		Given a pipeline name (tag) and a file size (size), return the
 		resource configuratio specified by the config file.
 		'''
+		if not self.looper_config.has_key(tag):
+			raise Exception("You need to teach the looper about that pipeline")
+
+		if self.looper_config[tag].has_key("resources"):
+			table = self.looper_config[tag]['resources']
+		else:
+			table = self.looper_config[tag]
+
 		current_pick = "default"
 
-		table = self.resources[tag]
 		for option in table:
 			print(option)
 			if table[option]['file_size'] == "0":
@@ -53,22 +57,42 @@ class ResourceTableLookup(object):
 				current_pick = option
 
 		print("choose:" + str(current_pick))
-		return(current_pick)
 
-	def get_resource_dict(self, tag, file_size):
-		'''
-		Given a pipeline name (tag) and a file_size,
-		identify and return the resource set
-		'''
-		resource_package_name = choose_resource_package(tag, file_size)
-		return(self.resources[tag][resource_package_name])
+		return(table[current_pick])
 
 	def get_resources(self, tag, option, var):
-		print(self.resources[tag].keys())
-		return(self.resources[tag][option][var])
+		print(self.looper_config[tag].keys())
+		return(self.looper_config[tag][option][var])
+
+	def get_arg_string(self, tag, sample, prj):
+		argstring = ""
+		args = self.looper_config[tag]['arguments']
+		for key, value in args.iteritems():
+			print(key, value)
+			if value is None:
+				arg = ""
+			elif value == "genome":
+				arg = get_genome(prj.config, sample.organism, kind="dna")
+			else:
+				try:
+					arg = getattr(sample, value)
+				except AttributeError as e:
+					print("Pipeline '" + tag + "' requests for argument '" +
+							key + "' a sample attribute named '" + value + "'" +
+							" but no such attribute exists for sample '" +
+							sample.sample_name + "'")
+					raise e
+
+			argstring += " -" + key + " " + arg
+		return(argstring)
 
 
-class LurkerLogicTable(object):
+
+class ProtocolMapper(object):
+	"""
+	This class maps protocols (the library column) to pipelines. For example,
+	WGBS is mapped to wgbs.py
+	"""
 	def __init__(self, lurker_file):
 		import yaml
 		# mapping libraries to pipelines
@@ -77,10 +101,11 @@ class LurkerLogicTable(object):
 
 	def build_pipeline(self, protocol):
 		print("Building pipeline " + protocol)
-		print(self.mappings[protocol])
+		# print(self.mappings[protocol]) # The raw string with mappings
 		# First list level
 		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
-		print(split_jobs)
+		print(split_jobs) # Split into a list
+		return(split_jobs) # hack works if no parllelism
 		for i in range(0,len(split_jobs)):
 			if i == 0:
 				self.parse_parallel_jobs(split_jobs[i], None)
@@ -166,8 +191,8 @@ def make_sure_path_exists(path):
 
 
 
-def cluster_submit(submit_template, submission_command, variables_dict, submission_folder,
-				pipeline_outfolder, pipeline_name, 
+def cluster_submit(sample, submit_template, submission_command, variables_dict,
+ 				submission_folder,	pipeline_outfolder, pipeline_name,
 				submit=False, dry_run=False, remaining_args=list()):
 	"""
 	Submit job to cluster manager.
@@ -226,14 +251,22 @@ def main():
 	prj.processed_samples = list()
 
 	# Look up the resource table:
-	resource_table = "pipeline_resource_table.yaml"
+	resource_table = "examples/pipeline_resource_table.yaml"
 	if os.path.exists(resource_table):
 		print("Using compute table: " + resource_table)
-		rtl = ResourceTableLookup(resource_table)
+		rtl = PipelineInterface(resource_table)
 		# Call for resources with:
-		#rtl.resource_lookup("pipeline", file_size)
+		#rtl.choose_resource_package("pipeline", file_size)
 		print("resource test:")
-		rtl.resource_lookup("wgbs_pipeline.py", 25)
+		rtl.choose_resource_package("wgbs_pipeline.py", 25)
+	else:
+		print("Can't find resource table")
+
+	protocol_mappings_file = "examples/protocol_mappings.yaml"
+	protocol_mappings = ProtocolMapper(protocol_mappings_file)
+
+
+
 
 	for sample in prj.samples:
 		fail = False
@@ -245,7 +278,6 @@ def main():
 
 		sys.stdout.write("### " + sample.sample_name + "\t")
 
-		# Check for duplicate sample names
 		if sample.sample_name in prj.processed_samples:
 			fail_message += "Duplicate sample name detected. "
 			fail = True
@@ -306,9 +338,6 @@ def main():
 			wgbs = False
 			bitseq = False
 			tophat = False
-			rrbs = True
-
-		if hasattr(sample, "single_or_paired"):
 			if sample.single_or_paired == "single":
 				wgbs_param += " -q"
 				tophat_param += " -q"
@@ -326,23 +355,21 @@ def main():
 			cmd += wgbs_param
 
 			print("input file size: ", get_file_size(sample.data_path))
-			pl = "wgbs"
-			#opt = rtl.resource_lookup(pl, get_file_size(sample.data_path))
-			submit_settings = rtl.get_resource_dict(pl, get_file_size(sample.data_path))
-			submit_settings["JOBNAME"] = sample.sample_name + "_wgbs"
-			submit_settings["CODE"] = cmd
+			# Get the base protocl to pipeline mappings
+			pl_list = protocol_mappings.build_pipeline(sample.library)
+			# Go through all pipelines to submit for this protocol
+			for pl in pl_list:
 
-			# Create new dict
-			#slurm_settings = {}
+				cmd = os.path.join(prj.paths.pipelines_dir, pl)
+				# Process arguments for this pipeline
+				argstring = rtl.get_arg_string(pl, sample, prj)
+				cmd += argstring
 
-			#slurm_settings["VAR_JOBNAME"] = sample.sample_name + "_wgbs"
-			#slurm_settings["VAR_MEM"] = rtl.get_resources(pl, opt, "mem")
-			#slurm_settings["VAR_CORES"] = rtl.get_resources(pl, opt, "cores")
-			#slurm_settings["VAR_TIME"] = rtl.get_resources(pl, opt, "time")
-			#slurm_settings["VAR_PARTITION"] = rtl.get_resources(pl, opt, "partition")
-			#slurm_settings["VAR_CODE"] = cmd
+				submit_settings = rtl.choose_resource_package(pl, get_file_size(sample.data_path))
+				submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
+				submit_settings["CODE"] = cmd
 
-			cluster_submit(prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+				cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, "WGBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		if bitseq:
 			# Submit the RNA BitSeq analysis
@@ -363,7 +390,7 @@ def main():
 			slurm_settings["VAR_PARTITION"] = args.partition
 			slurm_settings["VAR_CODE"] = cmd
 
-			slurm_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "rnaBitSeq", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "rnaBitSeq", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		if tophat:
 			# Submit the RNA TopHat analysis
@@ -384,7 +411,7 @@ def main():
 			slurm_settings["VAR_PARTITION"] = args.partition
 			slurm_settings["VAR_CODE"] = cmd
 
-			slurm_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "rnaTopHat", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "rnaTopHat", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 		if rrbs:
 			# Submit the RRBS analysis
@@ -405,7 +432,7 @@ def main():
 			slurm_settings["VAR_PARTITION"] = args.partition
 			slurm_settings["VAR_CODE"] = cmd
 
-			slurm_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "RRBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			#cluster_submit(sample, slurm_template, slurm_settings, prj.paths.submission_subdir, pipeline_outfolder, "RRBS", submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 
 if __name__ == '__main__':
@@ -414,4 +441,3 @@ if __name__ == '__main__':
 	except KeyboardInterrupt:
 		print("Program canceled by user!")
 		sys.exit(1)
-
