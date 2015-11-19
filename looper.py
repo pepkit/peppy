@@ -343,7 +343,7 @@ def main():
 			submit_settings["CODE"] = cmd
 
 			# Submit job!
-			cluster_submit(sample, prj.config['compute']['submission_template'], prj.config['compute']['submission_command'], submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 
 if __name__ == '__main__':
