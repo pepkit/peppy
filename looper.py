@@ -68,6 +68,43 @@ class ResourceTableLookup(object):
 		return(self.resources[tag][option][var])
 
 
+class LurkerLogicTable(object):
+	def __init__(self, lurker_file):
+		import yaml
+		# mapping libraries to pipelines
+		self.mappings = yaml.load(open(lurker_file, 'r'))
+
+
+	def build_pipeline(self, protocol):
+		print("Building pipeline " + protocol)
+		print(self.mappings[protocol])
+		# First list level
+		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
+		print(split_jobs)
+		for i in range(0,len(split_jobs)):
+			if i == 0:
+				self.parse_parallel_jobs(split_jobs[i], None)
+			else:
+				self.parse_parallel_jobs(split_jobs[i], split_jobs[i-1])
+
+
+	def parse_parallel_jobs(self, job, dep):
+		# Eliminate any parenthesis
+		job = job.replace("(", "")
+		job = job.replace(")", "")
+		# Split csv entry
+		split_jobs = [x.strip() for x in job.split(',')]
+		if len(split_jobs) > 1:
+			for s in split_jobs:
+				self.register_job(s, dep)
+		else:
+			self.register_job(job, dep)
+
+	def register_job(self, job, dep):
+		print("Register Job Name:" + job + "\tDep:" + str(dep))
+
+
+
 def parse_arguments():
 	"""
 	Argument Parsing.

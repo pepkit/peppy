@@ -12,25 +12,31 @@
 # Add as many additional resource sets as you want, with any names.
 # The determining component is the file_size.
 
- wgbs:
-  default:
-    file_size: "0"
-    cores: "4"
-    mem: "6000"
-    time: "2D"
-    partition: "longq"
-  medium:
-    file_size: "5"
-    cores: "4"
-    mem: "8000"
-    time: "5D"
-    partition: "longq"
-  high:
-    file_size: "20"
-    cores: "12"
-    mem: "12000"
-    time: "20D"
-    partition: "longq"
+wgbs:
+  arguments:
+    s: sample_name
+    g: genome
+    i: inputs
+    q: null
+  resources:
+    default:
+      file_size: "0"
+      cores: "4"
+      mem: "6000"
+      time: "2D"
+      partition: "longq"
+    medium:
+      file_size: "5"
+      cores: "4"
+      mem: "8000"
+      time: "5D"
+      partition: "longq"
+    high:
+      file_size: "20"
+      cores: "12"
+      mem: "12000"
+      time: "20D"
+      partition: "longq"
 
 rrbs:
   default:
@@ -77,4 +83,3 @@ chipseq:
     mem: "30000"
     time: "10D"
     partition: "longq"
-    
