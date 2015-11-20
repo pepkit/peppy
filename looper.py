@@ -54,10 +54,10 @@ class PipelineInterface(object):
 		config = self.select_pipeline(pipeline_name)
 
 		if not config.has_key('resources'):
-			print("No resources found for '" + pipeline_name +"' in '" +
+			msg = "No resources found for '" + pipeline_name +"' in '" +
 					self.looper_config_file + "'")
 			# Should I just use defaults or force you to define this?
-			raise Exception("You need to teach the looper about " + pipeline_name)
+			raise IOError(msg)
 
 		table = config['resources']
 		current_pick = "default"
@@ -123,7 +123,7 @@ class ProtocolMapper(object):
 		# print("Building pipeline for protocol '" + protocol + "'")
 
 		if not self.mappings.has_key(protocol):
-			print("Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
+			print("  Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
 			return([]) #empty list
 
 		# print(self.mappings[protocol]) # The raw string with mappings
@@ -236,13 +236,13 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 	variables_dict["LOGFILE"] = submit_log
 
 	# Prepare and write submission script
-	sys.stdout.write("  SUBMIT_SCRIPT: " + submit_script + " ")
+	sys.stdout.write("  SUBFILE: " + submit_script + " ")
 	make_sure_path_exists(os.path.dirname(submit_script))
 	# read in submit_template
 	with open(submit_template, 'r') as handle:
 		filedata = handle.read()
-	# update variable dict with any additionall arguments
-	print(variables_dict["CODE"] + " " + str(" ".join(remaining_args)))
+	# update variable dict with any additional arguments
+	# print(variables_dict["CODE"] + " " + str(" ".join(remaining_args)))
 	variables_dict["CODE"] += " " + str(" ".join(remaining_args))
 	# fill in submit_template with variables
 	for key, value in variables_dict.items():
@@ -266,9 +266,10 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 
 	if submit:
 		if dry_run:
-			print("DRY RUN: I would have submitted this")
+			print("  DRY RUN: I would have submitted this")
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
+			#pass
 
 
 
@@ -329,8 +330,9 @@ def main():
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+		input_file_size = get_file_size(sample.data_path)
+		print("(" + str(round(input_file_size, 2)) + " GB)")
 
-		print("Input file size: ", get_file_size(sample.data_path))
 		# Get the base protocl to pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library)
 		# Go through all pipelines to submit for this protocol
@@ -360,7 +362,7 @@ def main():
 			if pl_config_file is not None:
 				cmd += " -c " + pl_config_file
 
-			submit_settings = pipeline_interface.choose_resource_package(pl, get_file_size(sample.data_path))
+			submit_settings = pipeline_interface.choose_resource_package(pl, input_file_size)
 
 			# Append arg for cores
 			if submit_settings["cores"] > 1:
