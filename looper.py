@@ -359,9 +359,15 @@ def main():
 			argstring = pipeline_interface.get_arg_string(pl, sample)
 			cmd += argstring
 
+			# Sample-level arguments are handled by the pipeline interface,
+			# but project-level arguments must be handled separately here for
+			# the moment.
 			# Append arg for config file if found
 			if pl_config_file is not None:
 				cmd += " -c " + pl_config_file
+
+			# Append output parent folder
+			cmd += " -o " + prj.paths.output_dir
 
 			submit_settings = pipeline_interface.choose_resource_package(pl, input_file_size)
 
