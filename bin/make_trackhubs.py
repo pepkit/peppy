@@ -11,9 +11,9 @@ from argparse import ArgumentParser
 # #######################################################################################
 parser = ArgumentParser(description='make_trackhubs')
 
-parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]. Example: /fhgfs/groups/lab_bock/shared/COREseq/config.txt")
+parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]", required=True, type=str)
 parser.add_argument('-f', dest='filter', action='store_false', default=True)
-parser.add_argument('--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
+parser.add_argument('-v', '--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
 
 args = parser.parse_args()
 
@@ -53,7 +53,6 @@ class Container:
 	pass
 paths = Container()
 
-paths.home = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 paths.project_root = config.get("paths","project_root")
 paths.psa = config.get("paths","psa")
 paths.track_dir = config.get("paths","track_dir")
@@ -62,14 +61,6 @@ paths.results = config.get("paths","results")
 
 # Include the path to the config file
 paths.config = os.path.dirname(os.path.realpath(args.conf_file))
-
-#shared_path = "/fhgfs/groups/lab_bock/shared/COREseq/"
-#shared_path = "/fhgfs/groups/lab_bock/shared/humanIslet/"
-#paths.project_root = shared_path + "results_pipeline"
-#paths.psa = home + "/metadata/projectSampleAnnotation.csv"
-#paths.psa = "/fhgfs/groups/lab_bock/jklughammer/projects/humanIslet/metadata/projectSampleAnnotation.csv"
-#paths.track_dir = "/fhgfs/groups/lab_bock/public_html/jklughammer/COREseq3/"
-#paths.track_dir = "/fhgfs/groups/lab_bock/public_html/jklughammer/humanIslet/"
 
 #track configurations
 matrix_x = config.get("track configurations","matrix_x")
@@ -94,17 +85,6 @@ for attribute in pathsDict:
 		print("->".rjust(20) + "\t" + getattr(paths,attribute))
 
 
-
-#matrix_x = "cell_type"
-#matrix_y = "cell_count"
-#matrix_x = "treatment"
-#matrix_y = "treatment_length"
-#sortOrder = "cell_count=+ cell_type=+ library=+ data_type=+"
-#parent_track_name = "COREseq-allData"
-#parent_track_name = "humanIslet-allData"
-#hub_name="COREseq"
-#hub_name="humanIslet"
-
 f = open(paths.psa, 'rb')  # opens the csv file
 present_genomes = {}
 subGroups_perGenome = {}
@@ -117,12 +97,14 @@ subGroups[matrix_y] = {}
 
 try:
 	input_file = csv.DictReader(f)  # creates the reader object
-	if not os.path.exists(paths.track_dir):
-		os.makedirs(paths.track_dir)
-	genomes_file = open(paths.track_dir + "/" + "genomes.txt", 'w')
+	if not os.path.exists(paths.project_root):
+		raise Exception(paths.project_root + " : that project does not exist")
+	os.symlink(os.path.relpath(paths.project_root, os.path.dirname(paths.track_dir)),paths.track_dir)
+
+	genomes_file = open(os.path.join(paths.project_root, "genomes.txt"), 'w')
 
 	# write hub.txt
-	hub_file = open(paths.track_dir + "/" + "hub.txt", 'w')
+	hub_file = open(os.path.join(paths.project_root, "hub.txt"), 'w')
 	hub_file.writelines("hub " + hub_name + "\n")
 	hub_file.writelines("shortLabel " + hub_name + "\n")
 	hub_file.writelines("longLabel " + hub_name + "\n")
@@ -145,32 +127,32 @@ try:
 		present_subGroups = "\tsubGroups "
 		genome = get_genome(row["organism"])
 		if args.filter:
-			tophat_bw_file = paths.results+ "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln.filt_sorted.bw"
+			tophat_bw_file = os.path.join(paths.results, row["sample_name"], "tophat_" + genome, row["sample_name"] + ".aln.filt_sorted.bw")
 		else:
-			tophat_bw_file = paths.results+ "/" + row["sample_name"] + "/tophat_" + genome + "/" + row["sample_name"] + ".aln_sorted.bw"
+			tophat_bw_file = os.path.join(paths.results, row["sample_name"], "tophat_" + genome, row["sample_name"] + ".aln_sorted.bw")
 
 
-		bismark_bw_file = paths.results+ "/" + row["sample_name"] + "/bismark_" + genome + "/extractor/" + row["sample_name"] + ".aln.dedup.filt.bw"
+		bismark_bw_file = os.path.join(paths.results, row["sample_name"], "bismark_" + genome, "extractor", row["sample_name"] + ".aln.dedup.filt.bw")
 		tophat_bw_name = os.path.basename(tophat_bw_file)
 		bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		# With the new meth bigbeds, RRBS pipeline should yield this file:
-		meth_bb_file = paths.results+ "/" + row["sample_name"] + "/bigbed_" + genome + "/RRBS_" + row["sample_name"] + ".bb"
+		meth_bb_file = os.path.join(paths.results, row["sample_name"], "bigbed_" + genome, "RRBS_" + row["sample_name"] + ".bb")
 		meth_bb_name = os.path.basename(meth_bb_file)
 
 		#bigwigs are better actually
 		if not os.path.isfile(bismark_bw_file):
-			bismark_bw_file = paths.results + "/" + row["sample_name"] + "/bigwig_" + genome + "/RRBS_" + row["sample_name"] + ".bw"
+			bismark_bw_file = os.path.join(paths.results, row["sample_name"], "bigwig_" + genome, "RRBS_" + row["sample_name"] + ".bw")
 			bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		if os.path.isfile(tophat_bw_file) or os.path.isfile(bismark_bw_file)  or os.path.isfile(meth_bb_file):
-			track_out = paths.track_dir + genome
-			track_out_file = track_out + "/" + "trackDB.txt"
+			track_out = os.path.join(paths.project_root, genome)
+			track_out_file = os.path.join(track_out, "trackDB.txt")
 			if not track_out_file in present_genomes.keys():
 				#initialize a new genome
 				if not os.path.exists(track_out):
 					os.makedirs(track_out)
-				open(track_out + "/" + "trackDB.txt", 'w').close()
+				open(os.path.join(track_out, "trackDB.txt"), 'w').close()
 				genomes_file.writelines("genome" + " " + genome + "\n")
 				genomes_file.writelines("trackDb" + " " + genome + "/trackDB.txt" + "\n")
 				present_genomes[track_out_file] = []
@@ -205,7 +187,7 @@ try:
 			print "  FOUND tophat bw : " + tophat_bw_file
 			#copy the file to the hub directory
 			cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
-			cmd += "chmod o+r " + track_out + "/" + tophat_bw_name
+			cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
 			print(cmd)
 			subprocess.call(cmd, shell=True)
 			#add data_type subgroup (not included in sampleAnnotation)
@@ -229,7 +211,7 @@ try:
 		if os.path.isfile(bismark_bw_file):
 			print "  FOUND bismark bw : " + bismark_bw_file
 			#copy the file to the hub directory
-			cmd = "cp " + bismark_bw_file + " " + track_out
+			cmd = "ln -sf " + os.path.relpath(bismark_bw_file,track_out) + " " + os.path.join(track_out,bismark_bw_name)
 			print(cmd)
 			subprocess.call(cmd, shell=True)
 			#add data_type subgroup (not included in sampleAnnotation)
@@ -250,32 +232,6 @@ try:
 			present_genomes[track_out_file].append(track_text)
 		else:
 			print ("  No bismark bw found: " + bismark_bw_file)
-
-		# For Methylation (bigbed) files
-#		if os.path.isfile(meth_bb_file):
-#			print "  FOUND meth bb : " + meth_bb_file
-#			#copy the file to the hub directory
-#			cmd = "cp " + meth_bb_file + " " + track_out
-#			print(cmd)
-#			subprocess.call(cmd, shell=True)
-#			#add data_type subgroup (not included in sampleAnnotation)
-#			if not "Meth" in subGroups_perGenome[track_out_file]["data_type"]:
-#						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
-#			#costruct track for data file
-#			track_text = "\n\ttrack " + meth_bb_name + "_Meth" + "\n"
-#			track_text += "\tparent " + parent_track_name + " on\n"
-		# 	track_text += "\ttype bigBed\n"
-		# 	track_text += present_subGroups + "data_type=Meth" + "\n"
-		# 	track_text += "\tshortLabel " + shortLabel + "\n"
-		# 	track_text += "\tlongLabel " + row["sample_name"] + "_Meth" + "\n"
-		# 	track_text += "\tbigDataUrl " + meth_bb_name + "\n"
-		# 	track_text += "\tviewLimits 0:100" + "\n"
-		# 	track_text += "\tviewLimitsMax 0:100" + "\n"
-		# 	track_text += "\tmaxHeightPixels 100:30:10" + "\n"
-		#
-		# 	present_genomes[track_out_file].append(track_text)
-		# else:
-		# 	print ("  No meth bb file found: " + meth_bb_file)
 
 
 	#write composit-header followed by the individual tracks to a genome specific trackDB.txt
@@ -316,24 +272,3 @@ try:
 finally:
 	f.close()
 
-
-
-
-#to make bigbig tracks:
-'''
-pipetk.timestamp("### Copy bigBed to track_out folder ")
-pipetk.make_sure_path_exists(paths.track_out)
-cmd = "cp " + bedGraph.replace(".bedGraph", ".bb") + " " + paths.track_out
-pipetk.call_lock(cmd, "lock.copyBigBed", paths.pipeline_outfolder,paths.track_out + "/" + os.path.basename(bedGraph.replace(".bedGraph", ".bb")),shell=False)
-
-pipetk.timestamp("### Write trackDB entry ")
-trackDB = open(paths.track_out + "/" + "trackDB.txt", 'a')
-trackDB.writelines("\ntrack " + args.sample_name + "_Meth" + "\n")
-trackDB.writelines("type bigBed" + "\n")
-trackDB.writelines("shortLabel " + args.sample_name + "_Meth" + "\n")
-trackDB.writelines("longLabel " + os.path.basename(bedGraph.replace(".bedGraph", "")) + "\n")
-trackDB.writelines("bigDataUrl " + os.path.basename(bedGraph.replace(".bedGraph", ".bb")) + "\n")
-trackDB.writelines("visibility dense" + "\n")
-trackDB.writelines("color 0,60,120" + "\n")
-trackDB.writelines("spectrum on" + "\n")
-'''
