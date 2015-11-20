@@ -54,8 +54,7 @@ class PipelineInterface(object):
 		config = self.select_pipeline(pipeline_name)
 
 		if not config.has_key('resources'):
-			msg = "No resources found for '" + pipeline_name +"' in '" +
-					self.looper_config_file + "'")
+			msg = "No resources found for '" + pipeline_name +"' in '" + self.looper_config_file + "'"
 			# Should I just use defaults or force you to define this?
 			raise IOError(msg)
 
@@ -335,14 +334,16 @@ def main():
 
 		# Get the base protocl to pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library)
+
+		# We require that the pipelines and config files live in
+		# a subdirectory called 'pipelines' -- is this the best way?
+		pipelines_subdir = "pipelines"
+
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
-			# We require that the pipelines and config files live in
-			# a subdirectory called 'pipelines' -- is this the best way?
-			pipelines_subdir = "pipelines"
-			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
-			cmd = os.path.join(prj.paths.pipelines_dir, pl)
 
+			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
+			cmd = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
 			# Check for a pipeline config file
 			if hasattr(prj.pipeline_config, pl):
 				# First priority: pipeline config specified in project config
