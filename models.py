@@ -127,13 +127,25 @@ class Project(object):
 			if not hasattr(self.paths, var):
 				raise KeyError("Required field not in config file: %s" % var)
 
-		# This is a required variable which can be relative to the config file
-		metadata = ["sample_annotation", "merge_table", "compare_table"]
-		for var in metadata:
-			if hasattr(self.metadata, var):
-				if not _os.path.isabs(self.metadata.sample_annotation):
-					self.metadata.sample_annotation = _os.path.join(_os.path.dirname(self.config_file), self.metadata.sample_annotation)
+		# Variables which are relative to the config file
+		# All variables in these sections should be relative to the project config
+		relative_sections = ["metadata", "pipeline_config"]
 
+		for sect in relative_sections:
+			if not hasattr(self, sect):
+				continue
+			relative_vars = getattr(self, sect)
+			print(relative_vars.__dict__)
+			for var in relative_vars.__dict__:
+				print(type(relative_vars), var, getattr(relative_vars, var))
+				if not hasattr(relative_vars, var):
+					continue
+
+				if not _os.path.isabs(getattr(relative_vars, var)):
+					# Set the path to an absolute path, relative to project config
+					setattr(relative_vars,  var, 	_os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
+
+		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
 			raise KeyError("Required field not in config file: %s" % "sample_annotation")
 

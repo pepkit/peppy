@@ -63,7 +63,6 @@ class PipelineInterface(object):
 		current_pick = "default"
 
 		for option in table:
-			print(option)
 			if table[option]['file_size'] == "0":
 				continue
 			if file_size < float(table[option]['file_size']):
@@ -71,7 +70,7 @@ class PipelineInterface(object):
 			elif float(table[option]['file_size']) > table[current_pick]['file_size']:
 				current_pick = option
 
-		print("choose:" + str(current_pick))
+		# print("choose:" + str(current_pick))
 
 		return(table[current_pick])
 
@@ -90,7 +89,7 @@ class PipelineInterface(object):
 		argstring = ""
 		args = config['arguments']
 		for key, value in args.iteritems():
-			print(key, value)
+			# print(key, value)
 			if value is None:
 				arg = ""
 			else:
@@ -151,6 +150,7 @@ class ProtocolMapper(object):
 				self.register_job(s, dep)
 		else:
 			self.register_job(job, dep)
+
 
 	def register_job(self, job, dep):
 		print("Register Job Name:" + job + "\tDep:" + str(dep))
@@ -335,11 +335,37 @@ def main():
 		pl_list = protocol_mappings.build_pipeline(sample.library)
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
+			# We require that the pipelines and config files live in
+			# a subdirectory called 'pipelines' -- is this the best way?
+			pipelines_subdir = "pipelines"
+			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
 			cmd = os.path.join(prj.paths.pipelines_dir, pl)
+
+			# Check for a pipeline config file
+			if hasattr(prj.pipeline_config, pl):
+				# First priority: pipeline config specified in project config
+				pl_config_file = getattr(prj.pipeline_config, pl)
+				if not os.path.isfile(pl_config_file):
+					print("Pipeline config file not found: " + pl_config_file)
+					raise IOError(pl_config_file)
+				print("Found config file:" + getattr(prj.pipeline_config, pl))
+			else:
+					pl_config_file = None
+
 			# Process arguments for this pipeline
 			argstring = pipeline_interface.get_arg_string(pl, sample)
 			cmd += argstring
+
+			# Append arg for config file if found
+			if pl_config_file is not None:
+				cmd += " -c " + pl_config_file
+
 			submit_settings = pipeline_interface.choose_resource_package(pl, get_file_size(sample.data_path))
+
+			# Append arg for cores
+			if submit_settings["cores"] > 1:
+				cmd += " -p " + submit_settings["cores"]
+
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
 			submit_settings["CODE"] = cmd
 
