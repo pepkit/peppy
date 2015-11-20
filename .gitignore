@@ -9,6 +9,7 @@
 results_pipeline/
 results_analysis
 resources/
+pipelines/pypiper
 
 # And all the file types you're interested in.
 !*.sh
