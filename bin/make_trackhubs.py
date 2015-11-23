@@ -136,6 +136,9 @@ try:
 		tophat_bw_name = os.path.basename(tophat_bw_file)
 		bismark_bw_name = os.path.basename(bismark_bw_file)
 
+		bsmap_mapped_bam = os.path.join(paths.results, row["sample_name"], "bsmap_" + genome, row["sample_name"] + ".bam")
+		bsmap_mapped_bam_name = os.path.basename(bsmap_mapped_bam)
+
 		# With the new meth bigbeds, RRBS pipeline should yield this file:
 		meth_bb_file = os.path.join(paths.results, row["sample_name"], "bigbed_" + genome, "RRBS_" + row["sample_name"] + ".bb")
 		meth_bb_name = os.path.basename(meth_bb_file)
@@ -184,7 +187,7 @@ try:
 
 		#For RNA (tophat) files
 		if os.path.isfile(tophat_bw_file):
-			print "  FOUND tophat bw : " + tophat_bw_file
+			print "  FOUND tophat bw: " + tophat_bw_file
 			#copy the file to the hub directory
 			cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
 			cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
@@ -209,11 +212,9 @@ try:
 
 		# For Methylation (bismark) files
 		if os.path.isfile(bismark_bw_file):
-			print "  FOUND bismark bw : " + bismark_bw_file
-			#copy the file to the hub directory
-			cmd = "ln -sf " + os.path.relpath(bismark_bw_file,track_out) + " " + os.path.join(track_out,bismark_bw_name)
-			print(cmd)
-			subprocess.call(cmd, shell=True)
+			print "  FOUND bismark bw: " + bismark_bw_file
+			#link the file to the hub directory
+			cmd = os.symlink(os.path.relpath(bismark_bw_file,track_out), os.path.join(track_out,bismark_bw_name))
 			#add data_type subgroup (not included in sampleAnnotation)
 			if not "Meth" in subGroups_perGenome[track_out_file]["data_type"]:
 						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
@@ -232,6 +233,27 @@ try:
 			present_genomes[track_out_file].append(track_text)
 		else:
 			print ("  No bismark bw found: " + bismark_bw_file)
+
+
+		if os.path.isfile(bsmap_mapped_bam):
+			print "  FOUND bsmap mapped file: " + bsmap_mapped_bam
+			#link the file to the hub directory
+			os.symlink(os.path.relpath(bsmap_mapped_bam,track_out), os.path.join(track_out,bsmap_mapped_bam_name))
+			#add data_type subgroup (not included in sampleAnnotation)
+			if not "MethAlign" in subGroups_perGenome[track_out_file]["data_type"]:
+						subGroups_perGenome[track_out_file]["data_type"]["MethAlign"] = "MethAlign"
+			#costruct track for data file
+			track_text = "\n\ttrack " + bsmap_mapped_bam_name + "_MethAlign" + "\n"
+			track_text += "\tparent " + parent_track_name + " on\n"
+			track_text += "\ttype bam\n"
+			track_text += present_subGroups + "data_type=MethAlign" + "\n"
+			track_text += "\tshortLabel " + shortLabel + "\n"
+			track_text += "\tlongLabel " + row["sample_name"] + "_MethAlign" + "\n"
+			track_text += "\tbigDataUrl " + bsmap_mapped_bam_name + "\n"
+
+			present_genomes[track_out_file].append(track_text)
+		else:
+			print ("  No bsmap mapped bam found: " + bsmap_mapped_bam_name)
 
 
 	#write composit-header followed by the individual tracks to a genome specific trackDB.txt
