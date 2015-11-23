@@ -12,8 +12,9 @@ from argparse import ArgumentParser
 parser = ArgumentParser(description='make_trackhubs')
 
 parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]", required=True, type=str)
-parser.add_argument('-f', dest='filter', action='store_false', default=True)
+parser.add_argument('-f', dest='filter', action='store_false', required=False, default=True)
 parser.add_argument('-v', '--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
+parser.add_argument('--copy', dest='copy', help='copy files instead of creating symbolic links', required=False, default=False)
 
 args = parser.parse_args()
 
@@ -71,6 +72,8 @@ hub_name = config.get("track configurations","hub_name")
 short_label_column = config.get("track configurations", "short_label_column")
 email = config.get("track configurations", "email")
 
+if not os.path.exists(paths.project_root):
+	raise Exception(paths.project_root + " : that project does not exist!")
 
 # This loop checks for absolute paths; if a path is relative, it
 # converts it to an absolute path *relative to the config file*.
@@ -97,14 +100,20 @@ subGroups[matrix_y] = {}
 
 try:
 	input_file = csv.DictReader(f)  # creates the reader object
-	if not os.path.exists(paths.project_root):
-		raise Exception(paths.project_root + " : that project does not exist")
-	os.symlink(os.path.relpath(paths.project_root, os.path.dirname(paths.track_dir)),paths.track_dir)
 
-	genomes_file = open(os.path.join(paths.project_root, "genomes.txt"), 'w')
+	paths.write_dir = ""
 
+	if args.copy:
+		paths.write_dir = paths.track_dir
+		if not os.path.exists(paths.write_dir):
+			os.makedirs(paths.write_dir)
+	else:
+		paths.write_dir = paths.project_root
+		os.symlink(os.path.relpath(paths.write_dir, os.path.dirname(paths.track_dir)),paths.track_dir)
+
+	genomes_file = open(os.path.join(paths.write_dir, "genomes.txt"), 'w')
 	# write hub.txt
-	hub_file = open(os.path.join(paths.project_root, "hub.txt"), 'w')
+	hub_file = open(os.path.join(paths.write_dir, "hub.txt"), 'w')
 	hub_file.writelines("hub " + hub_name + "\n")
 	hub_file.writelines("shortLabel " + hub_name + "\n")
 	hub_file.writelines("longLabel " + hub_name + "\n")
@@ -149,7 +158,7 @@ try:
 			bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		if os.path.isfile(tophat_bw_file) or os.path.isfile(bismark_bw_file)  or os.path.isfile(meth_bb_file):
-			track_out = os.path.join(paths.project_root, genome)
+			track_out = os.path.join(paths.write_dir, genome)
 			track_out_file = os.path.join(track_out, "trackDB.txt")
 			if not track_out_file in present_genomes.keys():
 				#initialize a new genome
@@ -188,11 +197,14 @@ try:
 		#For RNA (tophat) files
 		if os.path.isfile(tophat_bw_file):
 			print "  FOUND tophat bw: " + tophat_bw_file
-			#copy the file to the hub directory
-			cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
-			cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
-			print(cmd)
-			subprocess.call(cmd, shell=True)
+			# copy or link the file to the hub directory
+			if args.copy:
+				cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
+				cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
+				print(cmd)
+				subprocess.call(cmd, shell=True)
+			else:
+				os.symlink(os.path.relpath(tophat_bw_file,track_out), os.path.join(track_out,tophat_bw_name))
 			#add data_type subgroup (not included in sampleAnnotation)
 			if not "RNA" in subGroups_perGenome[track_out_file]["data_type"]:
 						subGroups_perGenome[track_out_file]["data_type"]["RNA"] = "RNA"
@@ -213,8 +225,13 @@ try:
 		# For Methylation (bismark) files
 		if os.path.isfile(bismark_bw_file):
 			print "  FOUND bismark bw: " + bismark_bw_file
-			#link the file to the hub directory
-			cmd = os.symlink(os.path.relpath(bismark_bw_file,track_out), os.path.join(track_out,bismark_bw_name))
+			# copy or link the file to the hub directory
+			if args.copy:
+				cmd = "cp " + bismark_bw_file + " " + track_out
+				print(cmd)
+ 				subprocess.call(cmd, shell=True)
+			else:
+				os.symlink(os.path.relpath(bismark_bw_file,track_out), os.path.join(track_out,bismark_bw_name))
 			#add data_type subgroup (not included in sampleAnnotation)
 			if not "Meth" in subGroups_perGenome[track_out_file]["data_type"]:
 						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
@@ -237,18 +254,23 @@ try:
 
 		if os.path.isfile(bsmap_mapped_bam):
 			print "  FOUND bsmap mapped file: " + bsmap_mapped_bam
-			#link the file to the hub directory
-			os.symlink(os.path.relpath(bsmap_mapped_bam,track_out), os.path.join(track_out,bsmap_mapped_bam_name))
+			# copy or link the file to the hub directory
+			if args.copy:
+				cmd = "cp " + bsmap_mapped_bam + " " + track_out
+				print(cmd)
+ 				subprocess.call(cmd, shell=True)
+			else:
+				os.symlink(os.path.relpath(bsmap_mapped_bam,track_out), os.path.join(track_out,bsmap_mapped_bam_name))
 			#add data_type subgroup (not included in sampleAnnotation)
-			if not "MethAlign" in subGroups_perGenome[track_out_file]["data_type"]:
-						subGroups_perGenome[track_out_file]["data_type"]["MethAlign"] = "MethAlign"
+			#if not "MethAlign" in subGroups_perGenome[track_out_file]["data_type"]:
+			#			subGroups_perGenome[track_out_file]["data_type"]["MethAlign"] = "MethAlign"
 			#costruct track for data file
-			track_text = "\n\ttrack " + bsmap_mapped_bam_name + "_MethAlign" + "\n"
-			track_text += "\tparent " + parent_track_name + " on\n"
+			track_text = "\n\ttrack " + bsmap_mapped_bam_name + "_Meth_Align" + "\n"
+			track_text += "\tparent DNA_Meth_Align on\n"
 			track_text += "\ttype bam\n"
-			track_text += present_subGroups + "data_type=MethAlign" + "\n"
+			track_text += present_subGroups + "data_type=Meth_Align" + "\n"
 			track_text += "\tshortLabel " + shortLabel + "\n"
-			track_text += "\tlongLabel " + row["sample_name"] + "_MethAlign" + "\n"
+			track_text += "\tlongLabel " + row["sample_name"] + "_Meth_Align" + "\n"
 			track_text += "\tbigDataUrl " + bsmap_mapped_bam_name + "\n"
 
 			present_genomes[track_out_file].append(track_text)
@@ -288,7 +310,12 @@ try:
 		#write individual tracks
 		for i in range(len(present_genomes[key])):
 			trackDB.writelines(present_genomes[key][i])
-
+		super_text = "\n"		
+		super_text += "track DNA_Meth_Align\n"
+		super_text += "shortLabel track DNA_Meth_Align\n"
+		super_text += "longLabel track DNA_Meth_Align\n"
+		super_text += "superTrack on\n"
+		trackDB.writelines(super_text)
 		trackDB.close()
 
 finally:
