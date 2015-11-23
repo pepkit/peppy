@@ -102,6 +102,7 @@ class PipelineInterface(object):
 					raise e
 
 			argstring += " " + key + " " + arg
+
 		return(argstring)
 
 
@@ -341,40 +342,43 @@ def main():
 
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
+			# Identify the cluster resources we will require for this submission
+			submit_settings = pipeline_interface.choose_resource_package(pl, input_file_size)
 
+			# Build basic command line string
 			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
 			cmd = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
+
+			# Append arguments for this pipeline
+			# Sample-level arguments are handled by the pipeline interface.
+			argstring = pipeline_interface.get_arg_string(pl, sample)
+			cmd += argstring
+
+			# Project-level arguments (those that do not change for each sample)
+			# must be handled separately.
+			# These are looper_args, -C, -O, and -P. If the pipeline implements
+			# these arguments, then it should list looper_args=True and then we
+			# should add the arguments to the command string.
+
 			# Check for a pipeline config file
 			if hasattr(prj.pipeline_config, pl):
 				# First priority: pipeline config specified in project config
 				pl_config_file = getattr(prj.pipeline_config, pl)
 				if not os.path.isfile(pl_config_file):
-					print("Pipeline config file not found: " + pl_config_file)
+					print("Pipeline config file specified but not found: " + pl_config_file)
 					raise IOError(pl_config_file)
 				print("Found config file:" + getattr(prj.pipeline_config, pl))
-			else:
-					pl_config_file = None
-
-			# Process arguments for this pipeline
-			argstring = pipeline_interface.get_arg_string(pl, sample)
-			cmd += argstring
-
-			# Sample-level arguments are handled by the pipeline interface,
-			# but project-level arguments must be handled separately here for
-			# the moment.
-			# Append arg for config file if found
-			if pl_config_file is not None:
-				cmd += " -c " + pl_config_file
+				# Append arg for config file if found
+				cmd += " -C " + pl_config_file
 
 			# Append output parent folder
-			cmd += " -o " + prj.paths.output_dir
+			cmd += " -O " + prj.paths.output_dir
 
-			submit_settings = pipeline_interface.choose_resource_package(pl, input_file_size)
-
-			# Append arg for cores
+			# Append arg for cores (number of processors to use)
 			if submit_settings["cores"] > 1:
-				cmd += " -p " + submit_settings["cores"]
+				cmd += " -P " + submit_settings["cores"]
 
+			# Add the command string and job name to the submit_settings object
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
 			submit_settings["CODE"] = cmd
 
