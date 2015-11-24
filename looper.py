@@ -12,12 +12,13 @@ from argparse import ArgumentParser
 import glob
 import errno
 import re
+import yaml
 
 try:
-	from .models import Project
+	from .models import Project, AttributeDict
 except:
 	sys.path.append(os.path.join(os.path.dirname(__file__), "../pipelines"))
-	from models import Project
+	from models import Project, AttributeDict
 
 
 class PipelineInterface(object):
@@ -276,6 +277,10 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
+
+	y = yaml.load(open(args.conf_file, 'r'))
+	s = AttributeDict(**y)
+	print(s)
 
 	# Initialize project
 	prj = Project(args.conf_file)
