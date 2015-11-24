@@ -52,22 +52,31 @@ class Paths(object):
 		return "Paths object."
 
 
-class AttributeDict:
+class AttributeDict(object):
 	"""
 	A class to convert a nested Dictionary into an object with key-values
 	accessibly using attribute notation (AttributeDict.attribute) instead of
 	key notation (Dict["key"]). This class recursively sets Dicts to objects,
 	allowing you to recurse down nested dicts (like: AttributeDict.attr.attr)
 	"""
-    def __init__(self, **entries):
+	def __init__(self, **entries):
+		self.add_entries(**entries)
+
+	def add_entries(self, **entries):
 		for key, value in entries.items():
-			print(key, value)
 			if type(value) is dict:
 				self.__dict__[key] = AttributeDict(**value)
 			else:
-				self.__dict__.update(entries)
+				self.__dict__[key] = value
 
-class Project(object):
+	def __getitem__(self, key):
+		"""
+		Provides dict-style access to attributes
+		"""
+		return getattr(self, key)
+
+
+class Project(AttributeDict):
 	"""
 	A class to model a Project.
 
@@ -82,9 +91,9 @@ class Project(object):
 	prj = Project("config.yaml")
 	"""
 	def __init__(self, config_file, dry=False):
-		super(Project, self).__init__()
+		#super(Project, self).__init__(**config_file)
 		# Path structure
-		self.paths = Paths()
+		#self.paths = Paths()
 
 		# include the path to the config file
 		self.config_file = _os.path.abspath(config_file)
@@ -118,23 +127,24 @@ class Project(object):
 			self.config = _yaml.load(handle)
 
 		# parse yaml into the project's attributes
-		self.paths.output_dir = self.config['paths']['output_dir']
+		self.add_entries(**self.config)
+#		All this is no longer necessary:
+#		self.paths.output_dir = self.config['paths']['output_dir']
+#		for key, value in self.config.items():
+#			# set that attribute to a holder
+#				if not hasattr(self, key):
+#					if type(value) is dict:
+#						setattr(self, key, Paths())
+#					else:
+#						print key
+#						if value is not None:
+#							setattr(self, key, value)
 
-		# if "results_subdir" and "submission_subdir" aren't specified, they default to "results" and "submission"
-		for key, value in self.config.items():
-			# set that attribute to a holder
-				if not hasattr(self, key):
-					if type(value) is dict:
-						setattr(self, key, Paths())
-					else:
-						print key
-						if value is not None:
-							setattr(self, key, value)
+#				if type(value) is dict:
+#					for key2, value2 in value.items():
+#						if value2 is not None:
+#							setattr(getattr(self, key), key2, value2)
 
-				if type(value) is dict:
-					for key2, value2 in value.items():
-						if value2 is not None:
-							setattr(getattr(self, key), key2, value2)
 
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
@@ -150,12 +160,14 @@ class Project(object):
 			if not hasattr(self, sect):
 				continue
 			relative_vars = getattr(self, sect)
-			print(relative_vars.__dict__)
+			# print(relative_vars.__dict__)
 			for var in relative_vars.__dict__:
-				print(type(relative_vars), var, getattr(relative_vars, var))
+				# print(type(relative_vars), var, getattr(relative_vars, var))
 				if not hasattr(relative_vars, var):
 					continue
-
+				# It could have been 'null' in which case, don't do this.
+				if getattr(relative_vars, var) is None:
+					continue
 				if not _os.path.isabs(getattr(relative_vars, var)):
 					# Set the path to an absolute path, relative to project config
 					setattr(relative_vars,  var, 	_os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
