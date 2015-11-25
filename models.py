@@ -773,28 +773,6 @@ class ChIPseqSample(Sample):
 		# Motifs
 		self.paths.motifs = _os.path.join(self.paths.sample_root, "motifs", self.sample_name)
 
-	def getTrackColour(self):
-		"""
-		Get a colour for a genome browser track based on the IP.
-		"""
-		# This is ChIP-centric, and therefore if no "ip" attrbute,
-		# will just pick one color randomly from a gradient.
-		import random
-
-		if hasattr(self, "ip"):
-			if self.ip in self.config["trackcolours"].keys():
-				self.trackColour = self.config["trackcolours"][self.ip]
-			else:
-				if self.library in ["ATAC", "ATACSEQ", "ATAC-SEQ"]:
-					self.trackColour = self.config["trackcolours"]["ATAC"]
-				elif self.library in ["DNASE", "DNASESEQ", "DNASE-SEQ"]:
-					self.trackColour = self.config["trackcolours"]["DNASE"]
-				else:
-					self.trackColour = random.sample(self.config["colourgradient"], 1)[0]  # pick one randomly
-		else:
-			self.trackColour = random.sample(self.config["colourgradient"], 1)[0]  # pick one randomly
-
-
 
 class ChIPmentation(ChIPseqSample):
 	"""
