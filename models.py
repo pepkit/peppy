@@ -91,9 +91,9 @@ class Project(AttributeDict):
 	prj = Project("config.yaml")
 	"""
 	def __init__(self, config_file, dry=False):
-		#super(Project, self).__init__(**config_file)
+		# super(Project, self).__init__(**config_file)
 		# Path structure
-		#self.paths = Paths()
+		# self.paths = Paths()
 
 		# include the path to the config file
 		self.config_file = _os.path.abspath(config_file)
@@ -128,23 +128,22 @@ class Project(AttributeDict):
 
 		# parse yaml into the project's attributes
 		self.add_entries(**self.config)
-#		All this is no longer necessary:
-#		self.paths.output_dir = self.config['paths']['output_dir']
-#		for key, value in self.config.items():
-#			# set that attribute to a holder
-#				if not hasattr(self, key):
-#					if type(value) is dict:
-#						setattr(self, key, Paths())
-#					else:
-#						print key
-#						if value is not None:
-#							setattr(self, key, value)
+		# All this is no longer necessary:
+		# self.paths.output_dir = self.config['paths']['output_dir']
+		# for key, value in self.config.items():
+		# 	# set that attribute to a holder
+		# 		if not hasattr(self, key):
+		# 			if type(value) is dict:
+		# 				setattr(self, key, Paths())
+		# 			else:
+		# 				print key
+		# 				if value is not None:
+		# 					setattr(self, key, value)
 
-#				if type(value) is dict:
-#					for key2, value2 in value.items():
-#						if value2 is not None:
-#							setattr(getattr(self, key), key2, value2)
-
+		# 		if type(value) is dict:
+		# 			for key2, value2 in value.items():
+		# 				if value2 is not None:
+		# 					setattr(getattr(self, key), key2, value2)
 
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
@@ -170,7 +169,7 @@ class Project(AttributeDict):
 					continue
 				if not _os.path.isabs(getattr(relative_vars, var)):
 					# Set the path to an absolute path, relative to project config
-					setattr(relative_vars,  var, 	_os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
+					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
 
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
@@ -611,37 +610,13 @@ class Sample(object):
 		self.results_subdir = self.prj.paths.results_subdir
 		self.paths.sample_root = _os.path.join(self.prj.paths.results_subdir, self.sample_name)
 
-		# Files in the root of the sample dir
-		self.fastqc = _os.path.join(self.paths.sample_root, self.sample_name + ".fastqc.zip")
-		self.trimlog = _os.path.join(self.paths.sample_root, self.sample_name + ".trimlog.txt")
-		self.aln_rates = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_rates.txt")
-		self.aln_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_metrics.txt")
-		self.dups_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".dups_metrics.txt")
-
-		# Unmapped: merged bam, fastq, trimmed fastq
-		self.paths.unmapped = _os.path.join(self.paths.sample_root, "unmapped")
-		self.unmapped = _os.path.join(self.paths.unmapped, self.sample_name + ".bam")
-		self.fastq = _os.path.join(self.paths.unmapped, self.sample_name + ".fastq")
-		self.fastq1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.fastq")
-		self.fastq2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.fastq")
-		self.fastqUnpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".unpaired.fastq")
-		self.trimmed = _os.path.join(self.paths.unmapped, self.sample_name + ".trimmed.fastq")
-		self.trimmed1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.trimmed.fastq")
-		self.trimmed2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.trimmed.fastq")
-		self.trimmed1Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".1_unpaired.trimmed.fastq")
-		self.trimmed2Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".2_unpaired.trimmed.fastq")
-
-		# Mapped: mapped, duplicates marked, removed, reads shifted
-		self.paths.mapped = _os.path.join(self.paths.sample_root, "mapped")
-		self.mapped = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.bam")
-		self.filtered = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.filtered.bam")
-
-		# Project's public_html folder
-		self.bigwig = _os.path.join(self.prj.trackhubs.trackhub_dir, self.sample_name + ".bigWig")
-
-		# TODO: add a "base" url to the config
 		# Track url
-		# self.trackURL = "/".join([self.config["url"], self.project.name, self.sample_name + ".bigWig"])
+		try:
+			# Project's public_html folder
+			self.bigwig = _os.path.join(self.prj.trackhubs.trackhub_dir, self.sample_name + ".bigWig")
+			self.track_url = "/".join([self.prj.trackhubs.url, self.sample_name + ".bigWig"])
+		except:
+			pass
 
 	def make_sample_dirs(self):
 		"""
@@ -783,6 +758,31 @@ class ChIPseqSample(Sample):
 		super(ChIPseqSample, self).set_file_paths()
 
 		# Files in the root of the sample dir
+		self.fastqc = _os.path.join(self.paths.sample_root, self.sample_name + ".fastqc.zip")
+		self.trimlog = _os.path.join(self.paths.sample_root, self.sample_name + ".trimlog.txt")
+		self.aln_rates = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_rates.txt")
+		self.aln_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_metrics.txt")
+		self.dups_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".dups_metrics.txt")
+
+		# Unmapped: merged bam, fastq, trimmed fastq
+		self.paths.unmapped = _os.path.join(self.paths.sample_root, "unmapped")
+		self.unmapped = _os.path.join(self.paths.unmapped, self.sample_name + ".bam")
+		self.fastq = _os.path.join(self.paths.unmapped, self.sample_name + ".fastq")
+		self.fastq1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.fastq")
+		self.fastq2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.fastq")
+		self.fastqUnpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".unpaired.fastq")
+		self.trimmed = _os.path.join(self.paths.unmapped, self.sample_name + ".trimmed.fastq")
+		self.trimmed1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.trimmed.fastq")
+		self.trimmed2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.trimmed.fastq")
+		self.trimmed1Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".1_unpaired.trimmed.fastq")
+		self.trimmed2Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".2_unpaired.trimmed.fastq")
+
+		# Mapped: mapped, duplicates marked, removed, reads shifted
+		self.paths.mapped = _os.path.join(self.paths.sample_root, "mapped")
+		self.mapped = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.bam")
+		self.filtered = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.filtered.bam")
+
+		# Files in the root of the sample dir
 		self.frip = _os.path.join(self.paths.sample_root, self.sample_name + "_FRiP.txt")
 
 		# Coverage: read coverage in windows genome-wide
@@ -863,6 +863,31 @@ class ATACseqSample(ChIPseqSample):
 		super(ATACseqSample, self).set_file_paths()
 
 		# Files in the root of the sample dir
+		self.fastqc = _os.path.join(self.paths.sample_root, self.sample_name + ".fastqc.zip")
+		self.trimlog = _os.path.join(self.paths.sample_root, self.sample_name + ".trimlog.txt")
+		self.aln_rates = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_rates.txt")
+		self.aln_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_metrics.txt")
+		self.dups_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".dups_metrics.txt")
+
+		# Unmapped: merged bam, fastq, trimmed fastq
+		self.paths.unmapped = _os.path.join(self.paths.sample_root, "unmapped")
+		self.unmapped = _os.path.join(self.paths.unmapped, self.sample_name + ".bam")
+		self.fastq = _os.path.join(self.paths.unmapped, self.sample_name + ".fastq")
+		self.fastq1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.fastq")
+		self.fastq2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.fastq")
+		self.fastqUnpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".unpaired.fastq")
+		self.trimmed = _os.path.join(self.paths.unmapped, self.sample_name + ".trimmed.fastq")
+		self.trimmed1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.trimmed.fastq")
+		self.trimmed2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.trimmed.fastq")
+		self.trimmed1Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".1_unpaired.trimmed.fastq")
+		self.trimmed2Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".2_unpaired.trimmed.fastq")
+
+		# Mapped: mapped, duplicates marked, removed, reads shifted
+		self.paths.mapped = _os.path.join(self.paths.sample_root, "mapped")
+		self.mapped = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.bam")
+		self.filtered = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.filtered.bam")
+
+		# Files in the root of the sample dir
 		self.frip = _os.path.join(self.paths.sample_root, self.name + "_FRiP.txt")
 
 		# Mapped: mapped, duplicates marked, removed, reads shifted
@@ -914,6 +939,31 @@ class QuantseqSample(Sample):
 		"""
 		# Inherit paths from Sample by running Sample's set_file_paths()
 		super(QuantseqSample, self).set_file_paths()
+
+		# Files in the root of the sample dir
+		self.fastqc = _os.path.join(self.paths.sample_root, self.sample_name + ".fastqc.zip")
+		self.trimlog = _os.path.join(self.paths.sample_root, self.sample_name + ".trimlog.txt")
+		self.aln_rates = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_rates.txt")
+		self.aln_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".aln_metrics.txt")
+		self.dups_metrics = _os.path.join(self.paths.sample_root, self.sample_name + ".dups_metrics.txt")
+
+		# Unmapped: merged bam, fastq, trimmed fastq
+		self.paths.unmapped = _os.path.join(self.paths.sample_root, "unmapped")
+		self.unmapped = _os.path.join(self.paths.unmapped, self.sample_name + ".bam")
+		self.fastq = _os.path.join(self.paths.unmapped, self.sample_name + ".fastq")
+		self.fastq1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.fastq")
+		self.fastq2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.fastq")
+		self.fastqUnpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".unpaired.fastq")
+		self.trimmed = _os.path.join(self.paths.unmapped, self.sample_name + ".trimmed.fastq")
+		self.trimmed1 = _os.path.join(self.paths.unmapped, self.sample_name + ".1.trimmed.fastq")
+		self.trimmed2 = _os.path.join(self.paths.unmapped, self.sample_name + ".2.trimmed.fastq")
+		self.trimmed1Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".1_unpaired.trimmed.fastq")
+		self.trimmed2Unpaired = _os.path.join(self.paths.unmapped, self.sample_name + ".2_unpaired.trimmed.fastq")
+
+		# Mapped: mapped, duplicates marked, removed, reads shifted
+		self.paths.mapped = _os.path.join(self.paths.sample_root, "mapped")
+		self.mapped = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.bam")
+		self.filtered = _os.path.join(self.paths.mapped, self.sample_name + ".trimmed.bowtie2.filtered.bam")
 
 		self.ercc_aln_rates = _os.path.join(self.paths.sample_root, self.name + "_ercc.aln_rates.txt")
 		self.ercc_aln_metrics = _os.path.join(self.paths.sample_root, self.name + "_ercc.aln_metrics.txt")
