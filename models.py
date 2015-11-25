@@ -470,13 +470,6 @@ class Sample(object):
 		# this is a concatenation of all passed Series attributes except "unmappedBam"
 		# self.generate_name()
 
-		# check if sample is to be analysed with cuts
-		# cuts = self.config["libraries"]["atacseq"] + self.config["libraries"]["cm"]
-		# self.tagmented = True if self.library.upper() in cuts else False
-
-		# Get track colour
-		# self.getTrackColour()
-
 		# Sample dirs
 		self.paths = Paths()
 		# Only when sample is added to project, can paths be added -
@@ -585,12 +578,12 @@ class Sample(object):
 		If not available (matching config), genome and transcriptome will be set to sample.organism.
 		"""
 		try:
-			self.genome = getattr(self.prj.config.genomes, self.organism)
+			self.genome = getattr(self.prj.genomes, self.organism)
 		except:
 			self.genome = self.organism
 		# get transcriptome
 		try:
-			self.transcriptome = getattr(self.prj.config.transcriptomes, self.organism)
+			self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
 		except:
 			self.transcriptome = self.organism
 
@@ -698,27 +691,6 @@ class Sample(object):
 			self.read_type = "single"
 			self.paired = False
 
-	def getTrackColour(self):
-		"""
-		Get a colour for a genome browser track based on the IP.
-		"""
-		# This is ChIP-centric, and therefore if no "ip" attrbute,
-		# will just pick one color randomly from a gradient.
-		import random
-
-		if hasattr(self, "ip"):
-			if self.ip in self.config["trackcolours"].keys():
-				self.trackColour = self.config["trackcolours"][self.ip]
-			else:
-				if self.library in ["ATAC", "ATACSEQ", "ATAC-SEQ"]:
-					self.trackColour = self.config["trackcolours"]["ATAC"]
-				elif self.library in ["DNASE", "DNASESEQ", "DNASE-SEQ"]:
-					self.trackColour = self.config["trackcolours"]["DNASE"]
-				else:
-					self.trackColour = random.sample(self.config["colourgradient"], 1)[0]  # pick one randomly
-		else:
-			self.trackColour = random.sample(self.config["colourgradient"], 1)[0]  # pick one randomly
-
 
 class ChIPseqSample(Sample):
 	"""
@@ -801,6 +773,28 @@ class ChIPseqSample(Sample):
 		# Motifs
 		self.paths.motifs = _os.path.join(self.paths.sample_root, "motifs", self.sample_name)
 
+	def getTrackColour(self):
+		"""
+		Get a colour for a genome browser track based on the IP.
+		"""
+		# This is ChIP-centric, and therefore if no "ip" attrbute,
+		# will just pick one color randomly from a gradient.
+		import random
+
+		if hasattr(self, "ip"):
+			if self.ip in self.config["trackcolours"].keys():
+				self.trackColour = self.config["trackcolours"][self.ip]
+			else:
+				if self.library in ["ATAC", "ATACSEQ", "ATAC-SEQ"]:
+					self.trackColour = self.config["trackcolours"]["ATAC"]
+				elif self.library in ["DNASE", "DNASESEQ", "DNASE-SEQ"]:
+					self.trackColour = self.config["trackcolours"]["DNASE"]
+				else:
+					self.trackColour = random.sample(self.config["colourgradient"], 1)[0]  # pick one randomly
+		else:
+			self.trackColour = random.sample(self.config["colourgradient"], 1)[0]  # pick one randomly
+
+
 
 class ChIPmentation(ChIPseqSample):
 	"""
@@ -815,6 +809,8 @@ class ChIPmentation(ChIPseqSample):
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(ChIPmentation, self).__init__(series)
+
+		self.tagmented = True
 
 	def __repr__(self):
 		return "ChIPmentation sample '%s'" % self.sample_name
@@ -851,6 +847,8 @@ class ATACseqSample(ChIPseqSample):
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(ATACseqSample, self).__init__(series)
+
+		self.tagmented = True
 
 	def __repr__(self):
 		return "ATAC-seq sample '%s'" % self.sample_name
