@@ -184,9 +184,9 @@ class Project(AttributeDict):
 		for key, value in config_vars.items():
 			if hasattr(self.paths, key):
 				if not _os.path.isabs(getattr(self.paths, key)):
-					setattr(self.paths, key, _os.path.join(_os.path.dirname(self.paths.output_dir), getattr(self.paths, key)))
+					setattr(self.paths, key, _os.path.join(self.paths.output_dir, getattr(self.paths, key)))
 			else:
-				setattr(self.paths, key, _os.path.join(_os.path.dirname(self.paths.output_dir), value))
+				setattr(self.paths, key, _os.path.join(self.paths.output_dir, value))
 
 	def make_project_dirs(self):
 		"""
