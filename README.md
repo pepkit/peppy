@@ -4,6 +4,13 @@ These pipelines use [`pypiper`](https://github.com/epigen/pypiper/) (see the cor
 
 # How to use
 
+You can try it out using the microtest example like this (the `-d` option indicates a dry run, meaning submit scripts are created but not actually submitted).
+```
+./pipelines/looper.py -c pipelines/examples/microtest_project_config.yaml -d
+```
+
+
+
 
 ### Option 1 (clone the repository)
 
