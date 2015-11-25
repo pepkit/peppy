@@ -377,7 +377,7 @@ def main():
 				cmd += " -C " + pl_config_file
 
 			# Append output parent folder
-			cmd += " -O " + prj.paths.output_dir
+			cmd += " -O " + prj.paths.results_subdir
 
 			# Append arg for cores (number of processors to use)
 			if submit_settings["cores"] > 1:
