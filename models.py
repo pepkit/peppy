@@ -715,9 +715,9 @@ class ChIPseqSample(Sample):
 
 		# Get type of factor
 		# TODO: get config file specifying broad/narrow factors
-		# e.g. self.broad = True if self.library in self.prj.config["broadfactors"] else False
-		self.broad = True if self.library in ["H3K27me3", "H3K36me3"] else False
-		self.histone = True if self.library in ["H3", "H2B"] else False
+		# e.g. self.broad = True if self.ip in self.prj.config["broadfactors"] else False
+		self.broad = True if any([ip in self.ip.upper() for ip in ["H3K27me3", "H3K36me3"]]) else False
+		self.histone = True if any([ip in self.ip.upper() for ip in ["H3", "H2A", "H2B", "H4"]]) else False
 
 	def __repr__(self):
 		return "ChIP-seq sample '%s'" % self.sample_name
@@ -761,6 +761,9 @@ class ChIPseqSample(Sample):
 		self.paths.coverage = _os.path.join(self.paths.sample_root, "coverage")
 		self.coverage = _os.path.join(self.paths.coverage, self.sample_name + ".cov")
 
+		self.insertplot = _os.path.join(self.paths.sample_root, self.name + "_insertLengths.pdf")
+		self.insertdata = _os.path.join(self.paths.sample_root, self.name + "_insertLengths.csv")
+
 		self.qc = _os.path.join(self.paths.sample_root, self.sample_name + "_qc.tsv")
 		self.qc_plot = _os.path.join(self.paths.sample_root, self.sample_name + "_qc.pdf")
 
@@ -771,7 +774,7 @@ class ChIPseqSample(Sample):
 		self.peaks_motif_annotated = _os.path.join(self.paths.peaks, self.sample_name + "_peaks._motif_annotated.bed")
 
 		# Motifs
-		self.paths.motifs = _os.path.join(self.paths.sample_root, "motifs", self.sample_name)
+		self.paths.motifs = _os.path.join(self.paths.sample_root, "motifs")
 
 
 class ChIPmentation(ChIPseqSample):
@@ -792,24 +795,6 @@ class ChIPmentation(ChIPseqSample):
 
 	def __repr__(self):
 		return "ChIPmentation sample '%s'" % self.sample_name
-
-
-class DNaseSample(ChIPseqSample):
-	"""
-	Class to model DNase-seq samples based on the ChIPseqSample class.
-
-	:param series: Pandas `Series` object.
-	:type series: pandas.Series
-	"""
-	def __init__(self, series):
-
-		# Use _pd.Series object to have all sample attributes
-		if not isinstance(series, _pd.Series):
-			raise TypeError("Provided object is not a pandas Series.")
-		super(DNaseSample, self).__init__(series)
-
-	def __repr__(self):
-		return "DNase-seq sample '%s'" % self.sample_name
 
 
 class ATACseqSample(ChIPseqSample):
@@ -883,6 +868,24 @@ class ATACseqSample(ChIPseqSample):
 		self.paths.peaks = _os.path.join(self.paths.sample_root, "peaks")
 		self.peaks = _os.path.join(self.paths.peaks, self.name + "_peaks.narrowPeak")
 		self.filteredPeaks = _os.path.join(self.paths.peaks, self.name + "_peaks.filtered.bed")
+
+
+class DNaseSample(ATACseqSample):
+	"""
+	Class to model DNase-seq samples based on the ChIPseqSample class.
+
+	:param series: Pandas `Series` object.
+	:type series: pandas.Series
+	"""
+	def __init__(self, series):
+
+		# Use _pd.Series object to have all sample attributes
+		if not isinstance(series, _pd.Series):
+			raise TypeError("Provided object is not a pandas Series.")
+		super(DNaseSample, self).__init__(series)
+
+	def __repr__(self):
+		return "DNase-seq sample '%s'" % self.sample_name
 
 
 class QuantseqSample(Sample):
