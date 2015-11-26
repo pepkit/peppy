@@ -51,6 +51,14 @@ class Paths(object):
 	def __repr__(self):
 		return "Paths object."
 
+	def copy(self):
+		"""
+		Copy self to a new object.
+		"""
+		from copy import deepcopy
+
+		return deepcopy(self)
+
 
 class AttributeDict(object):
 	"""
@@ -61,6 +69,14 @@ class AttributeDict(object):
 	"""
 	def __init__(self, **entries):
 		self.add_entries(**entries)
+
+	def copy(self):
+		"""
+		Copy self to a new object.
+		"""
+		from copy import deepcopy
+
+		return deepcopy(self)
 
 	def add_entries(self, **entries):
 		for key, value in entries.items():
@@ -119,6 +135,14 @@ class Project(AttributeDict):
 	def __repr__(self):
 		return "Project '%s'" % self.name
 
+	def copy(self):
+		"""
+		Copy self to a new object.
+		"""
+		from copy import deepcopy
+
+		return deepcopy(self)
+
 	def parse_config_file(self):
 		"""
 		Parse provided yaml config file and check required fields exist.
@@ -128,22 +152,6 @@ class Project(AttributeDict):
 
 		# parse yaml into the project's attributes
 		self.add_entries(**self.config)
-		# All this is no longer necessary:
-		# self.paths.output_dir = self.config['paths']['output_dir']
-		# for key, value in self.config.items():
-		# 	# set that attribute to a holder
-		# 		if not hasattr(self, key):
-		# 			if type(value) is dict:
-		# 				setattr(self, key, Paths())
-		# 			else:
-		# 				print key
-		# 				if value is not None:
-		# 					setattr(self, key, value)
-
-		# 		if type(value) is dict:
-		# 			for key2, value2 in value.items():
-		# 				if value2 is not None:
-		# 					setattr(getattr(self, key), key2, value2)
 
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
@@ -341,6 +349,14 @@ class SampleSheet(object):
 		else:
 			return "SampleSheet with %i samples." % len(self.df)
 
+	def copy(self):
+		"""
+		Copy self to a new object.
+		"""
+		from copy import deepcopy
+
+		return deepcopy(self)
+
 	def check_sheet(self):
 		"""
 		Check if csv file exists and has all required columns.
@@ -484,6 +500,14 @@ class Sample(object):
 	def __repr__(self):
 		return "Sample '%s'" % self.sample_name
 
+	def copy(self):
+		"""
+		Copy self to a new object.
+		"""
+		from copy import deepcopy
+
+		return deepcopy(self)
+
 	def check_valid(self):
 		"""
 		Check provided sample annotation is valid.
@@ -554,7 +578,7 @@ class Sample(object):
 		else:
 			self.yaml_file = path
 
-		serial = self.__dict__
+		serial = self.copy().__dict__
 
 		# remove unserialasable fields (project and config objects, etc...)
 		for key in serial.keys():
