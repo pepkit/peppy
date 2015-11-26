@@ -53,7 +53,7 @@ def get_file_size(filename):
 		return(get_file_size(filesplit[0]) + get_file_size(filesplit[1:]))
 	else:
 		st = os.stat(filename)
-		return float(st.st_size) / 1000000
+		return float(st.st_size) / 1e9
 
 
 def make_sure_path_exists(path):
