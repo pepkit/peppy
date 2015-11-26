@@ -30,6 +30,7 @@ templates = ["templates/%s" % f for f in os.listdir(os.path.join(os.path.dirname
 # temporarily copy looper to the pipelines package
 # this is just for installation purposes
 shutil.copy("looper.py", "pipelines/looper.py")
+shutil.copy("models.py", "pipelines/models.py")
 
 # setup
 setup(
@@ -44,7 +45,7 @@ setup(
 		"Programming Language :: Python :: 2.7",
 		"Topic :: Scientific/Engineering :: Bio-Informatics"
 	],
-	keywords="bioinformatics, sequencing, ngs, ChIP-seq, ATAC-Seq, RNA-seq, RRBS, WGBS",
+	keywords="bioinformatics, sequencing, ngs, ATAC-Seq, ChIP-seq, RNA-seq, RRBS, WGBS",
 	url="https://github.com/epigen/pipelines",
 	author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro",
 	license="GPL2",
@@ -52,13 +53,15 @@ setup(
 	entry_points={
 		"console_scripts": [
 			'looper = pipelines.looper:main',
-			'chipseq_pipeline = pipelines.chipseq:main',
 			'atacseq_pipeline = pipelines.atacseq:main',
+			'chipseq_pipeline = pipelines.chipseq:main',
+			'cpgseq_pipeline = pipelines.cpgseq:main',
+			'interactions_pipeline = pipelines.interactions:main',
 			'quantseq_pipeline = pipelines.quantseq:main',
-			'rrbs_pipeline = pipelines.rrbs_pipeline:main',
-			'rnaTopHat_pipeline = pipelines.rnaTopHat_pipeline:main',
-			'rnaBitSeq_pipeline = pipelines.rnaBitSeq_pipeline:main',
-			'wgbs_pipeline = pipelines.wgbs_pipeline:main'
+			'rrbs_pipeline = pipelines.rrbs:main',
+			'rnaTopHat_pipeline = pipelines.rnaTopHat:main',
+			'rnaBitSeq_pipeline = pipelines.rnaBitSeq:main',
+			'wgbs_pipeline = pipelines.wgbs:main'
 		],
 	},
 	scripts=scripts,
@@ -68,3 +71,4 @@ setup(
 
 # remove the copied looper
 os.remove("pipelines/looper.py")
+shutil.copy("pipelines/models.py")
