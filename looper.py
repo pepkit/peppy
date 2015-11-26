@@ -12,147 +12,12 @@ from argparse import ArgumentParser
 import glob
 import errno
 import re
-import yaml
 
 try:
-	from .models import Project, AttributeDict
+	from .models import Project, PipelineInterface, ProtocolMapper
 except:
 	sys.path.append(os.path.join(os.path.dirname(__file__), "../pipelines"))
-	from models import Project, AttributeDict
-
-
-class PipelineInterface(object):
-	"""
-	This class parses, holds, and returns information for a yaml
-	file that specifies tells the looper how to interact with each individual
-	pipeline. This includes both resources to request for cluster job submission,
-	as well as arguments to be passed from the sample annotation metadata to
-	the pipeline
-	"""
-
-	def __init__(self, yaml_config_file):
-		import yaml
-		self.looper_config_file = yaml_config_file
-		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
-
-	def select_pipeline(self, pipeline_name):
-		"""
-		Check to make sure that pipeline has an entry and if so, return it
-		"""
-		if pipeline_name not in self.looper_config:
-			print(
-				"Missing pipeline description: '" + pipeline_name + "' not found in '" +
-				self.looper_config_file + "'")
-			# Should I just use defaults or force you to define this?
-			raise Exception("You need to teach the looper about that pipeline")
-
-		return(self.looper_config[pipeline_name])
-
-	def choose_resource_package(self, pipeline_name, file_size):
-		'''
-		Given a pipeline name (pipeline_name) and a file size (size), return the
-		resource configuratio specified by the config file.
-		'''
-		config = self.select_pipeline(pipeline_name)
-
-		if "resources" not in config:
-			msg = "No resources found for '" + pipeline_name + "' in '" + self.looper_config_file + "'"
-			# Should I just use defaults or force you to define this?
-			raise IOError(msg)
-
-		table = config['resources']
-		current_pick = "default"
-
-		for option in table:
-			if table[option]['file_size'] == "0":
-				continue
-			if file_size < float(table[option]['file_size']):
-				continue
-			elif float(table[option]['file_size']) > table[current_pick]['file_size']:
-				current_pick = option
-
-		# print("choose:" + str(current_pick))
-
-		return(table[current_pick])
-
-	def get_arg_string(self, pipeline_name, sample):
-		"""
-		For a given pipeline and sample, return the argument string
-		"""
-		config = self.select_pipeline(pipeline_name)
-
-		if "arguments" not in config:
-			print(
-				"No arguments found for '" + pipeline_name + "' in '" +
-				self.looper_config_file + "'")
-			return("")  # empty argstring
-
-		argstring = ""
-		args = config['arguments']
-		for key, value in args.iteritems():
-			# print(key, value)
-			if value is None:
-				arg = ""
-			else:
-				try:
-					arg = getattr(sample, value)
-				except AttributeError as e:
-					print(
-						"Pipeline '" + pipeline_name + "' requests for argument '" +
-						key + "' a sample attribute named '" + value + "'" +
-						" but no such attribute exists for sample '" +
-						sample.sample_name + "'")
-					raise e
-
-			argstring += " " + key + " " + arg
-
-		return(argstring)
-
-
-class ProtocolMapper(object):
-	"""
-	This class maps protocols (the library column) to pipelines. For example,
-	WGBS is mapped to wgbs.py
-	"""
-	def __init__(self, mappings_file):
-		import yaml
-		# mapping libraries to pipelines
-		self.mappings_file = mappings_file
-		self.mappings = yaml.load(open(mappings_file, 'r'))
-
-	def build_pipeline(self, protocol):
-		# print("Building pipeline for protocol '" + protocol + "'")
-
-		if protocol not in self.mappings:
-			print("  Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
-			return([])  # empty list
-
-		# print(self.mappings[protocol]) # The raw string with mappings
-		# First list level
-		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
-		# print(split_jobs) # Split into a list
-		return(split_jobs)  # hack works if no parllelism
-
-		for i in range(0, len(split_jobs)):
-			if i == 0:
-				self.parse_parallel_jobs(split_jobs[i], None)
-			else:
-				self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
-
-	def parse_parallel_jobs(self, job, dep):
-		# Eliminate any parenthesis
-		job = job.replace("(", "")
-		job = job.replace(")", "")
-		# Split csv entry
-		split_jobs = [x.strip() for x in job.split(',')]
-		if len(split_jobs) > 1:
-			for s in split_jobs:
-				self.register_job(s, dep)
-		else:
-			self.register_job(job, dep)
-
-	def register_job(self, job, dep):
-		print("Register Job Name:" + job + "\tDep:" + str(dep))
+	from models import Project, PipelineInterface, ProtocolMapper
 
 
 def parse_arguments():
@@ -176,24 +41,6 @@ def parse_arguments():
 		raise SystemExit
 
 	return args, remaining_args
-
-
-def get_genome(config, organism, kind="dna"):
-	"""
-	Pick the genome matching the organism from the sample annotation sheet.
-	If no mapping exists in  the organism-genome translation dictionary, then
-	we assume the given organism name directly corresponds to the name of a
-	reference genome. This enables the use of additional genomes without any
-	need to modify the code.
-	"""
-	if kind == "dna":
-		if organism in config['genomes'].keys():
-			return config['genomes'][organism]
-	elif kind == "rna":
-		if organism in config['transcriptomes'].keys():
-			return config['transcriptomes'][organism]
-	else:
-		return organism
 
 
 def get_file_size(filename):
@@ -275,10 +122,6 @@ def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
 
-	y = yaml.load(open(args.conf_file, 'r'))
-	s = AttributeDict(**y)
-	print(s)
-
 	# Initialize project
 	prj = Project(args.conf_file)
 	# add sample sheet
@@ -334,6 +177,8 @@ def main():
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 		input_file_size = get_file_size(sample.data_path)
 		print("(" + str(round(input_file_size, 2)) + " GB)")
+
+		sample.to_yaml()
 
 		# Get the base protocl to pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library)
