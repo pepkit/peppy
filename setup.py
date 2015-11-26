@@ -45,7 +45,7 @@ setup(
 		"Programming Language :: Python :: 2.7",
 		"Topic :: Scientific/Engineering :: Bio-Informatics"
 	],
-	keywords="bioinformatics, sequencing, ngs, ATAC-Seq, ChIP-seq, RNA-seq, RRBS-seq, WGBS-seq",
+	keywords="bioinformatics, sequencing, ngs, ATAC-Seq, ChIP-seq, RNA-seq, RRBS, WGBS",
 	url="https://github.com/epigen/pipelines",
 	author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro",
 	license="GPL2",
