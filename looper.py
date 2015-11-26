@@ -123,7 +123,7 @@ class ProtocolMapper(object):
 	def build_pipeline(self, protocol):
 		# print("Building pipeline for protocol '" + protocol + "'")
 
-		if "protocol" not in self.mappings:
+		if protocol not in self.mappings:
 			print("  Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
 			return([])  # empty list
 
