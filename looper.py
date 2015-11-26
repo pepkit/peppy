@@ -39,9 +39,10 @@ class PipelineInterface(object):
 		"""
 		Check to make sure that pipeline has an entry and if so, return it
 		"""
-		if not self.looper_config.has_key(pipeline_name):
-			print("Missing pipeline description: '" + pipeline_name +"' not found in '" +
-					self.looper_config_file + "'")
+		if pipeline_name not in self.looper_config:
+			print(
+				"Missing pipeline description: '" + pipeline_name + "' not found in '" +
+				self.looper_config_file + "'")
 			# Should I just use defaults or force you to define this?
 			raise Exception("You need to teach the looper about that pipeline")
 
@@ -54,8 +55,8 @@ class PipelineInterface(object):
 		'''
 		config = self.select_pipeline(pipeline_name)
 
-		if not config.has_key('resources'):
-			msg = "No resources found for '" + pipeline_name +"' in '" + self.looper_config_file + "'"
+		if "resources" not in config:
+			msg = "No resources found for '" + pipeline_name + "' in '" + self.looper_config_file + "'"
 			# Should I just use defaults or force you to define this?
 			raise IOError(msg)
 
@@ -74,17 +75,17 @@ class PipelineInterface(object):
 
 		return(table[current_pick])
 
-
 	def get_arg_string(self, pipeline_name, sample):
 		"""
 		For a given pipeline and sample, return the argument string
 		"""
 		config = self.select_pipeline(pipeline_name)
 
-		if not config.has_key('arguments'):
-			print("No arguments found for '" + pipeline_name +"' in '" +
-					self.looper_config_file + "'")
-			return("") # empty argstring
+		if "arguments" not in config:
+			print(
+				"No arguments found for '" + pipeline_name + "' in '" +
+				self.looper_config_file + "'")
+			return("")  # empty argstring
 
 		argstring = ""
 		args = config['arguments']
@@ -96,16 +97,16 @@ class PipelineInterface(object):
 				try:
 					arg = getattr(sample, value)
 				except AttributeError as e:
-					print("Pipeline '" + pipeline_name + "' requests for argument '" +
-							key + "' a sample attribute named '" + value + "'" +
-							" but no such attribute exists for sample '" +
-							sample.sample_name + "'")
+					print(
+						"Pipeline '" + pipeline_name + "' requests for argument '" +
+						key + "' a sample attribute named '" + value + "'" +
+						" but no such attribute exists for sample '" +
+						sample.sample_name + "'")
 					raise e
 
 			argstring += " " + key + " " + arg
 
 		return(argstring)
-
 
 
 class ProtocolMapper(object):
@@ -119,26 +120,24 @@ class ProtocolMapper(object):
 		self.mappings_file = mappings_file
 		self.mappings = yaml.load(open(mappings_file, 'r'))
 
-
 	def build_pipeline(self, protocol):
 		# print("Building pipeline for protocol '" + protocol + "'")
 
-		if not self.mappings.has_key(protocol):
+		if "protocol" not in self.mappings:
 			print("  Missing Protocol Mapping: '" + protocol + "' is not found in '" + self.mappings_file + "'")
-			return([]) #empty list
+			return([])  # empty list
 
 		# print(self.mappings[protocol]) # The raw string with mappings
 		# First list level
 		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
 		# print(split_jobs) # Split into a list
-		return(split_jobs) # hack works if no parllelism
+		return(split_jobs)  # hack works if no parllelism
 
 		for i in range(0, len(split_jobs)):
 			if i == 0:
 				self.parse_parallel_jobs(split_jobs[i], None)
 			else:
 				self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
-
 
 	def parse_parallel_jobs(self, job, dep):
 		# Eliminate any parenthesis
@@ -152,10 +151,8 @@ class ProtocolMapper(object):
 		else:
 			self.register_job(job, dep)
 
-
 	def register_job(self, job, dep):
 		print("Register Job Name:" + job + "\tDep:" + str(dep))
-
 
 
 def parse_arguments():
@@ -223,9 +220,10 @@ def make_sure_path_exists(path):
 			raise
 
 
-def cluster_submit(sample, submit_template, submission_command, variables_dict,
- 				submission_folder,	pipeline_outfolder, pipeline_name,
-				submit=False, dry_run=False, remaining_args=list()):
+def cluster_submit(
+	sample, submit_template, submission_command, variables_dict,
+	submission_folder, pipeline_outfolder, pipeline_name,
+	submit=False, dry_run=False, remaining_args=list()):
 	"""
 	Submit job to cluster manager.
 	"""
@@ -249,7 +247,7 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 	for key, value in variables_dict.items():
 		# Here we add brackets around the key names and use uppercase because
 		# this is how they are encoded as variables in the submit templates.
-		filedata = filedata.replace("{"+str(key).upper()+"}", str(value))
+		filedata = filedata.replace("{" + str(key).upper() + "}", str(value))
 	# save submission file
 	with open(submit_script, 'w') as handle:
 		handle.write(filedata)
@@ -270,8 +268,7 @@ def cluster_submit(sample, submit_template, submission_command, variables_dict,
 			print("  DRY RUN: I would have submitted this")
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
-			#pass
-
+			# pass
 
 
 def main():
