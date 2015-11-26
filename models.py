@@ -463,6 +463,9 @@ class Sample(object):
 		for key, value in series.to_dict().items():
 			setattr(self, key, value)
 
+		# Short hand for getting sample_name
+		self.name = self.sample_name
+
 		# Check if required attributes exist and are not empty
 		self.check_valid()
 
@@ -799,7 +802,7 @@ class ChIPmentation(ChIPseqSample):
 		return "ChIPmentation sample '%s'" % self.sample_name
 
 
-class ATACseqSample(ChIPseqSample):
+class ATACseqSample(Sample):
 	"""
 	Class to model ATAC-seq samples based on the ChIPseqSample class.
 
