@@ -547,7 +547,9 @@ class Sample(object):
 		# if path is not specified, use default:
 		# prj.paths.submission_dir + sample_name + yaml
 		if path is None:
-			path = _os.path.join(self.prj.paths.submission_subdir, self.sample_name + ".yaml")
+			self.yaml_file = _os.path.join(self.prj.paths.submission_subdir, self.sample_name + ".yaml")
+		else:
+			self.yaml_file = path
 
 		serial = self.__dict__
 
@@ -556,7 +558,7 @@ class Sample(object):
 			if type(serial[key]) not in [str, int, bool]:
 				del serial[key]
 		# write
-		with open(path, 'w') as outfile:
+		with open(self.yaml_file, 'w') as outfile:
 			outfile.write(_yaml.dump(serial, default_flow_style=False))
 
 	def locate_data_source(self):
