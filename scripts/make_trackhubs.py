@@ -13,6 +13,7 @@ import datetime
 import getpass
 import inspect
 import urllib
+import uuid
 
 # Argument Parsing
 # #######################################################################################
@@ -26,15 +27,17 @@ parser.add_argument('--copy', dest='copy', help='copy files instead of creating 
 args = parser.parse_args()
 
 if not args.conf_file:
-	parser.print_help() #or, print_usage() for less verbosity
+	parser.print_help()
 	raise SystemExit
 
-#get configurations
+
 config = ConfigParser.ConfigParser({
 	"results": "$ROOT/results_pipeline/",
 	"email": "jklughammer@cemm.oeaw.ac.at",
 	"short_label_column": None
 })
+
+#get configurations
 config.readfp(open(args.conf_file))
 
 #organism-genome translation
@@ -65,7 +68,6 @@ paths.project_root = config.get("paths","project_root")
 paths.psa = config.get("paths","psa")
 paths.track_dir = config.get("paths","track_dir")
 paths.results = config.get("paths","results")
-
 
 # Include the path to the config file
 paths.config = os.path.dirname(os.path.realpath(args.conf_file))
@@ -109,6 +111,7 @@ try:
 	input_file = csv.DictReader(f)  # creates the reader object
 
 	paths.write_dir = ""
+	paths.track_dir_uuid = paths.track_dir+'_'+uuid.uuid4().hex
 
 	if args.copy:
 		paths.write_dir = paths.track_dir
@@ -117,6 +120,7 @@ try:
 	else:
 		paths.write_dir = paths.project_root
 		os.symlink(os.path.relpath(paths.write_dir, os.path.dirname(paths.track_dir)),paths.track_dir)
+		os.symlink(os.path.relpath(paths.write_dir, os.path.dirname(paths.track_dir)),paths.track_dir_uuid)
 
 	genomes_file = open(os.path.join(paths.write_dir, "genomes.txt"), 'w')
 
@@ -165,6 +169,8 @@ try:
         html_out_tab2 += '<th>Sample</th>\n'
         html_out_tab2 += '<th>BED File</th>\n'
         html_out_tab2 += '</tr>\n'
+
+	genome = ''
 
 	for row in input_file:  # iterates the rows of the file in orders
 
@@ -413,6 +419,7 @@ try:
 
 	trackDB.close()
 
+
         html_out_tab1 += '</table>\n'
         html_out_tab2 += '</table>\n'
         html_file_name = os.path.join(track_out, 'report.html')
@@ -420,7 +427,11 @@ try:
         file_handle.write(html_out)
         file_handle.write(html_out_tab1)
         file_handle.write(html_out_tab2)
-	html_out = '</body>\n'
+	if genome == 'taeGut2_light': genome='taeGut2'
+	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome+'&hubUrl=http%3A%2F%2Fwww.biomedical-sequencing.at%2Fprojects%2F'+paths.track_dir_uuid+'%2Fhub.txt'
+        html_out = '<h2>UCSC Genome Browser Track Hub</h2>\n'
+        html_out += '<p><a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,paths.ucsc_browser_link)
+	html_out += '</body>\n'
 	html_out += '</html>\n'
 	html_out += '\n'
         file_handle.write(html_out)
