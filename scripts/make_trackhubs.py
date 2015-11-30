@@ -7,49 +7,48 @@ import os
 import subprocess
 import ConfigParser
 from argparse import ArgumentParser
-
 import cgi
 import datetime
 import getpass
 import inspect
 import urllib
-import uuid
+from pypiper import AttributeDict
+import yaml
+
 
 # Argument Parsing
 # #######################################################################################
 parser = ArgumentParser(description='make_trackhubs')
 
-parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]", required=True, type=str)
+parser.add_argument('-c', '--config-file', dest='config_file', help="path to YAML config file", required=True, type=str)
 parser.add_argument('-f', dest='filter', action='store_false', required=False, default=True)
 parser.add_argument('-v', '--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
-parser.add_argument('--copy', dest='copy', help='copy files instead of creating symbolic links', required=False, default=False)
+parser.add_argument('--copy', dest='copy', help='copy all files instead of creating symbolic links', required=False, default=False)
 
 args = parser.parse_args()
+print '\nArguments:'
+print args
 
-if not args.conf_file:
-	parser.print_help()
-	raise SystemExit
+with open(args.config_file, 'r') as config_file:
+	config_yaml = yaml.load(config_file)
+	config = AttributeDict(config_yaml, default=True)
 
+print '\nYAML configuration:'
+print config
 
-config = ConfigParser.ConfigParser({
-	"results": "$ROOT/results_pipeline/",
-	"email": "jklughammer@cemm.oeaw.ac.at",
-	"short_label_column": None
-})
+trackhubs = config.trackhubs
+paths = config.paths
 
-#get configurations
-config.readfp(open(args.conf_file))
+if not os.path.exists(paths.output_dir):
+	raise Exception(paths.output_dir + " : that project directory does not exist!")
 
 #organism-genome translation
 genomes = {"human": ["hg19", "hg19_cdna"], "mouse": ["mm10", "m38_cdna"], "zebra_finch": ["taeGut2_light"]}
-
 # Pick the genome matching the organism from the sample annotation sheet.
 # If no mapping exists in  the organism-genome translation dictionary, then
 # we assume the given organism name directly corresponds to the name of a
 # reference genome. This enables the use of additional genomes without any
 # need to modify the code.
-# (REPLICATED FROM project_sample_loop.py -- TODO resolve rundandancy)
-
 def get_genome(organism,dna=True):
 	if organism in genomes.keys():
 		if dna:
@@ -59,78 +58,67 @@ def get_genome(organism,dna=True):
 	else:
 		return organism
 
-# Create an empty object to hold paths
-class Container:
-	pass
-paths = Container()
 
-paths.project_root = config.get("paths","project_root")
-paths.psa = config.get("paths","psa")
-paths.track_dir = config.get("paths","track_dir")
-paths.results = config.get("paths","results")
-
-# Include the path to the config file
-paths.config = os.path.dirname(os.path.realpath(args.conf_file))
-
-#track configurations
-matrix_x = config.get("track configurations","matrix_x")
-matrix_y = config.get("track configurations","matrix_y")
-sortOrder = config.get("track configurations","sortOrder")
-parent_track_name = config.get("track configurations","parent_track_name")
-hub_name = config.get("track configurations","hub_name")
-short_label_column = config.get("track configurations", "short_label_column")
-email = config.get("track configurations", "email")
-
-if not os.path.exists(paths.project_root):
-	raise Exception(paths.project_root + " : that project does not exist!")
-
-# This loop checks for absolute paths; if a path is relative, it
-# converts it to an absolute path *relative to the config file*.
-# It also converts $ROOT into the project root, for relative paths.
-print("Paths:")
-pathsDict = paths.__dict__
-for attribute in pathsDict:
-	print(attribute.rjust(20) + ":\t" + str(getattr(paths,attribute)))
-	if not os.path.isabs(getattr(paths,attribute)):
-		newPath = getattr(paths,attribute).replace("$ROOT", paths.project_root)
-		setattr(paths,attribute, os.path.join(paths.config, newPath))
-		print("->".rjust(20) + "\t" + getattr(paths,attribute))
-
-
-f = open(paths.psa, 'rb')  # opens the csv file
 present_genomes = {}
 subGroups_perGenome = {}
 subGroups = {"exp_category":{},"FACS_marker":{},"cell_type":{},"treatment":{},"treatment_length":{},"cell_count":{},"library":{},"data_type":{}}
-
 # add x- and y-dimension to subGroups even if they are not in the standard column selection:
-subGroups[matrix_x] = {}
-subGroups[matrix_y] = {}
+subGroups[trackhubs.matrix_x] = {}
+subGroups[trackhubs.matrix_y] = {}
 
+
+csv_file_path = os.path.join(os.path.dirname(args.config_file),config.metadata.sample_annotation)
+print "\nOpening CSV file: "+csv_file_path
+if os.path.isfile(csv_file_path):
+	csv_file = open(os.path.join(os.path.dirname(args.config_file),config.metadata.sample_annotation), 'rb')  # opens the csv file
+else:
+	raise Exception(csv_file_path + " : that file does not exist!")
 
 try:
-	input_file = csv.DictReader(f)  # creates the reader object
+
+	csv_file_0 = open(os.path.join(os.path.dirname(args.config_file),config.metadata.sample_annotation), 'rb')
+	input_file_0 = csv.DictReader(csv_file_0)  # creates the reader object
+
+	pipeline = ""
+	genome = ""
+	for row in input_file_0:
+		if ("library" in row.keys()): pipeline = str(row["library"])
+		if ("organism" in row.keys()): genome = get_genome(row["organism"])
+	print 'Pipeline: ' + pipeline
+	print 'Genome: ' + genome
+	if pipeline != "": pipeline += '_'
 
 	paths.write_dir = ""
-	paths.track_dir_uuid = paths.track_dir+'_'+uuid.uuid4().hex
 
 	if args.copy:
-		paths.write_dir = paths.track_dir
+		paths.write_dir = trackhubs.trackhub_dir
 		if not os.path.exists(paths.write_dir):
 			os.makedirs(paths.write_dir)
 	else:
-		paths.write_dir = paths.project_root
-		os.symlink(os.path.relpath(paths.write_dir, os.path.dirname(paths.track_dir)),paths.track_dir)
-		os.symlink(os.path.relpath(paths.write_dir, os.path.dirname(paths.track_dir)),paths.track_dir_uuid)
+		paths.write_dir = paths.output_dir
+		if not os.path.islink(trackhubs.trackhub_dir):
+			os.symlink(os.path.relpath(paths.write_dir, os.path.dirname(trackhubs.trackhub_dir)),trackhubs.trackhub_dir)
+			print 'Linking to: ' + str(trackhubs.trackhub_dir)
+		else:
+			print 'Link already exists: ' + str(trackhubs.trackhub_dir)
+	print 'Writing files to: ' + paths.write_dir
 
-	genomes_file = open(os.path.join(paths.write_dir, "genomes.txt"), 'w')
+
+	genomes_file = open(os.path.join(paths.write_dir, pipeline+'genomes.txt'), 'w')
+
+	track_out = os.path.join(paths.write_dir, genome)
+	if not os.path.exists(track_out):
+		os.makedirs(track_out)
+	print 'Writing tracks to: ' + track_out
 
 	# write hub.txt
-	hub_file = open(os.path.join(paths.write_dir, "hub.txt"), 'w')
-	hub_file.writelines("hub " + hub_name + "\n")
-	hub_file.writelines("shortLabel " + hub_name + "\n")
-	hub_file.writelines("longLabel " + hub_name + "\n")
-	hub_file.writelines("genomesFile genomes.txt\n")
-	hub_file.writelines("email " + email + "\n")
+	hub_file_name = pipeline+"hub.txt"
+	hub_file = open(os.path.join(paths.write_dir, hub_file_name), 'w')
+	hub_file.writelines("hub " + trackhubs.hub_name + "\n")
+	hub_file.writelines("shortLabel " + trackhubs.hub_name + "\n")
+	hub_file.writelines("longLabel " + trackhubs.hub_name + "\n")
+	hub_file.writelines("genomesFile " + pipeline + "genomes.txt\n")
+	hub_file.writelines("email " + trackhubs.email + "\n")
 
         # Write a HTML document.
         html_out = str()
@@ -147,12 +135,12 @@ try:
         html_out += '<meta name="DC.Creator" content="{}" />\n'.format(getpass.getuser())
         html_out += '<meta name="DC.Date" content="{}" />\n'.format(datetime.datetime.now().isoformat())
         html_out += '<meta name="DC.Source" content="{}" />\n'.format(inspect.currentframe())
-        html_out += '<meta name="DC.Title" content="{}" />\n'.format(os.path.basename(paths.project_root))
-        html_out += '<title>{}</title>\n'.format(os.path.basename(paths.project_root))
+        html_out += '<meta name="DC.Title" content="{}" />\n'.format(os.path.basename(paths.output_dir))
+        html_out += '<title>{}</title>\n'.format(os.path.basename(paths.output_dir))
         html_out += '</head>\n'
         html_out += '\n'
         html_out += '<body>\n'
-        html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.project_root))
+        html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
         html_out += '\n'
 
         html_out_tab1 = '<h2>Aligned BAM files</h2>\n'
@@ -170,13 +158,17 @@ try:
         html_out_tab2 += '<th>BED File</th>\n'
         html_out_tab2 += '</tr>\n'
 
-	genome = ''
 
+	input_file = csv.DictReader(csv_file)
+	sample_count = 0
+
+	print '\nStart iterating over samples'
 	for row in input_file:  # iterates the rows of the file in orders
 
-		# if 'run' column is absent, assume we should run them all.
+		sample_count += 1
 
 		sample_name = row["sample_name"]
+		print '\nProcessing sample #'+ str(sample_count) + " : " + sample_name
 
 		if 'run' in row:
 			if not row["run"] == "1":
@@ -184,54 +176,47 @@ try:
 				continue
 			else:
 				print(sample_name + ": SELECTED")
-		else:
-			print(sample_name + ":")
 
+		sample_path = os.path.join(paths.output_dir, paths.results_subdir, sample_name)
 
 		present_subGroups = "\tsubGroups "
-		genome = get_genome(row["organism"])
 		if args.filter:
-			tophat_bw_file = os.path.join(paths.results, sample_name, "tophat_" + genome, sample_name + ".aln.filt_sorted.bw")
+			tophat_bw_file = os.path.join(sample_path, "tophat_" + genome, sample_name + ".aln.filt_sorted.bw")
 		else:
-			tophat_bw_file = os.path.join(paths.results, sample_name, "tophat_" + genome, sample_name + ".aln_sorted.bw")
+			tophat_bw_file = os.path.join(sample_path, "tophat_" + genome, sample_name + ".aln_sorted.bw")
 
 
-		bismark_bw_file = os.path.join(paths.results, sample_name, "bismark_" + genome, "extractor", sample_name + ".aln.dedup.filt.bw")
+		bismark_bw_file = os.path.join(sample_path, "bismark_" + genome, "extractor", sample_name + ".aln.dedup.filt.bw")
 		tophat_bw_name = os.path.basename(tophat_bw_file)
 		bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		# bsmap aligned bam files
-		bsmap_mapped_bam = os.path.join(paths.results, sample_name, "bsmap_" + genome, sample_name + ".bam")
+		bsmap_mapped_bam = os.path.join(sample_path, "bsmap_" + genome, sample_name + ".bam")
 		bsmap_mapped_bam_name = os.path.basename(bsmap_mapped_bam)
-		bsmap_mapped_bam_index = os.path.join(paths.results, sample_name, "bsmap_" + genome, sample_name + ".bam.bai")
+		bsmap_mapped_bam_index = os.path.join(sample_path, "bsmap_" + genome, sample_name + ".bam.bai")
 		bsmap_mapped_bam_index_name = os.path.basename(bsmap_mapped_bam_index)
 
 		# biseqMethcalling bed file
-		biseq_bed = os.path.join(paths.results, sample_name, "biseqMethcalling_" + genome, "RRBS_cpgMethylation_" + sample_name + ".bed")
+		biseq_bed = os.path.join(sample_path, "biseq_" + genome, "RRBS_cpgMethylation_" + sample_name + ".bed")
 		biseq_bed_name = os.path.basename(biseq_bed)
 
 		# With the new meth bigbeds, RRBS pipeline should yield this file:
-		meth_bb_file = os.path.join(paths.results, sample_name, "bigbed_" + genome, "RRBS_" + sample_name + ".bb")
+		meth_bb_file = os.path.join(sample_path, "bigbed_" + genome, "RRBS_" + sample_name + ".bb")
 		meth_bb_name = os.path.basename(meth_bb_file)
 
 		#bigwigs are better actually
 		if not os.path.isfile(bismark_bw_file):
-			bismark_bw_file = os.path.join(paths.results, sample_name, "bigwig_" + genome, "RRBS_" + sample_name + ".bw")
+			bismark_bw_file = os.path.join(sample_path, "bigwig_" + genome, "RRBS_" + sample_name + ".bw")
 			bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		if os.path.isfile(tophat_bw_file) or os.path.isfile(bismark_bw_file)  or os.path.isfile(meth_bb_file):
-			track_out = os.path.join(paths.write_dir, genome)
-			track_out_file = os.path.join(track_out, "trackDB.txt")
+
+			track_out_file = os.path.join(track_out, pipeline+"trackDB.txt")
 			if not track_out_file in present_genomes.keys():
 				#initialize a new genome
-				if not os.path.exists(track_out):
-					os.makedirs(track_out)
-				open(os.path.join(track_out, "trackDB.txt"), 'w').close()
-				if genome == 'taeGut2_light':
-					genomes_file.writelines("genome" + " taeGut2" + "\n")
-				else:
-					genomes_file.writelines("genome" + " " + genome + "\n")
-				genomes_file.writelines("trackDb" + " " + genome + "/trackDB.txt" + "\n")
+				open(track_out_file, 'w').close()
+				genomes_file.writelines("genome "+ genome.split('_')[0] + "\n")
+				genomes_file.writelines("trackDb " + os.path.join(genome, os.path.basename(track_out_file)) + "\n")
 				present_genomes[track_out_file] = []
 				subGroups_perGenome[track_out_file] = subGroups
 
@@ -247,8 +232,8 @@ try:
 
 		# TODO NS: we should only have build these once; like so:
 		# Build short label
-		if short_label_column is not None:
-			shortLabel = row[short_label_column]
+		if trackhubs.short_label_column is not None:
+			shortLabel = row[trackhubs.short_label_column]
 		else:
 			shortLabel = "sl_"
 			if ("Library" in row.keys()):
@@ -275,7 +260,7 @@ try:
 						subGroups_perGenome[track_out_file]["data_type"]["RNA"] = "RNA"
 			#costruct track for data file
 			track_text = "\n\ttrack " + tophat_bw_name + "_RNA" + "\n"
-			track_text += "\tparent " + parent_track_name + " on\n"
+			track_text += "\tparent " + trackhubs.parent_track_name + " on\n"
 			track_text += "\ttype bigWig\n"
 			track_text += present_subGroups + "data_type=RNA" + "\n"
 			track_text += "\tshortLabel " + shortLabel + "\n"
@@ -302,7 +287,7 @@ try:
 						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
 			#costruct track for data file
 			track_text = "\n\ttrack " + bismark_bw_name + "_Meth" + "\n"
-			track_text += "\tparent " + parent_track_name + " on\n"
+			track_text += "\tparent " + trackhubs.parent_track_name + " on\n"
 			track_text += "\ttype bigWig\n"
 			track_text += present_subGroups + "data_type=Meth" + "\n"
 			track_text += "\tshortLabel " + shortLabel + "\n"
@@ -332,8 +317,8 @@ try:
 				print(cmd)
  				subprocess.call(cmd, shell=True)
 			else:
-				os.symlink(os.path.relpath(bsmap_mapped_bam,track_out), os.path.join(track_out,bsmap_mapped_bam_name))
-				os.symlink(os.path.relpath(bsmap_mapped_bam_index,track_out), os.path.join(track_out,bsmap_mapped_bam_index_name))
+				os.symlink(os.path.relpath(bsmap_mapped_bam,track_out), os.path.join(track_out,pipeline+bsmap_mapped_bam_name))
+				os.symlink(os.path.relpath(bsmap_mapped_bam_index,track_out), os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name))
 
 			# construct track for data file
 			track_text = "\n\ttrack " + bsmap_mapped_bam_name + "_Meth_Align" + "\n"
@@ -342,13 +327,13 @@ try:
 			track_text += present_subGroups + "data_type=Meth_Align" + "\n"
 			track_text += "\tshortLabel " + shortLabel + "\n"
 			track_text += "\tlongLabel " + sample_name + "_Meth_Align" + "\n"
-			track_text += "\tbigDataUrl " + bsmap_mapped_bam_name + "\n"
+			track_text += "\tbigDataUrl " + pipeline+bsmap_mapped_bam_name + "\n"
 
 			# put up links on HTML report
       			html_out_tab1 += '<tr>\n'
         		html_out_tab1 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab1 += '<td><a href="{}">BAM file</a></td>\n'.format(os.path.relpath(os.path.join(track_out,bsmap_mapped_bam_name),track_out))
-        		html_out_tab1 += '<td><a href="{}">BAM index</a></td>\n'.format(os.path.relpath(os.path.join(track_out,bsmap_mapped_bam_index_name),track_out))
+        		html_out_tab1 += '<td><a href="{}">BAM file</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_name),track_out))
+        		html_out_tab1 += '<td><a href="{}">BAM index</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name),track_out))
 			html_out_tab1 += '</tr>\n'
 
 			present_genomes[track_out_file].append(track_text)
@@ -382,27 +367,27 @@ try:
 	composit_text = ""
 	for key in present_genomes.keys():
 		#construct composite header
-		composit_text += "\ntrack " + parent_track_name + "\n"
+		composit_text += "\ntrack " + str(trackhubs.parent_track_name) + "\n"
 		composit_text += "compositeTrack on"
 		count = 0
-		dim_text = "dimensions dimX="+ matrix_x + " dimY=" + matrix_y
+		dim_text = "dimensions dimX="+ str(trackhubs.matrix_x) + " dimY=" + str(trackhubs.matrix_y)
 		for subGroup in subGroups_perGenome[key].keys():
 			if len(subGroups_perGenome[key][subGroup])<1:
 				continue
-			if not subGroup == matrix_x and not subGroup == matrix_y:
+			if not subGroup == str(trackhubs.matrix_x) and not subGroup == str(trackhubs.matrix_y):
 				dim_text += " dimA=" + subGroup
 			count += 1
 			composit_text += "\nsubGroup" + str(count) + " " + subGroup + " " + subGroup + " "
 			for type in subGroups_perGenome[key][subGroup].keys():
 				composit_text += type + "=" + subGroups_perGenome[key][subGroup][type] + " "
-		composit_text += "\nshortLabel " + parent_track_name + "\n"
-		composit_text += "longLabel " + parent_track_name + "\n"
+		composit_text += "\nshortLabel " + str(trackhubs.parent_track_name) + "\n"
+		composit_text += "longLabel " + str(trackhubs.parent_track_name) + "\n"
 		composit_text += "type bigWig" + "\n"
 		composit_text += "color 0,60,120" + "\n"
 		composit_text += "spectrum on" + "\n"
 		composit_text += "visibility " + args.visibility + "\n"
 		composit_text += dim_text + "\n"
-		composit_text += "sortOrder " + sortOrder + "\n"
+		composit_text += "sortOrder " + str(trackhubs.sortOrder) + "\n"
 
 		#write composite header
 		trackDB = open(key, 'a')
@@ -416,19 +401,19 @@ try:
 		super_text += "longLabel DNA_Meth_Align\n"
 		super_text += "superTrack on\n"
 		trackDB.writelines(super_text)
+		trackDB.close()
 
-	trackDB.close()
 
-
+	report_name = pipeline+'report.html'
         html_out_tab1 += '</table>\n'
         html_out_tab2 += '</table>\n'
-        html_file_name = os.path.join(track_out, 'report.html')
+        html_file_name = os.path.join(track_out, report_name)
         file_handle = open(name=html_file_name, mode='w')
         file_handle.write(html_out)
         file_handle.write(html_out_tab1)
         file_handle.write(html_out_tab2)
-	if genome == 'taeGut2_light': genome='taeGut2'
-	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome+'&hubUrl=http%3A%2F%2Fwww.biomedical-sequencing.at%2Fprojects%2F'+paths.track_dir_uuid+'%2Fhub.txt'
+	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
+	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&hubUrl='+url+'%2F'+hub_file_name
         html_out = '<h2>UCSC Genome Browser Track Hub</h2>\n'
         html_out += '<p><a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,paths.ucsc_browser_link)
 	html_out += '</body>\n'
@@ -437,6 +422,15 @@ try:
         file_handle.write(html_out)
         file_handle.close()
 
+	cmd = "chmod -R go+rX " + paths.output_dir
+	subprocess.call(cmd, shell=True)
+
+	print '\nDONE\n'
+	print 'Hub file: ' + str(trackhubs.url) + "/" + hub_file_name
+	print 'Report: ' + str(trackhubs.url) + "/" + genome + "/" + report_name
+	print '\n'
+
 finally:
-	f.close()
+	csv_file.close()
+
 
