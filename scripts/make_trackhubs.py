@@ -42,23 +42,6 @@ paths = config.paths
 if not os.path.exists(paths.output_dir):
 	raise Exception(paths.output_dir + " : that project directory does not exist!")
 
-#organism-genome translation
-genomes = {"human": ["hg19", "hg19_cdna"], "mouse": ["mm10", "m38_cdna"], "zebra_finch": ["taeGut2_light"]}
-# Pick the genome matching the organism from the sample annotation sheet.
-# If no mapping exists in  the organism-genome translation dictionary, then
-# we assume the given organism name directly corresponds to the name of a
-# reference genome. This enables the use of additional genomes without any
-# need to modify the code.
-def get_genome(organism,dna=True):
-	if organism in genomes.keys():
-		if dna:
-			return genomes[organism][0]
-		else:
-			return genomes[organism][1]
-	else:
-		return organism
-
-
 present_genomes = {}
 subGroups_perGenome = {}
 subGroups = {"exp_category":{},"FACS_marker":{},"cell_type":{},"treatment":{},"treatment_length":{},"cell_count":{},"library":{},"data_type":{}}
@@ -83,7 +66,7 @@ try:
 	genome = ""
 	for row in input_file_0:
 		if ("library" in row.keys()): pipeline = str(row["library"])
-		if ("organism" in row.keys()): genome = get_genome(row["organism"])
+		if ("organism" in row.keys()): genome = str(getattr(config.genomes,str(row["organism"])))
 	print 'Pipeline: ' + pipeline
 	print 'Genome: ' + genome
 	if pipeline != "": pipeline += '_'
