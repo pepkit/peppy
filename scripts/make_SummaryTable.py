@@ -14,14 +14,14 @@ import yaml
 parser = ArgumentParser(description='make_trackhubs')
 parser.add_argument('-c', '--config-file', dest='config_file', help="path to YAML config file", required=True, type=str)
 args = parser.parse_args()
-print '\nArguments:'
-print args
+#print '\nArguments:'
+#print args
 
 with open(args.config_file, 'r') as config_file:
 	config_yaml = yaml.load(config_file)
 	config = AttributeDict(config_yaml, default=True)
-print '\nYAML configuration:'
-print config
+#print '\nYAML configuration:'
+#print config
 paths = config.paths
 
 if not os.path.exists(paths.output_dir):
@@ -31,7 +31,7 @@ if not os.path.exists(paths.output_dir):
 # Open samples CSV file
 # #######################################################################################
 csv_file_path = os.path.join(os.path.dirname(args.config_file),config.metadata.sample_annotation)
-print "\nOpening CSV file: " + csv_file_path
+#print "\nOpening CSV file: " + csv_file_path
 if os.path.isfile(csv_file_path):
 	csv_file = open(os.path.join(os.path.dirname(args.config_file),config.metadata.sample_annotation), 'rb')
 	print 'Found ' + csv_file_path
@@ -44,8 +44,8 @@ csv_reader = csv.DictReader(csv_file)
 # #######################################################################################
 tsv_outfile_path = os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.tsv')
 tsv_outfile = open(tsv_outfile_path, 'w')
-fieldnames = ['sample_name','instrument_model','flowcell','lane','read_length','single_or_paired','Genome'\
-,'Raw_reads','Fastq_reads','PF_reads','Trimmed_reads','Trimmed_rate','Aligned_reads','Aligned_rate'\
+fieldnames = ['sample_name','instrument_model','flowcell','lane','read_length','single_or_paired','organism','Genome'\
+,'cell_type','Raw_reads','Fastq_reads','PF_reads','Trimmed_reads','Trimmed_rate','Aligned_reads','Aligned_rate'\
 ,'Multimap_reads','Multimap_rate','Unique_CpGs','Total_CpGs','meanCoverage',\
 'bisulfiteConversionRate','globalMethylationMean',\
 'K1_unmethylated_count','K1_unmethylated_meth','K3_methylated_count','K3_methylated_meth']

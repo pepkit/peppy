@@ -408,10 +408,17 @@ try:
 	cmd = "chmod -R go+rX " + paths.output_dir
 	subprocess.call(cmd, shell=True)
 
-	print '\nDONE\n'
-	print 'Hub file: ' + str(trackhubs.url) + "/" + hub_file_name
-	print 'Report: ' + str(trackhubs.url) + "/" + genome + "/" + report_name
-	print '\n'
+	hub_file_link = str(trackhubs.url) + "/" + hub_file_name
+	report_link = str(trackhubs.url) + "/" + genome + "/" + report_name
+	link_string = 'Hub ' + hub_file_link + '\n'
+	link_string += 'Report ' + report_link + '\n'
+	link_string += 'UCSCbrowser ' + paths.ucsc_browser_link + '\n'
+	print '\nDONE!'
+	print link_string
+
+        link_file = open(name=os.path.join(paths.write_dir, pipeline+'links.txt'), mode='w')
+        link_file.write(link_string)
+        link_file.close()
 
 finally:
 	csv_file.close()
