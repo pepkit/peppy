@@ -107,6 +107,7 @@ try:
         html_out = str()
         html_out_tab1 = str()
         html_out_tab2 = str()
+	# Write HTML header and title
         html_out += '<!DOCTYPE html PUBLIC ' \
                   '"-//W3C//DTD XHTML 1.0 Transitional//EN" ' \
                   '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n'
@@ -390,16 +391,21 @@ try:
 	report_name = pipeline+'report.html'
         html_out_tab1 += '</table>\n'
         html_out_tab2 += '</table>\n'
+
+	tsv_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.tsv'
+	tsv_stats_path = os.path.relpath(os.path.join(paths.output_dir,tsv_stats_name),track_out)
+        html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'Here')
+	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
+	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&hubUrl='+url+'%2F'+hub_file_name
+        html_out += '<p>UCSC Genome Browser: <a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,'Link')
+
         html_file_name = os.path.join(track_out, report_name)
         file_handle = open(name=html_file_name, mode='w')
         file_handle.write(html_out)
         file_handle.write(html_out_tab1)
         file_handle.write(html_out_tab2)
-	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
-	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&hubUrl='+url+'%2F'+hub_file_name
-        html_out = '<h2>UCSC Genome Browser Track Hub</h2>\n'
-        html_out += '<p><a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,paths.ucsc_browser_link)
-	html_out += '</body>\n'
+
+	html_out = '</body>\n'
 	html_out += '</html>\n'
 	html_out += '\n'
         file_handle.write(html_out)
