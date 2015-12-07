@@ -181,7 +181,7 @@ def main():
 		sample.to_yaml()
 
 		# Get the base protocl to pipeline mappings
-		pl_list = protocol_mappings.build_pipeline(sample.library)
+		pl_list = protocol_mappings.build_pipeline(sample.library.upper())
 
 		# We require that the pipelines and config files live in
 		# a subdirectory called 'pipelines' -- is this the best way?
