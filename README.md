@@ -9,9 +9,6 @@ You can try it out using the microtest example like this (the `-d` option indica
 ./pipelines/looper.py -c pipelines/examples/microtest_project_config.yaml -d
 ```
 
-
-
-
 ### Option 1 (clone the repository)
 
 1. Clone this repository.
@@ -31,30 +28,7 @@ chmod -R 544 pypiper
 chmod -R 544 pipelines
 ```
 
-In short, *do not develop pipelines from an active, shared, project-specific clone*. If you want to make changes, consider the following:
-
-# Environment variables
-
-These are our agreed names for environment variables, which can then be used to do change global locations.
-
-```
-# Pointer to the 'raw data' filesystem
-export RAWDATA="/fhgfs/groups/lab_bsf/samples/"
-
-# Pointer to the 'processed data' filesystem
-export PROCESSED="/fhgfs/groups/lab_bock/shared/projects/"
-
-# Pointer to web exported filesystem
-export WEB="/data/groups/lab_bock/public_html/$USERNAME/"
-
-# Pointer to the common shared resources directory
-export RESOURCES="/data/groups/lab_bock/shared/resources/"
-
-# Pointer to the collection of git repos
-export CODEBASE="$HOME/code/"
-```
-
-# Running pipelines
+In short, *do not develop pipelines from an active, shared, project-specific clone*.
 
 ### Option 2 (install the packages)
 
@@ -65,7 +39,6 @@ pip install https://github.com/epigen/pypiper/zipball/master
 
 You will have all runnable pipelines and accessory scripts (from [`scripts/`](scripts/), see below) in your `$PATH`.
 
-
 # Running pipelines
 
 We use the Looper (`looper.py`) to run pipelines. This just requires a config file passed as an argument, which contains all the settings required. It submits each job to SLURM.
@@ -74,20 +47,18 @@ We use the Looper (`looper.py`) to run pipelines. This just requires a config fi
 python ~/repo/pipelines/looper.py -c metadata/config.txt
 ```
 
-## Data sources section
-The data sources can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}` are populated in this order:
-
-Highest priority: sample annotation sheet
-Second priority: config file
-Lowest priority: environment variables
-
-The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
-
-The `track_configurations` section is for making trackhubs (see below).
+or
 
 ```bash
 looper -c metadata/config.txt
 ```
+
+## Data sources section
+The data sources can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}` are populated in this order:
+
+The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
+
+The `track_configurations` section is for making trackhubs (see below).
 
 # Config files
 
@@ -95,21 +66,34 @@ Looper requires only one config file. Here's an example:
 
 ```yaml
 paths:
-  output_dir: /fhgfs/groups/lab_bock/shared/projects/example
-  pipelines_dir: /fhgfs/groups/lab_bock/shared/projects/example/pipelines
-  submission_template: templates/slurm_template.sub
+  # output_dir: ABSOLUTE PATH to the parent, (shared) space where project results go
+  output_dir: /scratch/lab_bock/shared/projects/microtest
+  # pipelines_dir: ABSOLUTE PATH the directory with the pipeline repository
+  pipelines_dir: /scratch/lab_bock/shared/code/pipelines
 
 metadata:
-  sample_annotation: table_experiments.csv
-  merge_table:
-  compare_table:
+  # Elements in this section can be absolute or relative.
+  # Typically, this project config file is stored with the project metadata, so
+  # relative paths are considered relative to this project config file.
+  # sample_annotation: one-row-per-sample metadata
+  sample_annotation: microtest_sample_annotation.csv
+  # merge_table: input for samples with more than one input file
+  merge_table: microtest_merge_table.csv
 
 data_sources:
-  bsf_samples: "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
-  encode_rrbs: "/fhgfs/groups/lab_bock/shared/projects/epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
+  # specify the ABSOLUTE PATH of input files using variable path expressions
+  # entries correspond to values in the data_source column in sample_annotation table
+  # {variable} can be used to replace environment variables or other sample_annotation columns
+  # If you use {variable} codes, you should quote the field so python can parse it.
+  bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
+  microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
+
+compute:
+  submission_template: pipelines/templates/slurm_template.sub
+  submission_command: sbatch
 ```
 
-However, there are more options. See the [project config template](examples/template_pipeline_config.yaml) for a more comprehensive list of options.
+However, there are more options. See the [project config template](examples/example_project_config.yaml) for a more comprehensive list of options or the [microtest config template](examples/microtest_project_config.yaml) for a ready-to-run example.
 
 We need better documentation on all the options for the config files.
 
