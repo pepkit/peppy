@@ -30,7 +30,6 @@ templates = ["templates/%s" % f for f in os.listdir(os.path.join(os.path.dirname
 # temporarily copy looper to the pipelines package
 # this is just for installation purposes
 shutil.copy("looper.py", "pipelines/looper.py")
-shutil.copy("models.py", "pipelines/models.py")
 
 # setup
 setup(
@@ -71,4 +70,3 @@ setup(
 
 # remove the copied looper
 os.remove("pipelines/looper.py")
-shutil.copy("pipelines/models.py")
