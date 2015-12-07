@@ -9,7 +9,7 @@
 
 paths:
   # output_dir: ABSOLUTE PATH to the parent, shared space where project results go
-  output_dir: /fhgfs/groups/lab_bock/shared/projects/example
+  output_dir: /scratch/lab_bock/shared/projects/microtest
   # results and submission subdirs are subdirectors directories under parent output_dir
   # results: where output sample folders will go
   # submission: where cluster submit scripts and log files will go
@@ -17,16 +17,16 @@ paths:
   submission_subdir: submission
   # pipelines_dir: ABSOLUTE PATH the directory where the Looper will find pipeline
   # scripts (and accompanying pipeline config files) for submission.
-  pipelines_dir: /fhgfs/groups/lab_bock/shared/projects/example/pipelines/
+  pipelines_dir: /scratch/lab_bock/shared/code/pipelines
 
 metadata:
   # Elements in this section can be absolute or relative.
   # Typically, this project config file is stored with the project metadata, so
   # relative paths are considered relative to this project config file.
   # sample_annotation: one-row-per-sample metadata
-  sample_annotation: sample_annotation.csv
+  sample_annotation: microtest_sample_annotation.csv
   # merge_table: input for samples with more than one input file
-  merge_table: null.csv
+  merge_table: microtest_merge_table.csv
   # compare_table: comparison pairs or groups, like normalization samples
   compare_table: null.csv
 
@@ -36,8 +36,8 @@ data_sources:
   # {variable} can be used to replace environment variables or other sample_annotation columns
   # If you use {variable} codes, you should quote the field so python can parse it.
   bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
-  encode_rrbs: "/fhgfs/groups/lab_bock/shared/projects/epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
   microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
+  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{original_sample_name}.bam"
 
 genomes:
   human: hg19
@@ -69,7 +69,7 @@ pipeline_config:
   # cgps: cpgs_config.yaml
 
 trackhubs:
-  trackhub_dir: /data/groups/lab_bock/public_html/nsheffield/b8ab8bs9b8d/ews_rrbs/
+  trackhub_dir: /data/groups/lab_bock/public_html/arendeiro/microtest/
   # url: if you include this, the make_trackhubs will produce a link to your track hub in the project folder.
   url: http://www.whatever.com/
   matrix_x: cell_type
@@ -79,7 +79,7 @@ trackhubs:
   visibility: dense
   hub_name: ews_hub
   short_label_column: sample_name
-  email: nathan@code.databio.org
+  email: arendeiro@cemm.oeaw.ac.at
 
 username: user
 email: user@email.com
