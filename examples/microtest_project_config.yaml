@@ -8,34 +8,36 @@
 # - analysis scripts requiring pointers to metadata, results, and other options.
 
 paths:
-  # output_dir: the parent, shared space for this project where results will go
-  output_dir: /fhgfs/groups/lab_bock/shared/projects/example
+  # output_dir: ABSOLUTE PATH to the parent, shared space where project results go
+  output_dir: /scratch/lab_bock/shared/projects/microtest
   # results and submission subdirs are subdirectors directories under parent output_dir
   # results: where output sample folders will go
   # submission: where cluster submit scripts and log files will go
   results_subdir: results_pipeline
   submission_subdir: submission
-  # pipelines_dir: the directory where the Looper will find pipeline
+  # pipelines_dir: ABSOLUTE PATH the directory where the Looper will find pipeline
   # scripts (and accompanying pipeline config files) for submission.
-  pipelines_dir: /fhgfs/groups/lab_bock/shared/projects/example/pipelines
+  pipelines_dir: /scratch/lab_bock/shared/code/pipelines
 
 metadata:
-  # Relative paths are considered relative to this project config file.
-  # Typically, this project config file is stored with the project metadata
+  # Elements in this section can be absolute or relative.
+  # Typically, this project config file is stored with the project metadata, so
+  # relative paths are considered relative to this project config file.
   # sample_annotation: one-row-per-sample metadata
-  sample_annotation: table_experiments.csv
+  sample_annotation: microtest_sample_annotation.csv
   # merge_table: input for samples with more than one input file
-  merge_table: table_merge.csv
+  merge_table: microtest_merge_table.csv
   # compare_table: comparison pairs or groups, like normalization samples
-  compare_table: table_compare.csv
+  compare_table: null.csv
 
 data_sources:
-  # specify the location of input files using variable path expressions
+  # specify the ABSOLUTE PATH of input files using variable path expressions
   # entries correspond to values in the data_source column in sample_annotation table
   # {variable} can be used to replace environment variables or other sample_annotation columns
   # If you use {variable} codes, you should quote the field so python can parse it.
   bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
-  encode_rrbs: "/fhgfs/groups/lab_bock/shared/projects/epigenome_compendium/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
+  microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
+  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{original_sample_name}.bam"
 
 genomes:
   human: hg19
@@ -45,17 +47,31 @@ transcriptomes:
   human: hg19_cdna
   mouse: mm10_cdna
 
+compute:
+  # submission_template: the submission form which will be replaced with compute resource parameters
+  # Use this to change your cluster manager (SLURM, SGE, LFS, etc)
+  # Relative paths are relative to the pipelines_dir
+  submission_template: pipelines/templates/slurm_template.sub
+  submission_command: sbatch
+  # To run on the localhost:
+  #submission_template: templates/localhost_template.sub
+  #submission_command: sh
+
+
 pipeline_config:
   # pipeline configuration files used in project.
+  # Relative paths are relative to this project config file.
   # Default (null) means use the generic config for the pipeline.
-  rrbs: null
+  rrbs_pipeline.py: null
   # Or you can point to a specific config to be used in this project:
   # rrbs: rrbs_config.yaml
   # wgbs: wgbs_config.yaml
   # cgps: cpgs_config.yaml
 
 trackhubs:
-  trackhub_dir: /data/groups/lab_bock/public_html/nsheffield/b8ab8bs9b8d/ews_rrbs/
+  trackhub_dir: /data/groups/lab_bock/public_html/arendeiro/microtest/
+  # url: if you include this, the make_trackhubs will produce a link to your track hub in the project folder.
+  url: http://www.whatever.com/
   matrix_x: cell_type
   matrix_y: cell_count
   sort_order: cell_type=+
@@ -63,4 +79,7 @@ trackhubs:
   visibility: dense
   hub_name: ews_hub
   short_label_column: sample_name
-  email: nathan@code.databio.org
+  email: arendeiro@cemm.oeaw.ac.at
+
+username: user
+email: user@email.com

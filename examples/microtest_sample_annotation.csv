@@ -1,0 +1,15 @@
+sample_name,library,organism,ip,data_source
+atac-seq_PE,ATAC-seq,human,,microtest
+atac-seq_SE,ATAC-seq,human,,microtest
+chip-seq_PE,CHIP-seq,human,H3K27ac,microtest
+chip-seq_SE,CHIP-seq,human,H3K27ac,microtest
+chipmentation_PE,ChIPmentation,human,H3K27ac,microtest
+chipmentation_SE,ChIPmentation,human,H3K27ac,microtest
+cpgseq_example_data,CpG-seq,human,,microtest
+quant-seq_SE,Quant-seq,human,,microtest
+rrbs1,RRBS,human,,microtest
+rrbs2,RRBS,human,,microtest
+rrbs_PE,RRBS,human,,microtest
+wgbs1,WGBS,human,,microtest
+wgbs2,WGBS,human,,microtest
+wgbs_big,WGBS,human,,microtest
