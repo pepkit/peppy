@@ -136,12 +136,19 @@ try:
         html_out_tab1 += '<th>Index</th>\n'
         html_out_tab1 += '</tr>\n'
 
-        html_out_tab2 = '<h2>biseqMethcalling BED files</h2>\n'
+        html_out_tab2 = '<h2>BigBed files</h2>\n'
         html_out_tab2 += '<table>\n'
         html_out_tab2 += '<tr>\n'
         html_out_tab2 += '<th>Sample</th>\n'
         html_out_tab2 += '<th>File</th>\n'
         html_out_tab2 += '</tr>\n'
+
+        html_out_tab3 = '<h2>biseqMethcalling BED files</h2>\n'
+        html_out_tab3 += '<table>\n'
+        html_out_tab3 += '<tr>\n'
+        html_out_tab3 += '<th>Sample</th>\n'
+        html_out_tab3 += '<th>File</th>\n'
+        html_out_tab3 += '</tr>\n'
 
 
 	input_file = csv.DictReader(csv_file)
@@ -181,13 +188,13 @@ try:
 		bsmap_mapped_bam_index = os.path.join(sample_path, "bsmap_" + genome, sample_name + ".bam.bai")
 		bsmap_mapped_bam_index_name = os.path.basename(bsmap_mapped_bam_index)
 
-		# biseqMethcalling bed file
-		biseq_bed = os.path.join(sample_path, "biseq_" + genome, "RRBS_cpgMethylation_" + sample_name + ".bed")
-		biseq_bed_name = os.path.basename(biseq_bed)
-
 		# With the new meth bigbeds, RRBS pipeline should yield this file:
 		meth_bb_file = os.path.join(sample_path, "bigbed_" + genome, "RRBS_" + sample_name + ".bb")
 		meth_bb_name = os.path.basename(meth_bb_file)
+
+		# biseqMethcalling bed file
+		biseq_bed = os.path.join(sample_path, "biseq_" + genome, "RRBS_cpgMethylation_" + sample_name + ".bed")
+		biseq_bed_name = os.path.basename(biseq_bed)
 
 		#bigwigs are better actually
 		if not os.path.isfile(bismark_bw_file):
@@ -287,8 +294,6 @@ try:
 			print ("  No bismark bw found: " + bismark_bw_file)
 
 
-
-
 		if os.path.isfile(bsmap_mapped_bam):
 
 			print "  FOUND bsmap mapped file: " + bsmap_mapped_bam
@@ -326,6 +331,38 @@ try:
 			print ("  No bsmap mapped bam found: " + bsmap_mapped_bam_name)
 
 
+		if os.path.isfile(meth_bb_file):
+
+			print "  FOUND BigBed file: " + meth_bb_file
+
+			# copy or link the file to the hub directory
+			if args.copy:
+				cmd = "cp " + meth_bb_file + " " + track_out
+				print(cmd)
+ 				subprocess.call(cmd, shell=True)
+			else:
+				os.symlink(os.path.relpath(meth_bb_file,track_out), os.path.join(track_out,pipeline+meth_bb_name))
+
+			# construct track for data file
+			track_text = "\n\ttrack " + meth_bb_name + "_Meth_BB" + "\n"
+			track_text += "\tparent DNA_Meth_BB on\n"
+			track_text += "\ttype bigBed\n"
+			track_text += present_subGroups + "data_type=Meth_BB" + "\n"
+			track_text += "\tshortLabel " + shortLabel + "\n"
+			track_text += "\tlongLabel " + sample_name + "_Meth_BB" + "\n"
+			track_text += "\tbigDataUrl " + pipeline+meth_bb_name + "\n"
+
+			# put up links on HTML report
+      			html_out_tab2 += '<tr>\n'
+        		html_out_tab2 += '<td>{}</td>\n'.format(sample_name)
+        		html_out_tab2 += '<td><a href="{}">BB</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+meth_bb_name),track_out))
+			html_out_tab2 += '</tr>\n'
+
+			present_genomes[track_out_file].append(track_text)
+		else:
+			print ("  No Bigbed file found: " + meth_bb_file)
+
+
 		if os.path.isfile(biseq_bed):
 
 			print "  FOUND biseq bed file: " + biseq_bed
@@ -339,10 +376,10 @@ try:
 				os.symlink(os.path.relpath(biseq_bed,track_out), os.path.join(track_out,biseq_bed_name))
 
 			# put up links on HTML report
-      			html_out_tab2 += '<tr>\n'
-        		html_out_tab2 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab2 += '<td><a href="{}">BED</a></td>\n'.format(os.path.relpath(os.path.join(track_out,biseq_bed_name),track_out))
-			html_out_tab2 += '</tr>\n'
+      			html_out_tab3 += '<tr>\n'
+        		html_out_tab3 += '<td>{}</td>\n'.format(sample_name)
+        		html_out_tab3 += '<td><a href="{}">BED</a></td>\n'.format(os.path.relpath(os.path.join(track_out,biseq_bed_name),track_out))
+			html_out_tab3 += '</tr>\n'
 
 		else:
 			print ("  No biseq bed file found: " + biseq_bed)
@@ -385,6 +422,12 @@ try:
 		super_text += "shortLabel DNA_Meth_Align\n"
 		super_text += "longLabel DNA_Meth_Align\n"
 		super_text += "superTrack on\n"
+		super_text += "\n"		
+		super_text += "track DNA_Meth_BB\n"
+		super_text += "shortLabel DNA_Meth_BB\n"
+		super_text += "longLabel DNA_Meth_BB\n"
+		super_text += "superTrack on\n"
+
 		trackDB.writelines(super_text)
 		trackDB.close()
 
@@ -392,6 +435,7 @@ try:
 	report_name = pipeline+'report.html'
         html_out_tab1 += '</table>\n'
         html_out_tab2 += '</table>\n'
+        html_out_tab3 += '</table>\n'
 
 	tsv_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.tsv'
 	tsv_stats_path = os.path.relpath(os.path.join(paths.output_dir,tsv_stats_name),track_out)
@@ -411,6 +455,7 @@ try:
         file_handle.write(html_out)
         file_handle.write(html_out_tab1)
         file_handle.write(html_out_tab2)
+        file_handle.write(html_out_tab3)
 
 	html_out = '<p><br /></p>\n'
 	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="http://www.biomedical-sequencing.at">www.biomedical-sequencing.at</a></p>\n'
