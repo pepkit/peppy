@@ -126,20 +126,21 @@ try:
         html_out += '<body>\n'
         html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
         html_out += '\n'
+	html_out += '<p><br /></p>\n'
 
         html_out_tab1 = '<h2>Aligned BAM files</h2>\n'
         html_out_tab1 += '<table>\n'
         html_out_tab1 += '<tr>\n'
         html_out_tab1 += '<th>Sample</th>\n'
-        html_out_tab1 += '<th>BAM File</th>\n'
-        html_out_tab1 += '<th>BAM Index</th>\n'
+        html_out_tab1 += '<th>File</th>\n'
+        html_out_tab1 += '<th>Index</th>\n'
         html_out_tab1 += '</tr>\n'
 
         html_out_tab2 = '<h2>biseqMethcalling BED files</h2>\n'
         html_out_tab2 += '<table>\n'
         html_out_tab2 += '<tr>\n'
         html_out_tab2 += '<th>Sample</th>\n'
-        html_out_tab2 += '<th>BED File</th>\n'
+        html_out_tab2 += '<th>File</th>\n'
         html_out_tab2 += '</tr>\n'
 
 
@@ -316,8 +317,8 @@ try:
 			# put up links on HTML report
       			html_out_tab1 += '<tr>\n'
         		html_out_tab1 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab1 += '<td><a href="{}">BAM file</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_name),track_out))
-        		html_out_tab1 += '<td><a href="{}">BAM index</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name),track_out))
+        		html_out_tab1 += '<td><a href="{}">BAM</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_name),track_out))
+        		html_out_tab1 += '<td><a href="{}">BAI</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name),track_out))
 			html_out_tab1 += '</tr>\n'
 
 			present_genomes[track_out_file].append(track_text)
@@ -340,7 +341,7 @@ try:
 			# put up links on HTML report
       			html_out_tab2 += '<tr>\n'
         		html_out_tab2 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab2 += '<td><a href="{}">BED file</a></td>\n'.format(os.path.relpath(os.path.join(track_out,biseq_bed_name),track_out))
+        		html_out_tab2 += '<td><a href="{}">BED</a></td>\n'.format(os.path.relpath(os.path.join(track_out,biseq_bed_name),track_out))
 			html_out_tab2 += '</tr>\n'
 
 		else:
@@ -394,7 +395,13 @@ try:
 
 	tsv_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.tsv'
 	tsv_stats_path = os.path.relpath(os.path.join(paths.output_dir,tsv_stats_name),track_out)
-        html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'Here')
+	xls_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.xlsx'
+	xls_stats_path = os.path.relpath(os.path.join(paths.output_dir,xls_stats_name),track_out)
+	if os.path.isfile(os.path.join(paths.output_dir,tsv_stats_name)):
+		if os.path.isfile(os.path.join(paths.output_dir,xls_stats_name)):
+			html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLSX')
+		else:
+        		html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV')
 	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
 	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&hubUrl='+url+'%2F'+hub_file_name
         html_out += '<p>UCSC Genome Browser: <a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,'Link')
@@ -405,7 +412,11 @@ try:
         file_handle.write(html_out_tab1)
         file_handle.write(html_out_tab2)
 
-	html_out = '</body>\n'
+	html_out = '<p><br /></p>\n'
+	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="http://www.biomedical-sequencing.at">www.biomedical-sequencing.at</a></p>\n'
+	html_out += '<p>Contact: <a href="mailto:bsf@cemm.oeaw.ac.at">bsf@cemm.oeaw.ac.at</a></p>\n'
+	html_out += '<p><br /></p>\n'
+	html_out += '</body>\n'
 	html_out += '</html>\n'
 	html_out += '\n'
         file_handle.write(html_out)
