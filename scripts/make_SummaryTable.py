@@ -53,7 +53,7 @@ fields_out = ['Sample','Instrument','Flowcell','Lane','Read Length','Read Type',
 ,'Cell Type','Raw Reads','Fastq Reads','PF Reads','Trimmed Reads','Trimmed Rate (%)','Aligned Reads','Aligned Rate (%)'\
 ,'Multimap Reads','Multimap Rate (%)','Unique CpGs','Total CpGs','Mean Coverage',\
 'Bisulfite Conversion Rate (%)',' Global Methylation Mean',\
-'K1 Unmethylated Count','K1 Unmethylated Meth (%)','K3 Methylated Count','K3 Methylated Meth (%)']
+'K1 Unmethylated Count','K1 Unmethylated Meth','K3 Methylated Count','K3 Methylated Meth']
 tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=fields_out, delimiter='\t')
 tsv_writer.writeheader()
 
