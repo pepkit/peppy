@@ -7,9 +7,7 @@ chipmentation_PE,ChIPmentation,human,H3K27ac,microtest
 chipmentation_SE,ChIPmentation,human,H3K27ac,microtest
 cpgseq_example_data,CpG-seq,human,,microtest
 quant-seq_SE,Quant-seq,human,,microtest
-rrbs1,RRBS,human,,microtest
-rrbs2,RRBS,human,,microtest
+rrbs,RRBS,human,,microtest
 rrbs_PE,RRBS,human,,microtest
-wgbs1,WGBS,human,,microtest
-wgbs2,WGBS,human,,microtest
+wgbs,WGBS,human,,microtest
 wgbs_big,WGBS,human,,microtest
