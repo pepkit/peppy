@@ -1,5 +1,5 @@
-sample_name,original_sample_name,library,organism,data_source
-rrbs,rrbs1,RRBS,human,microtest_merge
-rrbs,rrbs2,RRBS,human,microtest_merge
-wgbs,wgbs1,WGBS,human,microtest_merge
-wgbs,wgbs2,WGBS,human,microtest_merge
+sample_name,data_source
+rrbs,microtest
+rrbs,microtest
+wgbs,microtest
+wgbs,microtest
