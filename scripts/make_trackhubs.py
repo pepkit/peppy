@@ -26,15 +26,15 @@ parser.add_argument('-v', '--visibility', dest='visibility', help='visibility mo
 parser.add_argument('--copy', dest='copy', help='copy all files instead of creating symbolic links', required=False, default=False)
 
 args = parser.parse_args()
-print '\nArguments:'
-print args
+#print '\nArguments:'
+#print args
 
 with open(args.config_file, 'r') as config_file:
 	config_yaml = yaml.load(config_file)
 	config = AttributeDict(config_yaml, default=True)
 
-print '\nYAML configuration:'
-print config
+#print '\nYAML configuration:'
+#print config
 
 trackhubs = config.trackhubs
 paths = config.paths
@@ -92,7 +92,14 @@ try:
 	track_out = os.path.join(paths.write_dir, genome)
 	if not os.path.exists(track_out):
 		os.makedirs(track_out)
-	print 'Writing tracks to: ' + track_out
+		print 'Writing tracks to: ' + track_out
+	else:
+		print 'Trackhubs already exists! Overwriting everything in ' + track_out
+		for root, dirs, files in os.walk(track_out, topdown=False):
+			for name in files:
+				os.remove(os.path.join(root, name))
+			for name in dirs:
+				os.rmdir(os.path.join(root, name))
 
 	# write hub.txt
 	hub_file_name = pipeline+"hub.txt"
@@ -268,7 +275,7 @@ try:
 				print(cmd)
  				subprocess.call(cmd, shell=True)
 			else:
-				os.symlink(os.path.relpath(meth_bb_file,track_out), os.path.join(track_out,pipeline+meth_bb_name))
+				os.symlink(os.path.relpath(meth_bb_file,track_out), os.path.join(track_out,meth_bb_name))
 
 			# construct track for data file
 			track_text = "\n\ttrack " + meth_bb_name + "_Meth_BB" + "\n"
@@ -279,7 +286,7 @@ try:
 			track_text += "\tlongLabel " + sample_name + "_Meth_BB" + "\n"
 			track_text += "\tbigDataUrl " + pipeline+meth_bb_name + "\n"
 
-			tableDict[sample_name]['BB'] = dict([('label','BB'),('link',os.path.relpath(os.path.relpath(os.path.join(track_out,pipeline+meth_bb_name),track_out)))])
+			tableDict[sample_name]['BB'] = dict([('label','BB'),('link',os.path.relpath(os.path.relpath(os.path.join(track_out,meth_bb_name),track_out)))])
 
 			present_genomes[track_out_file].append(track_text)
 		else:
@@ -314,7 +321,7 @@ try:
 			track_text += "\tviewLimitsMax 0:100" + "\n"
 			track_text += "\tmaxHeightPixels 100:30:10" + "\n"
 
-			tableDict[sample_name]['BW'] = dict([('label','BW'),('link',os.path.relpath(os.path.relpath(os.path.join(track_out,pipeline+bismark_bw_name),track_out)))])
+			tableDict[sample_name]['BW'] = dict([('label','BW'),('link',os.path.relpath(os.path.relpath(os.path.join(track_out,bismark_bw_name),track_out)))])
 
 			present_genomes[track_out_file].append(track_text)
 		else:
