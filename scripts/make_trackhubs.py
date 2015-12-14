@@ -118,37 +118,13 @@ try:
         html_out += '<link rel="schema.DC" href="http://purl.org/DC/elements/1.0/" />\n'
         html_out += '<meta name="DC.Creator" content="{}" />\n'.format(getpass.getuser())
         html_out += '<meta name="DC.Date" content="{}" />\n'.format(datetime.datetime.now().isoformat())
-        html_out += '<meta name="DC.Source" content="{}" />\n'.format(inspect.currentframe())
+        #html_out += '<meta name="DC.Source" content="{}" />\n'.format(inspect.currentframe())
         html_out += '<meta name="DC.Title" content="{}" />\n'.format(os.path.basename(paths.output_dir))
         html_out += '<title>{}</title>\n'.format(os.path.basename(paths.output_dir))
         html_out += '</head>\n'
         html_out += '\n'
-        html_out += '<body>\n'
-        html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
-        html_out += '\n'
-	html_out += '<p><br /></p>\n'
 
-        html_out_tab1 = '<h2>Aligned BAM files</h2>\n'
-        html_out_tab1 += '<table>\n'
-        html_out_tab1 += '<tr>\n'
-        html_out_tab1 += '<th>Sample</th>\n'
-        html_out_tab1 += '<th>File</th>\n'
-        html_out_tab1 += '<th>Index</th>\n'
-        html_out_tab1 += '</tr>\n'
-
-        html_out_tab2 = '<h2>BigBed files</h2>\n'
-        html_out_tab2 += '<table>\n'
-        html_out_tab2 += '<tr>\n'
-        html_out_tab2 += '<th>Sample</th>\n'
-        html_out_tab2 += '<th>File</th>\n'
-        html_out_tab2 += '</tr>\n'
-
-        html_out_tab3 = '<h2>biseqMethcalling BED files</h2>\n'
-        html_out_tab3 += '<table>\n'
-        html_out_tab3 += '<tr>\n'
-        html_out_tab3 += '<th>Sample</th>\n'
-        html_out_tab3 += '<th>File</th>\n'
-        html_out_tab3 += '</tr>\n'
+	tableDict = dict()
 
 
 	input_file = csv.DictReader(csv_file)
@@ -162,6 +138,8 @@ try:
 		sample_name = row["sample_name"]
 		print '\nProcessing sample #'+ str(sample_count) + " : " + sample_name
 
+		tableDict[sample_name] = dict()
+
 		if 'run' in row:
 			if not row["run"] == "1":
 				print(sample_name + ": not selected")
@@ -172,15 +150,6 @@ try:
 		sample_path = os.path.join(paths.output_dir, paths.results_subdir, sample_name)
 
 		present_subGroups = "\tsubGroups "
-		if args.filter:
-			tophat_bw_file = os.path.join(sample_path, "tophat_" + genome, sample_name + ".aln.filt_sorted.bw")
-		else:
-			tophat_bw_file = os.path.join(sample_path, "tophat_" + genome, sample_name + ".aln_sorted.bw")
-
-
-		bismark_bw_file = os.path.join(sample_path, "bismark_" + genome, "extractor", sample_name + ".aln.dedup.filt.bw")
-		tophat_bw_name = os.path.basename(tophat_bw_file)
-		bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		# bsmap aligned bam files
 		bsmap_mapped_bam = os.path.join(sample_path, "bsmap_" + genome, sample_name + ".bam")
@@ -192,14 +161,26 @@ try:
 		meth_bb_file = os.path.join(sample_path, "bigbed_" + genome, "RRBS_" + sample_name + ".bb")
 		meth_bb_name = os.path.basename(meth_bb_file)
 
-		# biseqMethcalling bed file
-		biseq_bed = os.path.join(sample_path, "biseq_" + genome, "RRBS_cpgMethylation_" + sample_name + ".bed")
-		biseq_bed_name = os.path.basename(biseq_bed)
+		# bismark bigwig files
+		bismark_bw_file = os.path.join(sample_path, "bismark_" + genome, "extractor", sample_name + ".aln.dedup.filt.bw")
+		bismark_bw_name = os.path.basename(bismark_bw_file)
 
 		#bigwigs are better actually
 		if not os.path.isfile(bismark_bw_file):
 			bismark_bw_file = os.path.join(sample_path, "bigwig_" + genome, "RRBS_" + sample_name + ".bw")
 			bismark_bw_name = os.path.basename(bismark_bw_file)
+
+		# biseqMethcalling bed file
+		biseq_bed = os.path.join(sample_path, "biseq_" + genome, "RRBS_cpgMethylation_" + sample_name + ".bed")
+		biseq_bed_name = os.path.basename(biseq_bed)
+
+		# tophat files
+		if args.filter:
+			tophat_bw_file = os.path.join(sample_path, "tophat_" + genome, sample_name + ".aln.filt_sorted.bw")
+		else:
+			tophat_bw_file = os.path.join(sample_path, "tophat_" + genome, sample_name + ".aln_sorted.bw")
+		tophat_bw_name = os.path.basename(tophat_bw_file)
+
 
 		if os.path.isfile(tophat_bw_file) or os.path.isfile(bismark_bw_file)  or os.path.isfile(meth_bb_file):
 
@@ -236,63 +217,9 @@ try:
 				shortLabel += "_" + row["cell_count"]
 
 
-		#For RNA (tophat) files
-		if os.path.isfile(tophat_bw_file):
-			print "  FOUND tophat bw: " + tophat_bw_file
-			# copy or link the file to the hub directory
-			if args.copy:
-				cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
-				cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
-				print(cmd)
-				subprocess.call(cmd, shell=True)
-			else:
-				os.symlink(os.path.relpath(tophat_bw_file,track_out), os.path.join(track_out,tophat_bw_name))
-			#add data_type subgroup (not included in sampleAnnotation)
-			if not "RNA" in subGroups_perGenome[track_out_file]["data_type"]:
-						subGroups_perGenome[track_out_file]["data_type"]["RNA"] = "RNA"
-			#costruct track for data file
-			track_text = "\n\ttrack " + tophat_bw_name + "_RNA" + "\n"
-			track_text += "\tparent " + trackhubs.parent_track_name + " on\n"
-			track_text += "\ttype bigWig\n"
-			track_text += present_subGroups + "data_type=RNA" + "\n"
-			track_text += "\tshortLabel " + shortLabel + "\n"
-			track_text += "\tlongLabel " + sample_name +  "_RNA" + "\n"
-			track_text += "\tbigDataUrl " + tophat_bw_name + "\n"
-			track_text += "\tautoScale on" + "\n"
-
-			present_genomes[track_out_file].append(track_text)
-		else:
-			print ("  No tophat bw found: " + tophat_bw_file)
-
-		# For Methylation (bismark) files
-		if os.path.isfile(bismark_bw_file):
-			print "  FOUND bismark bw: " + bismark_bw_file
-			# copy or link the file to the hub directory
-			if args.copy:
-				cmd = "cp " + bismark_bw_file + " " + track_out
-				print(cmd)
- 				subprocess.call(cmd, shell=True)
-			else:
-				os.symlink(os.path.relpath(bismark_bw_file,track_out), os.path.join(track_out,bismark_bw_name))
-			#add data_type subgroup (not included in sampleAnnotation)
-			if not "Meth" in subGroups_perGenome[track_out_file]["data_type"]:
-						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
-			#costruct track for data file
-			track_text = "\n\ttrack " + bismark_bw_name + "_Meth" + "\n"
-			track_text += "\tparent " + trackhubs.parent_track_name + " on\n"
-			track_text += "\ttype bigWig\n"
-			track_text += present_subGroups + "data_type=Meth" + "\n"
-			track_text += "\tshortLabel " + shortLabel + "\n"
-			track_text += "\tlongLabel " + sample_name + "_Meth" + "\n"
-			track_text += "\tbigDataUrl " + bismark_bw_name + "\n"
-			track_text += "\tviewLimits 0:100" + "\n"
-			track_text += "\tviewLimitsMax 0:100" + "\n"
-			track_text += "\tmaxHeightPixels 100:30:10" + "\n"
-
-			present_genomes[track_out_file].append(track_text)
-		else:
-			print ("  No bismark bw found: " + bismark_bw_file)
-
+		##########################################
+		### Aligned BAM files and index files
+		##########################################
 
 		if os.path.isfile(bsmap_mapped_bam):
 
@@ -319,17 +246,17 @@ try:
 			track_text += "\tlongLabel " + sample_name + "_Meth_Align" + "\n"
 			track_text += "\tbigDataUrl " + pipeline+bsmap_mapped_bam_name + "\n"
 
-			# put up links on HTML report
-      			html_out_tab1 += '<tr>\n'
-        		html_out_tab1 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab1 += '<td><a href="{}">BAM</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_name),track_out))
-        		html_out_tab1 += '<td><a href="{}">BAI</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name),track_out))
-			html_out_tab1 += '</tr>\n'
+			tableDict[sample_name]['BAM'] = dict([('label','BAM'),('link',os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_name),track_out))])
+			tableDict[sample_name]['BAI'] = dict([('label','BAI'),('link',os.path.relpath(os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name),track_out))])
 
 			present_genomes[track_out_file].append(track_text)
 		else:
 			print ("  No bsmap mapped bam found: " + bsmap_mapped_bam_name)
 
+
+		##########################################
+		### For BigBed files
+		##########################################
 
 		if os.path.isfile(meth_bb_file):
 
@@ -352,16 +279,52 @@ try:
 			track_text += "\tlongLabel " + sample_name + "_Meth_BB" + "\n"
 			track_text += "\tbigDataUrl " + pipeline+meth_bb_name + "\n"
 
-			# put up links on HTML report
-      			html_out_tab2 += '<tr>\n'
-        		html_out_tab2 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab2 += '<td><a href="{}">BB</a></td>\n'.format(os.path.relpath(os.path.join(track_out,pipeline+meth_bb_name),track_out))
-			html_out_tab2 += '</tr>\n'
+			tableDict[sample_name]['BB'] = dict([('label','BB'),('link',os.path.relpath(os.path.relpath(os.path.join(track_out,pipeline+meth_bb_name),track_out)))])
 
 			present_genomes[track_out_file].append(track_text)
 		else:
 			print ("  No Bigbed file found: " + meth_bb_file)
 
+
+		##########################################
+		### For Methylation (bismark) BIGWIG files
+		##########################################
+
+		if os.path.isfile(bismark_bw_file):
+			print "  FOUND bismark bw: " + bismark_bw_file
+			# copy or link the file to the hub directory
+			if args.copy:
+				cmd = "cp " + bismark_bw_file + " " + track_out
+				print(cmd)
+ 				subprocess.call(cmd, shell=True)
+			else:
+				os.symlink(os.path.relpath(bismark_bw_file,track_out), os.path.join(track_out,bismark_bw_name))
+			#add data_type subgroup (not included in sampleAnnotation)
+			if not "Meth" in subGroups_perGenome[track_out_file]["data_type"]:
+						subGroups_perGenome[track_out_file]["data_type"]["Meth"] = "Meth"
+			#costruct track for data file
+			track_text = "\n\ttrack " + bismark_bw_name + "_Meth" + "\n"
+			track_text += "\tparent " + trackhubs.parent_track_name + " on\n"
+			track_text += "\ttype bigWig\n"
+			track_text += present_subGroups + "data_type=Meth" + "\n"
+			track_text += "\tshortLabel " + shortLabel + "\n"
+			track_text += "\tlongLabel " + sample_name + "_Meth" + "\n"
+			track_text += "\tbigDataUrl " + bismark_bw_name + "\n"
+			track_text += "\tviewLimits 0:100" + "\n"
+			track_text += "\tviewLimitsMax 0:100" + "\n"
+			track_text += "\tmaxHeightPixels 100:30:10" + "\n"
+
+			tableDict[sample_name]['BW'] = dict([('label','BW'),('link',os.path.relpath(os.path.relpath(os.path.join(track_out,pipeline+bismark_bw_name),track_out)))])
+
+			present_genomes[track_out_file].append(track_text)
+		else:
+			print ("  No bismark bw found: " + bismark_bw_file)
+
+
+
+		##########################################
+		### For biseq BED files
+		##########################################
 
 		if os.path.isfile(biseq_bed):
 
@@ -375,14 +338,45 @@ try:
 			else:
 				os.symlink(os.path.relpath(biseq_bed,track_out), os.path.join(track_out,biseq_bed_name))
 
-			# put up links on HTML report
-      			html_out_tab3 += '<tr>\n'
-        		html_out_tab3 += '<td>{}</td>\n'.format(sample_name)
-        		html_out_tab3 += '<td><a href="{}">BED</a></td>\n'.format(os.path.relpath(os.path.join(track_out,biseq_bed_name),track_out))
-			html_out_tab3 += '</tr>\n'
+			tableDict[sample_name]['BED'] = dict([('label','BED'),('link',os.path.relpath(os.path.join(track_out,biseq_bed_name),track_out))])
 
 		else:
 			print ("  No biseq bed file found: " + biseq_bed)
+
+
+
+		##########################################
+		### For RNA (tophat) files
+		##########################################
+
+		if os.path.isfile(tophat_bw_file):
+			print "  FOUND tophat bw: " + tophat_bw_file
+			# copy or link the file to the hub directory
+			if args.copy:
+				cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
+				cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
+				print(cmd)
+				subprocess.call(cmd, shell=True)
+			else:
+				os.symlink(os.path.relpath(tophat_bw_file,track_out), os.path.join(track_out,tophat_bw_name))
+			#add data_type subgroup (not included in sampleAnnotation)
+			if not "RNA" in subGroups_perGenome[track_out_file]["data_type"]:
+						subGroups_perGenome[track_out_file]["data_type"]["RNA"] = "RNA"
+			#costruct track for data file
+			track_text = "\n\ttrack " + tophat_bw_name + "_RNA" + "\n"
+			track_text += "\tparent " + trackhubs.parent_track_name + " on\n"
+			track_text += "\ttype bigWig\n"
+			track_text += present_subGroups + "data_type=RNA" + "\n"
+			track_text += "\tshortLabel " + shortLabel + "\n"
+			track_text += "\tlongLabel " + sample_name +  "_RNA" + "\n"
+			track_text += "\tbigDataUrl " + tophat_bw_name + "\n"
+			track_text += "\tautoScale on" + "\n"
+
+			tableDict[sample_name]['TH'] = dict([('label','BW'),('link',os.path.relpath(os.path.join(track_out,tophat_bw_name),track_out))])
+
+			present_genomes[track_out_file].append(track_text)
+		else:
+			print ("  No tophat bw found: " + tophat_bw_file)
 
 
 	#write composit-header followed by the individual tracks to a genome specific trackDB.txt
@@ -433,10 +427,13 @@ try:
 
 
 	report_name = pipeline+'report.html'
-        html_out_tab1 += '</table>\n'
-        html_out_tab2 += '</table>\n'
-        html_out_tab3 += '</table>\n'
 
+        html_out += '<body>\n'
+        html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
+        html_out += '\n'
+	html_out += '<p><br /></p>\n'
+
+	html_out += '<h2>Useful Links</h2>\n'
 	tsv_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.tsv'
 	tsv_stats_path = os.path.relpath(os.path.join(paths.output_dir,tsv_stats_name),track_out)
 	xls_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.xlsx'
@@ -447,15 +444,36 @@ try:
 		else:
         		html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV')
 	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
-	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&hubUrl='+url+'%2F'+hub_file_name
+	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&amp;hubUrl='+url+'%2F'+hub_file_name
         html_out += '<p>UCSC Genome Browser: <a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,'Link')
 
         html_file_name = os.path.join(track_out, report_name)
         file_handle = open(name=html_file_name, mode='w')
         file_handle.write(html_out)
-        file_handle.write(html_out_tab1)
-        file_handle.write(html_out_tab2)
-        file_handle.write(html_out_tab3)
+
+
+        html_out_tab = '<h2>Data Files</h2>\n'
+        html_out_tab += '<table cellpadding="5">\n'
+        html_out_tab += '<tr>\n'
+        html_out_tab += '<th>Sample Name</th>\n'
+        html_out_tab += '<th>Aligned BAM</th>\n'
+        html_out_tab += '<th>BAM Index</th>\n'
+        html_out_tab += '<th>BigBed</th>\n'
+        html_out_tab += '<th>BigWig</th>\n'
+        html_out_tab += '<th>Biseq Bed</th>\n'
+        html_out_tab += '</tr>\n'
+	for key,value in tableDict.items():
+		      	html_out_tab += '<tr>\n'
+        		html_out_tab += '<td>{}</td>\n'.format(key)
+        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAM']['link'],value['BAM']['label'])
+        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAI']['link'],value['BAI']['label'])
+        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BB']['link'],value['BB']['label'])
+        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BW']['link'],value['BW']['label'])
+        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BED']['link'],value['BED']['label'])
+			html_out_tab += '</tr>\n'
+        html_out_tab += '</table>\n'
+        file_handle.write(html_out_tab)
+
 
 	html_out = '<p><br /></p>\n'
 	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="http://www.biomedical-sequencing.at">www.biomedical-sequencing.at</a></p>\n'
