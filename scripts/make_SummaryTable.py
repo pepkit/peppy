@@ -3,6 +3,7 @@
 # This script loops through all the samples,
 # creates a summary stats table
 import csv
+import xlwt
 import os
 from argparse import ArgumentParser
 from pypiper import AttributeDict
@@ -57,6 +58,14 @@ fields_out = ['Sample','Instrument','Flowcell','Lane','Read Length','Read Type',
 tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=fields_out, delimiter='\t')
 tsv_writer.writeheader()
 
+# Output EXCEL file
+# #######################################################################################
+book = xlwt.Workbook(encoding="utf-8")
+sheet = book.add_sheet("Stats")
+for i in range(0,len(fields_out)):
+	field_out = fields_out[i]
+	sheet.write(0, i, field_out)
+
 
 # Looping over all samples
 # #######################################################################################
@@ -80,30 +89,32 @@ for row in csv_reader:
 		key, value  = line.split('\t')
 		stats_dict[key] = value.strip()
 
-
 	new_row = dict()
 
 	for i in range(0,len(fields_in)):
 		field = fields_in[i]
 		field_out = fields_out[i]
+		content = ''
 		if field == 'Trimmed_rate':
-			new_row[field_out] = str(100.0*float(stats_dict['Trimmed_reads'])/float(stats_dict['Raw_reads']))
+			content = str(100.0*float(stats_dict['Trimmed_reads'])/float(stats_dict['Raw_reads']))
 		elif field == 'Aligned_rate':
-			new_row[field_out] = str(100.0*float(stats_dict['Aligned_reads'])/float(stats_dict['Trimmed_reads']))
+			content = str(100.0*float(stats_dict['Aligned_reads'])/float(stats_dict['Trimmed_reads']))
 		elif field == 'Multimap_rate':
-			new_row[field_out] = str(100.0*float(stats_dict['Multimap_reads'])/float(stats_dict['Trimmed_reads']))
+			content = str(100.0*float(stats_dict['Multimap_reads'])/float(stats_dict['Trimmed_reads']))
 		elif row.has_key(field):
-			new_row[field_out] = str(row[field].strip())
+			content = str(row[field].strip())
 		elif stats_dict.has_key(field):
-			new_row[field_out] = str(stats_dict[field])
+			content = str(stats_dict[field])
 		else:
-			new_row[field_out] = 'N/A'
+			content = 'N/A'
 			print 'No field called :' + field
-
+		new_row[field_out] = content
+		sheet.write(sample_count, i, content)
 
 	tsv_writer.writerow(new_row)
 
 
 csv_file.close()
 tsv_outfile.close()
+book.save(os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.xlsx'))
 
