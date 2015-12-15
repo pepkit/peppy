@@ -17,7 +17,7 @@ paths:
   submission_subdir: submission
   # pipelines_dir: ABSOLUTE PATH the directory where the Looper will find pipeline
   # scripts (and accompanying pipeline config files) for submission.
-  pipelines_dir: /scratch/lab_bock/shared/code/pipelines
+  pipelines_dir: $CODEBASE/pipelines_update
 
 metadata:
   # Elements in this section can be absolute or relative.
@@ -51,7 +51,7 @@ compute:
   # submission_template: the submission form which will be replaced with compute resource parameters
   # Use this to change your cluster manager (SLURM, SGE, LFS, etc)
   # Relative paths are relative to the pipelines_dir
-  submission_template: pipelines/templates/slurm_template.sub
+  submission_template: templates/slurm_template.sub
   submission_command: sbatch
   # To run on the localhost:
   #submission_template: templates/localhost_template.sub
