@@ -189,8 +189,10 @@ def main():
 
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
+			print(pl)
+			pl_id = str(pl).split(" ")[0]
 			# Identify the cluster resources we will require for this submission
-			submit_settings = pipeline_interface.choose_resource_package(pl, input_file_size)
+			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
 
 			# Build basic command line string
 			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
@@ -198,7 +200,7 @@ def main():
 
 			# Append arguments for this pipeline
 			# Sample-level arguments are handled by the pipeline interface.
-			argstring = pipeline_interface.get_arg_string(pl, sample)
+			argstring = pipeline_interface.get_arg_string(pl_id, sample)
 			cmd += argstring
 
 			# Project-level arguments (those that do not change for each sample)
