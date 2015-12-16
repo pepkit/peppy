@@ -158,7 +158,7 @@ def main():
 		# Check if single_or_paired value is recognized
 		if hasattr(sample, "single_or_paired"):
 			# drop "-end", "_end", or just "end" from the end of the column value:
-			sample.single_or_paired = re.sub('[_\\-]?end$', '', sample.single_or_paired)
+			sample.single_or_paired = re.sub('[_\\-]?end$', '', sample.single_or_paired).lower()
 			if sample.single_or_paired not in ["single", "paired"]:
 				fail_message += "single_or_paired must be either 'single' or 'paired'."
 				fail = True
