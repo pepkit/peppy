@@ -26,8 +26,12 @@ def parse_arguments():
 	"""
 	parser = ArgumentParser(description='Looper')
 
-	parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c]. Example: /fhgfs/groups/lab_bock/shared/COREseq/config.txt")
+	parser.add_argument('-c', '--config-file', dest='conf_file', help="Supply config file [-c].")
+
+	parser.add_argument('--sp', dest='subproject', help="Supply subproject", default=None)
+
 	parser.add_argument('-d', '--dry-run', dest='dry_run', action='store_true', help="Don't actually submit.", default=False)
+
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
 	# args = parser.parse_args()
@@ -123,7 +127,7 @@ def main():
 	args, remaining_args = parse_arguments()
 
 	# Initialize project
-	prj = Project(args.conf_file)
+	prj = Project(args.conf_file, args.subproject)
 	# add sample sheet
 	prj.add_sample_sheet()
 	# keep track of submited samples
