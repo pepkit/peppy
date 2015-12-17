@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python
 
 import os, inspect, ConfigParser, subprocess, sys, errno, glob, zipfile, csv
 from argparse import ArgumentParser
