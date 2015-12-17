@@ -80,9 +80,9 @@ def cluster_submit(
 	"""
 	# Some generic variables
 	# Toss the file extension
-	pipeline_name_short = os.path.splitext(pipeline_name)[0]
-	submit_script = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name_short + ".sub")
-	submit_log = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name_short + ".log")
+
+	submit_script = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name + ".sub")
+	submit_log = os.path.join(submission_folder, sample.sample_name + "_" + pipeline_name + ".log")
 	variables_dict["LOGFILE"] = submit_log
 
 	# Prepare and write submission script
@@ -194,9 +194,15 @@ def main():
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
 			print(pl)
+			# discard any arguments to get just the (complete) script name,
+			# which is the key in the pipeline interface
 			pl_id = str(pl).split(" ")[0]
 			# Identify the cluster resources we will require for this submission
 			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
+
+			# Pipeline name is the key used for flag checking
+			pl_name = pipeline_interface.get_pipeline_name(pl_id)
+
 
 			# Build basic command line string
 			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
@@ -236,7 +242,7 @@ def main():
 			submit_settings["CODE"] = cmd
 
 			# Submit job!
-			cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl_name, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 
 if __name__ == '__main__':
