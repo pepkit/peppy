@@ -199,7 +199,7 @@ def main():
 			pl_id = str(pl).split(" ")[0]
 			# Identify the cluster resources we will require for this submission
 			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
-
+			
 			# Pipeline name is the key used for flag checking
 			pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
