@@ -443,11 +443,11 @@ try:
 	html_out += '<h2>Useful Links</h2>\n'
 	tsv_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.tsv'
 	tsv_stats_path = os.path.relpath(os.path.join(paths.output_dir,tsv_stats_name),track_out)
-	xls_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.xlsx'
+	xls_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.xls'
 	xls_stats_path = os.path.relpath(os.path.join(paths.output_dir,xls_stats_name),track_out)
 	if os.path.isfile(os.path.join(paths.output_dir,tsv_stats_name)):
 		if os.path.isfile(os.path.join(paths.output_dir,xls_stats_name)):
-			html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLSX')
+			html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS')
 		else:
         		html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV')
 	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
