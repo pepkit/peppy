@@ -14,6 +14,7 @@ import yaml
 # #######################################################################################
 parser = ArgumentParser(description='make_trackhubs')
 parser.add_argument('-c', '--config-file', dest='config_file', help="path to YAML config file", required=True, type=str)
+parser.add_argument('--excel', dest='excel', action='store_true', help="generate an extra XLS sheet", default=False, required=False)
 args = parser.parse_args()
 #print '\nArguments:'
 #print args
@@ -106,15 +107,15 @@ for row in csv_reader:
 		elif stats_dict.has_key(field):
 			content = str(stats_dict[field])
 		else:
-			content = 'N/A'
+			content = 'NA'
 			print 'No field called :' + field
 		new_row[field_out] = content
-		sheet.write(sample_count, i, content)
+		if args.excel: sheet.write(sample_count, i, content)
 
 	tsv_writer.writerow(new_row)
 
 
 csv_file.close()
 tsv_outfile.close()
-book.save(os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.xlsx'))
+if args.excel: book.save(os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.xls'))
 
