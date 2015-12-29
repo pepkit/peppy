@@ -37,7 +37,7 @@ data_sources:
   # If you use {variable} codes, you should quote the field so python can parse it.
   bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
   microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
-  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{original_sample_name}.bam"
+  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}{file_number}.bam"
 
 genomes:
   human: hg19
