@@ -49,15 +49,9 @@ def parse_arguments():
 
 def get_file_size(filename):
 	"""
-	Get file stats. Gives in GB....
+	Get size of all files in string (space-separated) in gigabytes (Gb).
 	"""
-	# filename can actually be a (space-separated) string listing multiple files
-	if ' ' in filename:
-		filesplit = filename.split()
-		return(get_file_size(filesplit[0]) + get_file_size(filesplit[1:]))
-	else:
-		st = os.stat(filename)
-		return float(st.st_size) / (1024 ** 3)
+	return sum([float(os.stat(f).st_size) for f in filename.split(" ")]) / (1024 ** 3)
 
 
 def make_sure_path_exists(path):
@@ -86,7 +80,7 @@ def cluster_submit(
 	variables_dict["LOGFILE"] = submit_log
 
 	# Prepare and write submission script
-	sys.stdout.write("  SUBFILE: " + submit_script + " ")
+	sys.stdout.write("\tSUBFILE: " + submit_script + " ")
 	make_sure_path_exists(os.path.dirname(submit_script))
 	# read in submit_template
 	with open(submit_template, 'r') as handle:
@@ -116,7 +110,7 @@ def cluster_submit(
 
 	if submit:
 		if dry_run:
-			print("  DRY RUN: I would have submitted this")
+			print("\tDRY RUN: I would have submitted this")
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
 			# pass
@@ -146,7 +140,7 @@ def main():
 	for sample in prj.samples:
 		fail = False
 		fail_message = ""
-		sys.stdout.write("### " + sample.sample_name + "\t")
+		sys.stdout.write("\n### " + sample.sample_name + "\t")
 
 		# Don't submit samples with duplicate names
 		if sample.sample_name in prj.processed_samples:
@@ -168,7 +162,8 @@ def main():
 				fail = True
 
 		# Make sure the input data exists
-		if not os.path.isfile(sample.data_path):
+		# this requires every input file (in case of merged samples) to exist.
+		if not all(os.path.isfile(f) for f in sample.data_path.split(" ")):
 			fail_message += "Sample input file does not exist."
 			fail = True
 
@@ -180,7 +175,7 @@ def main():
 		prj.processed_samples.append(sample.sample_name)
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 		input_file_size = get_file_size(sample.data_path)
-		print("(" + str(round(input_file_size, 2)) + " GB)")
+		print("({:.2f} Gb)".format(input_file_size))
 
 		sample.to_yaml()
 
@@ -193,16 +188,15 @@ def main():
 
 		# Go through all pipelines to submit for this protocol
 		for pl in pl_list:
-			print(pl)
+			print("Pipeline: " + pl)
 			# discard any arguments to get just the (complete) script name,
 			# which is the key in the pipeline interface
 			pl_id = str(pl).split(" ")[0]
 			# Identify the cluster resources we will require for this submission
 			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
-			
+
 			# Pipeline name is the key used for flag checking
 			pl_name = pipeline_interface.get_pipeline_name(pl_id)
-
 
 			# Build basic command line string
 			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pl)
@@ -244,6 +238,7 @@ def main():
 			# Submit job!
 			cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl_name, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
+	print("\nLooper finished.")
 
 if __name__ == '__main__':
 	try:
