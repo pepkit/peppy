@@ -1,24 +1,32 @@
-.. pipelines documentation master file, created by
-   sphinx-quickstart on Sat Nov 14 20:21:32 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
-Welcome to pipelines's documentation!
-=====================================
+pipelines documentation
+=========================
 
-Contents:
+the ``pipelines`` repository provides three things:
+
+-   **pipelines:** aasd
+-   **Looper:** asdads
+-   **microtest data:** a set of small 
+
+All pipelines use ``Pypiper`` to run. 
+
+pipelines' ___ licensed source code is available at http://github.com/epigen/pypiper/ .
+
+
+Contents
+^^^^^^^^
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 2
 
-.. automodule:: pipelines.models
-   :members:
+   getting-started.rst
+   tutorials.rst
+   sample-annotation-sheet.rst
+   config-files.rst
+   pipelines.rst
+   the-inner-workings.rst
+   api.rst
 
-.. automodule:: pipelines.toolkit
-   :members:
-
-.. automodule:: pipelines.pipelines
-   :members:
 
 Indices and tables
 ==================
