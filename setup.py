@@ -3,6 +3,7 @@
 import sys
 import os
 import shutil
+import pipelines
 
 # take care of extra required modules depending on Python version
 extra = {}
@@ -18,14 +19,24 @@ except ImportError:
 	if sys.version_info < (2, 7):
 		extra['dependencies'] = ['argparse']
 
-# scripts to be added to the $PATH
-scripts = os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), "scripts"))
-# scripts += os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), "pipelines/tools"))
-scripts = ["scripts/%s" % f for f in scripts if "." in f]
 
-print scripts
-# templates to be copied with the code upon installation
-templates = ["templates/%s" % f for f in os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), "templates"))]
+# Additional files to include with package
+def get_static(name, condition=None):
+	static = [os.path.join(name, f) for f in os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), name))]
+	if condition is None:
+		return static
+	else:
+		return filter(lambda x: eval(condition), static)
+
+# looper configs from /config
+looper_configs = get_static("config")
+# pipeline configs from /pipelines/.*\.yaml
+pipeline_configs = get_static("pipelines", condition="'yaml' in x")
+
+# scripts to be added to the $PATH
+scripts = get_static("pipelines/tools", condition="'.' in x")
+scripts += get_static("scripts", condition="'.' in x")
+
 
 # temporarily copy looper to the pipelines package
 # this is just for installation purposes
@@ -35,7 +46,7 @@ shutil.copy("looper.py", "pipelines/looper.py")
 setup(
 	name="pipelines",
 	packages=["pipelines"],
-	version="0.2",
+	version=pipelines.__version__,
 	description="NGS pipelines in Python.",
 	long_description=open('README.md').read(),
 	classifiers=[
@@ -46,7 +57,7 @@ setup(
 	],
 	keywords="bioinformatics, sequencing, ngs, ATAC-Seq, ChIP-seq, RNA-seq, RRBS, WGBS",
 	url="https://github.com/epigen/pipelines",
-	author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro",
+	author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
 	license="GPL2",
 	install_requires=["pyyaml", "pandas"],
 	entry_points={
@@ -64,8 +75,11 @@ setup(
 		],
 	},
 	scripts=scripts,
-	data_files=[("templates", templates)],
-	# include_package_data=True
+	data_files=[
+		("configs", looper_configs + pipeline_configs)
+	],
+	include_package_data=True,
+	**extra
 )
 
 # remove the copied looper
