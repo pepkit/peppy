@@ -3,7 +3,6 @@
 import sys
 import os
 import shutil
-import pipelines
 
 # take care of extra required modules depending on Python version
 extra = {}
@@ -42,11 +41,14 @@ scripts += get_static("scripts", condition="'.' in x")
 # this is just for installation purposes
 shutil.copy("looper.py", "pipelines/looper.py")
 
+
+version = open("VERSION").read().strip()
+
 # setup
 setup(
 	name="pipelines",
 	packages=["pipelines"],
-	version=pipelines.__version__,
+	version=version,
 	description="NGS pipelines in Python.",
 	long_description=open('README.md').read(),
 	classifiers=[
