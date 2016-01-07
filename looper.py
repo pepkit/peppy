@@ -34,6 +34,7 @@ def parse_arguments():
 
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
+	parser.add_argument('--cmd', dest='command', default="run")
 	# args = parser.parse_args()
 	# To enable the loop to pass args directly on to the pipelines...
 	args, remaining_args = parser.parse_known_args()
@@ -106,7 +107,8 @@ def cluster_submit(
 		print("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
 		submit = False
 	else:
-		print("")
+		pass
+		#print("")  # Do you want to print a newline after every sample?
 
 	if submit:
 		if dry_run:
@@ -114,6 +116,39 @@ def cluster_submit(
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
 			# pass
+
+
+def query_yes_no(question, default="no"):
+    """Ask a yes/no question via raw_input() and return their answer.
+
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+        It must be "yes" (the default), "no" or None (meaning
+        an answer is required of the user).
+
+    The "answer" return value is True for "yes" or False for "no".
+    """
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = raw_input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
 
 
 def main():
@@ -136,11 +171,32 @@ def main():
 	protocol_mappings_file = os.path.join(prj.paths.pipelines_dir, "config/protocol_mappings.yaml")
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
+	if args.command == "clean":
+		if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
+			print("Clean aborted by user.")
+			sys.exit(1)
 
 	for sample in prj.samples:
 		fail = False
 		fail_message = ""
-		sys.stdout.write("\n### " + sample.sample_name + "\t")
+		sys.stdout.write("### " + sample.sample_name + "\t")
+		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+
+		if args.command == "clean":
+			# Clean
+			import shutil
+			if os.path.exists(pipeline_outfolder):
+				if args.dry_run:
+					print("DRY RUN. I would have removed: " + pipeline_outfolder)
+				else:
+					print("Removing: " + pipeline_outfolder)
+					shutil.rmtree(pipeline_outfolder)
+			else:
+				print(pipeline_outfolder + " does not exist.")
+
+			continue
+
+
 
 		# Don't submit samples with duplicate names
 		if sample.sample_name in prj.processed_samples:
@@ -173,7 +229,6 @@ def main():
 
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
-		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 		input_file_size = get_file_size(sample.data_path)
 		print("({:.2f} Gb)".format(input_file_size))
 
