@@ -113,9 +113,13 @@ def cluster_submit(
 	if submit:
 		if dry_run:
 			print("\tDRY RUN: I would have submitted this")
+			return 0
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
+			return 1
 			# pass
+	else:
+		return 0
 
 
 def query_yes_no(question, default="no"):
@@ -155,6 +159,9 @@ def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
 
+	# Keep track of how many jobs have been submitted.
+	submit_count = 0
+	job_count = 0
 	# Initialize project
 	prj = Project(args.conf_file, args.subproject)
 	# add sample sheet
@@ -175,6 +182,10 @@ def main():
 		if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
 			print("Clean aborted by user.")
 			sys.exit(1)
+
+
+	# Create a few problem lists so we can keep track and show them at the end
+	failures = []
 
 	for sample in prj.samples:
 		fail = False
@@ -225,6 +236,7 @@ def main():
 
 		if fail:
 			print("Not submitted: " + fail_message)
+			failures.append([fail_message, sample.sample_name])
 			continue
 
 		# Otherwise, process the sample:
@@ -291,9 +303,13 @@ def main():
 			submit_settings["CODE"] = cmd
 
 			# Submit job!
-			cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl_name, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			job_count += 1
+			submit_count += cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl_name, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
-	print("\nLooper finished.")
+	print("\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)")
+
+	if (len(failures) > 0):
+		print(failures)
 
 if __name__ == '__main__':
 	try:
