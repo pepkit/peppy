@@ -19,7 +19,7 @@ if (is.null(opt$inputFolder)) {
 message("input folder: ", inputFolder);
 pipeDirs = list.dirs(inputFolder, recursive=FALSE)
 
-message("Read all *_stats.txt files in the pipeline results folder")
+message("Read all *_stats.tsv files in the pipeline results folder")
 results=list()
 dir = pipeDirs[[1]];
 for (dir in pipeDirs) {
@@ -29,7 +29,7 @@ for (dir in pipeDirs) {
 	statFiles = c(statFiles, statFiles2)
 	for (statFile in statFiles) {
 		message(statFile);
-		pipeline = gsub("_stats.txt", "", statFile)
+		pipeline = gsub("_stats.tsv", "", statFile)
 		pipeline = gsub("stats_", "", pipeline)
 		statPath = paste0(dir, "/", statFile);
 		# Not the best, but I had to put this in just in case
