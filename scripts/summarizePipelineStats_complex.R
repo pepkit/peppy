@@ -25,12 +25,12 @@ results=list()
 dir = pipeDirs[[1]];
 for (dir in pipeDirs) {
 	message(dir);
-	statFiles = list.files(dir, pattern="_stats.txt")
+	statFiles = list.files(dir, pattern="_stats.tsv")
 	statFiles2 = list.files(dir, pattern="stats_")
 	statFiles = c(statFiles, statFiles2)
 	for (statFile in statFiles) {
 		message(statFile);
-		pipeline = gsub("_stats.txt", "", statFile)
+		pipeline = gsub("_stats.tsv", "", statFile)
 		pipeline = gsub("stats_", "", pipeline)
 		statPath = paste0(dir, "/", statFile);
 		a = fread(statPath)
@@ -99,7 +99,7 @@ if ("rnaBitSeq" %in% names(resultsMat)){
   if ("Filtered_reads" %in% names(resultsMat$rnaTopHat)){
 	  resultsMat$rnaBitSeq[, total_efficiency := Filtered_reads/Raw_reads]}
 	resultsMat$rnaBitSeq[, trim_loss_rate := (Raw_reads - Trimmed_reads)/Raw_reads]
-	resultsMat$rnaBitSeq[, alignment_rate := (Aligned_reads)/Trimmed_reads]
+	resultsMat$rnaBitSeq[, alignment_rate := Aligned_reads/Trimmed_reads]
   if ("Filtered_reads" %in% names(resultsMat$rnaTopHat)){
     resultsMat$rnaBitSeq[, dupe_loss_rate := (Filtered_reads - Deduplicated_reads)/Filtered_reads]
 	  resultsMat$rnaBitSeq[, filt_loss_rate := (Aligned_reads - Filtered_reads)/Aligned_reads]}
