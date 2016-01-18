@@ -23,7 +23,7 @@ parser = ArgumentParser(description='make_trackhubs')
 parser.add_argument('-c', '--config-file', dest='config_file', help="path to YAML config file", required=True, type=str)
 parser.add_argument('-f', dest='filter', action='store_false', required=False, default=True)
 parser.add_argument('-v', '--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
-parser.add_argument('--copy', dest='copy', help='copy all files instead of creating symbolic links', required=False, default=False)
+parser.add_argument('--copy', dest='copy', help='copy sepcified file types instead of creating symbolic links, example: --copy BAM-BB-BW-BED-TH', required=False, type=str)
 
 args = parser.parse_args()
 #print '\nArguments:'
@@ -233,7 +233,7 @@ try:
 			print "  FOUND bsmap mapped file: " + bsmap_mapped_bam
 
 			# copy or link the file to the hub directory
-			if args.copy:
+			if args.copy and args.copy.find('BAM')>-1:
 				cmd = "cp " + bsmap_mapped_bam + " " + track_out
 				print(cmd)
  				subprocess.call(cmd, shell=True)
@@ -270,7 +270,7 @@ try:
 			print "  FOUND BigBed file: " + meth_bb_file
 
 			# copy or link the file to the hub directory
-			if args.copy:
+			if args.copy and args.copy.find('BB')>-1:
 				cmd = "cp " + meth_bb_file + " " + track_out
 				print(cmd)
  				subprocess.call(cmd, shell=True)
@@ -300,7 +300,7 @@ try:
 		if os.path.isfile(bismark_bw_file):
 			print "  FOUND bismark bw: " + bismark_bw_file
 			# copy or link the file to the hub directory
-			if args.copy:
+			if args.copy and args.copy.find('BW')>-1:
 				cmd = "cp " + bismark_bw_file + " " + track_out
 				print(cmd)
  				subprocess.call(cmd, shell=True)
@@ -338,7 +338,7 @@ try:
 			print "  FOUND biseq bed file: " + biseq_bed
 
 			# copy or link the file to the hub directory
-			if args.copy:
+			if args.copy and args.copy.find('BED')>-1:
 				cmd = "cp " + biseq_bed + " " + track_out
 				print(cmd)
  				subprocess.call(cmd, shell=True)
@@ -359,7 +359,7 @@ try:
 		if os.path.isfile(tophat_bw_file):
 			print "  FOUND tophat bw: " + tophat_bw_file
 			# copy or link the file to the hub directory
-			if args.copy:
+			if args.copy and args.copy.find('TH')>-1:
 				cmd = "cp " + tophat_bw_file + " " + track_out + "\n"
 				cmd += "chmod o+r " + os.path.join(track_out, tophat_bw_name)
 				print(cmd)
@@ -447,9 +447,10 @@ try:
 	xls_stats_path = os.path.relpath(os.path.join(paths.output_dir,xls_stats_name),track_out)
 	xlsx_stats_name = os.path.basename(paths.output_dir)+'_stats_summary.xlsx'
 	xlsx_stats_path = os.path.relpath(os.path.join(paths.output_dir,xlsx_stats_name),track_out)
-	if os.path.isfile(os.path.join(paths.output_dir,tsv_stats_name)):
-		if os.path.isfile(os.path.join(paths.output_dir,xls_stats_name)):
-			if os.path.isfile(os.path.join(paths.output_dir,xlsx_stats_name)):
+
+	if os.path.isfile(os.path.join(paths.write_dir,tsv_stats_name)):
+		if os.path.isfile(os.path.join(paths.write_dir,xls_stats_name)):
+			if os.path.isfile(os.path.join(paths.write_dir,xlsx_stats_name)):
 				html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS', xlsx_stats_path,'XLSX')
 			else:
 				html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS')
@@ -497,7 +498,8 @@ try:
         file_handle.write(html_out)
         file_handle.close()
 
-	cmd = "chmod -R go+rX " + paths.output_dir
+
+	cmd = "chmod -R go+rX " + paths.write_dir
 	subprocess.call(cmd, shell=True)
 
 	hub_file_link = str(trackhubs.url) + "/" + hub_file_name
