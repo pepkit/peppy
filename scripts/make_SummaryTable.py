@@ -8,6 +8,8 @@ import os
 from argparse import ArgumentParser
 from pypiper import AttributeDict
 import yaml
+import xlrd
+import openpyxl
 
 
 # Argument Parsing
@@ -61,16 +63,18 @@ tsv_writer.writeheader()
 
 # Output EXCEL file
 # #######################################################################################
-book = xlwt.Workbook(encoding="utf-8")
-sheet = book.add_sheet("Stats")
+xls_book = xlwt.Workbook(encoding="utf-8")
+xls_sheet_name = "Stats"
+xls_sheet = xls_book.add_sheet(xls_sheet_name)
 for i in range(0,len(fields_out)):
 	field_out = fields_out[i]
-	sheet.write(0, i, field_out)
+	xls_sheet.write(0, i, field_out)
 
 
 # Looping over all samples
 # #######################################################################################
 sample_count = 0
+column_count = 0
 print '\nStart iterating over samples'
 for row in csv_reader:
 
@@ -92,16 +96,22 @@ for row in csv_reader:
 
 	new_row = dict()
 
+	column_count = 0
 	for i in range(0,len(fields_in)):
+
 		field = fields_in[i]
 		field_out = fields_out[i]
-		content = ''
+		content = str('')
+		content_float = float(-1e10)
+		content_int = int(-1)
+
+		# extract all the listed fields
 		if field == 'Trimmed_rate':
-			content = str(100.0*float(stats_dict['Trimmed_reads'])/float(stats_dict['Raw_reads']))
+			content_float = 100.0*float(stats_dict['Trimmed_reads'])/float(stats_dict['Raw_reads'])
 		elif field == 'Aligned_rate':
-			content = str(100.0*float(stats_dict['Aligned_reads'])/float(stats_dict['Trimmed_reads']))
+			content_float = 100.0*float(stats_dict['Aligned_reads'])/float(stats_dict['Trimmed_reads'])
 		elif field == 'Multimap_rate':
-			content = str(100.0*float(stats_dict['Multimap_reads'])/float(stats_dict['Trimmed_reads']))
+			content_float = 100.0*float(stats_dict['Multimap_reads'])/float(stats_dict['Trimmed_reads'])
 		elif row.has_key(field):
 			content = str(row[field].strip())
 		elif stats_dict.has_key(field):
@@ -109,13 +119,63 @@ for row in csv_reader:
 		else:
 			content = 'NA'
 			print 'No field called :' + field
-		new_row[field_out] = content
-		if args.excel: sheet.write(sample_count, i, content)
+
+		# convert str to float or int if needed
+		got_comma = content.find('.')
+		try:
+			content_float = float(content)
+		except ValueError:
+			pass
+		if not got_comma:
+			content_int = int(content_float)
+
+		# write the field for each row
+		if content_int > -1:
+			column_count += 1
+			new_row[field_out] = content_int
+			if args.excel: xls_sheet.write(sample_count, i, content_int)
+		elif content_float > -1e10:
+			column_count += 1
+			new_row[field_out] = content_float
+			if args.excel: xls_sheet.write(sample_count, i, content_float)
+		else:
+			column_count += 1
+			new_row[field_out] = content
+			if args.excel: xls_sheet.write(sample_count, i, content)
 
 	tsv_writer.writerow(new_row)
 
 
 csv_file.close()
 tsv_outfile.close()
-if args.excel: book.save(os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.xls'))
+
+if args.excel:
+
+	# saving the XLS sheet
+	xls_filename = os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.xls')
+	xls_book.save(xls_filename)
+
+	# convert XLS sheet to XLSX format
+	xlsx_book_in = xlrd.open_workbook(xls_filename)
+	index = 0
+	nrows = sample_count
+	ncols = column_count
+	xlsx_sheet_in = xlsx_book_in.sheet_by_index(0)
+	xlsx_book_out = openpyxl.Workbook()
+	xlsx_sheet1 = xlsx_book_out.active
+	xlsx_sheet1.title = xls_sheet_name
+	for row in range(1, nrows+2):
+		for col in range(1, ncols+1):
+			xlsx_sheet1.cell(row=row, column=col).value = xlsx_sheet_in.cell_value(row-1, col-1)
+	xlsx_filename = os.path.join(paths.output_dir,os.path.basename(paths.output_dir)+'_stats_summary.xlsx')
+	xlsx_book_out.save(xlsx_filename)
+
+
+
+
+
+
+
+
+
 
