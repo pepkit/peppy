@@ -12,6 +12,7 @@ from argparse import ArgumentParser
 import glob
 import errno
 import re
+import time
 
 try:
 	from .models import Project, PipelineInterface, ProtocolMapper
@@ -31,6 +32,8 @@ def parse_arguments():
 	parser.add_argument('--sp', dest='subproject', help="Supply subproject", default=None)
 
 	parser.add_argument('-d', '--dry-run', dest='dry_run', action='store_true', help="Don't actually submit.", default=False)
+
+	parser.add_argument('-t', '--time-delay', dest='time_delay', type=int, help="Time delay in seconds between job submissions.", default=0)
 
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
@@ -68,7 +71,7 @@ def make_sure_path_exists(path):
 
 def cluster_submit(
 	sample, submit_template, submission_command, variables_dict,
-	submission_folder, pipeline_outfolder, pipeline_name,
+	submission_folder, pipeline_outfolder, pipeline_name, time_delay,
 	submit=False, dry_run=False, remaining_args=list()):
 	"""
 	Submit job to cluster manager.
@@ -116,6 +119,7 @@ def cluster_submit(
 			return 0
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
+			time.sleep(time_delay)  # sleep for `time_delay` seconds before submiting next job
 			return 1
 			# pass
 	else:
@@ -304,7 +308,11 @@ def main():
 
 			# Submit job!
 			job_count += 1
-			submit_count += cluster_submit(sample, prj.compute.submission_template, prj.compute.submission_command, submit_settings, prj.paths.submission_subdir, pipeline_outfolder, pl_name, submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+			submit_count += cluster_submit(
+				sample, prj.compute.submission_template,
+				prj.compute.submission_command, submit_settings,
+				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
+				submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
 	print("\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)")
 
