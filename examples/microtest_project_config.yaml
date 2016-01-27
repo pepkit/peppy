@@ -62,7 +62,7 @@ pipeline_config:
   # Key string must match the _name of the pipeline script_ (including extension)
   # Relative paths are relative to this project config file.
   # Default (null) means use the generic config for the pipeline.
-  wgbs.py: null
+  # wgbs.py: null
   # Or you can point to a specific config to be used in this project:
   # rrbs.py: rrbs_config.yaml
   # wgbs.py: wgbs_config.yaml
