@@ -249,7 +249,7 @@ def main():
 
 		sample.to_yaml()
 
-		# Get the base protocl to pipeline mappings
+		# Get the base protocol to pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library.upper())
 
 		# We require that the pipelines and config files live in
@@ -275,6 +275,11 @@ def main():
 			# Append arguments for this pipeline
 			# Sample-level arguments are handled by the pipeline interface.
 			argstring = pipeline_interface.get_arg_string(pl_id, sample)
+			argstring += " "  # space
+
+			# Project-level arguments are handled by the project.
+			argsring += prj.get_arg_string(pl_id)
+
 			cmd += argstring
 
 			# Project-level arguments (those that do not change for each sample)
