@@ -278,7 +278,7 @@ def main():
 			argstring += " "  # space
 
 			# Project-level arguments are handled by the project.
-			argsring += prj.get_arg_string(pl_id)
+			argstring += prj.get_arg_string(pl_id)
 
 			cmd += argstring
 
