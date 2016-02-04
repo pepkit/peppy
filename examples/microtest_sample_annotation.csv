@@ -12,3 +12,5 @@ rrbs_PE,RRBS,human,,microtest,1
 wgbs,WGBS,human,,microtest,1
 RNA_TRUseq_50SE,SMART,human,,microtest,1
 RNA_SMART_50SE,SMART,human,,microtest,1
+rrbs_PE_fq,RRBS,human,,microtest,1
+rrbs_fq,RRBS,human,,microtest,1
