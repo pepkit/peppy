@@ -284,7 +284,7 @@ def main():
 
 			# Project-level arguments (those that do not change for each sample)
 			# must be handled separately.
-			# These are looper_args, -C, -O, and -P. If the pipeline implements
+			# These are looper_args, -C, -O, -M, and -P. If the pipeline implements
 			# these arguments, then it should list looper_args=True and then we
 			# should add the arguments to the command string.
 
@@ -305,6 +305,11 @@ def main():
 			# Append arg for cores (number of processors to use)
 			if submit_settings["cores"] > 1:
 				cmd += " -P " + submit_settings["cores"]
+
+			# Append arg for memory
+			if submit_settings["mem"] > 1:
+				cmd += " -M " + submit_settings["mem"]
+
 
 			# Add the command string and job name to the submit_settings object
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
