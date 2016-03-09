@@ -116,7 +116,7 @@ def cluster_submit(
 	if submit:
 		if dry_run:
 			print("\tDRY RUN: I would have submitted this")
-			return 0
+			return 1
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
 			time.sleep(time_delay)  # sleep for `time_delay` seconds before submiting next job
@@ -323,7 +323,11 @@ def main():
 				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
 				submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
-	print("\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)")
+	msg ="\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
+	if args.dry_run:
+		msg += " Dry run. No jobs were actually submitted"
+
+	print(msg)
 
 	if (len(failures) > 0):
 		print(failures)
