@@ -110,26 +110,26 @@ try:
 	hub_file.writelines("genomesFile " + pipeline + "genomes.txt\n")
 	hub_file.writelines("email " + trackhubs.email + "\n")
 
-        # Write a HTML document.
-        html_out = str()
-        html_out_tab1 = str()
-        html_out_tab2 = str()
+		# Write a HTML document.
+		html_out = str()
+		html_out_tab1 = str()
+		html_out_tab2 = str()
 	# Write HTML header and title
-        html_out += '<!DOCTYPE html PUBLIC ' \
-                  '"-//W3C//DTD XHTML 1.0 Transitional//EN" ' \
-                  '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n'
-        html_out += '\n'
-        html_out += '<html xmlns="http://www.w3.org/1999/xhtml">\n'
-        html_out += '<head>\n'
-        html_out += '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />\n'
-        html_out += '<link rel="schema.DC" href="http://purl.org/DC/elements/1.0/" />\n'
-        html_out += '<meta name="DC.Creator" content="{}" />\n'.format(getpass.getuser())
-        html_out += '<meta name="DC.Date" content="{}" />\n'.format(datetime.datetime.now().isoformat())
-        #html_out += '<meta name="DC.Source" content="{}" />\n'.format(inspect.currentframe())
-        html_out += '<meta name="DC.Title" content="{}" />\n'.format(os.path.basename(paths.output_dir))
-        html_out += '<title>{}</title>\n'.format(os.path.basename(paths.output_dir))
-        html_out += '</head>\n'
-        html_out += '\n'
+		html_out += '<!DOCTYPE html PUBLIC ' \
+				  '"-//W3C//DTD XHTML 1.0 Transitional//EN" ' \
+				  '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n'
+		html_out += '\n'
+		html_out += '<html xmlns="http://www.w3.org/1999/xhtml">\n'
+		html_out += '<head>\n'
+		html_out += '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />\n'
+		html_out += '<link rel="schema.DC" href="http://purl.org/DC/elements/1.0/" />\n'
+		html_out += '<meta name="DC.Creator" content="{}" />\n'.format(getpass.getuser())
+		html_out += '<meta name="DC.Date" content="{}" />\n'.format(datetime.datetime.now().isoformat())
+		#html_out += '<meta name="DC.Source" content="{}" />\n'.format(inspect.currentframe())
+		html_out += '<meta name="DC.Title" content="{}" />\n'.format(os.path.basename(paths.output_dir))
+		html_out += '<title>{}</title>\n'.format(os.path.basename(paths.output_dir))
+		html_out += '</head>\n'
+		html_out += '\n'
 
 	tableDict = dict()
 
@@ -236,10 +236,10 @@ try:
 			if args.copy and args.copy.find('BAM')>-1:
 				cmd = "cp " + bsmap_mapped_bam + " " + track_out
 				print(cmd)
- 				subprocess.call(cmd, shell=True)
+				subprocess.call(cmd, shell=True)
 				cmd = "cp " + bsmap_mapped_bam_index + " " + track_out
 				print(cmd)
- 				subprocess.call(cmd, shell=True)
+				subprocess.call(cmd, shell=True)
 			else:
 				os.symlink(os.path.relpath(bsmap_mapped_bam,track_out), os.path.join(track_out,pipeline+bsmap_mapped_bam_name))
 				os.symlink(os.path.relpath(bsmap_mapped_bam_index,track_out), os.path.join(track_out,pipeline+bsmap_mapped_bam_index_name))
@@ -273,7 +273,7 @@ try:
 			if args.copy and args.copy.find('BB')>-1:
 				cmd = "cp " + meth_bb_file + " " + track_out
 				print(cmd)
- 				subprocess.call(cmd, shell=True)
+				subprocess.call(cmd, shell=True)
 			else:
 				os.symlink(os.path.relpath(meth_bb_file,track_out), os.path.join(track_out,meth_bb_name))
 
@@ -303,7 +303,7 @@ try:
 			if args.copy and args.copy.find('BW')>-1:
 				cmd = "cp " + bismark_bw_file + " " + track_out
 				print(cmd)
- 				subprocess.call(cmd, shell=True)
+				subprocess.call(cmd, shell=True)
 			else:
 				os.symlink(os.path.relpath(bismark_bw_file,track_out), os.path.join(track_out,bismark_bw_name))
 			#add data_type subgroup (not included in sampleAnnotation)
@@ -341,7 +341,7 @@ try:
 			if args.copy and args.copy.find('BED')>-1:
 				cmd = "cp " + biseq_bed + " " + track_out
 				print(cmd)
- 				subprocess.call(cmd, shell=True)
+				subprocess.call(cmd, shell=True)
 			else:
 				os.symlink(os.path.relpath(biseq_bed,track_out), os.path.join(track_out,biseq_bed_name))
 
@@ -435,9 +435,9 @@ try:
 
 	report_name = pipeline+'report.html'
 
-        html_out += '<body>\n'
-        html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
-        html_out += '\n'
+		html_out += '<body>\n'
+		html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
+		html_out += '\n'
 	html_out += '<p><br /></p>\n'
 
 	html_out += '<h2>Useful Links</h2>\n'
@@ -455,37 +455,37 @@ try:
 			else:
 				html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS')
 		else:
-        		html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV')
+				html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV')
 	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
 	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&amp;hubUrl='+url+'%2F'+hub_file_name
-        html_out += '<p>UCSC Genome Browser: <a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,'Link')
+		html_out += '<p>UCSC Genome Browser: <a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,'Link')
 
-        html_file_name = os.path.join(track_out, report_name)
-        file_handle = open(name=html_file_name, mode='w')
-        file_handle.write(html_out)
+		html_file_name = os.path.join(track_out, report_name)
+		file_handle = open(name=html_file_name, mode='w')
+		file_handle.write(html_out)
 
 
-        html_out_tab = '<h2>Data Files</h2>\n'
-        html_out_tab += '<table cellpadding="5">\n'
-        html_out_tab += '<tr>\n'
-        html_out_tab += '<th>Sample Name</th>\n'
-        html_out_tab += '<th>Aligned BAM</th>\n'
-        html_out_tab += '<th>BAM Index</th>\n'
-        html_out_tab += '<th>BigBed</th>\n'
-        html_out_tab += '<th>BigWig</th>\n'
-        html_out_tab += '<th>Biseq Bed</th>\n'
-        html_out_tab += '</tr>\n'
+		html_out_tab = '<h2>Data Files</h2>\n'
+		html_out_tab += '<table cellpadding="5">\n'
+		html_out_tab += '<tr>\n'
+		html_out_tab += '<th>Sample Name</th>\n'
+		html_out_tab += '<th>Aligned BAM</th>\n'
+		html_out_tab += '<th>BAM Index</th>\n'
+		html_out_tab += '<th>BigBed</th>\n'
+		html_out_tab += '<th>BigWig</th>\n'
+		html_out_tab += '<th>Biseq Bed</th>\n'
+		html_out_tab += '</tr>\n'
 	for key,value in tableDict.items():
-		      	html_out_tab += '<tr>\n'
-        		html_out_tab += '<td>{}</td>\n'.format(key)
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAM']['link'],value['BAM']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAI']['link'],value['BAI']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BB']['link'],value['BB']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BW']['link'],value['BW']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BED']['link'],value['BED']['label'])
+				html_out_tab += '<tr>\n'
+				html_out_tab += '<td>{}</td>\n'.format(key)
+				html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAM']['link'],value['BAM']['label'])
+				html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAI']['link'],value['BAI']['label'])
+				html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BB']['link'],value['BB']['label'])
+				html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BW']['link'],value['BW']['label'])
+				html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BED']['link'],value['BED']['label'])
 			html_out_tab += '</tr>\n'
-        html_out_tab += '</table>\n'
-        file_handle.write(html_out_tab)
+		html_out_tab += '</table>\n'
+		file_handle.write(html_out_tab)
 
 
 	html_out = '<p><br /></p>\n'
@@ -495,8 +495,8 @@ try:
 	html_out += '</body>\n'
 	html_out += '</html>\n'
 	html_out += '\n'
-        file_handle.write(html_out)
-        file_handle.close()
+		file_handle.write(html_out)
+		file_handle.close()
 
 
 	cmd = "chmod -R go+rX " + paths.write_dir
@@ -510,9 +510,9 @@ try:
 	print '\nDONE!'
 	print link_string
 
-        link_file = open(name=os.path.join(paths.write_dir, pipeline+'links.txt'), mode='w')
-        link_file.write(link_string)
-        link_file.close()
+		link_file = open(name=os.path.join(paths.write_dir, pipeline+'links.txt'), mode='w')
+		link_file.write(link_string)
+		link_file.close()
 
 finally:
 	csv_file.close()
