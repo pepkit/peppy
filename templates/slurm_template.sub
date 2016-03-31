@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name='{JOBNAME}'
 #SBATCH --output='{LOGFILE}'
-#SBATCH --mem-per-cpu='{MEM}'
+#SBATCH --mem='{MEM}'
 #SBATCH --cpus-per-task='{CORES}'
 #SBATCH --time='{TIME}'
 #SBATCH --partition='{PARTITION}'
