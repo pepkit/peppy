@@ -90,6 +90,7 @@ Contents
     config-files.rst
     pipelines.rst
     post-run.rst
+    looper.rst
     the-inner-workings.rst
     api.rst
 
