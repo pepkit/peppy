@@ -35,6 +35,8 @@ def parse_arguments():
 
 	parser.add_argument('-t', '--time-delay', dest='time_delay', type=int, help="Time delay in seconds between job submissions.", default=0)
 
+	parser.add_argument('--file-checks', dest='file_checks', action='store_true', help="Perform input file checks. Default=False.")
+
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
 	parser.add_argument('--cmd', dest='command', default="run")
@@ -169,7 +171,7 @@ def main():
 	submit_count = 0
 	job_count = 0
 	# Initialize project
-	prj = Project(args.conf_file, args.subproject)
+	prj = Project(args.conf_file, args.subproject, file_checks=args.file_checks)
 	# add sample sheet
 	prj.add_sample_sheet()
 	# keep track of submited samples
@@ -310,7 +312,6 @@ def main():
 			if submit_settings["mem"] > 1:
 				cmd += " -M " + submit_settings["mem"]
 
-
 			# Add the command string and job name to the submit_settings object
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
 			submit_settings["CODE"] = cmd
@@ -323,7 +324,7 @@ def main():
 				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
 				submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
-	msg ="\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
+	msg = "\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
 	if args.dry_run:
 		msg += " Dry run. No jobs were actually submitted"
 
