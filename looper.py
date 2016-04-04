@@ -35,6 +35,8 @@ def parse_arguments():
 
 	parser.add_argument('-t', '--time-delay', dest='time_delay', type=int, help="Time delay in seconds between job submissions.", default=0)
 
+	parser.add_argument('--file-checks', dest='file_checks', action='store_true', help="Perform input file checks. Default=False.")
+
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
 	parser.add_argument('--cmd', dest='command', default="run")
@@ -116,7 +118,7 @@ def cluster_submit(
 	if submit:
 		if dry_run:
 			print("\tDRY RUN: I would have submitted this")
-			return 0
+			return 1
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
 			time.sleep(time_delay)  # sleep for `time_delay` seconds before submiting next job
@@ -169,7 +171,7 @@ def main():
 	submit_count = 0
 	job_count = 0
 	# Initialize project
-	prj = Project(args.conf_file, args.subproject)
+	prj = Project(args.conf_file, args.subproject, file_checks=args.file_checks)
 	# add sample sheet
 	prj.add_sample_sheet()
 	# keep track of submited samples
@@ -249,7 +251,7 @@ def main():
 
 		sample.to_yaml()
 
-		# Get the base protocl to pipeline mappings
+		# Get the base protocol to pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library.upper())
 
 		# We require that the pipelines and config files live in
@@ -275,11 +277,16 @@ def main():
 			# Append arguments for this pipeline
 			# Sample-level arguments are handled by the pipeline interface.
 			argstring = pipeline_interface.get_arg_string(pl_id, sample)
+			argstring += " "  # space
+
+			# Project-level arguments are handled by the project.
+			argstring += prj.get_arg_string(pl_id)
+
 			cmd += argstring
 
 			# Project-level arguments (those that do not change for each sample)
 			# must be handled separately.
-			# These are looper_args, -C, -O, and -P. If the pipeline implements
+			# These are looper_args, -C, -O, -M, and -P. If the pipeline implements
 			# these arguments, then it should list looper_args=True and then we
 			# should add the arguments to the command string.
 
@@ -301,6 +308,10 @@ def main():
 			if submit_settings["cores"] > 1:
 				cmd += " -P " + submit_settings["cores"]
 
+			# Append arg for memory
+			if submit_settings["mem"] > 1:
+				cmd += " -M " + submit_settings["mem"]
+
 			# Add the command string and job name to the submit_settings object
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pl
 			submit_settings["CODE"] = cmd
@@ -313,7 +324,11 @@ def main():
 				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
 				submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
 
-	print("\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)")
+	msg = "\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
+	if args.dry_run:
+		msg += " Dry run. No jobs were actually submitted"
+
+	print(msg)
 
 	if (len(failures) > 0):
 		print(failures)
