@@ -69,6 +69,11 @@ pipeline_config:
   # cgps: cpgs_config.yaml
 
 
+pipeline_args:
+  rnaBitSeq.py:
+    "-w": 50
+
+
 compute:
   # submission_template: the submission form which will be replaced with compute resource parameters
   # Use this to change your cluster manager (SLURM, SGE, LFS, etc)
