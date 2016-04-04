@@ -4,6 +4,7 @@
 # creates trackhubs for them.
 import csv
 import os
+import pwd
 import subprocess
 import ConfigParser
 from argparse import ArgumentParser
@@ -95,11 +96,14 @@ try:
 		print 'Writing tracks to: ' + track_out
 	else:
 		print 'Trackhubs already exists! Overwriting everything in ' + track_out
+		username = os.getusername()
 		for root, dirs, files in os.walk(track_out, topdown=False):
 			for name in files:
-				os.remove(os.path.join(root, name))
+				if pwd.getpwuid(os.stat(name).st_uid).pw_name == username:
+					os.remove(os.path.join(root, name))
 			for name in dirs:
-				os.rmdir(os.path.join(root, name))
+				if pwd.getpwuid(os.stat(name).st_uid).pw_name == username:
+					os.rmdir(os.path.join(root, name))
 
 	# write hub.txt
 	hub_file_name = pipeline+"hub.txt"
@@ -114,6 +118,7 @@ try:
         html_out = str()
         html_out_tab1 = str()
         html_out_tab2 = str()
+	clean_title = os.path.basename(paths.output_dir).replace('_',' ')
 	# Write HTML header and title
         html_out += '<!DOCTYPE html PUBLIC ' \
                   '"-//W3C//DTD XHTML 1.0 Transitional//EN" ' \
@@ -125,9 +130,9 @@ try:
         html_out += '<link rel="schema.DC" href="http://purl.org/DC/elements/1.0/" />\n'
         html_out += '<meta name="DC.Creator" content="{}" />\n'.format(getpass.getuser())
         html_out += '<meta name="DC.Date" content="{}" />\n'.format(datetime.datetime.now().isoformat())
-        #html_out += '<meta name="DC.Source" content="{}" />\n'.format(inspect.currentframe())
-        html_out += '<meta name="DC.Title" content="{}" />\n'.format(os.path.basename(paths.output_dir))
-        html_out += '<title>{}</title>\n'.format(os.path.basename(paths.output_dir))
+        html_out += '<meta name="DC.Title" content="{}" />\n'.format(clean_title)
+        html_out += '<link rel="stylesheet" type="text/css" href="styles.css"/>\n'
+        html_out += '<title>{}</title>\n'.format(clean_title)
         html_out += '</head>\n'
         html_out += '\n'
 
@@ -436,8 +441,11 @@ try:
 	report_name = pipeline+'report.html'
 
         html_out += '<body>\n'
-        html_out += '<h1>{} Project</h1>\n'.format(os.path.basename(paths.output_dir))
+        html_out += '<h1>{} Project</h1>\n'.format(clean_title)
         html_out += '\n'
+
+	today = datetime.datetime.now()
+	#html_out += '<p>Last updated on ' + str(today.day) +'/'+ str(today.month) +'/'+ str(today.year) + ' at ' + str(today.hour) +':'+ str(today.minute) +'</p>\n'
 	html_out += '<p><br /></p>\n'
 
 	html_out += '<h2>Useful Links</h2>\n'
@@ -451,14 +459,15 @@ try:
 	if os.path.isfile(os.path.join(paths.write_dir,tsv_stats_name)):
 		if os.path.isfile(os.path.join(paths.write_dir,xls_stats_name)):
 			if os.path.isfile(os.path.join(paths.write_dir,xlsx_stats_name)):
-				html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS', xlsx_stats_path,'XLSX')
+				html_out += '<p>Stats summary table: <a href="{}"><b>{}</b></a> <a href="{}"><b>{}</b></a> <a href="{}"><b>{}</b></a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS', xlsx_stats_path,'XLSX')
 			else:
-				html_out += '<p>Stats summary table: <a href="{}">{}</a> <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS')
+				html_out += '<p>Stats summary table: <a href="{}"><b>{}</b></a> <a href="{}"><b>{}</b></a></p>\n'.format(tsv_stats_path,'TSV',xls_stats_path,'XLS')
 		else:
-        		html_out += '<p>Stats summary table: <a href="{}">{}</a></p>\n'.format(tsv_stats_path,'TSV')
+        		html_out += '<p>Stats summary table: <a href="{}"><b>{}</b></a></p>\n'.format(tsv_stats_path,'TSV')
 	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
 	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&amp;hubUrl='+url+'%2F'+hub_file_name
-        html_out += '<p>UCSC Genome Browser: <a href="{}">{}</a></p>\n'.format(paths.ucsc_browser_link,'Link')
+        html_out += '<p>UCSC Genome Browser: <a href="{}"><b>{}</b></a></p>\n'.format(paths.ucsc_browser_link,'Link')
+	html_out += '<p><br /></p>\n'
 
         html_file_name = os.path.join(track_out, report_name)
         file_handle = open(name=html_file_name, mode='w')
@@ -468,6 +477,7 @@ try:
         html_out_tab = '<h2>Data Files</h2>\n'
         html_out_tab += '<table cellpadding="5">\n'
         html_out_tab += '<tr>\n'
+        html_out_tab += '<th></th>\n'
         html_out_tab += '<th>Sample Name</th>\n'
         html_out_tab += '<th>Aligned BAM</th>\n'
         html_out_tab += '<th>BAM Index</th>\n'
@@ -475,37 +485,48 @@ try:
         html_out_tab += '<th>BigWig</th>\n'
         html_out_tab += '<th>Biseq Bed</th>\n'
         html_out_tab += '</tr>\n'
-	for key,value in tableDict.items():
-		      	html_out_tab += '<tr>\n'
-        		html_out_tab += '<td>{}</td>\n'.format(key)
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAM']['link'],value['BAM']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BAI']['link'],value['BAI']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BB']['link'],value['BB']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BW']['link'],value['BW']['label'])
-        		html_out_tab += '<td><a href="{}">{}</a></td>\n'.format(value['BED']['link'],value['BED']['label'])
-			html_out_tab += '</tr>\n'
+	key_list = tableDict.keys()
+	key_list.sort()
+	counter = 0
+	for key in key_list:
+		counter += 1
+		value = tableDict[key]
+		html_out_tab += '<tr>\n'
+        	html_out_tab += '<td><b>{}</b></td>\n'.format(str(counter)+'.')
+        	html_out_tab += '<td>{}</td>\n'.format(key)
+        	html_out_tab += '<td><a href="{}"><b>{}</b></a></td>\n'.format(value['BAM']['link'],value['BAM']['label'])
+        	html_out_tab += '<td><a href="{}"><b>{}</b></a></td>\n'.format(value['BAI']['link'],value['BAI']['label'])
+        	html_out_tab += '<td><a href="{}"><b>{}</b></a></td>\n'.format(value['BB']['link'],value['BB']['label'])
+        	html_out_tab += '<td><a href="{}"><b>{}</b></a></td>\n'.format(value['BW']['link'],value['BW']['label'])
+        	html_out_tab += '<td><a href="{}"><b>{}</b></a></td>\n'.format(value['BED']['link'],value['BED']['label'])
+		html_out_tab += '</tr>\n'
         html_out_tab += '</table>\n'
         file_handle.write(html_out_tab)
 
 
 	html_out = '<p><br /></p>\n'
-	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="http://www.biomedical-sequencing.at">www.biomedical-sequencing.at</a></p>\n'
-	html_out += '<p>Contact: <a href="mailto:bsf@cemm.oeaw.ac.at">bsf@cemm.oeaw.ac.at</a></p>\n'
+	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="http://www.biomedical-sequencing.at"><b>www.biomedical-sequencing.at</b></a></p>\n'
+	html_out += '<p>Contact: <a href="mailto:bsf@cemm.oeaw.ac.at"><b>bsf@cemm.oeaw.ac.at</b></a></p>\n'
 	html_out += '<p><br /></p>\n'
+	html_out += '<p><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Transitional" height="31" width="88" /></a>\n'
+	html_out += '<a href="http://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:88px;height:31px" src="http://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a></p>'
 	html_out += '</body>\n'
 	html_out += '</html>\n'
 	html_out += '\n'
         file_handle.write(html_out)
         file_handle.close()
 
+        html_link_name = os.path.join(track_out, "index.html")
+	os.symlink(os.path.relpath(html_file_name,track_out),html_link_name)
 
+	cmd = "cp /scratch/lab_bsf/projects/BSA_0000_RRBS_Global_Report/styles.css " + track_out
+ 	subprocess.call(cmd, shell=True)
 	cmd = "chmod -R go+rX " + paths.write_dir
 	subprocess.call(cmd, shell=True)
 
 	hub_file_link = str(trackhubs.url) + "/" + hub_file_name
-	report_link = str(trackhubs.url) + "/" + genome + "/" + report_name
-	link_string = 'Hub ' + hub_file_link + '\n'
-	link_string += 'Report ' + report_link + '\n'
+	report_link = str(trackhubs.url) + "/" + genome + "/"
+	link_string = 'Report ' + report_link + '\n'
 	link_string += 'UCSCbrowser ' + paths.ucsc_browser_link + '\n'
 	print '\nDONE!'
 	print link_string
