@@ -35,7 +35,7 @@ def parse_arguments():
 
 	parser.add_argument('-t', '--time-delay', dest='time_delay', type=int, help="Time delay in seconds between job submissions.", default=0)
 
-	parser.add_argument('--file-checks', dest='file_checks', action='store_true', help="Perform input file checks. Default=False.")
+	parser.add_argument('--file-checks', dest='file_checks', action='store_false', help="Perform input file checks. Default=True.", default=True)
 
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
