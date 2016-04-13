@@ -226,11 +226,11 @@ def main():
 				fail = True
 
 		# Check if single_or_paired value is recognized
-		if hasattr(sample, "single_or_paired"):
+		if hasattr(sample, "read_type"):
 			# drop "-end", "_end", or just "end" from the end of the column value:
-			sample.single_or_paired = re.sub('[_\\-]?end$', '', sample.single_or_paired).lower()
-			if sample.single_or_paired not in ["single", "paired"]:
-				fail_message += "single_or_paired must be either 'single' or 'paired'."
+			sample.read_type = re.sub('[_\\-]?end$', '', str(sample.read_type)).lower()
+			if sample.read_type not in ["single", "paired"]:
+				fail_message += "read_type must be either 'single' or 'paired'."
 				fail = True
 
 		# Make sure the input data exists
