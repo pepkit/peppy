@@ -96,15 +96,15 @@ compute:
 
 Details on project config file sections:
 
-### Config section: paths
+### Project config section: paths
 
 The `paths` section contains paths to various parts of the project: the output directory (the parent directory), the results subdirector, the submission subdirectory (where submit scripts are stored), and pipeline scripts.
 
-### Config section: metadata
+### Project config section: metadata
 
 Pointers to sample annotation sheets.
 
-### Config section: pipeline_config
+### Project config section: pipeline_config
 Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a _pipeline config_ file, and then specify that file in the _project config_ file.
 
 Example:
@@ -121,7 +121,7 @@ pipeline_config:
 
 This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of wgbs.py (for this project only). Your pipelines will need to understand the config file (which will happen automatically if you use pypiper).
 
-### Config section: pipeline_args
+### Project config section: pipeline_args
 
 Sometimes a project requires tweaking a pipeline, but does not justify a completely separate _pipeline config_ file. For simpler cases, you can use the `pipeline_args` section, which lets you specify command-line parameters via the project config. This lets you fine-tune your pipeline, so it can run slightly differently for different projects.
 
@@ -136,7 +136,7 @@ pipeline_args:
 
 The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
 
-### Config section: compute
+### Project config section: compute
 For each iteration, `looper` will create one or more submission scripts for that sample. The `compute` specifies how jobs these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the `compute` section.
 
 Example:
@@ -150,15 +150,15 @@ There are two sub-parameters in the compute section. First, `submission_template
 
 Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
 
-In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
+In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge_template.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
 
-### Config section: data_sources
+### Project config section: data_sources
 
 The `data_sources` can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}`) are populated first by shell environment variables, and then by variables (columns) named in the project sample annotation sheet.
 
 The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
 
-### Config section: track_configurations
+### Project config section: track_configurations
 
 The `track_configurations` section is for making trackhubs (see below).
 
