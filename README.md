@@ -35,20 +35,35 @@ You will have all runnable pipelines and accessory scripts (from [`scripts/`](sc
 
 # Running pipelines
 
-We use the Looper (`looper.py`) to run pipelines. This just requires a config file passed as an argument, which contains all the settings required. It submits each job to SLURM.
+We use the Looper (`looper.py`) to run pipelines. This just requires a yaml format config file passed as an argument, which contains all the settings required.
+
+This can, for example, submit each job to SLURM (or SGE, or run them locally).
 
 ```bash
-python ~/repo/pipelines/looper.py -c metadata/config.txt
+python ~/code/pipelines/looper.py -c metadata/config.yaml
 ```
 or
 
 ```bash
-looper -c metadata/config.txt
+looper -c metadata/config.yaml
 ```
+# Looper at a glance
 
-# Config files
+Looper is a _project management system_ which defines and implements a grammar of projects. In other words, it does two things: 1) it specifies a format for describing a computational biology project and the samples that accompany it; and 2) it implements software for reading that description to process each sample in the project.
 
-Looper takes a single primary argument: a _project config file_ that specifies information about your project. Here's an example:
+Some of the benefits of using `looper` are:
+
+1. Portability. You can easily switch from a local computer to a cluster using SLURM or SGE or any other system.
+2. Standardization. Samples are all run the same way, and results are all collected in the sample place.
+3.
+
+# Getting started
+
+You define a project by creating a _project config file_, which is a yaml file with certain defined parameters. You describe locations for where to find data, provide an annotation of all samples included in the project, and make sure you record how to connect a sample type to the pipeline that should process it.
+
+# Project config files
+
+Looper requires only one argument: a _project config file_ that specifies information about your project. Here's an example:
 
 ```yaml
 paths:
@@ -79,10 +94,71 @@ compute:
   submission_command: sbatch
 ```
 
-### Data sources section
-The data sources can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}` are populated in this order:
+Details on project config file sections:
+
+### Config section: paths
+
+The `paths` section contains paths to various parts of the project: the output directory (the parent directory), the results subdirector, the submission subdirectory (where submit scripts are stored), and pipeline scripts.
+
+### Config section: metadata
+
+Pointers to sample annotation sheets.
+
+### Config section: pipeline_config
+Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a _pipeline config_ file, and then specify that file in the _project config_ file.
+
+Example:
+```
+pipeline_config:
+  # pipeline configuration files used in project.
+  # Key string must match the _name of the pipeline script_ (including extension)
+  # Relative paths are relative to this project config file.
+  # Default (null) means use the generic config for the pipeline.
+  rrbs.py: null
+  # Or you can point to a specific config to be used in this project:
+  wgbs.py: wgbs_flavor1.yaml
+```
+
+This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of wgbs.py (for this project only). Your pipelines will need to understand the config file (which will happen automatically if you use pypiper).
+
+### Config section: pipeline_args
+
+Sometimes a project requires tweaking a pipeline, but does not justify a completely separate _pipeline config_ file. For simpler cases, you can use the `pipeline_args` section, which lets you specify command-line parameters via the project config. This lets you fine-tune your pipeline, so it can run slightly differently for different projects.
+
+Example:
+```
+pipeline_args:
+  rrbs.py:  # pipeline identifier: must match the name of the pipeline script
+    # here, include all project-specific args for this pipeline
+    "--flavor": simple
+    "--flag": null
+```
+
+The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
+
+### Config section: compute
+For each iteration, `looper` will create one or more submission scripts for that sample. The `compute` specifies how jobs these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the `compute` section.
+
+Example:
+```
+compute:
+  submission_template: pipelines/templates/slurm_template.sub
+  submission_command: sbatch
+```
+
+There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable `{CODE}` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
+
+Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
+
+In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
+
+### Config section: data_sources
+
+The `data_sources` can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}`) are populated first by shell environment variables, and then by variables (columns) named in the project sample annotation sheet.
 
 The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
+
+### Config section: track_configurations
 
 The `track_configurations` section is for making trackhubs (see below).
 
@@ -92,7 +168,6 @@ However, there are more options. See the [project config template](examples/exam
 ```
 We need better documentation on all the options for the config files.
 
-### Pipeline-specific config files
 
 # Post-pipeline processing (accessory scripts)
 
