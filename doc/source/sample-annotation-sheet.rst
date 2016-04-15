@@ -1,5 +1,5 @@
 
-Sample Annotation Sheet
+Sample annotation sheet
 =========================
 
 One can run a single sample using one of the pipelines, but as projects grow it is conveninent to keep track of all the samples and be able to submit them all at once for processing if needed.
