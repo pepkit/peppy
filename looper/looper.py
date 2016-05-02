@@ -17,8 +17,8 @@ import time
 try:
 	from .models import Project, PipelineInterface, ProtocolMapper
 except:
-	sys.path.append(os.path.join(os.path.dirname(__file__), "pipelines"))
-	from pipelines.models import Project, PipelineInterface, ProtocolMapper
+	sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
+	from looper.models import Project, PipelineInterface, ProtocolMapper
 
 
 def parse_arguments():
