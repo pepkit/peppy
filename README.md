@@ -1,52 +1,24 @@
-# Pipelines
+# Looper
 
 Note! Documentation is being migrated into the [/docs](/docs) subfolder, to be managed by sphinx.
 
-This repository contains two separate components.
+__`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. It also has several accompanying scripts that use the same infrastructure to do other processing for projects.
 
-First, pipelines, which consist of:
-  1. pipeline scripts (written in python)
-  2. associated scripts used by the pipelines (in a subdirectory)
-
-Second, this repository _also contains `looper.py`, a pipeline submission engine_ that parses sample inputs and submits pipelines for each sample. It also has several accompanying scripts that use the same infrastructure to do other processing for projects.
-
-These pipelines use [`pypiper`](https://github.com/epigen/pypiper/) (see the corresponding repository).
-
-
+Looper was conceived to work with [`pypiper`](https://github.com/epigen/pypiper/) but does not require .
 
 # Installing
 
-### Option 1 (clone the repository)
-
-1. Install [`pypiper`](https://github.com/epigen/pypiper/).
-2. Clone this repository.
-```bash
-git clone git@github.com:epigen/pipelines.git
 ```
-3. Produce a config file (it just has a bunch of paths).
-4. Go!
-
-If you are just _using a pipeline_ in a project, and you are not _developing the pipeline_, you should treat this cloned repo as read-only, frozen code, which should reside in a shared project workspace. There should be only one clone for the project, to avoid running data under changing pipeline versions (you should not pull any pipeline updates unless you plan to re-run the whole thing).
-
-### Option 2 (install the packages)
-
-```
-pip install https://github.com/epigen/pypiper/zipball/master
-pip install https://github.com/epigen/pipelines/zipball/master
+pip install https://github.com/epigen/looper/zipball/master
 ```
 
-You will have all runnable pipelines and accessory scripts (from [`scripts/`](scripts/), see below) in your `$PATH`.
+You will have a `looper` executable and all accessory scripts (from [`scripts/`](scripts/), see below) in your `$PATH`.
 
 # Running pipelines
 
-We use the Looper (`looper.py`) to run pipelines. This just requires a yaml format config file passed as an argument, which contains all the settings required.
+Currently, we recommend using `Looper` to run pipelines. This just requires a yaml format config file passed as an argument, which contains all the settings required.
 
 This can, for example, submit each job to SLURM (or SGE, or run them locally).
-
-```bash
-python ~/code/pipelines/looper.py -c metadata/config.yaml
-```
-or
 
 ```bash
 looper -c metadata/config.yaml
