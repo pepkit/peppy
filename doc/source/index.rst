@@ -8,7 +8,6 @@ Contents
     getting-started.rst
     sample-annotation-sheet.rst
     config-files.rst
-    pipelines.rst
     post-run.rst
     looper.rst
     the-inner-workings.rst
