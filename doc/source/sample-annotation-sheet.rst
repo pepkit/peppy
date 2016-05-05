@@ -1,6 +1,6 @@
 
 Sample annotation sheet
-=========================
+------------------------
 
 One can run a single sample using one of the pipelines, but as projects grow it is conveninent to keep track of all the samples and be able to submit them all at once for processing if needed.
 
@@ -20,7 +20,7 @@ One special optional column is ``run``. If the Sample value of this column is no
 
 
 Input files
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Input files are naturally associated with the Sample, but sometimes they come from different sources or the relationship between the two is not one-to-one, which can be a complication.
 
 Nonetheless we tried to solve this problem in the simplest way possible.
@@ -58,36 +58,6 @@ Example sample annotation sheet:
    "frog_2h", "RRBS", "frog", "", "", "", "frog_data"
    "frog_3h", "RRBS", "frog", "", "", "", "frog_data"
 
-One-to-many relashionships - Merge Table
-----------------------------------------
-
-Regardless of the source of the data, sometimes it happens that there are more than one input files for a sample (*e.g.* samples sequenced in more than one lane, samples resequenced more later, etc), creating a one-to-many relationship.
-
-The way we match Samples to their multiple input files is through a "Merge Table". This table requires a column with ``sample_name`` and either the three BSF columns (``flowcell``, ``lane``, ``BSF_name``) or the ``data_souce`` column to be able to retrieve the desired file from the filesystem.
-
-The ``sample_name`` values must match the values in the Sample Annotation Sheet. Additional columns in this table are used to differentiate the different files a Sample has and correspond to a pattern in those files that is specified by the ``data_source`` value (more on this in the next chapter).
-
-Rows in the Sample Annotation Sheet which ``sample_name`` value is also in rows in the Merge Table will be matched, and those samples will have more than one input file.
-
-Continuing the previous example, we can imagine that albatross samples sequenced in-house in timepoint 0 (0h) were first sequenced shallower and then later with more depth and that all frog samples from our external collaborator were sequenced in two lanes.
-
-.. csv-table:: Example Merge Table
-   :header: "sample_name", "flowcell", "lane", "BSF_name", "data_source", "lane_id"
-   :widths: 30, 30, 30, 30, 30, 30
-
-   "albt_0h", "BSFX0190", "1", "albt_0h", ""
-   "albt_0h", "BSFX0195", "3", "albt_0h", ""
-   "frog_0h", "", "", "", "frog_data", "lane_1"
-   "frog_0h", "", "", "", "frog_data", "lane_2"
-   "frog_1h", "", "", "", "frog_data", "lane_1"
-   "frog_1h", "", "", "", "frog_data", "lane_2"
-   "frog_2h", "", "", "", "frog_data", "lane_1"
-   "frog_2h", "", "", "", "frog_data", "lane_2"
-   "frog_3h", "", "", "", "frog_data", "lane_1"
-   "frog_3h", "", "", "", "frog_data", "lane_2"
-
-
-You probably noticed that the remaining albatross samples were not included in the Merge Table. That is because these were sequenced only once and have only one input file (classical one-to-one relationship) which is already specified in the Sample Annotation Sheet.
 
 .. rubric:: Footnotes
 

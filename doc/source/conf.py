@@ -51,8 +51,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'pipelines'
-copyright = u'2015, Bock lab'
+project = u'looper'
+copyright = u'2015, Epigen group'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
