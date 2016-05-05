@@ -1,6 +1,8 @@
 # Looper
 
-Note! Documentation is being migrated into the [/docs](/docs) subfolder, to be managed by sphinx.
+Note! Documentation for `Looper` is still under heavy work.
+
+[![Documentation Status](http://readthedocs.org/projects/looper/badge/?version=latest)](http://looper.readthedocs.io/en/latest/?badge=latest)
 
 __`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. It also has several accompanying scripts that use the same infrastructure to do other processing for projects.
 
