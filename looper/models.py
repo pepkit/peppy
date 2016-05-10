@@ -632,11 +632,27 @@ class Sample(object):
 		with open(self.yaml_file, 'w') as outfile:
 			outfile.write(_yaml.dump(serial, default_flow_style=False))
 
-	def locate_data_source(self):
+	def locate_data_source(self, column_name="data_source"):
 		"""
 		Locates the path of input file `data_path` based on a regex.
 		"""
 		default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"  # default regex
+
+		if hasattr(self, column_name):
+			try:
+				val = self.prj["data_sources"][getattr(self, column_name)].format(**self.__dict__)
+			except Exception as e:
+				#print("Config lacks location for data_source: " + getattr(self, column_name)
+				print("hello")
+				val = ""
+
+			return val
+
+#		try:
+#			print("blah")
+#		except Exception as e:
+#			print("exception blah")
+
 
 		# get bam file in regex form dependent on the "source" specified for each sample
 		if hasattr(self, "data_source"):
@@ -682,6 +698,11 @@ class Sample(object):
 				self.data_path = self.locate_data_source()
 		else:
 			self.data_path = self.locate_data_source()
+
+		if hasattr(self.prj, "variable_columns"):
+			for col in self.prj["variable_columns"]:
+				setattr(self, col + "_val", self.locate_data_source(col))
+
 
 		# parent
 		self.results_subdir = self.prj.paths.results_subdir
@@ -914,13 +935,33 @@ class PipelineInterface(object):
 					arg = getattr(sample, value)
 				except AttributeError as e:
 					print(
-						"Pipeline '" + pipeline_name + "' requests for argument '" +
+						"Pipeline '" + pipeline_name + "' requests argument '" +
 						key + "' a sample attribute named '" + value + "'" +
 						" but no such attribute exists for sample '" +
 						sample.sample_name + "'")
 					raise e
 
 				argstring += " " + str(key) + " " + str(arg)
+
+		# Add optional arguments
+		if hasattr(config, 'optional_arguments'):
+			args = config['optional_arguments']
+			for key, value in args.iteritems():
+				print(key, value)
+				if value is None:
+					arg = ""
+				else:
+					try:
+						arg = getattr(sample, value)
+					except AttributeError as e:
+						print(
+							"Pipeline '" + pipeline_name + "' requests OPTIONAL argument '" +
+							key + "' a sample attribute named '" + value + "'" +
+							" but no such attribute exists for sample '" +
+							sample.sample_name + "'")
+						#raise e
+
+					argstring += " " + str(key) + " " + str(arg)
 
 		return(argstring)
 
