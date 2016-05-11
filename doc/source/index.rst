@@ -31,6 +31,7 @@ Contents
 	intro.rst
 	features.rst
 	usage.rst
+	tutorials.rst
 	inputs.rst
 	post-run.rst
 	the-inner-workings.rst
