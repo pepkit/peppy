@@ -1,47 +1,38 @@
 
 Sample annotation sheet
-------------------------
+**************************************************
 
-One can run a single sample using one of the pipelines, but as projects grow it is conveninent to keep track of all the samples and be able to submit them all at once for processing if needed.
+The ``sample annotation sheet`` is a csv file containing information about all samples in a project. This should be regarded as an immutable and the most important piece of metadata in a project. **One row corresponds to one sample**.
 
-``pipelines`` uses a "sample annotation sheet" for this. It is a **csv file containing information about all samples in a project**. This should be regarded as an immutable and the most important piece of metadata in a project.
-
-A sample annotation sheet requires **only three columns** plus additional ones (one to three) to specify where the sample input file is.
+A sample annotation sheet may contain any number of columns you need for your project. Certain keyword columns are required or provide looper-specific features.
 
 Required columns are:
 
--  ``sample_name`` - a string describing a Sample [1]_.
--  ``library`` - the type of data the Sample is (*e.g.* ATAC-seq, RNA-seq, RRBS).
--  ``organism`` - the biological organism the Sample is from.
+-  ``sample_name`` - a **unique** string identifying each sample [1]_.
+-  ``library`` - the source of data for the sample (*e.g.* ATAC-seq, RNA-seq, RRBS).
+-  ``organism`` - a string identifying the organism ("human", "mouse", "mixed").
 
 You may further annotate the sample annotation sheet with any column you want and these attributes will be part of the project's metadata for the samples.
 
+Special columns: 
+
 One special optional column is ``run``. If the Sample value of this column is not 1 it will not be submitted by the Looper.
 
+others?
 
-Input files
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Input files are naturally associated with the Sample, but sometimes they come from different sources or the relationship between the two is not one-to-one, which can be a complication.
-
-Nonetheless we tried to solve this problem in the simplest way possible.
-
-Data produced in-house (BSF)
+Pointing to data files 
 """"""""""""""""""""""""""""
-In a case of data produced at CeMM by the BSF, three additional columns will allow the discovery of files associated with the sample:
+On your sample sheet, you also want to somehow point to the input file for each sample. How do you add the path to the input file? Of course, you could just add a column with the file path, like ``/path/to/input/file.fastq.gz``. This works in a pinch, but what if the data get moved, or your filesystem changes, or you switch servers or move institutes? Will this data still be there in 2 years? Do you want to manually manage these absolute paths?
 
--  ``flowcell`` - the name of the BSF flowcell (should be something like BSFXXX)
--  ``lane`` - the lane number in the instrument
--  ``BSF_name`` - the name used to describe the sample in the BSF annotation [1]_.
+``Looper`` makes it really easy to do better: using a "derived" column, you can use a variable to make this flexible. As a side bonus, you can easily include samples from different locations, and you can also share the same sample annotation sheet on different environments (i.e. servers or users) by having multiple project config files (or, better yet, by defining a subproject for each environment).
 
-Other sources
-""""""""""""""""""""""""""""
-In a case of data produced elsewhere or that is simply not in the same filesystem structure as the BSF data, only one more column is necessary.
 
 -  ``data_source`` - a string which will match a pattern specified in the project configuration file. 
 
 How this string is going to be used will be described in the second piece of metadata you need to run samples with Looper: the project configuration file (see :doc:`config-files` ).
 
-We can use Samples from both origins (BSF and others) in the same project.
+.. csv-table:: Example Sample Annotation Sheet
+	:file: ../../examples/microtest_sample_annotation.csv
 
 Example sample annotation sheet:
 

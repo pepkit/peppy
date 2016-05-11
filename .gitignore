@@ -23,7 +23,7 @@ pipelines/pypiper
 !*README.txt*
 !*readme.md*
 !*README.md*
-
+!*.rst
 
 !*.xlsx
 !*.yaml
