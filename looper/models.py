@@ -65,6 +65,12 @@ class Paths(object):
 		return "Paths object."
 
 
+	def __getitem__(self, key):
+		"""
+		Provides dict-style access to attributes
+		"""
+		return getattr(self, key)
+
 @copy
 class AttributeDict(object):
 	"""
@@ -709,7 +715,7 @@ class Sample(object):
 				if hasattr(self, col):
 					# should we set a variable called col_source, so that the original
 					# data source value can also be retrieved?
-					setattr(self, col + "_source", self.col)
+					setattr(self, col + "_source", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
 
 
@@ -968,6 +974,7 @@ class PipelineInterface(object):
 							key + "' a sample attribute named '" + value + "'" +
 							" but no such attribute exists for sample '" +
 							sample.sample_name + "'")
+						continue
 						#raise e
 
 					argstring += " " + str(key) + " " + str(arg)
