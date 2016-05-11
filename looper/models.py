@@ -699,9 +699,18 @@ class Sample(object):
 		else:
 			self.data_path = self.locate_data_source()
 
-		if hasattr(self.prj, "variable_columns"):
-			for col in self.prj["variable_columns"]:
-				setattr(self, col + "_val", self.locate_data_source(col))
+		# any columns specified as "derived" will be constructed based on regex
+		# in the "data_sources" section (should be renamed?)
+
+		if hasattr(self.prj, "derived_columns"):
+			for col in self.prj["derived_columns"]:
+
+				# Only proceed if the specified column exists.
+				if hasattr(self, col):
+					# should we set a variable called col_source, so that the original
+					# data source value can also be retrieved?
+					setattr(self, col + "_source", self.col)
+					setattr(self, col, self.locate_data_source(col))
 
 
 		# parent
@@ -944,10 +953,10 @@ class PipelineInterface(object):
 				argstring += " " + str(key) + " " + str(arg)
 
 		# Add optional arguments
-		if hasattr(config, 'optional_arguments'):
+		if 'optional_arguments' in config:
 			args = config['optional_arguments']
 			for key, value in args.iteritems():
-				print(key, value)
+				print(key, value, "(optional)")
 				if value is None:
 					arg = ""
 				else:
