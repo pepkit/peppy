@@ -414,14 +414,8 @@ class SampleSheet(object):
 		:return: An object or class `Sample` or a child of that class.
 		:rtype: pipelines.Sample
 		"""
-		# Return generic sample if library is not specified
-		if not hasattr(series, "library"):
-			return Sample(series)
-
-		library = series["library"].upper()
-
-		# TODO:
-		# The later will be replaced with a config-specified mapping.
+		# Return generic Sample.
+		# pipelines can extend this generic class with whatever needed attributes/methods.
 		return Sample(series)
 
 	def make_samples(self):
@@ -645,7 +639,7 @@ class Sample(object):
 					return self.prj["data_sources"][self.data_source].format(**self.__dict__)
 				except AttributeError:
 					print("Config lacks location for data_source: " + self.data_source)
-					#raise AttributeError("Config lacks location for data_source: " + self.data_source)
+					# raise AttributeError("Config lacks location for data_source: " + self.data_source)
 				return
 		# if absent is the default regex
 		return default_regex.format(**self.__dict__)
