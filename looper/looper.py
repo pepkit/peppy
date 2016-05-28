@@ -166,6 +166,36 @@ def query_yes_no(question, default="no"):
 				"(or 'y' or 'n').\n")
 
 
+
+def clean_project():
+	"""
+	This function will delete all results for this project
+	"""
+		# Clean
+	import shutil
+	if os.path.exists(pipeline_outfolder):
+		if args.dry_run:
+			print("DRY RUN. I would have removed: " + pipeline_outfolder)
+		else:
+			print("Removing: " + pipeline_outfolder)
+			shutil.rmtree(pipeline_outfolder)
+	else:
+		print(pipeline_outfolder + " does not exist.")
+
+	return
+
+
+
+def uniqify(seq):
+	"""
+	Fast way to uniqify while preserving input order.
+	"""
+	# http://stackoverflow.com/questions/480214/
+	seen = set()
+	seen_add = seen.add
+	return [x for x in seq if not (x in seen or seen_add(x))]
+
+
 def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
@@ -189,33 +219,85 @@ def main():
 	protocol_mappings_file = os.path.join(prj.paths.pipelines_dir, "config/protocol_mappings.yaml")
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
+
+	# Concept: we could pass "commands" to looper, and it would execute different things;
+	# like "run", "clean", "summarize"
 	if args.command == "clean":
 		if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
 			print("Clean aborted by user.")
 			sys.exit(1)
+		else:
+			for sample in prj.samples:
+				sys.stdout.write("### " + sample.sample_name + "\t")
+				pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+				clean(pipeline_outfolder)
+
+		return()  # clean
+
+	if args.command == "summarize":
+		import csv
+		columns = {}
+		stats = {}
+		rows = []
+
+		for sample in prj.samples:
+			sys.stdout.write("### " + sample.sample_name + "\t")
+			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+
+			# There may be multiple pipeline outputs to consider.
+			globs = glob.glob(os.path.join(pipeline_outfolder, "*_stats.tsv"))
+			print(globs)
+
+			for stats_filename in globs: # = os.path.join(pipeline_outfolder, pl_name, "_stats.tsv")
+				pl_name = re.search(".*/(.*)_stats.tsv", stats_filename, re.IGNORECASE).group(1)
+				print(pl_name)
+				# Make sure file exists
+				if os.path.isfile(stats_filename):
+					stat_file = open(stats_filename, 'rb')
+					print('Found: ' + stats_filename)
+				else:
+					pass # raise Exception(stat_file_path + " : file does not exist!")
+
+				# Initialize column list for this pipeline if it hasn't been done.
+				if not columns.has_key(pl_name):
+					columns[pl_name] = []
+				if not stats.has_key(pl_name):
+					stats[pl_name] = []
+
+				row = dict()
+				for line in stat_file:
+					key, value  = line.split('\t')
+					row[key] = value.strip()
+					columns[pl_name].append(key)
+
+				stats[pl_name].append(row)
+
+		# For each pipeline, write a summary tsv file.
+		for pl_name, cols in columns.items():
+			tsv_outfile_path = os.path.join(prj.paths.output_dir,
+					os.path.basename(prj.paths.output_dir) + '_' + pl_name + '_stats_summary.tsv')
+			tsv_outfile = open(tsv_outfile_path, 'w')
+			
+			tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(cols), delimiter='\t')
+			tsv_writer.writeheader()
+
+			for row in stats[pl_name]:
+				tsv_writer.writerow(row)
+			
+			tsv_outfile.close()
+
+			print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
+		return()  # summarize
 
 	# Create a few problem lists so we can keep track and show them at the end
 	failures = []
 
 	for sample in prj.samples:
-		fail = False
-		fail_message = ""
 		sys.stdout.write("### " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 
-		if args.command == "clean":
-			# Clean
-			import shutil
-			if os.path.exists(pipeline_outfolder):
-				if args.dry_run:
-					print("DRY RUN. I would have removed: " + pipeline_outfolder)
-				else:
-					print("Removing: " + pipeline_outfolder)
-					shutil.rmtree(pipeline_outfolder)
-			else:
-				print(pipeline_outfolder + " does not exist.")
-
-			continue
+		fail = False
+		fail_message = ""
 
 		# Don't submit samples with duplicate names
 		if sample.sample_name in prj.processed_samples:
@@ -254,7 +336,7 @@ def main():
 
 		sample.to_yaml()
 
-		# Get the base protocol to pipeline mappings
+		# Get the base protocol-to-pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library.upper())
 
 		# We require that the pipelines and config files live in
@@ -335,6 +417,7 @@ def main():
 
 	if (len(failures) > 0):
 		print(failures)
+
 
 if __name__ == '__main__':
 	try:
