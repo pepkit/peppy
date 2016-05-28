@@ -414,9 +414,26 @@ class SampleSheet(object):
 		:return: An object or class `Sample` or a child of that class.
 		:rtype: pipelines.Sample
 		"""
-		# Return generic Sample.
-		# pipelines can extend this generic class with whatever needed attributes/methods.
-		return Sample(series)
+		import sys
+		import inspect
+		try:
+			import pipelines  # this will fail with ImportError if a pipelines package is not installed
+		except ImportError:
+			return Sample(series)  # if so, return generic Sample
+
+		# get all class objects from installed pipelines that have a __library__ attribute
+		sample_types = inspect.getmembers(
+			sys.modules['pipelines'],
+			lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+
+		# get __library__ attribute from classes and make mapping of __library__: Class (a dict)
+		pairing = {sample_class.__library__: sample_class for sample_type, sample_class in sample_types}
+
+		# Match sample and sample_class
+		try:
+			return pairing[series.library](series)
+		except KeyError:
+			return Sample(series)
 
 	def make_samples(self):
 		"""
