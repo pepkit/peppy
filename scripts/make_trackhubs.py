@@ -16,22 +16,16 @@ import yaml
 #  Argument Parsing
 #  #######################################################################################
 parser = ArgumentParser(description='make_trackhubs')
-
 parser.add_argument('-c', '--config-file', dest='config_file', help="path to YAML config file", required=True, type=str)
 parser.add_argument('-f', dest='filter', action='store_false', required=False, default=True)
 parser.add_argument('-v', '--visibility', dest='visibility', help='visibility mode (default: full)', required=False, default='full', type=str)
 parser.add_argument('--copy', dest='copy', help='copy sepcified file types instead of creating symbolic links, example: --copy BAM-BB-BW-BED-TH', required=False, type=str)
 
 args = parser.parse_args()
-# print '\nArguments:'
-# print args
 
 with open(args.config_file, 'r') as config_file:
 	config_yaml = yaml.load(config_file)
 	config = AttributeDict(config_yaml, default=True)
-
-# print '\nYAML configuration:'
-# print config
 
 trackhubs = config.trackhubs
 paths = config.paths
@@ -72,7 +66,7 @@ try:
 	genome = ""
 	for row in input_file_0:
 		if ("library" in row.keys()):
-			pipeline = str(row["library"])
+			pipeline = str(row["library"]).upper()
 		if ("organism" in row.keys()):
 			genome = str(getattr(config.genomes, str(row["organism"])))
 	print 'Pipeline: ' + pipeline
@@ -103,14 +97,26 @@ try:
 		print 'Writing tracks to: ' + track_out
 	else:
 		print 'Trackhubs already exists! Overwriting everything in ' + track_out
-		username = os.getusername()
+		userID = os.getuid()
 		for root, dirs, files in os.walk(track_out, topdown=False):
 			for name in files:
-				if pwd.getpwuid(os.stat(name).st_uid).pw_name == username:
+				ownerID = 0
+				try:
+					ownerID = os.stat(os.path.join(root, name)).st_uid
+				except: 
 					os.remove(os.path.join(root, name))
+				if ownerID == userID:
+					try:
+	  					os.remove(os.path.join(root, name))
+					except: 
+						pass
 			for name in dirs:
-				if pwd.getpwuid(os.stat(name).st_uid).pw_name == username:
-					os.rmdir(os.path.join(root, name))
+				ownerID = os.stat(os.path.join(root, name)).st_uid
+				if ownerID == userID:
+					try:
+	  					os.rmdir(os.path.join(root, name))
+					except: 
+						pass
 
 	# write hub.txt
 	hub_file_name = pipeline + "hub.txt"
