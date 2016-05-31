@@ -494,14 +494,13 @@ class Sample(object):
 		super(Sample, self).__init__()
 
 		# Keep a list of attributes that came from the sample sheet, so we can provide a 
-		# minimal representation of the sample. (in order!)
+		# minimal representation of the original sample as provided (in order!).
+		# Useful to summarize the sample (appending new columns onto the original table)
 		self.sheet_attributes = series.keys()
 
 		# Set series attributes on self
 		for key, value in series.to_dict().items():
 			setattr(self, key, value)
-			
-
 
 		# Enforce type of name attributes as str without whitespace
 		attributes = ["sample_name", "BSF_name"]
