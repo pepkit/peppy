@@ -264,12 +264,17 @@ def main():
 				if not stats.has_key(pl_name):
 					stats[pl_name] = []
 
-				row = dict()
+				# add all sample attributes?
+				#row.update(sample.__dict__)
+				#row = sample.__dict__
+				row = sample.get_sheet_dict()
 				for line in stat_file:
 					key, value  = line.split('\t')
 					row[key] = value.strip()
-					columns[pl_name].append(key)
-
+					
+				# Use extend instead of append because we're adding a [list] and not items.
+				columns[pl_name].extend(row.keys())
+				#print(columns[pl_name])
 				stats[pl_name].append(row)
 
 		# For each pipeline, write a summary tsv file.
