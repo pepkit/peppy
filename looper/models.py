@@ -42,7 +42,7 @@ import os as _os
 import pandas as _pd
 import yaml as _yaml
 import warnings as _warnings
-
+from collections import OrderedDict as _OrderedDict
 
 def copy(obj):
 	def copy(self):
@@ -493,9 +493,15 @@ class Sample(object):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
 
+		# Keep a list of attributes that came from the sample sheet, so we can provide a 
+		# minimal representation of the sample. (in order!)
+		self.sheet_attributes = series.keys()
+
 		# Set series attributes on self
 		for key, value in series.to_dict().items():
 			setattr(self, key, value)
+			
+
 
 		# Enforce type of name attributes as str without whitespace
 		attributes = ["sample_name", "BSF_name"]
@@ -738,6 +744,17 @@ class Sample(object):
 		for path in self.paths.__dict__.values():
 			if not _os.path.exists(path):
 				_os.makedirs(path)
+
+	def get_sheet_dict(self):
+		"""
+		Returns a dict of values but only those that were originally passed in via the sample
+		sheet. This is useful for summarizing; it gives you a representation of the sample that
+		excludes things like config files or other derived entries. Could probably be made
+		more robust but this works for now.
+		"""
+
+		return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
+
 
 	def check_input_exists(self, permissive=True):
 		"""
