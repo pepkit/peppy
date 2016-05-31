@@ -40,6 +40,13 @@ def parse_arguments():
 
 	parser.add_argument('--file-checks', dest='file_checks', action='store_false', help="Perform input file checks. Default=True.", default=True)
 
+	parser.add_argument('--ignore-flags', dest="ignore_flags", action="store_true",
+						default=False,
+						help="Ignore run status flags? Default: false. By default, pipelines \
+							will not be submitted if a pypiper flag file exists marking the \
+							run (e.g. as 'running' or 'failed'). \
+							Set this option to ignore flags and submit the runs anyway.")
+
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
 	parser.add_argument('--cmd', dest='command', default="run")
@@ -77,7 +84,7 @@ def make_sure_path_exists(path):
 def cluster_submit(
 	sample, submit_template, submission_command, variables_dict,
 	submission_folder, pipeline_outfolder, pipeline_name, time_delay,
-	submit=False, dry_run=False, remaining_args=list()):
+	submit=False, dry_run=False, ignore_flags=False, remaining_args=list()):
 	"""
 	Submit job to cluster manager.
 	"""
@@ -109,14 +116,15 @@ def cluster_submit(
 	# Prepare and write sample yaml object
 	sample.to_yaml()
 
-	# Check if job is already submitted
-	flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
-	if (len(flag_files) > 0):
-		print("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
-		submit = False
-	else:
-		pass
-		# print("")  # Do you want to print a newline after every sample?
+	# Check if job is already submitted (unless ignore_flags is set to True)
+	if not ignore_flags:
+		flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
+		if (len(flag_files) > 0):
+			print("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
+			submit = False
+		else:
+			pass
+			# print("")  # Do you want to print a newline after every sample?
 
 	if submit:
 		if dry_run:
@@ -220,8 +228,12 @@ def main():
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
+	print("Results subdir: " + prj.paths.results_subdir)
+
 	# Concept: we could pass "commands" to looper, and it would execute different things;
 	# like "run", "clean", "summarize"
+	if args.command:
+		print("Command: " + args.command)
 	if args.command == "clean":
 		if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
 			print("Clean aborted by user.")
@@ -412,7 +424,8 @@ def main():
 				sample, prj.compute.submission_template,
 				prj.compute.submission_command, submit_settings,
 				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
-				submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+				submit=True, dry_run=args.dry_run, ignore_flags=args.ignore_flags,
+				remaining_args=remaining_args)
 
 	msg = "\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
 	if args.dry_run:
