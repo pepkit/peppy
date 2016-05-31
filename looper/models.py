@@ -542,6 +542,12 @@ class Sample(object):
 	def __repr__(self):
 		return "Sample '%s'" % self.sample_name
 
+	def __getitem__(self, item):
+		"""
+		Provides dict-style access to attributes
+		"""
+		return getattr(self, item)
+
 	def update(self, newdata):
 		"""
 		Update Sample object with attributes from a dict.
@@ -612,22 +618,26 @@ class Sample(object):
 		:param path: A file path to write yaml to.
 		:type path: str
 		"""
-		def obj2dict(obj):
+		def obj2dict(obj, to_skip=["samples", "sheet"]):
 			"""
 			Build representation of object as a dict, recursively
-			for all objects that might be attributes of itself.
+			for all objects that might be attributes of self.
+
+			:param path: skips including attributes named in provided list.
+			:type path: list
 			"""
-			output = dict()
-			obj = obj.copy().__dict__
-			for key, value in obj.items():
-				if type(obj[key]) in [str, int, bool]:
-					output[key] = value
-				elif type(obj[key]) in [Paths, Project, AttributeDict]:
-					output[key] = obj2dict(obj[key])
-				elif type(obj[key]) is list:
-					if key != "samples":
-						output[key] = [i if type(i) in [str, int, bool] else obj2dict(i) for i in obj[key]]
-			return output
+			if hasattr(obj, 'dtype'):  # numpy data types
+				return obj.item()
+			elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
+				return "NaN"
+			elif type(obj) is list:  # recursive serialization (lists)
+				return [obj2dict(i) for i in obj]
+			elif type(obj) is dict:  # recursive serialization (dict)
+				return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip)}
+			elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
+				return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip)}
+			else:
+				return obj
 
 		# if path is not specified, use default:
 		# prj.paths.submission_dir + sample_name + yaml
@@ -641,7 +651,7 @@ class Sample(object):
 
 		# write
 		with open(self.yaml_file, 'w') as outfile:
-			outfile.write(_yaml.dump(serial, default_flow_style=False))
+			outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
 	def locate_data_source(self):
 		"""
