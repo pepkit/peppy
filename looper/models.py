@@ -626,16 +626,16 @@ class Sample(object):
 			:param path: skips including attributes named in provided list.
 			:type path: list
 			"""
-			if hasattr(obj, 'dtype'):  # numpy data types
-				return obj.item()
-			elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
-				return "NaN"
-			elif type(obj) is list:  # recursive serialization (lists)
+			if type(obj) is list:  # recursive serialization (lists)
 				return [obj2dict(i) for i in obj]
 			elif type(obj) is dict:  # recursive serialization (dict)
 				return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip)}
 			elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
 				return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip)}
+			elif hasattr(obj, 'dtype'):  # numpy data types
+				return obj.item()
+			elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
+				return "NaN"
 			else:
 				return obj
 
