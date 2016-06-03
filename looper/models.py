@@ -142,7 +142,10 @@ class Project(AttributeDict):
 
 		# Get project name
 		# deduce from output_dir variable in config file:
+
 		self.name = _os.path.basename(self.paths.output_dir)
+		self.subproject = subproject
+
 		# TODO:
 		# or require config file to have it:
 		# self.name = self.config["project"]["name"]
