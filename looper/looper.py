@@ -234,6 +234,7 @@ def main():
 	# like "run", "clean", "summarize"
 	if args.command:
 		print("Command: " + args.command)
+
 	if args.command == "clean":
 		if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
 			print("Clean aborted by user.")
@@ -291,8 +292,11 @@ def main():
 
 		# For each pipeline, write a summary tsv file.
 		for pl_name, cols in columns.items():
-			tsv_outfile_path = os.path.join(prj.paths.output_dir,
-					os.path.basename(prj.paths.output_dir) + '_' + pl_name + '_stats_summary.tsv')
+			tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
+			if prj.subproject:
+				tsv_outfile_path += '_' + prj.subproject 
+			tsv_outfile_path += '_' + pl_name + '_stats_summary.tsv'
+
 			tsv_outfile = open(tsv_outfile_path, 'w')
 			
 			tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(cols), delimiter='\t')
