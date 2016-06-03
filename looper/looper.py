@@ -228,6 +228,12 @@ def main():
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
+	# upate to project-specific protocol mappings
+	if hasattr(prj, "protocol_mappings"):
+		protocol_mappings.mappings.update(prj.protocol_mappings.__dict__)
+
+	
+
 	print("Results subdir: " + prj.paths.results_subdir)
 
 	# Concept: we could pass "commands" to looper, and it would execute different things;
