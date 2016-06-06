@@ -12,29 +12,40 @@ Workflow explained:
 In the process, stuff is checked:
 	- project structure (created if not existing)
 	- existance of csv sample sheet with minimal fields
-	- existance of bam files from samples
-	- read type/length of samples
+	- Constructing a path to a sample's input file and checking for its existance
+	- read type/length of samples (optionally)
 
-:Example:
+Example:
 
-from pipelines import Project
-prj = Project("config.yaml")
-prj.add_sample_sheet()
-# that's it!
+.. code-block:: python
 
-# explore!
-prj.samples  # see all samples
-prj.samples[0].fastq  # get fastq file of first sample
-[s.mapped for s in prj.samples if s.library == "WGBS"]  # get all bam files of WGBS samples
+	from looper.models import Project
+	prj = Project("config.yaml")
+	prj.add_sample_sheet()
+	# that's it!
 
-prj.paths.results  # results directory of project
-prj.sheet.to_csv(_os.path.join(prj.paths.output_dir, "sample_annotation.csv"))  # export again the project's annotation
+Explore!
 
-# project options are read from the config file
-# but can be changed on the fly:
-prj = Project("test.yaml")
-prj.config["merge_technical"] = False  # change options on the fly
-prj.add_sample_sheet("sample_annotation.csv")  # annotation sheet not specified initially in config file
+.. code-block:: python
+
+	# see all samples
+	prj.samples
+	prj.samples[0].fastq
+	# get fastq file of first sample
+	# get all bam files of WGBS samples
+	[s.mapped for s in prj.samples if s.library == "WGBS"]
+
+	prj.paths.results  # results directory of project
+	# export again the project's annotation
+	prj.sheet.to_csv(_os.path.join(prj.paths.output_dir, "sample_annotation.csv"))
+
+	# project options are read from the config file
+	# but can be changed on the fly:
+	prj = Project("test.yaml")
+	# change options on the fly
+	prj.config["merge_technical"] = False
+	# annotation sheet not specified initially in config file
+	prj.add_sample_sheet("sample_annotation.csv")
 
 """
 
@@ -118,8 +129,10 @@ class Project(AttributeDict):
 
 	:Example:
 
-	from pipelines import Project
-	prj = Project("config.yaml")
+	.. code-block:: python
+
+		from pipelines import Project
+		prj = Project("config.yaml")
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False):
 		# super(Project, self).__init__(**config_file)
@@ -370,9 +383,11 @@ class SampleSheet(object):
 
 	:Example:
 
-	from pipelines import Project, SampleSheet
-	prj = Project("ngs")
-	sheet = SampleSheet("/projects/example/sheet.csv")
+	.. code-block:: python
+
+		from pipelines import Project, SampleSheet
+		prj = Project("ngs")
+		sheet = SampleSheet("/projects/example/sheet.csv")
 	"""
 	def __init__(self, csv, **kwargs):
 
@@ -463,9 +478,11 @@ class SampleSheet(object):
 
 		:Example:
 
-		from pipelines import SampleSheet
-		sheet = SampleSheet("/projects/example/sheet.csv")
-		sheet.to_csv("/projects/example/sheet2.csv")
+		.. code-block:: python
+
+			from pipelines import SampleSheet
+			sheet = SampleSheet("/projects/example/sheet.csv")
+			sheet.to_csv("/projects/example/sheet2.csv")
 		"""
 		df = self.as_data_frame(all=all)
 		df.to_csv(path, index=False)
@@ -483,10 +500,12 @@ class Sample(object):
 
 	:Example:
 
-	from pipelines import Project, SampleSheet, Sample
-	prj = Project("ngs")
-	sheet = SampleSheet("/projects/example/sheet.csv", prj)
-	s1 = Sample(sheet.ix[0])
+	.. code-block:: python
+
+		from pipelines import Project, SampleSheet, Sample
+		prj = Project("ngs")
+		sheet = SampleSheet("/projects/example/sheet.csv", prj)
+		s1 = Sample(sheet.ix[0])
 	"""
 	# Originally, this object was inheriting from _pd.Series,
 	# but complications with serializing and code maintenance
@@ -588,19 +607,19 @@ class Sample(object):
 		Generates a name for the sample by joining some of its attribute strings.
 		"""
 		# fields = [
-		#     "cellLine", "numberCells", "library", "ip",
-		#     "patient", "patientID", "sampleID", "treatment", "condition",
-		#     "biologicalReplicate", "technicalReplicate",
-		#     "experimentName", "genome"]
+		#	 "cellLine", "numberCells", "library", "ip",
+		#	 "patient", "patientID", "sampleID", "treatment", "condition",
+		#	 "biologicalReplicate", "technicalReplicate",
+		#	 "experimentName", "genome"]
 
 		# attributes = [self.__getattribute__(attr) for attr in fields if hasattr(self, attr) and str(self.__getattribute__(attr)) != "nan"]
 		# # for float values (if a value in a colum is nan) get a string that discards the float part
 		# fields = list()
 		# for attr in attributes:
-		#     if type(attr) is str:
-		#         fields.append(attr)
-		#     elif type(attr) is _pd.np.float64:
-		#         fields.append(str(int(attr)))
+		#	 if type(attr) is str:
+		#		 fields.append(attr)
+		#	 elif type(attr) is _pd.np.float64:
+		#		 fields.append(str(int(attr)))
 		# # concatenate to form the name
 		# self.sample_name = "_".join([str(attr) for attr in fields])
 		raise NotImplementedError("Not implemented in new code base.")
