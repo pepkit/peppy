@@ -299,8 +299,8 @@ class Project(AttributeDict):
 
 		# Add samples to Project
 		for sample in self.sheet.samples:
-			self.add_sample(sample)
 			sample.merged = False  # mark sample as not merged - will be overwritten later if indeed merged
+			self.add_sample(sample)
 
 		# Merge sample files (!) using merge table if provided:
 		if hasattr(self.metadata, "merge_table"):
@@ -328,8 +328,8 @@ class Project(AttributeDict):
 
 		# With all samples, prepare file paths and get read type (optionally make sample dirs)
 		for sample in self.samples:
-			sample.set_file_paths()
 			sample.get_genome()
+			sample.set_file_paths()
 			if not sample.check_input_exists():
 				continue
 
