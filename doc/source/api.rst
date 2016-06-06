@@ -1,7 +1,7 @@
 API
 ===
 
-.. automodule:: pipelines.models
+looper.models
+-----------------------
+.. automodule:: looper.models
     :members:
-
-
