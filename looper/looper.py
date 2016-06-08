@@ -406,12 +406,13 @@ def main():
 			if hasattr(prj.pipeline_config, pl):
 				# First priority: pipeline config specified in project config
 				pl_config_file = getattr(prj.pipeline_config, pl)
-				if not os.path.isfile(pl_config_file):
-					print("Pipeline config file specified but not found: " + pl_config_file)
-					raise IOError(pl_config_file)
-				print("Found config file:" + getattr(prj.pipeline_config, pl))
-				# Append arg for config file if found
-				cmd += " -C " + pl_config_file
+				if pl_config_file:  # make sure it's not null (which it could be provided as null)
+					if not os.path.isfile(pl_config_file):
+						print("Pipeline config file specified but not found: " + pl_config_file)
+						raise IOError(pl_config_file)
+					print("Found config file:" + getattr(prj.pipeline_config, pl))
+					# Append arg for config file if found
+					cmd += " -C " + pl_config_file
 
 			# Append output parent folder
 			cmd += " -O " + prj.paths.results_subdir
