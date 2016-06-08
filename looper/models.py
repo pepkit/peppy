@@ -689,13 +689,13 @@ class Sample(object):
 			self.genome = getattr(self.prj.genomes, self.organism)
 		except AttributeError:
 			# self.genome = self.organism
-			raise AttributeError("Config lacks a mapping of the required organism and a genome")
+			raise AttributeError("Config lacks genome mapping for organism: " + self.organism)
 		# get transcriptome
 		try:
 			self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
 		except AttributeError:
 			# self.genome = self.organism
-			raise AttributeError("Config lacks a mapping of the required organism and a genome")
+			raise AttributeError("Config lacks transcriptome mapping for organism: " + self.organism)
 
 	def set_file_paths(self, overide=False):
 		"""
