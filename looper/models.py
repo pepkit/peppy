@@ -318,6 +318,9 @@ class Project(AttributeDict):
 					# read in merge table
 					merge_table = _pd.read_csv(self.metadata.merge_table)
 
+					if not 'sample_name' in merge_table.columns:
+						raise KeyError("Required merge table column named 'sample_name' is missing.")
+
 					# for each sample:
 					for sample in self.sheet.samples:
 						merge_rows = merge_table[merge_table['sample_name'] == sample.name]
