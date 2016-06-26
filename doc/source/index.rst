@@ -6,7 +6,7 @@ Welcome
 
 Deploying pipelines just got easier. Looper helps you deploy your current pipeline across a cluster or server with minimal effort on your part.
 
-Looper is a lightweight python toolkit for managing job creation and submission. To get started, proceed with the :doc:`Introduction <intro>` or use the table of contents below to navigate the docs.
+Looper is a lightweight python toolkit for managing pipeline job creation and submission. To get started, proceed with the :doc:`Introduction <intro>` or use the table of contents below to navigate the docs.
 
 Links
 ^^^^^^^^
