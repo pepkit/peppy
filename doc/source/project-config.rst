@@ -164,6 +164,16 @@ The `data_sources` can use regex-like commands to point to different spots on th
 
 The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
 
+Project config section: derived_columns
+"""""""""""""""""""""""""""""""""""""""""""
+``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources.
+
+Example:
+
+``
+derived_columns: [read1, read2, data_1]
+
+
 Project config section: track_configurations
 """""""""""""""""""""""""""""""""""""""""""""""
 The `track_configurations` section is for making trackhubs (see below).

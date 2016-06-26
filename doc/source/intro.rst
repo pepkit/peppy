@@ -6,11 +6,19 @@ Overview
 ******************************
 Looper is a job submitting engine. If you have a pipeline and a bunch of samples you want to run through it, looper can help you organize the inputs and outputs. It creates and submits jobs either to cluster resource managers (like SLURM, SGE, or LFS) or to local compute power sequentially.
 
-Here's the idea: You create a single configuration file that describes your project. This file includes a pointer to the output location, the input locations, an external file listing samples to process, any specific pipeline arguments for this project, and anything else you want to save with the project.
+Here's the idea: You create a single configuration file (in yaml format) that describes your project. This file includes: 
+  - the output folder
+  - filename for a csv file listing samples to process
+  - the input filenames (optionally) 
+  - any specific pipeline arguments for this project
+  - anything else you want to save with the project.
 
-You pass this file as input to ``Looper``. ``Looper`` knows how to read the file, follow the pointers to your sample list, process that list, map the samples to the appropriate pipelines they require, and create and submit scripts for each sample.
+We essentially provide a format specification (:doc:`project-config-file`) to describe what this file can contain.
+
+You pass this file as input to ``Looper``. ``Looper`` parses your file and follows the pointers to your sample list, processes that list, maps the samples to the appropriate pipelines they require, and creates and submits scripts for each sample.
 
 You have complete control. ``Looper`` handles the mundane project organization tasks that you don't want to worry about.
+
 
 
 Installing
