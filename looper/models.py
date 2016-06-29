@@ -53,7 +53,7 @@ import os as _os
 import pandas as _pd
 import yaml as _yaml
 import warnings as _warnings
-
+from collections import OrderedDict as _OrderedDict
 
 def copy(obj):
 	def copy(self):
@@ -75,6 +75,12 @@ class Paths(object):
 	def __repr__(self):
 		return "Paths object."
 
+
+	def __getitem__(self, key):
+		"""
+		Provides dict-style access to attributes
+		"""
+		return getattr(self, key)
 
 @copy
 class AttributeDict(object):
@@ -149,7 +155,10 @@ class Project(AttributeDict):
 
 		# Get project name
 		# deduce from output_dir variable in config file:
+
 		self.name = _os.path.basename(self.paths.output_dir)
+		self.subproject = subproject
+
 		# TODO:
 		# or require config file to have it:
 		# self.name = self.config["project"]["name"]
@@ -321,6 +330,9 @@ class Project(AttributeDict):
 				if _os.path.isfile(self.metadata.merge_table):
 					# read in merge table
 					merge_table = _pd.read_csv(self.metadata.merge_table)
+
+					if not 'sample_name' in merge_table.columns:
+						raise KeyError("Required merge table column named 'sample_name' is missing.")
 
 					# for each sample:
 					for sample in self.sheet.samples:
@@ -517,6 +529,11 @@ class Sample(object):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
 
+		# Keep a list of attributes that came from the sample sheet, so we can provide a 
+		# minimal representation of the original sample as provided (in order!).
+		# Useful to summarize the sample (appending new columns onto the original table)
+		self.sheet_attributes = series.keys()
+
 		# Set series attributes on self
 		for key, value in series.to_dict().items():
 			setattr(self, key, value)
@@ -699,13 +716,13 @@ class Sample(object):
 			self.genome = getattr(self.prj.genomes, self.organism)
 		except AttributeError:
 			# self.genome = self.organism
-			raise AttributeError("Config lacks a mapping of the required organism and a genome")
+			raise AttributeError("Config lacks genome mapping for organism: " + self.organism)
 		# get transcriptome
 		try:
 			self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
 		except AttributeError:
 			# self.genome = self.organism
-			raise AttributeError("Config lacks a mapping of the required organism and a genome")
+			raise AttributeError("Config lacks transcriptome mapping for organism: " + self.organism)
 
 	def set_file_paths(self, overide=False):
 		"""
@@ -722,6 +739,19 @@ class Sample(object):
 				self.data_path = self.locate_data_source()
 		else:
 			self.data_path = self.locate_data_source()
+
+		# any columns specified as "derived" will be constructed based on regex
+		# in the "data_sources" section (should be renamed?)
+
+		if hasattr(self.prj, "derived_columns"):
+			for col in self.prj["derived_columns"]:
+
+				# Only proceed if the specified column exists.
+				if hasattr(self, col):
+					# should we set a variable called col_source, so that the original
+					# data source value can also be retrieved?
+					setattr(self, col + "_source", getattr(self, col))
+					setattr(self, col, self.locate_data_source(col))
 
 		# parent
 		self.results_subdir = self.prj.paths.results_subdir
@@ -742,6 +772,17 @@ class Sample(object):
 		for path in self.paths.__dict__.values():
 			if not _os.path.exists(path):
 				_os.makedirs(path)
+
+	def get_sheet_dict(self):
+		"""
+		Returns a dict of values but only those that were originally passed in via the sample
+		sheet. This is useful for summarizing; it gives you a representation of the sample that
+		excludes things like config files or other derived entries. Could probably be made
+		more robust but this works for now.
+		"""
+
+		return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
+
 
 	def check_input_exists(self, permissive=True):
 		"""
@@ -961,6 +1002,27 @@ class PipelineInterface(object):
 					raise e
 
 				argstring += " " + str(key) + " " + str(arg)
+
+		# Add optional arguments
+		if 'optional_arguments' in config:
+			args = config['optional_arguments']
+			for key, value in args.iteritems():
+				print(key, value, "(optional)")
+				if value is None:
+					arg = ""
+				else:
+					try:
+						arg = getattr(sample, value)
+					except AttributeError as e:
+						print(
+							"Pipeline '" + pipeline_name + "' requests OPTIONAL argument '" +
+							key + "' a sample attribute named '" + value + "'" +
+							" but no such attribute exists for sample '" +
+							sample.sample_name + "'")
+						continue
+						#raise e
+
+					argstring += " " + str(key) + " " + str(arg)
 
 		return(argstring)
 
