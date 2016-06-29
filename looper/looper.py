@@ -37,6 +37,13 @@ def parse_arguments():
 
 	parser.add_argument('--file-checks', dest='file_checks', action='store_false', help="Perform input file checks. Default=True.", default=True)
 
+	parser.add_argument('--ignore-flags', dest="ignore_flags", action="store_true",
+						default=False,
+						help="Ignore run status flags? Default: false. By default, pipelines \
+							will not be submitted if a pypiper flag file exists marking the \
+							run (e.g. as 'running' or 'failed'). \
+							Set this option to ignore flags and submit the runs anyway.")
+
 	# this should be changed in near future
 	parser.add_argument('-pd', dest='partition', default="longq")
 	parser.add_argument('--cmd', dest='command', default="run")
@@ -74,7 +81,7 @@ def make_sure_path_exists(path):
 def cluster_submit(
 	sample, submit_template, submission_command, variables_dict,
 	submission_folder, pipeline_outfolder, pipeline_name, time_delay,
-	submit=False, dry_run=False, remaining_args=list()):
+	submit=False, dry_run=False, ignore_flags=False, remaining_args=list()):
 	"""
 	Submit job to cluster manager.
 	"""
@@ -106,14 +113,15 @@ def cluster_submit(
 	# Prepare and write sample yaml object
 	sample.to_yaml()
 
-	# Check if job is already submitted
-	flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
-	if (len(flag_files) > 0):
-		print("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
-		submit = False
-	else:
-		pass
-		# print("")  # Do you want to print a newline after every sample?
+	# Check if job is already submitted (unless ignore_flags is set to True)
+	if not ignore_flags:
+		flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
+		if (len(flag_files) > 0):
+			print("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
+			submit = False
+		else:
+			pass
+			# print("")  # Do you want to print a newline after every sample?
 
 	if submit:
 		if dry_run:
@@ -163,6 +171,36 @@ def query_yes_no(question, default="no"):
 				"(or 'y' or 'n').\n")
 
 
+
+def clean_project():
+	"""
+	This function will delete all results for this project
+	"""
+		# Clean
+	import shutil
+	if os.path.exists(pipeline_outfolder):
+		if args.dry_run:
+			print("DRY RUN. I would have removed: " + pipeline_outfolder)
+		else:
+			print("Removing: " + pipeline_outfolder)
+			shutil.rmtree(pipeline_outfolder)
+	else:
+		print(pipeline_outfolder + " does not exist.")
+
+	return
+
+
+
+def uniqify(seq):
+	"""
+	Fast way to uniqify while preserving input order.
+	"""
+	# http://stackoverflow.com/questions/480214/
+	seen = set()
+	seen_add = seen.add
+	return [x for x in seq if not (x in seen or seen_add(x))]
+
+
 def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
@@ -186,33 +224,104 @@ def main():
 	protocol_mappings_file = os.path.join(prj.paths.pipelines_dir, "config/protocol_mappings.yaml")
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
+
+	# upate to project-specific protocol mappings
+	if hasattr(prj, "protocol_mappings"):
+		protocol_mappings.mappings.update(prj.protocol_mappings.__dict__)
+
+	
+
+	print("Results subdir: " + prj.paths.results_subdir)
+
+	# Concept: we could pass "commands" to looper, and it would execute different things;
+	# like "run", "clean", "summarize"
+	if args.command:
+		print("Command: " + args.command)
+
 	if args.command == "clean":
 		if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
 			print("Clean aborted by user.")
 			sys.exit(1)
+		else:
+			for sample in prj.samples:
+				sys.stdout.write("### " + sample.sample_name + "\t")
+				pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+				clean(pipeline_outfolder)
+
+		return()  # clean
+
+	if args.command == "summarize":
+		import csv
+		columns = {}
+		stats = {}
+		rows = []
+
+		for sample in prj.samples:
+			sys.stdout.write("### " + sample.sample_name + "\t")
+			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+
+			# There may be multiple pipeline outputs to consider.
+			globs = glob.glob(os.path.join(pipeline_outfolder, "*_stats.tsv"))
+			print(globs)
+
+			for stats_filename in globs: # = os.path.join(pipeline_outfolder, pl_name, "_stats.tsv")
+				pl_name = re.search(".*/(.*)_stats.tsv", stats_filename, re.IGNORECASE).group(1)
+				print(pl_name)
+				# Make sure file exists
+				if os.path.isfile(stats_filename):
+					stat_file = open(stats_filename, 'rb')
+					print('Found: ' + stats_filename)
+				else:
+					pass # raise Exception(stat_file_path + " : file does not exist!")
+
+				# Initialize column list for this pipeline if it hasn't been done.
+				if not columns.has_key(pl_name):
+					columns[pl_name] = []
+				if not stats.has_key(pl_name):
+					stats[pl_name] = []
+
+				# add all sample attributes?
+				#row.update(sample.__dict__)
+				#row = sample.__dict__
+				row = sample.get_sheet_dict()
+				for line in stat_file:
+					key, value  = line.split('\t')
+					row[key] = value.strip()
+					
+				# Use extend instead of append because we're adding a [list] and not items.
+				columns[pl_name].extend(row.keys())
+				#print(columns[pl_name])
+				stats[pl_name].append(row)
+
+		# For each pipeline, write a summary tsv file.
+		for pl_name, cols in columns.items():
+			tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
+			if prj.subproject:
+				tsv_outfile_path += '_' + prj.subproject 
+			tsv_outfile_path += '_' + pl_name + '_stats_summary.tsv'
+
+			tsv_outfile = open(tsv_outfile_path, 'w')
+			
+			tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(cols), delimiter='\t')
+			tsv_writer.writeheader()
+
+			for row in stats[pl_name]:
+				tsv_writer.writerow(row)
+			
+			tsv_outfile.close()
+
+			print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
+		return()  # summarize
 
 	# Create a few problem lists so we can keep track and show them at the end
 	failures = []
 
 	for sample in prj.samples:
-		fail = False
-		fail_message = ""
 		sys.stdout.write("### " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 
-		if args.command == "clean":
-			# Clean
-			import shutil
-			if os.path.exists(pipeline_outfolder):
-				if args.dry_run:
-					print("DRY RUN. I would have removed: " + pipeline_outfolder)
-				else:
-					print("Removing: " + pipeline_outfolder)
-					shutil.rmtree(pipeline_outfolder)
-			else:
-				print(pipeline_outfolder + " does not exist.")
-
-			continue
+		fail = False
+		fail_message = ""
 
 		# Don't submit samples with duplicate names
 		if sample.sample_name in prj.processed_samples:
@@ -251,7 +360,7 @@ def main():
 
 		sample.to_yaml()
 
-		# Get the base protocol to pipeline mappings
+		# Get the base protocol-to-pipeline mappings
 		pl_list = protocol_mappings.build_pipeline(sample.library.upper())
 
 		# We require that the pipelines and config files live in
@@ -294,12 +403,13 @@ def main():
 			if hasattr(prj.pipeline_config, pl):
 				# First priority: pipeline config specified in project config
 				pl_config_file = getattr(prj.pipeline_config, pl)
-				if not os.path.isfile(pl_config_file):
-					print("Pipeline config file specified but not found: " + pl_config_file)
-					raise IOError(pl_config_file)
-				print("Found config file:" + getattr(prj.pipeline_config, pl))
-				# Append arg for config file if found
-				cmd += " -C " + pl_config_file
+				if pl_config_file:  # make sure it's not null (which it could be provided as null)
+					if not os.path.isfile(pl_config_file):
+						print("Pipeline config file specified but not found: " + pl_config_file)
+						raise IOError(pl_config_file)
+					print("Found config file:" + getattr(prj.pipeline_config, pl))
+					# Append arg for config file if found
+					cmd += " -C " + pl_config_file
 
 			# Append output parent folder
 			cmd += " -O " + prj.paths.results_subdir
@@ -322,7 +432,8 @@ def main():
 				sample, prj.compute.submission_template,
 				prj.compute.submission_command, submit_settings,
 				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
-				submit=True, dry_run=args.dry_run, remaining_args=remaining_args)
+				submit=True, dry_run=args.dry_run, ignore_flags=args.ignore_flags,
+				remaining_args=remaining_args)
 
 	msg = "\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
 	if args.dry_run:
@@ -332,6 +443,7 @@ def main():
 
 	if (len(failures) > 0):
 		print(failures)
+
 
 if __name__ == '__main__':
 	try:
