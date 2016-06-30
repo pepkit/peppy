@@ -13,6 +13,7 @@ import glob
 import errno
 import re
 import time
+import pandas as _pd
 
 try:
 	from .models import Project, PipelineInterface, ProtocolMapper
@@ -251,67 +252,114 @@ def main():
 		return()  # clean
 
 	if args.command == "summarize":
+		# This routine will grab the report_results stats files from each sample,
+		# and collate them into a single matrix (as a csv file)
 		import csv
-		columns = {}
-		stats = {}
+		columns = []
+		stats = []
 		rows = []
 
 		for sample in prj.samples:
 			sys.stdout.write("### " + sample.sample_name + "\t")
 			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 
-			# There may be multiple pipeline outputs to consider.
-			globs = glob.glob(os.path.join(pipeline_outfolder, "*_stats.tsv"))
-			print(globs)
+			# Grab the basic info from the annotation sheet for this sample.
+			# This will correspond to a row in the output.
+			sample_stats = sample.get_sheet_dict()
+			columns.extend(sample_stats.keys())
+			# Version 0.3 standardized all stats into a single file
+			stats_file = os.path.join(pipeline_outfolder, "stats.tsv")
+			if os.path.isfile(stats_file):
+				print('Found: ' + stats_file)
+			else:
+				continue # raise Exception(stat_file_path + " : file does not exist!")
 
-			for stats_filename in globs: # = os.path.join(pipeline_outfolder, pl_name, "_stats.tsv")
-				pl_name = re.search(".*/(.*)_stats.tsv", stats_filename, re.IGNORECASE).group(1)
-				print(pl_name)
-				# Make sure file exists
-				if os.path.isfile(stats_filename):
-					stat_file = open(stats_filename, 'rb')
-					print('Found: ' + stats_filename)
-				else:
-					pass # raise Exception(stat_file_path + " : file does not exist!")
+			t = _pd.read_table(stats_file, header=None, names=['key', 'value', 'pl'])
 
-				# Initialize column list for this pipeline if it hasn't been done.
-				if not columns.has_key(pl_name):
-					columns[pl_name] = []
-				if not stats.has_key(pl_name):
-					stats[pl_name] = []
+			t.drop_duplicates(subset = ['key', 'pl'], keep='last', inplace = True)
+			#t.duplicated(subset= ['key'], keep = False)
 
-				# add all sample attributes?
-				#row.update(sample.__dict__)
-				#row = sample.__dict__
-				row = sample.get_sheet_dict()
-				for line in stat_file:
-					key, value  = line.split('\t')
-					row[key] = value.strip()
+			t.loc[:,'plkey'] = t['pl'] + ":" + t['key']
+			dupes = t.duplicated(subset= ['key'], keep = False)
+			t.loc[dupes,'key'] = t.loc[dupes,'plkey']
+
+			sample_stats.update(t.set_index('key')['value'].to_dict())
+			stats.append(sample_stats)
+			columns.extend(t.key.tolist())
+
+		# all samples are parsed. Produce file.
+
+		tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
+		if prj.subproject:
+			tsv_outfile_path += '_' + prj.subproject 
+		tsv_outfile_path += '_stats_summary.tsv'
+
+		tsv_outfile = open(tsv_outfile_path, 'w')
+		
+		tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(columns), delimiter='\t', extrasaction='ignore')
+		tsv_writer.writeheader()
+
+		for row in stats:
+			tsv_writer.writerow(row)
+		
+		tsv_outfile.close()
+
+		print("Summary (n=" + str(len(stats)) + "): " + tsv_outfile_path)
+		
+		return()
+		# 	# There may be multiple pipeline outputs to consider.
+		# 	globs = glob.glob(os.path.join(pipeline_outfolder, "*stats.tsv"))
+		# 	print(globs)
+
+		# 	for stats_filename in globs: # = os.path.join(pipeline_outfolder, pl_name, "_stats.tsv")
+		# 		pl_name = re.search(".*/(.*)_stats.tsv", stats_filename, re.IGNORECASE).group(1)
+		# 		print(pl_name)
+		# 		# Make sure file exists
+		# 		if os.path.isfile(stats_filename):
+		# 			stat_file = open(stats_filename, 'rb')
+		# 			print('Found: ' + stats_filename)
+		# 		else:
+		# 			pass # raise Exception(stat_file_path + " : file does not exist!")
+
+		# 		# Initialize column list for this pipeline if it hasn't been done.
+		# 		if not columns.has_key(pl_name):
+		# 			columns[pl_name] = []
+		# 		if not stats.has_key(pl_name):
+		# 			stats[pl_name] = []
+
+		# 		# add all sample attributes?
+		# 		#row.update(sample.__dict__)
+		# 		#row = sample.__dict__
+		# 		row = sample.get_sheet_dict()
+		# 		for line in stat_file:
+		# 			key, value = line.split('\t')
+		# 			row[key] = value.strip()
 					
-				# Use extend instead of append because we're adding a [list] and not items.
-				columns[pl_name].extend(row.keys())
-				#print(columns[pl_name])
-				stats[pl_name].append(row)
+		# 		# Add these items as column names for this pipeline
+		# 		# Use extend instead of append because we're adding a [list] and not items.
+		# 		columns[pl_name].extend(row.keys())
+		# 		#print(columns[pl_name])
+		# 		stats[pl_name].append(row)
 
-		# For each pipeline, write a summary tsv file.
-		for pl_name, cols in columns.items():
-			tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
-			if prj.subproject:
-				tsv_outfile_path += '_' + prj.subproject 
-			tsv_outfile_path += '_' + pl_name + '_stats_summary.tsv'
+		# # For each pipeline, write a summary tsv file.
+		# for pl_name, cols in columns.items():
+		# 	tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
+		# 	if prj.subproject:
+		# 		tsv_outfile_path += '_' + prj.subproject 
+		# 	tsv_outfile_path += '_' + pl_name + '_stats_summary.tsv'
 
-			tsv_outfile = open(tsv_outfile_path, 'w')
+		# 	tsv_outfile = open(tsv_outfile_path, 'w')
 			
-			tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(cols), delimiter='\t')
-			tsv_writer.writeheader()
+		# 	tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(cols), delimiter='\t')
+		# 	tsv_writer.writeheader()
 
-			for row in stats[pl_name]:
-				tsv_writer.writerow(row)
+		# 	for row in stats[pl_name]:
+		# 		tsv_writer.writerow(row)
 			
-			tsv_outfile.close()
+		# 	tsv_outfile.close()
 
-			print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
-		return()  # summarize
+		# 	print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
+		# return()  # summarize
 
 	# Create a few problem lists so we can keep track and show them at the end
 	failures = []
