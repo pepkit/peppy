@@ -689,23 +689,21 @@ class Sample(object):
 		with open(self.yaml_file, 'w') as outfile:
 			outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
-	def locate_data_source(self):
+	def locate_data_source(self, column_name="data_source"):
 		"""
 		Locates the path of input file `data_path` based on a regex.
 		"""
 		default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"  # default regex
 
-		# get bam file in regex form dependent on the "source" specified for each sample
-		if hasattr(self, "data_source"):
-			if (self.data_source is not _pd.np.nan) and (self.data_source != ""):
-				try:
-					return self.prj["data_sources"][self.data_source].format(**self.__dict__)
-				except AttributeError:
-					print("Config lacks location for data_source: " + self.data_source)
-					# raise AttributeError("Config lacks location for data_source: " + self.data_source)
-				return
-		# if absent is the default regex
-		return default_regex.format(**self.__dict__)
+		if hasattr(self, column_name):
+			try:
+				val = self.prj["data_sources"][getattr(self, column_name)].format(**self.__dict__)
+			except Exception as e:
+				#print("Config lacks location for data_source: " + getattr(self, column_name)
+				print("hello")
+				val = ""
+
+			return val
 
 	def get_genome(self):
 		"""
