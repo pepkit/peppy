@@ -654,7 +654,7 @@ class Sample(object):
 		:param path: A file path to write yaml to.
 		:type path: str
 		"""
-		def obj2dict(obj, to_skip=["samples", "sheet"]):
+		def obj2dict(obj, to_skip=["samples", "sheet", "sheet_attributes"]):
 			"""
 			Build representation of object as a dict, recursively
 			for all objects that might be attributes of self.
