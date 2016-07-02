@@ -611,13 +611,16 @@ class Sample(object):
 		# but created from the sample's attributes
 		check_attrs(["sample_name", "library", "organism"])
 
+		# NS REMARK: derived_columns makes this annoying; you don't necessary need these columns;
+		# for flexibility, we should not enforce things like this at this stage.
+		# TODO: Remove these attribute checks
 		# Check that either data_path is specified or that BSF fields exist
-		if hasattr(self, "data_source"):
-			if (self.data_source == "nan") or (self.data_source == ""):
-				# then it must have all of the following:
-				check_attrs(["flowcell", "lane", "BSF_name"])
-		else:
-			check_attrs(["flowcell", "lane", "BSF_name"])
+		# if hasattr(self, "data_source"):
+		# 	if (self.data_source == "nan") or (self.data_source == ""):
+		# 		# then it must have all of the following:
+		# 		check_attrs(["flowcell", "lane", "BSF_name"])
+		# else:
+		# 	check_attrs(["flowcell", "lane", "BSF_name"])
 
 	def generate_name(self):
 		"""
