@@ -100,7 +100,7 @@ for row in csv_reader:
 		stat_file_path = os.path.join(paths.output_dir,paths.results_subdir,sample_name,row['library']+'_stats.tsv')
 		if not os.path.isfile(stat_file_path):
 			for thefile in os.listdir(stat_file_dir):
-				if thefile.endswith("_stats.tsv"): stat_file_path = os.path.join(stat_file_dir,thefile)
+				if thefile.endswith("stats.tsv"): stat_file_path = os.path.join(stat_file_dir,thefile)
 		if os.path.isfile(stat_file_path):
 			stat_file = open(stat_file_path, 'rb')
 			print("Found: " + stat_file_path)
@@ -109,12 +109,13 @@ for row in csv_reader:
 		stats_dict = dict()
 		stats_dict_keys = []
 		for line in stat_file:
-			key, value  = line.split('\t')
+			line_content = line.split('\t')
+                        key = line_content[0]
+                        value = line_content[1]
 			stats_dict[key] = value.strip()
 			stats_dict_keys.append(key)
 
 		new_row = dict()
-
 		column_count = 0
 
 		if args.rigid:
@@ -174,7 +175,8 @@ for row in csv_reader:
 			global_keys = csv_reader.fieldnames + stats_dict_keys
 
 	except Exception as e:
-		print("Sample failed. Error: " + str(e))
+
+		print("Sample " + sample_name + " failed. Error: " + str(e))
 
 csv_file.close()
 
