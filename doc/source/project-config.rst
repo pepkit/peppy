@@ -150,7 +150,7 @@ Example:
 	  submission_command: sbatch
 
 
-There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable `{CODE}` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
+There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
 
 Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
 
@@ -160,18 +160,31 @@ In [`templates/`](templates/) are examples for submission templates for [SLURM](
 Project config section: data_sources
 """""""""""""""""""""""""""""""""""""""""""
 
-The `data_sources` can use regex-like commands to point to different spots on the filesystem for data. The variables (specified by `{variable}`) are populated first by shell environment variables, and then by variables (columns) named in the project sample annotation sheet.
-
-The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, you just have to change the config file and not update paths in the annotation sheet. This makes the whole project more portable.
-
-Project config section: derived_columns
-"""""""""""""""""""""""""""""""""""""""""""
-``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources.
+The `data_sources` section uses regex-like commands to point to different spots on the filesystem for data. The variables (specified by ``{variable}``) are populated first by shell environment variables, and then by sample attributes (columns in the sample annotation sheet).
 
 Example:
 
-``
-derived_columns: [read1, read2, data_1]
+.. code-block:: yaml
+
+  data_sources:
+    source1: /path/to/raw/data/{sample_name}_{sample_type}.bam
+    source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
+
+For more details, see :ref:`advanced-derived-columns`.
+
+Project config section: derived_columns
+"""""""""""""""""""""""""""""""""""""""""""
+``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources. Corresponding sample attributes will then have as their value not the entry in the table, but the value derived from the string replacement of sample attributes specified in the config file.
+
+Example:
+
+.. code-block:: yaml
+
+  derived_columns: [read1, read2, data_1]
+
+(see :doc:`config-files` ).
+
+For more details, see :ref:`advanced-derived-columns`.
 
 
 Project config section: track_configurations
