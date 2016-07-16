@@ -209,12 +209,17 @@ def main():
 	# Keep track of how many jobs have been submitted.
 	submit_count = 0
 	job_count = 0
+	sample_count = 0
+
+
 	# Initialize project
-	prj = Project(args.conf_file, args.subproject, file_checks=args.file_checks)
+	prj = Project(args.conf_file, args.subproject, file_checks = args.file_checks)
 	# add sample sheet
 	prj.add_sample_sheet()
 	# keep track of submited samples
 	prj.processed_samples = list()
+
+	sample_total = len(prj.samples)
 
 	# Look up the looper config files:
 	pipeline_interface_file = os.path.join(prj.paths.pipelines_dir, "config/pipeline_interface.yaml")
@@ -365,7 +370,8 @@ def main():
 	failures = []
 
 	for sample in prj.samples:
-		sys.stdout.write("### " + sample.sample_name + "\t")
+		sample_count += 1
+		sys.stdout.write("### [" +str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 
 		fail = False
@@ -399,6 +405,7 @@ def main():
 		if fail:
 			print("\nNot submitted: " + fail_message)
 			failures.append([fail_message, sample.sample_name])
+
 			continue
 
 		# Otherwise, process the sample:
@@ -483,14 +490,23 @@ def main():
 				submit=True, dry_run=args.dry_run, ignore_flags=args.ignore_flags,
 				remaining_args=remaining_args)
 
-	msg = "\nLooper finished. (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)"
+	msg = "\nLooper finished (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)."
 	if args.dry_run:
 		msg += " Dry run. No jobs were actually submitted"
 
 	print(msg)
 
 	if (len(failures) > 0):
-		print(failures)
+		print("Failure count: " + str(len(failures)) + ". Reasons for failure:")
+#		print(failures)
+
+		from collections import defaultdict
+		groups = defaultdict(str)
+		for msg, sample_name in failures:
+			groups[msg] += sample_name + "; "
+
+		for name, values in groups.iteritems():
+			print "  " + str(name) + ":" + str(values)
 
 
 if __name__ == '__main__':
