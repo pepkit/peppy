@@ -252,8 +252,8 @@ class Project(AttributeDict):
 				if not _os.path.exists(path):
 					try:
 						_os.makedirs(path)
-					except OSError("Cannot create directory %s" % path) as e:
-						raise e
+					except OSError:
+						raise OSError("Cannot create directory %s" % path)
 
 	def set_project_permissions(self):
 		"""
@@ -548,6 +548,7 @@ class Sample(object):
 				# else, set attribute as variable value
 				setattr(self, attr, str(getattr(self, attr)))
 
+
 		# Enforce type attributes as int
 		attributes = ["lane"]
 		for attr in attributes:
@@ -700,11 +701,17 @@ class Sample(object):
 
 		if hasattr(self, column_name):
 			try:
-				val = self.prj["data_sources"][getattr(self, column_name)].format(**self.__dict__)
+				regex = self.prj["data_sources"][getattr(self, column_name)]
+			except:
+				print("Config lacks location for data_source: " + getattr(self, column_name))
+				return ""
+
+			try:
+				val = regex.format(**self.__dict__)
 			except Exception as e:
-				#print("Config lacks location for data_source: " + getattr(self, column_name)
-				print("hello")
-				val = ""
+				print("Can't format data source correctly:" + regex)
+				print(str(type(e).__name__) + str(e))
+				return ""
 
 			return val
 
@@ -922,6 +929,9 @@ class PipelineInterface(object):
 		self.looper_config_file = yaml_config_file
 		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
 
+		# A variable to control the verbosity level of output
+		self.verbose = 0
+
 	def select_pipeline(self, pipeline_name):
 		"""
 		Check to make sure that pipeline has an entry and if so, return it
@@ -988,7 +998,8 @@ class PipelineInterface(object):
 		argstring = ""
 		args = config['arguments']
 		for key, value in args.iteritems():
-			print(key, value)
+			if self.verbose:
+				print(key, value)
 			if value is None:
 				arg = ""
 			else:
@@ -1008,7 +1019,8 @@ class PipelineInterface(object):
 		if 'optional_arguments' in config:
 			args = config['optional_arguments']
 			for key, value in args.iteritems():
-				print(key, value, "(optional)")
+				if self.verbose:
+					print(key, value, "(optional)")
 				if value is None:
 					arg = ""
 				else:
@@ -1016,7 +1028,7 @@ class PipelineInterface(object):
 						arg = getattr(sample, value)
 					except AttributeError as e:
 						print(
-							"Pipeline '" + pipeline_name + "' requests OPTIONAL argument '" +
+							"Pipeline '" + pipeline_name + "' requests for OPTIONAL argument '" +
 							key + "' a sample attribute named '" + value + "'" +
 							" but no such attribute exists for sample '" +
 							sample.sample_name + "'")
