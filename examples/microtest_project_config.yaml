@@ -32,6 +32,12 @@ metadata:
   compare_table: null.csv
 
 
+# a list of annotation sheet columns that are "derived"
+# the values in these are constructed using a regex-like expression
+# of variables (defined in the next section).
+derived_columns: [data_source]
+
+
 data_sources:
   # specify the ABSOLUTE PATH of input files using variable path expressions
   # entries correspond to values in the data_source column in sample_annotation table
