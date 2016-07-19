@@ -182,23 +182,16 @@ Example:
 
   derived_columns: [read1, read2, data_1]
 
-(see :doc:`config-files` ).
 
 For more details, see :ref:`advanced-derived-columns`.
 
 
 Project config section: track_configurations
 """""""""""""""""""""""""""""""""""""""""""""""
-The `track_configurations` section is for making trackhubs (see below).
+The `track_configurations` section is for making trackhubs.
 
 .. warning::
 	missing info here
-
-
-However, there are more options. See the [project config template](examples/example_project_config.yaml) for a more comprehensive list of options or the [microtest config template](examples/microtest_project_config.yaml) for a ready-to-run example. You can try out the microtest example like this (the `-d` option indicates a dry run, meaning submit scripts are created but not actually submitted).
-```
-./pipelines/looper.py -c pipelines/examples/microtest_project_config.yaml -d
-```
 
 
 Project config section: subprojects
