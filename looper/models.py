@@ -353,7 +353,8 @@ class Project(AttributeDict):
 
 		# With all samples, prepare file paths and get read type (optionally make sample dirs)
 		for sample in self.samples:
-			sample.get_genome()
+			if hasattr(sample, "organism"):
+				sample.get_genome()
 			sample.set_file_paths()
 			if not sample.check_input_exists():
 				continue
