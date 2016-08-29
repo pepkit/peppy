@@ -165,7 +165,7 @@ try:
 		tableDict[sample_name] = dict()
 
 		if 'run' in row:
-			if not row["run"] == "1":
+			if row["run"] == "0" or row["run"].lower() == "false":
 				print(sample_name + ": not selected")
 				continue
 			else:
@@ -466,7 +466,7 @@ try:
 		else:
 			html_out += '<p>Stats summary table: <a href="{}"><b>{}</b></a></p>\n'.format(tsv_stats_path,'TSV')
 	url = str(trackhubs.url).replace(':','%3A').replace('/','%2F')
-	paths.ucsc_browser_link = 'http://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&amp;hubUrl='+url+'%2F'+hub_file_name
+	paths.ucsc_browser_link = 'https://genome-euro.ucsc.edu/cgi-bin/hgTracks?db='+genome.split('_')[0]+'&amp;hubUrl='+url+'%2F'+hub_file_name
 	html_out += '<p>UCSC Genome Browser: <a href="{}"><b>{}</b></a></p>\n'.format(paths.ucsc_browser_link,'Link')
 	html_out += '<p><br /></p>\n'
 
@@ -505,11 +505,11 @@ try:
 	file_handle.write(html_out_tab)
 
 	html_out = '<p><br /></p>\n'
-	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="http://www.biomedical-sequencing.at"><b>www.biomedical-sequencing.at</b></a></p>\n'
+	html_out += '<p>This report was generated with software of the Biomedical Sequencing Facility: <a href="https://www.biomedical-sequencing.at"><b>www.biomedical-sequencing.at</b></a></p>\n'
 	html_out += '<p>Contact: <a href="mailto:bsf@cemm.oeaw.ac.at"><b>bsf@cemm.oeaw.ac.at</b></a></p>\n'
 	html_out += '<p><br /></p>\n'
-	html_out += '<p><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Transitional" height="31" width="88" /></a>\n'
-	html_out += '<a href="http://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:88px;height:31px" src="http://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a></p>'
+	html_out += '<p><a href="https://validator.w3.org/check?uri=referer"><img src="https://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Transitional" height="31" width="88" /></a>\n'
+	html_out += '<a href="https://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:88px;height:31px" src="https://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a></p>'
 	html_out += '</body>\n'
 	html_out += '</html>\n'
 	html_out += '\n'
