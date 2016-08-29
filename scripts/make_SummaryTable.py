@@ -96,19 +96,19 @@ for row in csv_reader:
 	try:
 
 		# Open sample TSV stat file
-		stat_file_dir = os.path.join(paths.output_dir,paths.results_subdir,sample_name)
-		stat_file_path = os.path.join(paths.output_dir,paths.results_subdir,sample_name,row['library']+'_stats.tsv')
-		if not os.path.isfile(stat_file_path):
-			for thefile in os.listdir(stat_file_dir):
-				if thefile.endswith("stats.tsv"): stat_file_path = os.path.join(stat_file_dir,thefile)
-		if os.path.isfile(stat_file_path):
-			stat_file = open(stat_file_path, 'rb')
-			print("Found: " + stat_file_path)
+		stats_file_dir = os.path.join(paths.output_dir,paths.results_subdir,sample_name)
+		stats_file_path = os.path.join(paths.output_dir,paths.results_subdir,sample_name,row['library']+'_stats.tsv')
+		if not os.path.isfile(stats_file_path):
+			for thefile in os.listdir(stats_file_dir):
+				if thefile.endswith("stats.tsv"): stats_file_path = os.path.join(stats_file_dir,thefile)
+		if os.path.isfile(stats_file_path):
+			stats_file = open(stats_file_path, 'rb')
+			print("Found: " + stats_file_path)
 		else:
-			raise Exception(stat_file_path + " : file does not exist!")
+			raise Exception(stats_file_path + " : file does not exist!")
 		stats_dict = dict()
 		stats_dict_keys = []
-		for line in stat_file:
+		for line in stats_file:
 			line_content = line.split('\t')
                         key = line_content[0]
                         value = line_content[1]
