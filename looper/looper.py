@@ -250,7 +250,7 @@ def main():
 			sys.exit(1)
 		else:
 			for sample in prj.samples:
-				sys.stdout.write("### " + sample.sample_name + "\t")
+				sys.stdout.write("\n### " + sample.sample_name + "\t")
 				pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 				clean(pipeline_outfolder)
 
@@ -265,7 +265,7 @@ def main():
 		rows = []
 
 		for sample in prj.samples:
-			sys.stdout.write("### " + sample.sample_name + "\t")
+			sys.stdout.write("\n### " + sample.sample_name + "\t")
 			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 
 			# Grab the basic info from the annotation sheet for this sample.
@@ -371,7 +371,7 @@ def main():
 
 	for sample in prj.samples:
 		sample_count += 1
-		sys.stdout.write("### [" +str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\t")
+		sys.stdout.write("\n### [" +str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
 
 		fail = False
