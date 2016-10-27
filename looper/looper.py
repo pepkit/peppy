@@ -40,20 +40,8 @@ def parse_arguments():
 	run_subparser = subparsers.add_parser(
 		"run", help="Main Looper function: Submit jobs for samples.")
 	run_subparser.add_argument(
-		dest='conf_file', type=str,
-		help="Project YAML config file.")
-	run_subparser.add_argument(
-		'--sp', dest='subproject',
-		help="Supply subproject", default=None)
-	run_subparser.add_argument(
-		'-d', '--dry-run', dest='dry_run', action='store_true',
-		help="Don't actually submit.", default=False)
-	run_subparser.add_argument(
 		'-t', '--time-delay', dest='time_delay', type=int,
 		help="Time delay in seconds between job submissions.", default=0)
-	run_subparser.add_argument(
-		'--file-checks', dest='file_checks', action='store_false',
-		help="Perform input file checks. Default=True.", default=True)
 	run_subparser.add_argument(
 		'--ignore-flags', dest="ignore_flags", action="store_true",
 		default=False,
@@ -66,28 +54,31 @@ def parse_arguments():
 	# Summarize command
 	summarize_subparser = subparsers.add_parser(
 		"summarize", help="Summarize statistics of project samples.")
-	summarize_subparser.add_argument(
-		dest='conf_file', type=str,
-		help="Project YAML config file.")
 
 	# Destroy command
 	destroy_subparser = subparsers.add_parser(
 		"destroy", help="Remove all files of the project.")
-	destroy_subparser.add_argument(
-		'-d', '--dry-run', dest='dry_run', action='store_true',
-		help="Don't actually submit.", default=False)
-	destroy_subparser.add_argument(
-		dest='conf_file', type=str,
-		help="Project YAML config file.")
+
+	# Common arguments
+	for subparser in [run_subparser, summarize_subparser, destroy_subparser]:
+		subparser.add_argument(
+			'--file-checks', dest='file_checks', action='store_false',
+			help="Perform input file checks. Default=True.", default=True)
+		subparser.add_argument(
+			'-d', '--dry-run', dest='dry_run', action='store_true',
+			help="Don't actually submit.", default=False)
+		subparser.add_argument(
+			'--sp', dest='subproject', type=str,
+			help="Supply subproject", default=None)
+		subparser.add_argument(
+			dest='config_file', type=str,
+			help="Project YAML config file.")
 
 	# To enable the loop to pass args directly on to the pipelines...
 	args, remaining_args = parser.parse_known_args()
 
-	print("Remaining arguments passed to pipelines: " + str(remaining_args))
-
-	if not args.conf_file:
-		parser.print_help()  # or, print_usage() for less verbosity
-		raise SystemExit
+	if len(remaining_args) > 0:
+		print("Remaining arguments passed to pipelines: {}".format(" ".join([str(x) for x in remaining_args])))
 
 	return args, remaining_args
 
@@ -259,7 +250,7 @@ def run(prj, args, remaining_args):
 				groups[msg] += sample_name + "; "
 
 			for name, values in groups.iteritems():
-				print "  " + str(name) + ":" + str(values)
+				print("  " + str(name) + ":" + str(values))
 
 
 def summarize(prj):
@@ -372,17 +363,17 @@ def summarize(prj):
 	# 	print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
 
 
-def destroy(prj):
+def destroy(prj, args):
 	"""
 	"""
 	if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
-		print("Clean aborted by user.")
+		print("Destroy action aborted by user.")
 		return 1
 	else:
 		for sample in prj.samples:
 			sys.stdout.write("### " + sample.sample_name + "\t")
 			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
-			clean_project(pipeline_outfolder)
+			clean_project(pipeline_outfolder, args)
 		return 0
 
 
@@ -527,7 +518,7 @@ def main():
 	args, remaining_args = parse_arguments()
 
 	# Initialize project
-	prj = Project(args.conf_file, args.subproject, file_checks=args.file_checks)
+	prj = Project(args.config_file, args.subproject, file_checks=args.file_checks)
 	# add sample sheet
 	prj.add_sample_sheet()
 
@@ -537,11 +528,11 @@ def main():
 	if args.command == "run":
 		run(prj, args, remaining_args)
 
-	if args.command == "clean":
-		return destroy()
+	if args.command == "destroy":
+		return destroy(prj, args)
 
 	if args.command == "summarize":
-		summarize()
+		summarize(prj)
 
 
 if __name__ == '__main__':
