@@ -65,8 +65,8 @@ def get_file_size(filename):
 	"""
 	Get size of all files in string (space-separated) in gigabytes (Gb).
 	"""
-	return sum([float(os.stat(f).st_size) for f in filename.split(" ")]) / (1024 ** 3)
-
+	return sum([float(os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
+	
 
 def make_sure_path_exists(path):
 	"""
@@ -231,11 +231,9 @@ def main():
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
-	# upate to project-specific protocol mappings
+	# update to project-specific protocol mappings
 	if hasattr(prj, "protocol_mappings"):
 		protocol_mappings.mappings.update(prj.protocol_mappings.__dict__)
-
-	
 
 	print("Results subdir: " + prj.paths.results_subdir)
 
@@ -410,7 +408,10 @@ def main():
 
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
-		input_file_size = get_file_size(sample.data_path)
+		if hasattr(sample, "required_paths"):
+			input_file_size = get_file_size(sample.required_paths)
+		else:
+			input_file_size = get_file_size(sample.data_path)
 		print("({:.2f} Gb)".format(input_file_size))
 
 		sample.to_yaml()
