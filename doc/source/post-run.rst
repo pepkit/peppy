@@ -14,6 +14,18 @@ Inside there will be two directories:
 
 The sample-specific output of each pipeline type varies and is described in :doc:`pipelines`.
 
+Looper commands
+------------------------
+See https://github.com/epigen/looper/issues/4
+
+Looper currently supports the following commands:
+
+- "--cmd run" - runs pipelines (default)
+- "--cmd summarize" - summarizes statistics
+
+Additional commands are pending
+
+
 Post-pipeline processing
 ------------------------
 

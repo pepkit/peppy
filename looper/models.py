@@ -565,6 +565,9 @@ class Sample(object):
 		# Short hand for getting sample_name
 		self.name = self.sample_name
 
+		# Default to no required paths
+		self.required_paths = None
+
 		# Get name for sample:
 		# this is a concatenation of all passed Series attributes except "unmappedBam"
 		# self.generate_name()
@@ -741,7 +744,7 @@ class Sample(object):
 		if self.merged and hasattr(self, "data_path") and not overide:
 			pass
 
-		# If sample does not have data_path, then let's build BSF path to unaligned bam.
+		# If sample does not have data_path, then build the file path to the input file.
 		# this is built on a regex specified in the config file or the custom one (see `Project`).
 		if hasattr(self, "data_path"):
 			if (self.data_path == "nan") or (self.data_path == ""):
@@ -761,6 +764,20 @@ class Sample(object):
 					# data source value can also be retrieved?
 					setattr(self, col + "_source", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
+					print("col val:")
+					print(getattr(self, col))
+					if not self.required_paths:
+						self.required_paths = ""
+					self.required_paths += " " + getattr(self, col)
+
+
+		# Construct required_inputs 
+		if hasattr(self.prj, "required_inputs"):
+			for col in self.prj["required_inputs"]:
+
+				# Only proceed if the specified column exists.
+				if hasattr(self, col):
+					self.required_paths += " " + getattr(self, col)
 
 		# parent
 		self.results_subdir = self.prj.paths.results_subdir
@@ -1087,6 +1104,10 @@ class ProtocolMapper(object):
 
 	def register_job(self, job, dep):
 		print("Register Job Name:" + job + "\tDep:" + str(dep))
+
+	def __repr__(self):
+		return str(self.__dict__)
+
 
 
 class CommandChecker(object):
