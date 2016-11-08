@@ -523,6 +523,7 @@ def main():
 	# add sample sheet
 	prj.add_sample_sheet()
 
+
 	print("Results subdir: " + prj.paths.results_subdir)
 	print("Command: " + args.command)
 
@@ -536,7 +537,6 @@ def main():
 
 	if args.command == "summarize":
 		summarize(prj)
-
 
 
 if __name__ == '__main__':
