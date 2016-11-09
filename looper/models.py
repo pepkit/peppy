@@ -764,8 +764,6 @@ class Sample(object):
 					# data source value can also be retrieved?
 					setattr(self, col + "_source", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
-					print("col val:")
-					print(getattr(self, col))
 					if not self.required_paths:
 						self.required_paths = ""
 					self.required_paths += " " + getattr(self, col)

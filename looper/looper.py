@@ -59,8 +59,12 @@ def parse_arguments():
 	destroy_subparser = subparsers.add_parser(
 		"destroy", help="Remove all files of the project.")
 
+	# Check command
+	check_subparser = subparsers.add_parser(
+		"check", help="Remove all files of the project.")
+
 	# Common arguments
-	for subparser in [run_subparser, summarize_subparser, destroy_subparser]:
+	for subparser in [run_subparser, summarize_subparser, destroy_subparser, check_subparser]:
 		subparser.add_argument(
 			'--file-checks', dest='file_checks', action='store_false',
 			help="Perform input file checks. Default=True.", default=True)
@@ -154,7 +158,10 @@ def run(prj, args, remaining_args):
 
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
-		input_file_size = get_file_size(sample.data_path)
+		if hasattr(sample, "required_paths"):
+			input_file_size = get_file_size(sample.required_paths)
+		else:
+			input_file_size = get_file_size(sample.data_path)
 		print("({:.2f} Gb)".format(input_file_size))
 
 		sample.to_yaml()
@@ -234,23 +241,23 @@ def run(prj, args, remaining_args):
 				submit=True, dry_run=args.dry_run, ignore_flags=args.ignore_flags,
 				remaining_args=remaining_args)
 
-		msg = "\nLooper finished (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)."
-		if args.dry_run:
-			msg += " Dry run. No jobs were actually submitted"
+	msg = "\nLooper finished (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)."
+	if args.dry_run:
+		msg += " Dry run. No jobs were actually submitted"
 
-		print(msg)
+	print(msg)
 
-		if (len(failures) > 0):
-			print("Failure count: " + str(len(failures)) + ". Reasons for failure:")
-			# print(failures)
+	if (len(failures) > 0):
+		print("Failure count: " + str(len(failures)) + ". Reasons for failure:")
+		# print(failures)
 
-			from collections import defaultdict
-			groups = defaultdict(str)
-			for msg, sample_name in failures:
-				groups[msg] += sample_name + "; "
+		from collections import defaultdict
+		groups = defaultdict(str)
+		for msg, sample_name in failures:
+			groups[msg] += sample_name + "; "
 
-			for name, values in groups.iteritems():
-				print("  " + str(name) + ":" + str(values))
+		for name, values in groups.iteritems():
+			print("  " + str(name) + ":" + str(values))
 
 
 def summarize(prj):
@@ -513,6 +520,28 @@ def uniqify(seq):
 	return [x for x in seq if not (x in seen or seen_add(x))]
 
 
+def check(prj):
+	"""
+	Checks flag status
+	"""
+	# prefix
+	pf = "ls " + prj.paths.results_subdir + "/"
+	cmd = os.path.join(pf + "*/*.flag | xargs -n1 basename | sort | uniq -c")
+	print(cmd)
+	subprocess.call(cmd, shell=True)
+
+	flags = ["completed", "running", "failed", "waiting"]
+
+	counts = {}
+	for f in flags:
+		counts[f] = int(subprocess.check_output(pf + "*/*" + f +".flag 2> /dev/null | wc -l", shell = True))
+#		print(f + ": " + str(counts[f]))
+
+	for f, count in counts.items():
+		if count < 30 and count > 0:
+			print(f + " (" + str(count) + ")")
+			subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell = True)
+
 def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
@@ -531,12 +560,14 @@ def main():
 	if args.command == "run":
 		run(prj, args, remaining_args)
 
-
 	if args.command == "destroy":
 		return destroy(prj, args)
 
 	if args.command == "summarize":
 		summarize(prj)
+
+	if args.command == "check":
+		check(prj)
 
 
 if __name__ == '__main__':
