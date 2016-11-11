@@ -37,7 +37,7 @@ Explore!
 
 	prj.paths.results  # results directory of project
 	# export again the project's annotation
-	prj.sheet.to_csv(_os.path.join(prj.paths.output_dir, "sample_annotation.csv"))
+	prj.sheet.to_csv(os.path.join(prj.paths.output_dir, "sample_annotation.csv"))
 
 	# project options are read from the config file
 	# but can be changed on the fly:
@@ -54,6 +54,7 @@ import pandas as _pd
 import yaml as _yaml
 import warnings as _warnings
 from collections import OrderedDict as _OrderedDict
+
 
 def copy(obj):
 	def copy(self):
@@ -75,12 +76,12 @@ class Paths(object):
 	def __repr__(self):
 		return "Paths object."
 
-
 	def __getitem__(self, key):
 		"""
 		Provides dict-style access to attributes
 		"""
 		return getattr(self, key)
+
 
 @copy
 class AttributeDict(object):
@@ -331,7 +332,7 @@ class Project(AttributeDict):
 					# read in merge table
 					merge_table = _pd.read_csv(self.metadata.merge_table)
 
-					if not 'sample_name' in merge_table.columns:
+					if 'sample_name' not in merge_table.columns:
 						raise KeyError("Required merge table column named 'sample_name' is missing.")
 
 					# for each sample:
@@ -530,7 +531,7 @@ class Sample(object):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
 
-		# Keep a list of attributes that came from the sample sheet, so we can provide a 
+		# Keep a list of attributes that came from the sample sheet, so we can provide a
 		# minimal representation of the original sample as provided (in order!).
 		# Useful to summarize the sample (appending new columns onto the original table)
 		self.sheet_attributes = series.keys()
@@ -548,7 +549,6 @@ class Sample(object):
 					raise ValueError("Sample '%s' has whitespace in variable '%s'" % (str(getattr(self, attr)), attr))
 				# else, set attribute as variable value
 				setattr(self, attr, str(getattr(self, attr)))
-
 
 		# Enforce type attributes as int
 		attributes = ["lane"]
@@ -701,7 +701,7 @@ class Sample(object):
 		"""
 		Locates the path of input file `data_path` based on a regex.
 		"""
-		default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"  # default regex
+		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
 		if hasattr(self, column_name):
 			try:
@@ -768,8 +768,7 @@ class Sample(object):
 						self.required_paths = ""
 					self.required_paths += " " + getattr(self, col)
 
-
-		# Construct required_inputs 
+		# Construct required_inputs
 		if hasattr(self.prj, "required_inputs"):
 			for col in self.prj["required_inputs"]:
 
@@ -806,7 +805,6 @@ class Sample(object):
 		"""
 
 		return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
-
 
 	def check_input_exists(self, permissive=True):
 		"""
@@ -1049,7 +1047,7 @@ class PipelineInterface(object):
 							" but no such attribute exists for sample '" +
 							sample.sample_name + "'")
 						continue
-						#raise e
+						# raise e
 
 					argstring += " " + str(key) + " " + str(arg)
 
@@ -1107,7 +1105,6 @@ class ProtocolMapper(object):
 		return str(self.__dict__)
 
 
-
 class CommandChecker(object):
 	"""
 	This class checks if programs specified in a
@@ -1123,7 +1120,7 @@ class CommandChecker(object):
 			raise BaseException("Config file contains non-callable tools.")
 
 	@staticmethod
-	def check_command((name, command)):
+	def check_command(name, command):
 		"""
 		Check if command can be called.
 		"""
