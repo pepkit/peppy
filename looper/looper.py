@@ -158,12 +158,16 @@ def run(prj, args, remaining_args):
 
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
-		if hasattr(sample, "required_paths"):
-			input_file_size = get_file_size(sample.required_paths)
-		else:
-			input_file_size = get_file_size(sample.data_path)
-		print("({:.2f} Gb)".format(input_file_size))
 
+		# get sample input file size, store as attribute
+		if hasattr(sample, "required_paths"):
+			if sample.required_paths is not None:
+				sample.input_file_size = get_file_size(sample.required_paths)
+		if not hasattr(sample, "input_file_size"):
+			sample.input_file_size = get_file_size(sample.data_path)
+		print("({:.2f} Gb)".format(sample.input_file_size))
+
+		# serialize sample
 		sample.to_yaml()
 
 		# Get the base protocol-to-pipeline mappings
@@ -180,7 +184,7 @@ def run(prj, args, remaining_args):
 			# which is the key in the pipeline interface
 			pl_id = str(pipeline).split(" ")[0]
 			# Identify the cluster resources we will require for this submission
-			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
+			submit_settings = pipeline_interface.choose_resource_package(pl_id, sample.input_file_size)
 
 			# Pipeline name is the key used for flag checking
 			pl_name = pipeline_interface.get_pipeline_name(pl_id)
@@ -391,7 +395,7 @@ def get_file_size(filename):
 	Get size of all files in string (space-separated) in gigabytes (Gb).
 	"""
 	return sum([float(os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
-	
+
 
 def make_sure_path_exists(path):
 	"""
@@ -536,28 +540,26 @@ def check(prj):
 
 	counts = {}
 	for f in flags:
-		counts[f] = int(subprocess.check_output(pf + "*/*" + f +".flag 2> /dev/null | wc -l", shell = True))
-#		print(f + ": " + str(counts[f]))
+		counts[f] = int(subprocess.check_output(pf + "*/*" + f + ".flag 2> /dev/null | wc -l", shell=True))
+		# print(f + ": " + str(counts[f]))
 
 	for f, count in counts.items():
 		if count < 30 and count > 0:
 			print(f + " (" + str(count) + ")")
-			subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell = True)
+			subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell=True)
+
 
 def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
-
 
 	# Initialize project
 	prj = Project(args.config_file, args.subproject, file_checks=args.file_checks)
 	# add sample sheet
 	prj.add_sample_sheet()
 
-
 	print("Results subdir: " + prj.paths.results_subdir)
 	print("Command: " + args.command)
-
 
 	if args.command == "run":
 		run(prj, args, remaining_args)
