@@ -138,7 +138,7 @@ class Project(AttributeDict):
 
 	.. code-block:: python
 
-		from pipelines import Project
+		from looper.models import Project
 		prj = Project("config.yaml")
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False):
@@ -399,9 +399,9 @@ class SampleSheet(object):
 
 	.. code-block:: python
 
-		from pipelines import Project, SampleSheet
-		prj = Project("ngs")
-		sheet = SampleSheet("/projects/example/sheet.csv")
+		from looper.models import Project, SampleSheet
+		prj = Project("config.yaml")
+		sheet = SampleSheet("sheet.csv")
 	"""
 	def __init__(self, csv, **kwargs):
 
@@ -441,19 +441,29 @@ class SampleSheet(object):
 		:param series: Pandas `Series` object.
 		:type series: pandas.Series
 		:return: An object or class `Sample` or a child of that class.
-		:rtype: pipelines.Sample
+		:rtype: looper.models.Sample
 		"""
 		import sys
 		import inspect
 		try:
-			import pipelines  # this will fail with ImportError if a pipelines package is not installed
+			import pipelines  # try to use a pipelines package is installed
+			name = "pipelines"
 		except ImportError:
-			return Sample(series)  # if so, return generic Sample
+			try:
+				sys.path.append(self.prj.paths.pipelines_dir)  # try using the pipeline package from the config file
+				name = _os.path.dirname(self.prj.paths.pipelines_dir)
+			except ImportError:
+				return Sample(series)  # if so, return generic Sample
 
 		# get all class objects from installed pipelines that have a __library__ attribute
-		sample_types = inspect.getmembers(
-			sys.modules['pipelines'],
-			lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+		# sample_types = inspect.getmembers(
+		# 	sys.modules['pipelines'],
+		# 	lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+		sample_types = list()
+		for _, module in inspect.getmembers(sys.modules[name], lambda member: inspect.ismodule(member)):
+			st = inspect.getmembers(module, lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+			print("Detected a pipeline module '{}' with sample types: {}".format(module.__name__, ", ".join([x[0] for x in st])))
+			sample_types += st
 
 		# get __library__ attribute from classes and make mapping of __library__: Class (a dict)
 		pairing = {sample_class.__library__: sample_class for sample_type, sample_class in sample_types}
@@ -494,7 +504,7 @@ class SampleSheet(object):
 
 		.. code-block:: python
 
-			from pipelines import SampleSheet
+			from looper.models import SampleSheet
 			sheet = SampleSheet("/projects/example/sheet.csv")
 			sheet.to_csv("/projects/example/sheet2.csv")
 		"""
@@ -516,7 +526,7 @@ class Sample(object):
 
 	.. code-block:: python
 
-		from pipelines import Project, SampleSheet, Sample
+		from looper.models import Project, SampleSheet, Sample
 		prj = Project("ngs")
 		sheet = SampleSheet("/projects/example/sheet.csv", prj)
 		s1 = Sample(sheet.ix[0])
@@ -632,10 +642,10 @@ class Sample(object):
 		Generates a name for the sample by joining some of its attribute strings.
 		"""
 		# fields = [
-		#	 "cellLine", "numberCells", "library", "ip",
-		#	 "patient", "patientID", "sampleID", "treatment", "condition",
-		#	 "biologicalReplicate", "technicalReplicate",
-		#	 "experimentName", "genome"]
+		#	"cellLine", "numberCells", "library", "ip",
+		#	"patient", "patientID", "sampleID", "treatment", "condition",
+		#	"biologicalReplicate", "technicalReplicate",
+		#	"experimentName", "genome"]
 
 		# attributes = [self.__getattribute__(attr) for attr in fields if hasattr(self, attr) and str(self.__getattribute__(attr)) != "nan"]
 		# # for float values (if a value in a colum is nan) get a string that discards the float part
