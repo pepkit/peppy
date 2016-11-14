@@ -710,6 +710,9 @@ class Sample(object):
 				print("Config lacks location for data_source: " + getattr(self, column_name))
 				return ""
 
+			# This will populate any environment variables like $VAR with os.environ["VAR"]
+			regex = _os.path.expandvars(regex)
+
 			try:
 				val = regex.format(**self.__dict__)
 			except Exception as e:
