@@ -37,7 +37,7 @@ Explore!
 
 	prj.paths.results  # results directory of project
 	# export again the project's annotation
-	prj.sheet.to_csv(_os.path.join(prj.paths.output_dir, "sample_annotation.csv"))
+	prj.sheet.to_csv(os.path.join(prj.paths.output_dir, "sample_annotation.csv"))
 
 	# project options are read from the config file
 	# but can be changed on the fly:
@@ -54,6 +54,7 @@ import pandas as _pd
 import yaml as _yaml
 import warnings as _warnings
 from collections import OrderedDict as _OrderedDict
+
 
 def copy(obj):
 	def copy(self):
@@ -75,12 +76,12 @@ class Paths(object):
 	def __repr__(self):
 		return "Paths object."
 
-
 	def __getitem__(self, key):
 		"""
 		Provides dict-style access to attributes
 		"""
 		return getattr(self, key)
+
 
 @copy
 class AttributeDict(object):
@@ -137,7 +138,7 @@ class Project(AttributeDict):
 
 	.. code-block:: python
 
-		from pipelines import Project
+		from looper.models import Project
 		prj = Project("config.yaml")
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False):
@@ -331,7 +332,7 @@ class Project(AttributeDict):
 					# read in merge table
 					merge_table = _pd.read_csv(self.metadata.merge_table)
 
-					if not 'sample_name' in merge_table.columns:
+					if 'sample_name' not in merge_table.columns:
 						raise KeyError("Required merge table column named 'sample_name' is missing.")
 
 					# for each sample:
@@ -398,9 +399,9 @@ class SampleSheet(object):
 
 	.. code-block:: python
 
-		from pipelines import Project, SampleSheet
-		prj = Project("ngs")
-		sheet = SampleSheet("/projects/example/sheet.csv")
+		from looper.models import Project, SampleSheet
+		prj = Project("config.yaml")
+		sheet = SampleSheet("sheet.csv")
 	"""
 	def __init__(self, csv, **kwargs):
 
@@ -440,26 +441,33 @@ class SampleSheet(object):
 		:param series: Pandas `Series` object.
 		:type series: pandas.Series
 		:return: An object or class `Sample` or a child of that class.
-		:rtype: pipelines.Sample
+		:rtype: looper.models.Sample
 		"""
 		import sys
 		import inspect
 		try:
-			import pipelines  # this will fail with ImportError if a pipelines package is not installed
+			import pipelines  # try to use a pipelines package is installed
+			name = "pipelines"
 		except ImportError:
-			return Sample(series)  # if so, return generic Sample
+			try:
+				sys.path.append(self.prj.paths.pipelines_dir)  # try using the pipeline package from the config file
+				name = _os.path.dirname(self.prj.paths.pipelines_dir)
+			except ImportError:
+				return Sample(series)  # if so, return generic Sample
 
-		# get all class objects from installed pipelines that have a __library__ attribute
-		sample_types = inspect.getmembers(
-			sys.modules['pipelines'],
-			lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+		# get all class objects from modules of the pipelines package that have a __library__ attribute
+		sample_types = list()
+		for _, module in inspect.getmembers(sys.modules[name], lambda member: inspect.ismodule(member)):
+			st = inspect.getmembers(module, lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+			sample_types += st
+			# print("Detected a pipeline module '{}' with sample types: {}".format(module.__name__, ", ".join([x[0] for x in st])))
 
 		# get __library__ attribute from classes and make mapping of __library__: Class (a dict)
 		pairing = {sample_class.__library__: sample_class for sample_type, sample_class in sample_types}
 
 		# Match sample and sample_class
 		try:
-			return pairing[series.library](series)
+			return pairing[series.library](series)  # quite stringent matching, maybe improve
 		except KeyError:
 			return Sample(series)
 
@@ -493,7 +501,7 @@ class SampleSheet(object):
 
 		.. code-block:: python
 
-			from pipelines import SampleSheet
+			from looper.models import SampleSheet
 			sheet = SampleSheet("/projects/example/sheet.csv")
 			sheet.to_csv("/projects/example/sheet2.csv")
 		"""
@@ -515,7 +523,7 @@ class Sample(object):
 
 	.. code-block:: python
 
-		from pipelines import Project, SampleSheet, Sample
+		from looper.models import Project, SampleSheet, Sample
 		prj = Project("ngs")
 		sheet = SampleSheet("/projects/example/sheet.csv", prj)
 		s1 = Sample(sheet.ix[0])
@@ -530,7 +538,7 @@ class Sample(object):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
 
-		# Keep a list of attributes that came from the sample sheet, so we can provide a 
+		# Keep a list of attributes that came from the sample sheet, so we can provide a
 		# minimal representation of the original sample as provided (in order!).
 		# Useful to summarize the sample (appending new columns onto the original table)
 		self.sheet_attributes = series.keys()
@@ -548,7 +556,6 @@ class Sample(object):
 					raise ValueError("Sample '%s' has whitespace in variable '%s'" % (str(getattr(self, attr)), attr))
 				# else, set attribute as variable value
 				setattr(self, attr, str(getattr(self, attr)))
-
 
 		# Enforce type attributes as int
 		attributes = ["lane"]
@@ -632,10 +639,10 @@ class Sample(object):
 		Generates a name for the sample by joining some of its attribute strings.
 		"""
 		# fields = [
-		#	 "cellLine", "numberCells", "library", "ip",
-		#	 "patient", "patientID", "sampleID", "treatment", "condition",
-		#	 "biologicalReplicate", "technicalReplicate",
-		#	 "experimentName", "genome"]
+		#	"cellLine", "numberCells", "library", "ip",
+		#	"patient", "patientID", "sampleID", "treatment", "condition",
+		#	"biologicalReplicate", "technicalReplicate",
+		#	"experimentName", "genome"]
 
 		# attributes = [self.__getattribute__(attr) for attr in fields if hasattr(self, attr) and str(self.__getattribute__(attr)) != "nan"]
 		# # for float values (if a value in a colum is nan) get a string that discards the float part
@@ -701,7 +708,7 @@ class Sample(object):
 		"""
 		Locates the path of input file `data_path` based on a regex.
 		"""
-		default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"  # default regex
+		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
 		if hasattr(self, column_name):
 			try:
@@ -771,8 +778,7 @@ class Sample(object):
 						self.required_paths = ""
 					self.required_paths += " " + getattr(self, col)
 
-
-		# Construct required_inputs 
+		# Construct required_inputs
 		if hasattr(self.prj, "required_inputs"):
 			for col in self.prj["required_inputs"]:
 
@@ -809,7 +815,6 @@ class Sample(object):
 		"""
 
 		return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
-
 
 	def check_input_exists(self, permissive=True):
 		"""
@@ -1052,7 +1057,7 @@ class PipelineInterface(object):
 							" but no such attribute exists for sample '" +
 							sample.sample_name + "'")
 						continue
-						#raise e
+						# raise e
 
 					argstring += " " + str(key) + " " + str(arg)
 
@@ -1110,7 +1115,6 @@ class ProtocolMapper(object):
 		return str(self.__dict__)
 
 
-
 class CommandChecker(object):
 	"""
 	This class checks if programs specified in a
@@ -1126,7 +1130,7 @@ class CommandChecker(object):
 			raise BaseException("Config file contains non-callable tools.")
 
 	@staticmethod
-	def check_command((name, command)):
+	def check_command(name, command):
 		"""
 		Check if command can be called.
 		"""
