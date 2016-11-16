@@ -275,6 +275,14 @@ class Project(AttributeDict):
 		"""
 		argstring = ""  # Initialize to empty
 		if hasattr(self, "pipeline_args"):
+			# Add default args to every pipeline
+			if hasattr(self.pipeline_args, "default"):
+				for key, value in getattr(self.pipeline_args, "default").__dict__.items():
+					argstring += " " + key
+					# Arguments can have null values; then print nothing
+					if value:
+						argstring += " " + value
+			# Now add pipeline-specific args				
 			if hasattr(self.pipeline_args, pipeline_name):
 				for key, value in getattr(self.pipeline_args, pipeline_name).__dict__.items():
 					argstring += " " + key
