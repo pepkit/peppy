@@ -459,7 +459,9 @@ class SampleSheet(object):
 		except ImportError:
 			try:
 				sys.path.append(self.prj.paths.pipelines_dir)  # try using the pipeline package from the config file
-				name = _os.path.dirname(self.prj.paths.pipelines_dir)
+				name = _os.path.basename(self.prj.paths.pipelines_dir)
+				import pipelines
+				print("Successfully imported modules: " + str(self.prj.paths.pipelines_dir))
 			except ImportError:
 				return Sample(series)  # if so, return generic Sample
 
