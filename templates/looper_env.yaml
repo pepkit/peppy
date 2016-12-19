@@ -1,0 +1,15 @@
+compute:
+  # submission_template: the submission form which will be replaced with compute resource parameters
+  # Use this to change your cluster manager (SLURM, SGE, LFS, etc)
+  # Relative paths are relative to the pipelines_dir
+  parallel:
+  	submission_template: templates/slurm_template.sub
+  	submission_command: sbatch
+  	partition: parallel
+  econ:
+  	submission_template: templates/slurm_template.sub
+  	submission_command: sbatch
+  	partition: economy
+  local:
+  	submission_template: templates/localhost_template.sub
+  	submission_command: sh

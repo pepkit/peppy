@@ -50,6 +50,13 @@ def parse_arguments():
 			run (e.g. as 'running' or 'failed'). \
 			Set this option to ignore flags and submit the runs anyway.")
 	run_subparser.add_argument('-pd', dest='partition', default="longq")  # this should be changed in near future
+	run_subparser.add_argument(
+		'--compute', dest='compute', type=str,
+		help="Employ looper environment compute settings.", default=None)
+	run_subparser.add_argument(
+		'--limit', dest='limit', type=int,
+		help="Limit to n samples.", default=None)
+
 
 	# Summarize command
 	summarize_subparser = subparsers.add_parser(
@@ -102,7 +109,7 @@ def run(prj, args, remaining_args):
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
-	# upate to project-specific protocol mappings
+	# Update to project-specific protocol mappings
 	if hasattr(prj, "protocol_mappings"):
 		protocol_mappings.mappings.update(prj.protocol_mappings.__dict__)
 
@@ -424,9 +431,19 @@ def cluster_submit(
 	# Prepare and write submission script
 	sys.stdout.write("\tSUBFILE: " + submit_script + " ")
 	make_sure_path_exists(os.path.dirname(submit_script))
+
 	# read in submit_template
-	with open(submit_template, 'r') as handle:
-		filedata = handle.read()
+	if submit_template:
+		with open(submit_template, 'r') as handle:
+			filedata = handle.read()
+	else:  # No submit_template; use local
+		filedata = """#!/bin/bash
+
+echo 'Compute node:' `hostname`
+echo 'Start time:' `date +'%Y-%m-%d %T'`
+
+{CODE} > {LOGFILE}
+"""
 	# update variable dict with any additional arguments
 	# print(variables_dict["CODE"] + " " + str(" ".join(remaining_args)))
 	variables_dict["CODE"] += " " + str(" ".join(remaining_args))
@@ -438,6 +455,8 @@ def cluster_submit(
 	# save submission file
 	with open(submit_script, 'w') as handle:
 		handle.write(filedata)
+
+
 
 	# Prepare and write sample yaml object
 	sample.to_yaml()
@@ -458,7 +477,7 @@ def cluster_submit(
 			return 1
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
-			time.sleep(time_delay)  # sleep for `time_delay` seconds before submiting next job
+			time.sleep(time_delay)  # sleep for `time_delay` seconds before submitting next job
 			return 1
 			# pass
 	else:
@@ -562,6 +581,7 @@ def main():
 	print("Command: " + args.command)
 
 	if args.command == "run":
+		prj.set_compute(args.compute)
 		run(prj, args, remaining_args)
 
 	if args.command == "destroy":

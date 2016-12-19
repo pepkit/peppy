@@ -119,6 +119,9 @@ class AttributeDict(object):
 		"""
 		return getattr(self, key)
 
+	def __repr__(self):
+		return str(self.__dict__)
+
 
 @copy
 class Project(AttributeDict):
@@ -143,6 +146,26 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False):
 		# super(Project, self).__init__(**config_file)
+		self.looperenv_file = _os.environ["LOOPERENV"]
+
+		# Load settings from looper environment yaml for local compute infrastructure.
+		try:
+			with open(_os.environ["LOOPERENV"], 'r') as handle:
+				looperenv = _yaml.load(handle)
+			print(looperenv)
+			self.looperenv = AttributeDict(looperenv)
+			if hasattr(self.looperenv, "compute") and hasattr(self.looperenv.compute, "default"):
+				print("Loading default compute settings...")
+				self.compute = self.looperenv.compute.default
+			else:
+				print("No default settings in looper env config file: " + self.looperenv_file)
+		except Exception as e:
+			try:
+				print("Can't load looperenv config file: " + _os.environ["LOOPERENV"])
+				print(str(type(e).__name__) + str(e))
+				raise e
+			except KeyError:
+				print("Set environment variable LOOPERENV to configure the local looper environment.")
 
 		# optional configs
 		self.permissive = permissive
@@ -171,6 +194,23 @@ class Project(AttributeDict):
 
 		# samples
 		self.samples = list()
+
+
+	def set_compute(self, setting):
+		"""
+		Sets the compute attributes according to the specified settings in the environment file
+		"""
+		print("Loading compute settings: " + setting)
+		if hasattr(self.looperenv, "compute"):
+			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
+
+			print(self.looperenv.compute[setting])
+			if not _os.path.isabs(self.compute.submission_template):
+			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+			# Relative to looper environment config file.
+				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+
+
 
 	def __repr__(self):
 		if hasattr(self, "name"):
@@ -224,9 +264,14 @@ class Project(AttributeDict):
 					# Set the path to an absolute path, relative to project config
 					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
 
+		
+		# For the compute infrastructure, use the looperenv file; if such a file
+		# does not exist, then just assume we want local serial computation.
 		# And Variables relative to pipelines_dir
 		if not _os.path.isabs(self.compute.submission_template):
-			self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+			# Relative to looper environment config file.
+			self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
 
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
