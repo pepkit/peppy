@@ -581,7 +581,8 @@ def main():
 	print("Command: " + args.command)
 
 	if args.command == "run":
-		prj.set_compute(args.compute)
+		if args.compute:
+			prj.set_compute(args.compute)
 		run(prj, args, remaining_args)
 
 	if args.command == "destroy":
