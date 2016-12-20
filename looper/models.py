@@ -146,7 +146,10 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False):
 		# super(Project, self).__init__(**config_file)
-		self.looperenv_file = _os.environ["LOOPERENV"]
+		try:
+			self.looperenv_file = _os.environ["LOOPERENV"]
+		except:
+			self.looperenv_file = None
 
 		# Load settings from looper environment yaml for local compute infrastructure.
 		try:
@@ -165,7 +168,7 @@ class Project(AttributeDict):
 				print(str(type(e).__name__) + str(e))
 				raise e
 			except KeyError:
-				print("Set environment variable LOOPERENV to configure the local looper environment.")
+				print("Unset LOOPERENV. Please set environment variable LOOPERENV to configure the local looper environment.")
 
 		# optional configs
 		self.permissive = permissive
@@ -199,9 +202,10 @@ class Project(AttributeDict):
 	def set_compute(self, setting):
 		"""
 		Sets the compute attributes according to the specified settings in the environment file
+		:param: setting	An option for compute settings as specified in the environment file.
 		"""
 		print("Loading compute settings: " + setting)
-		if hasattr(self.looperenv, "compute"):
+		if setting and self.looperenv and hasattr(self.looperenv, "compute"):
 			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
 
 			print(self.looperenv.compute[setting])
@@ -271,7 +275,10 @@ class Project(AttributeDict):
 		if not _os.path.isabs(self.compute.submission_template):
 			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
 			# Relative to looper environment config file.
-			self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+			if self.looperenv_file:
+				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+			else:
+				self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
 
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
