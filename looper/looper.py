@@ -49,7 +49,6 @@ def parse_arguments():
 			will not be submitted if a pypiper flag file exists marking the \
 			run (e.g. as 'running' or 'failed'). \
 			Set this option to ignore flags and submit the runs anyway.")
-	run_subparser.add_argument('-pd', dest='partition', default="longq")  # this should be changed in near future
 	run_subparser.add_argument(
 		'--compute', dest='compute', type=str,
 		help="Employ looper environment compute settings.", default=None)
@@ -192,6 +191,11 @@ def run(prj, args, remaining_args):
 			pl_id = str(pipeline).split(" ")[0]
 			# Identify the cluster resources we will require for this submission
 			submit_settings = pipeline_interface.choose_resource_package(pl_id, sample.input_file_size)
+
+			# Reset the partition if it was specified on the command-line
+			if hasattr(prj.compute, "partition"):
+				submit_settings["partition"] = prj.compute["partition"]
+
 
 			# Pipeline name is the key used for flag checking
 			pl_name = pipeline_interface.get_pipeline_name(pl_id)
