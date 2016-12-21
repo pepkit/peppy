@@ -14,5 +14,5 @@ Simplicity for the beginning, power when you need to expand.
 
 - **Subprojects:** Subprojects make it easy to define two very similar projects without duplicating project metadata.
 
-- **Collate input files:** Looper's *derived column* feature lets you easily use samples with input files on different filesystems or from different projects, with different naming convensions.
+- **Collate input files:** Looper's *derived column* feature lets you easily use samples with input files on different file systems or from different projects, with different naming conventions.
 

@@ -30,6 +30,7 @@ Contents
 
 	intro.rst
 	features.rst
+	commands.rst
 	tutorials.rst
 	inputs.rst
 	post-run.rst
