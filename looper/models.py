@@ -507,11 +507,9 @@ class SampleSheet(object):
 		import inspect
 		try:
 			import pipelines  # try to use a pipelines package is installed
-			name = "pipelines"
 		except ImportError:
 			try:
 				sys.path.append(self.prj.paths.pipelines_dir)  # try using the pipeline package from the config file
-				name = _os.path.basename(self.prj.paths.pipelines_dir)
 				import pipelines
 				print("Successfully imported modules: " + str(self.prj.paths.pipelines_dir))
 			except ImportError:
@@ -519,7 +517,7 @@ class SampleSheet(object):
 
 		# get all class objects from modules of the pipelines package that have a __library__ attribute
 		sample_types = list()
-		for _, module in inspect.getmembers(sys.modules[name], lambda member: inspect.ismodule(member)):
+		for _, module in inspect.getmembers(sys.modules["pipelines"], lambda member: inspect.ismodule(member)):
 			st = inspect.getmembers(module, lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
 			sample_types += st
 			# print("Detected a pipeline module '{}' with sample types: {}".format(module.__name__, ", ".join([x[0] for x in st])))
