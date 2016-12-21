@@ -204,15 +204,19 @@ class Project(AttributeDict):
 		Sets the compute attributes according to the specified settings in the environment file
 		:param: setting	An option for compute settings as specified in the environment file.
 		"""
-		print("Loading compute settings: " + setting)
-		if setting and self.looperenv and hasattr(self.looperenv, "compute"):
+		
+		if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
+			print("Loading compute settings: " + setting)
 			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
 
 			print(self.looperenv.compute[setting])
+			print(self.looperenv.compute)
 			if not _os.path.isabs(self.compute.submission_template):
 			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
 			# Relative to looper environment config file.
 				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+		else:
+			print("Cannot load compute settings: " + setting)
 
 
 
