@@ -67,10 +67,13 @@ def parse_arguments():
 
 	# Check command
 	check_subparser = subparsers.add_parser(
-		"check", help="Remove all files of the project.")
+		"check", help="Checks flag status of current runs.")
+
+	clean_subparser = subparsers.add_parser(
+		"clean", help="Runs clean scripts to remove intermediate files.")
 
 	# Common arguments
-	for subparser in [run_subparser, summarize_subparser, destroy_subparser, check_subparser]:
+	for subparser in [run_subparser, summarize_subparser, destroy_subparser, check_subparser, clean_subparser]:
 		subparser.add_argument(
 			'--file-checks', dest='file_checks', action='store_false',
 			help="Perform input file checks. Default=True.", default=True)
@@ -397,7 +400,22 @@ def destroy(prj, args):
 		for sample in prj.samples:
 			sys.stdout.write("### " + sample.sample_name + "\t")
 			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
-			clean_project(pipeline_outfolder, args)
+			destroy_sample_results(pipeline_outfolder, args)
+		return 0
+
+
+def clean(prj, args):
+	"""
+	"""
+	if not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
+		print("Destroy action aborted by user.")
+		return 1
+	else:
+		for sample in prj.samples:
+			sys.stdout.write("### " + sample.sample_name + "\t")
+			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+			cleanup_files = glob.glob(os.path.join(pipeline_outfolder,  "*_cleanup.sh"))
+			print(cleanup_files)
 		return 0
 
 
@@ -524,19 +542,19 @@ def query_yes_no(question, default="no"):
 				"(or 'y' or 'n').\n")
 
 
-def clean_project(pipeline_outfolder, args):
+def destroy_sample_results(result_outfolder, args):
 	"""
-	This function will delete all results for this project
+	This function will delete all results for this sample
 	"""
 	import shutil
-	if os.path.exists(pipeline_outfolder):
+	if os.path.exists(result_outfolder):
 		if args.dry_run:
-			print("DRY RUN. I would have removed: " + pipeline_outfolder)
+			print("DRY RUN. I would have removed: " + result_outfolder)
 		else:
-			print("Removing: " + pipeline_outfolder)
-			shutil.rmtree(pipeline_outfolder)
+			print("Removing: " + result_outfolder)
+			shutil.rmtree(result_outfolder)
 	else:
-		print(pipeline_outfolder + " does not exist.")
+		print(result_outfolder + " does not exist.")
 
 
 def uniqify(seq):
@@ -598,6 +616,8 @@ def main():
 	if args.command == "check":
 		check(prj)
 
+	if args.command == "clean":
+		clean(prj, args)
 
 if __name__ == '__main__':
 	try:
