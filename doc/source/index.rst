@@ -31,7 +31,8 @@ Contents
 	intro.rst
 	features.rst
 	tutorials.rst
-	inputs.rst
+	describing-projects.rst
+	connecting-pipelines.rst
 	post-run.rst
 	advanced.rst
 	usage.rst
