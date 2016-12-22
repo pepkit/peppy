@@ -1,8 +1,6 @@
 Advanced features
 =====================================
 
-
-
 .. _advanced-derived-columns:
 
 Pointing to flexible data with derived columns
@@ -79,7 +77,7 @@ Make sure the ``sample_name`` column of this table matches, and then include any
 Note: to handle different *classes* of input files, like read1 and read2, these are *not* merged and should be handled as different derived columns in the main sample annotation sheet.
 
 
-Data produced in-house (BSF)
+Data produced at CeMM
 ****************************************
 In a case of data produced at CeMM by the BSF, three additional columns will allow the discovery of files associated with the sample:
 
