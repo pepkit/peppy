@@ -2,7 +2,7 @@ Welcome
 ^^^^^^^^
 
 .. warning::
-	This documentation is incomplete and inaccurate. We're working on it.
+	Looper  is in beta and things may change.
 
 Deploying pipelines just got easier. Looper helps you deploy your current pipeline across a cluster or server with minimal effort on your part.
 
@@ -30,14 +30,14 @@ Contents
 
 	intro.rst
 	features.rst
-	commands.rst
 	tutorials.rst
-	describing-projects.rst
+	define-your-project.rst
 	connecting-pipelines.rst
-	post-run.rst
+	usage-and-commands.rst
 	advanced.rst
-	usage.rst
+	config-files.rst
 	api.rst
+	faq.rst
 
 
 Indices and tables
