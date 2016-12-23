@@ -60,6 +60,40 @@ Think of each sample as belonging to a certain type (for simple experiments, the
 
 Check out the complete working example in the `microtest repository <https://github.com/epigen/microtest/tree/master/config>`_.
 
+.. _cluster-resource-managers:
+
+Using cluster resource managers
+****************************************
+
+.. warning:: This is still in progress
+
+Looper uses a template-based system for building scripts. By default, looper will just build a shell script and run them serially. Compute settings can be changed using an environment script, which you point to with a shell environment variable called ``LOOPERENV``.
+
+Complete instructions for configuring your compute environment are availble in the looperenv repository at https://github.com/epigen/looperenv.
+
+For each iteration, `looper` will create one or more submission scripts for that sample. The `compute` settings specify how these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the `compute` section.
+
+Example:
+
+.. code-block:: yaml
+
+	compute:
+	  default:
+	    submission_template: pipelines/templates/local_template.sub
+	    submission_command: sh
+	  slurm:
+	    submission_template: pipelines/templates/slurm_template.sub
+	    submission_command: sbatch
+	    partition: queue_name
+
+
+There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
+
+Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
+
+In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge_template.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
+
+
 
 Merge table
 ****************************************
