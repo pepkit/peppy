@@ -38,7 +38,6 @@ Contents
 	faq.rst
 	changelog.rst
 
-
 Indices and tables
 ==================
 
