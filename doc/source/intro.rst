@@ -4,20 +4,19 @@ Introduction
 
 Overview
 ******************************
-Looper is a job submitting engine. If you have a pipeline and a bunch of samples you want to run through it, looper can help you organize the inputs and outputs. It creates and submits jobs either to cluster resource managers (like SLURM, SGE, or LFS) or to local compute power sequentially.
+Looper is a job submitting engine. If you have a pipeline and a bunch of samples you want to run through it, looper can help you organize the inputs and outputs. By defeault, it will just run your jobs sequentially on the local computer, but with a small configuration change, it will create and submit jobs to any cluster resource manager (like SLURM, SGE, or LFS).
 
-Here's the idea: You create a single configuration file (in yaml format) that describes your project. This file includes: 
+Here's the idea: We essentially provide a format specification (the :ref:`project config file <project-config-file>`), which you use to describe your project. You create this single configuration file (in `yaml format <http://www.yaml.org/>`_), which includes: 
+
   - the output folder
   - filename for a csv file listing samples to process
-  - the input filenames (optionally) 
-  - any specific pipeline arguments for this project
-  - anything else you want to save with the project.
+  - an expression describing the input file locations (optional)
+  - various other optional project-specific settings
+  - anything else you want to save with the project
 
-We essentially provide a format specification (:doc:`project-config-file`) to describe what this file can contain.
+You pass this file as input to ``Looper``. ``Looper`` parses it and reads your sample annotation list, maps each sample to the appropriate pipeline, and creates and runs (or submits) job scripts. 
 
-You pass this file as input to ``Looper``. ``Looper`` parses your file and follows the pointers to your sample list, processes that list, maps the samples to the appropriate pipelines they require, and creates and submits scripts for each sample.
-
-You have complete control. ``Looper`` handles the mundane project organization tasks that you don't want to worry about.
+Looper is modular and totally configurable, so it scales as your needs grow. We provide sensible defaults so that you can get started quickly, but you can customize just about whatever you want by adding options to a configuration file. You have complete control. ``Looper`` handles the mundane project organization tasks that you don't want to worry about.
 
 
 
