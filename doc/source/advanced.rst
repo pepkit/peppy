@@ -3,7 +3,7 @@ Advanced features
 
 .. _advanced-derived-columns:
 
-Pointing to flexible data with derived columns
+Pointing to data paths flexibly with "derived columns"
 ****************************************
 On your sample sheet, you will need to point to the input file or files for each sample. Of course, you could just add a column with the file path, like ``/path/to/input/file.fastq.gz``. For example:
 
@@ -21,7 +21,7 @@ On your sample sheet, you will need to point to the input file or files for each
 This is common, and it works in a pinch with Looper, but what if the data get moved, or your filesystem changes, or you switch servers or move institutes? Will this data still be there in 2 years? Do you want long file paths cluttering your annotation sheet? What if you have 2 or 3 input files? Do you want to manually manage these unwieldy absolute paths?
 
 
-``Looper`` makes it really easy to do better: using a ``derived column``, you can use variables to make this flexible. So instead of ``/long/path/to/sample.fastq.gz`` in your table, you just write ``source1`` (or whatever):
+``Looper`` makes it really easy to do better: using a columns from the sample metadata, you can derive a data path that is flexible - we call these newly constructed fields a ``derived column``. So instead of ``/long/path/to/sample.fastq.gz`` in your table, you just write ``source1`` (or whatever):
 
 .. csv-table:: Sample Annotation Sheet (good example)
 	:header: "sample_name", "library", "organism", "time", "file_path"
@@ -32,7 +32,7 @@ This is common, and it works in a pinch with Looper, but what if the data get mo
 	"frog_0h", "RRBS", "frog", "0", "source1"
 	"frog_1h", "RRBS", "frog", "1", "source1"
 
-Then, in your config file you specify which columns are derived (in this case, ``file_path``), as well as a string that will construct your path based on other sample attributes encoded using brackets as in ``{sample_attribute}``, like this:
+Then, in your config file you specify which sample attributes (similar to the metadata columns) are derived (in this case, ``file_path``), as well as a string that will construct your path based on other sample attributes encoded using brackets as in ``{sample_attribute}``, like this:
 
 
 .. code-block:: yaml
@@ -42,7 +42,7 @@ Then, in your config file you specify which columns are derived (in this case, `
     source1: /data/lab/project/{sample_name}.fastq
     source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
 
-That's it! The variables will be automatically populated as in the original example. To take this a step further, you'd get the same result with this config file, which substitutes ``{sample_name}`` for other sample attributes, ``{organism}`` and ``{time}``:
+That's it! The attributes will be automatically populated as in the original example. To take this a step further, you'd get the same result with this config file, which substitutes ``{sample_name}`` for other sample attributes, ``{organism}`` and ``{time}``:
 
 .. code-block:: yaml
 
@@ -58,7 +58,7 @@ By default, the "data_source" column is considered a derived column. But you can
 
 Think of each sample as belonging to a certain type (for simple experiments, the type will be the same); then define the location of these samples in the project configuration file. As a side bonus, you can easily include samples from different locations, and you can also share the same sample annotation sheet on different environments (i.e. servers or users) by having multiple project config files (or, better yet, by defining a subproject for each environment). The only thing you have to change is the project-level expression describing the location, not any sample attributes (plus, you get to eliminate those annoying long/path/arguments/in/your/sample/annotation/sheet).
 
-Check out the complete working example in the `microtest repository <https://github.com/epigen/microtest/tree/master/config>`_.
+Check out the complete working example in the `microtest repository <https://github.com/epigen/microtest/tree/master/config>`__.
 
 .. _cluster-resource-managers:
 
@@ -71,7 +71,7 @@ Looper uses a template-based system for building scripts. By default, looper wil
 
 Complete instructions for configuring your compute environment are availble in the looperenv repository at https://github.com/epigen/looperenv.
 
-For each iteration, `looper` will create one or more submission scripts for that sample. The `compute` settings specify how these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the `compute` section.
+For each iteration, ``looper`` will create one or more submission scripts for that sample. The ``compute`` settings specify how these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the ``compute`` section.
 
 Example:
 
@@ -87,11 +87,11 @@ Example:
 	    partition: queue_name
 
 
-There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
+There are two sub-parameters in the compute section. First, ``submission_template`` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like ``{VARIABLE}``), which will be populated independently for each sample as defined in ``pipeline_inteface.yaml``. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
 
-Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
+Second, the ``submission_command`` is the command-line command that ``looper`` will prepend to the path of the produced submission script to actually run it (``sbatch`` for SLURM, `qsub` for SGE, ``sh`` for localhost, etc).
 
-In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge_template.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
+In `Templates <https://github.com/epigen/looper/tree/master/templates>`__ are examples for submission templates for `SLURM <https://github.com/epigen/looper/blob/master/templates/slurm_template.sub>`__, `SGE <https://github.com/epigen/looper/blob/master/templates/sge_template.sub>`__, and `local runs <https://github.com/epigen/looper/blob/master/templates/localhost_template.sub>`__. For a local run, just pass the script to the shell with ``submission_command: sh``. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to ``looper`` for the next iteration.
 
 
 
@@ -107,7 +107,6 @@ metadata:
 
 Make sure the ``sample_name`` column of this table matches, and then include any columns you need to point to the data. ``Looper`` will automatically include all of these files as input passed to the pipelines.
 
-
 Note: to handle different *classes* of input files, like read1 and read2, these are *not* merged and should be handled as different derived columns in the main sample annotation sheet.
 
 
@@ -117,5 +116,5 @@ In a case of data produced at CeMM by the BSF, three additional columns will all
 
 -  ``flowcell`` - the name of the BSF flowcell (should be something like BSFXXX)
 -  ``lane`` - the lane number in the instrument
--  ``BSF_name`` - the name used to describe the sample in the BSF annotation [1]_.
+-  ``BSF_name`` - the name used to describe the sample in the BSF annotation.
 
