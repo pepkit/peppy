@@ -272,17 +272,21 @@ class Project(AttributeDict):
 					# Set the path to an absolute path, relative to project config
 					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
 
-		
 		# For the compute infrastructure, use the looperenv file; if such a file
 		# does not exist, then just assume we want local serial computation.
 		# And Variables relative to pipelines_dir
-		if not _os.path.isabs(self.compute.submission_template):
-			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
-			# Relative to looper environment config file.
-			if self.looperenv_file:
-				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
-			else:
-				self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+		if hasattr(self, "compute"):
+			if not _os.path.isabs(self.compute.submission_template):
+				# self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+				# Relative to looper environment config file.
+				if self.looperenv_file:
+					self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+				else:
+					self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+		else:
+			self.compute = AttributeDict({})
+			self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, "templates", "localhost_template.sub")
+			self.compute.submission_command = "sh"
 
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
