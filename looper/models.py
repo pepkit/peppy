@@ -52,7 +52,6 @@ Explore!
 import os as _os
 import pandas as _pd
 import yaml as _yaml
-import warnings as _warnings
 from collections import OrderedDict as _OrderedDict
 
 
@@ -198,28 +197,6 @@ class Project(AttributeDict):
 		# samples
 		self.samples = list()
 
-
-	def set_compute(self, setting):
-		"""
-		Sets the compute attributes according to the specified settings in the environment file
-		:param: setting	An option for compute settings as specified in the environment file.
-		"""
-		
-		if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
-			print("Loading compute settings: " + setting)
-			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
-
-			print(self.looperenv.compute[setting])
-			print(self.looperenv.compute)
-			if not _os.path.isabs(self.compute.submission_template):
-			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
-			# Relative to looper environment config file.
-				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
-		else:
-			print("Cannot load compute settings: " + setting)
-
-
-
 	def __repr__(self):
 		if hasattr(self, "name"):
 			name = self.name
@@ -328,6 +305,25 @@ class Project(AttributeDict):
 				# ("cannot change folder's mode: %s" % d)
 				continue
 
+	def set_compute(self, setting):
+		"""
+		Sets the compute attributes according to the specified settings in the environment file
+		:param: setting	An option for compute settings as specified in the environment file.
+		"""
+
+		if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
+			print("Loading compute settings: " + setting)
+			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
+
+			print(self.looperenv.compute[setting])
+			print(self.looperenv.compute)
+			if not _os.path.isabs(self.compute.submission_template):
+				# self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+				# Relative to looper environment config file.
+				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+		else:
+			print("Cannot load compute settings: " + setting)
+
 	def get_arg_string(self, pipeline_name):
 		"""
 		For this project, given a pipeline, return an argument string
@@ -342,7 +338,7 @@ class Project(AttributeDict):
 					# Arguments can have null values; then print nothing
 					if value:
 						argstring += " " + value
-			# Now add pipeline-specific args				
+			# Now add pipeline-specific args
 			if hasattr(self.pipeline_args, pipeline_name):
 				for key, value in getattr(self.pipeline_args, pipeline_name).__dict__.items():
 					argstring += " " + key
@@ -894,15 +890,26 @@ class Sample(object):
 		from collections import Counter
 
 		def bam_or_fastq(input_file):
-			if ".bam" in input_file:
+			"""
+			Checks if string endswith `bam` or `fastq`.
+			Returns string. Raises TypeError if neither.
+
+			:param input_file: String to check.
+			:type input_file: str
+			"""
+			if input_file.endswith(".bam"):
 				return "bam"
-			elif ".fastq" in input_file:
+			elif input_file.endswith(".fastq"):
 				return "fastq"
 			else:
 				raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
 
 		def check_bam(bam, o):
 			"""
+			Check reads in BAM file for read type and lengths.
+
+			:param str bam: BAM file path.
+			:param int o: Number of reads to look at for estimation.
 			"""
 			# view reads
 			p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
@@ -923,8 +930,7 @@ class Sample(object):
 		def check_fastq(fastq, o):
 			"""
 			"""
-			print(_warnings.warn("Detection of read type/length for fastq input is not yet implemented."))
-			return (None, None)
+			raise NotImplementedError("Detection of read type/length for fastq input is not yet implemented.")
 
 		# Initialize the parameters in case there is no input_file,
 		# so these attributes at least exist
@@ -943,17 +949,25 @@ class Sample(object):
 				elif file_type == "fastq":
 					read_length, paired = check_fastq(input_file, n)
 				else:
-					read_length, paired = (None, None)
-			except:
-				# If any file cannot be read, set all bam attributes to None and finish
+					if not permissive:
+						raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
+					else:
+						print(Warning("Type of input file does not end in either '.bam' or '.fastq'"))
+					return
+			except NotImplementedError as e:
 				if not permissive:
-					raise IOError("Input file does not exist or cannot be read: %s" % input_file)
+					raise e
 				else:
-					print(_warnings.warn("Input file does not exist or cannot be read: %s" % input_file))
+					print(e)
+					return
+			except IOError as e:
+				if not permissive:
+					raise e
+				else:
+					print(Warning("Input file does not exist or cannot be read: {}".format(input_file)))
 					self.read_length = None
 					self.read_type = None
 					self.paired = None
-
 					return
 
 			# Get most abundant read length
@@ -976,7 +990,7 @@ class Sample(object):
 			setattr(self, feature, files[0][i] if len(set(f[i] for f in files)) == 1 else None)
 
 			if getattr(self, feature) is None:
-				print(_warnings.warn("Not all input files agree on read type/length for sample : %s" % self.name))
+				print(Warning("Not all input files agree on read type/length for sample : %s" % self.name))
 
 
 @copy
