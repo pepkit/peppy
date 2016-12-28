@@ -109,8 +109,9 @@ class AttributeDict(object):
 					# Create new AttributeDict
 					self.__dict__[key] = AttributeDict(value)
 			else:
-				# Overwrite even if it's a dict.
-				self.__dict__[key] = value
+				if type(value) is not type(None):
+					# Overwrite even if it's a dict; only if it's not None
+					self.__dict__[key] = value
 
 	def __getitem__(self, key):
 		"""
@@ -166,7 +167,8 @@ class Project(AttributeDict):
 			self.looperenv = AttributeDict(looperenv)
 			if hasattr(self.looperenv, "compute") and hasattr(self.looperenv.compute, "default"):
 				print("Loading default compute settings...")
-				self.compute = self.looperenv.compute.default
+				print(self.looperenv.compute.default)
+				self.compute.add_entries(self.looperenv.compute.default.__dict__)
 			else:
 				print("No default settings in looper env config file: " + self.looperenv_file)
 		except Exception as e:
@@ -177,6 +179,7 @@ class Project(AttributeDict):
 			except KeyError:
 				print("Unset LOOPERENV. Please set environment variable LOOPERENV to configure the local looper environment.")
 
+		print(self.compute)
 		# optional configs
 		self.permissive = permissive
 		self.file_checks = file_checks
@@ -248,6 +251,19 @@ class Project(AttributeDict):
 				raise KeyError("Required field not in config file: %s" % var)
 			setattr(self.metadata, var, _os.path.expandvars(getattr(self.metadata, var)))
 
+
+		# These are optional because there are defaults
+		config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
+			"results_subdir": "results_pipeline",
+			"submission_subdir": "submission"
+		}
+		for key, value in config_vars.items():
+			if hasattr(self.metadata, key):
+				if not _os.path.isabs(getattr(self.metadata, key)):
+					setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
+			else:
+				setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, value))
+
 		# Variables which are relative to the config file
 		# All variables in these sections should be relative to the project config
 		relative_sections = ["metadata", "pipeline_config"]
@@ -290,17 +306,6 @@ class Project(AttributeDict):
 		if not hasattr(self.metadata, "sample_annotation"):
 			raise KeyError("Required field not in config file: %s" % "sample_annotation")
 
-		# These are optional because there are defaults
-		config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
-			"results_subdir": "results_pipeline",
-			"submission_subdir": "submission"
-		}
-		for key, value in config_vars.items():
-			if hasattr(self.metadata, key):
-				if not _os.path.isabs(getattr(self.metadata, key)):
-					setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
-			else:
-				setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, value))
 
 	def make_project_dirs(self):
 		"""
@@ -1163,7 +1168,7 @@ class ProtocolMapper(object):
 		# First list level
 		split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
 		# print(split_jobs) # Split into a list
-		return(split_jobs)  # hack works if no parllelism
+		return(split_jobs)  # hack works if no parallelism
 
 		for i in range(0, len(split_jobs)):
 			if i == 0:
