@@ -492,7 +492,7 @@ class SampleSheet(object):
 			raise e
 
 		# Check mandatory items are there
-		req = ["sample_name", "library"]
+		req = ["sample_name"]
 		missing = [col for col in req if col not in self.df.columns]
 
 		if len(missing) != 0:
@@ -500,7 +500,7 @@ class SampleSheet(object):
 
 	def make_sample(self, series):
 		"""
-		Make a children of class Sample dependent on its "library" attribute.
+		Make a children of class Sample dependent on its "library" attribute if existing.
 
 		:param series: Pandas `Series` object.
 		:type series: pandas.Series
@@ -509,6 +509,11 @@ class SampleSheet(object):
 		"""
 		import sys
 		import inspect
+
+		if not hasattr(series, "library"):
+			return Sample(series)
+
+		# If "library" attribute exists, try to get a matched Sample object for it from any "pipelines" repository.
 		try:
 			import pipelines  # try to use a pipelines package is installed
 		except ImportError:
@@ -670,7 +675,7 @@ class Sample(object):
 		"""
 		Check provided sample annotation is valid.
 
-		It requires fields `sample_name` and `library` to be existent and non-empty.
+		It requires the field `sample_name` is existent and non-empty.
 		"""
 		def check_attrs(req):
 			for attr in req:
@@ -680,8 +685,8 @@ class Sample(object):
 					raise ValueError("Empty value for " + attr + " (sample: " + str(self) + ")")
 
 		# Check mandatory items are there.
-		# We always require a sample_name and library
-		check_attrs(["sample_name", "library"])
+		# We always require a sample_name
+		check_attrs(["sample_name"])
 
 	def generate_name(self):
 		"""

@@ -180,7 +180,13 @@ def run(prj, args, remaining_args):
 		sample.to_yaml()
 
 		# Get the base protocol-to-pipeline mappings
-		pipelines = protocol_mappings.build_pipeline(sample.library.upper())
+		if hasattr(sample, "library"):
+			pipelines = protocol_mappings.build_pipeline(sample.library.upper())
+		else:
+			print(Warning(
+				"Sample '{}' does not have a 'library' attribute and therefore "
+				"cannot be mapped to any pipeline. Skipping.".format(sample.name)))
+			continue
 
 		# We require that the pipelines and config files live in
 		# a subdirectory called 'pipelines' -- is this the best way?
