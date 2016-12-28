@@ -150,6 +150,14 @@ class Project(AttributeDict):
 		except:
 			self.looperenv_file = None
 
+		# Initialize local, serial compute as default (no cluster submission)
+		from pkg_resources import resource_filename
+		submission_template = resource_filename("looper", 'submit_templates/localhost_template.sub')
+		self.compute = AttributeDict({"submission_template": submission_template})
+		self.compute.submission_template = submission_template
+		self.compute.submission_command = "sh"
+
+
 		# Load settings from looper environment yaml for local compute infrastructure.
 		try:
 			with open(_os.environ["LOOPERENV"], 'r') as handle:
@@ -197,6 +205,7 @@ class Project(AttributeDict):
 		# samples
 		self.samples = list()
 
+
 	def __repr__(self):
 		if hasattr(self, "name"):
 			name = self.name
@@ -204,6 +213,7 @@ class Project(AttributeDict):
 			name = "[no name]"
 
 		return "Project '%s'" % name + "\nConfig: " + str(self.config)
+
 
 	def parse_config_file(self, subproject=None):
 		"""
@@ -216,9 +226,18 @@ class Project(AttributeDict):
 		self.add_entries(self.config)
 
 		# Overwrite any config entries with entries in the subproject
-
 		if "subprojects" in self.config and subproject:
 			self.add_entries(self.config['subprojects'][subproject])
+
+		# In looper 0.4 we eliminated the paths section for simplicity.
+		# For backwards compatibility, mirror the paths section into metadata
+		if "paths" in self.config:
+			print("Warning: paths section in project config is deprecated. Please move all paths attributes to metadata section.")
+			print("This option will be removed in future versions.")
+			self.metadata.add_entries(self.paths.__dict__)
+			print(self.metadata)
+			print(self.paths)
+			#self.paths = None
 
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
@@ -310,7 +329,7 @@ class Project(AttributeDict):
 		Sets the compute attributes according to the specified settings in the environment file
 		:param: setting	An option for compute settings as specified in the environment file.
 		"""
-
+		
 		if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
 			print("Loading compute settings: " + setting)
 			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
@@ -318,8 +337,8 @@ class Project(AttributeDict):
 			print(self.looperenv.compute[setting])
 			print(self.looperenv.compute)
 			if not _os.path.isabs(self.compute.submission_template):
-				# self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
-				# Relative to looper environment config file.
+			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+			# Relative to looper environment config file.
 				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
 		else:
 			print("Cannot load compute settings: " + setting)
