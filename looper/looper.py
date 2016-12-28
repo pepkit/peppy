@@ -410,17 +410,26 @@ def destroy(prj, args):
 
 def clean(prj, args):
 	"""
+	Clean will remove all intermediate files, defined by piper clean scripts, in the project.
 	"""
-	if not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
-		print("Destroy action aborted by user.")
+	if args.dry_run:
+		print "DRY RUN. I would have removed: "
+	elif not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
+		print("Clean action aborted by user.")
 		return 1
-	else:
-		for sample in prj.samples:
-			sys.stdout.write("### " + sample.sample_name + "\t")
-			pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
-			cleanup_files = glob.glob(os.path.join(pipeline_outfolder,  "*_cleanup.sh"))
-			print(cleanup_files)
-		return 0
+
+	for sample in prj.samples:
+		sys.stdout.write("### " + sample.sample_name + "\t")
+		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+		cleanup_files = glob.glob(os.path.join(pipeline_outfolder,  "*_cleanup.sh"))
+		if args.dry_run:
+			print(str(cleanup_files))
+		else:
+			for file in cleanup_files:
+				print(file)
+				subprocess.call(["sh", file])
+
+	return 0
 
 
 def get_file_size(filename):
