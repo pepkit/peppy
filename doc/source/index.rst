@@ -30,7 +30,7 @@ Contents
 
 	intro.rst
 	features.rst
-	commands.rst
+	usage-and-commands.rst
 	tutorials.rst
 	define-your-project.rst
 	connecting-pipelines.rst
@@ -39,6 +39,7 @@ Contents
 	config-files.rst
 	api.rst
 	faq.rst
+	changelog.rst
 
 
 Indices and tables
