@@ -10,9 +10,10 @@ Certain keyword columns are required or provide looper-specific features.
 
 Required columns are:
 
--  ``sample_name`` - a **unique** string identifying each sample [1]_.
--  ``library`` - the source of data for the sample (*e.g.* ATAC-seq, RNA-seq, RRBS).
--  ``organism`` - a string identifying the organism ("human", "mouse", "mixed").
+- ``sample_name`` - a **unique** string identifying each sample [1]_.
+- ``library`` - the source of data for the sample (*e.g.* ATAC-seq, RNA-seq, RRBS).
+- ``organism`` - a string identifying the organism ("human", "mouse", "mixed").
+- A column specifying a data file.
 
 Any additional columns become attributes of your sample and will be part of the project's metadata for the samples.
 
@@ -20,7 +21,7 @@ Special columns
 """"""""""""""""""""""""""""""""""""""""""""""""""
 Mostly, you have complete control over any other column names you want to add, but there are a few reserved names that Looper treats differently. One such special optional column is ``run``. If the value of this column is not 1, Looper will not submit the pipeline for that sample. This enables you to submit a subset of samples.
 
-Usually you want your annotation sheet to specify the locations of files corresponding to each sample. For, this Looper adds a special column called ``data_source``. You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see :ref:`advanced-derived-columns`.
+Usually you want your annotation sheet to specify the locations of files corresponding to each sample. For, this Looper uses a special column called ``data_source``. You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see :ref:`advanced-derived-columns`.
 
 .. csv-table:: Example Sample Annotation Sheet
 	:file: ../../examples/microtest_sample_annotation.csv
@@ -43,4 +44,4 @@ Example sample annotation sheet:
 
 .. rubric:: Footnotes
 
-.. [1] This should be a string without whitespace (space, tabs, etc...). If it contains whitespace, an error will be thrown. Similarly, looper will not allow this to be duplicated in your project.
+.. [1] This should be a string without whitespace (space, tabs, etc...). If it contains whitespace, an error will be thrown. Similarly, looper will not allow any duplicate entries under sample_name.

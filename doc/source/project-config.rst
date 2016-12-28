@@ -1,12 +1,113 @@
 Project config file
 ***************************************************
 
-Looper requires only one argument: a *project config file* that specifies information about your project. The project config file describes all *project-specific variables*. Its primary purpose as as input to Looper, which will submit jobs as appropriate for each sample in the project. But it is also read by other tools, including:
 
-  - Looper (primary purpose)
-  - ``make_trackhubs`` scripts to produce web accessible results
-  - stats summary scripts
-  - analysis scripts requiring pointers to metadata, results, and other options.
+Details on project config file sections:
+
+
+Project config section: metadata
+"""""""""""""""""""""""""""""""""""""""""""
+
+The `metadata` section contains paths to various parts of the project: the output directory (the parent directory), the results subdirector, the submission subdirectory (where submit scripts are stored), and pipeline scripts.Pointers to sample annotation sheets. This is the only required section.
+
+
+Project config section: data_sources
+"""""""""""""""""""""""""""""""""""""""""""
+
+The `data_sources` section uses regex-like commands to point to different spots on the filesystem for data. The variables (specified by ``{variable}``) are populated first by shell environment variables, and then by sample attributes (columns in the sample annotation sheet).
+
+Example:
+
+.. code-block:: yaml
+
+  data_sources:
+    source1: /path/to/raw/data/{sample_name}_{sample_type}.bam
+    source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
+
+For more details, see :ref:`advanced-derived-columns`.
+
+Project config section: derived_columns
+"""""""""""""""""""""""""""""""""""""""""""
+``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources. Corresponding sample attributes will then have as their value not the entry in the table, but the value derived from the string replacement of sample attributes specified in the config file.
+
+Example:
+
+.. code-block:: yaml
+
+  derived_columns: [read1, read2, data_1]
+
+
+For more details, see :ref:`advanced-derived-columns`.
+
+
+Project config section: subprojects
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+Subprojects are useful to define multiple similar projects within a single project config file. Under the subprojects key, you can specify names of subprojects, and then underneath of of these you can specify any project config variables that you want to overwrite for that particular subproject.
+
+For example:
+
+.. code-block:: yaml
+
+	subprojects:
+	  diverse:
+		metadata:
+		  sample_annotation: psa_rrbs_diverse.csv
+	  cancer:
+		metadata:
+		  sample_annotation: psa_rrbs_intracancer.csv
+
+This project would specify 2 subprojects that have almost the exact same settings, but change only their metadata/sample_annotation parameter. Rather than defining two 99% identical project config files, you can use a subproject. 
+
+
+
+
+Project config section: pipeline_config
+"""""""""""""""""""""""""""""""""""""""""""
+Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a _pipeline config_ file, and then specify that file in the _project config_ file.
+
+Example:
+
+.. code-block:: yaml
+
+	pipeline_config:
+	  # pipeline configuration files used in project.
+	  # Key string must match the _name of the pipeline script_ (including extension)
+	  # Relative paths are relative to this project config file.
+	  # Default (null) means use the generic config for the pipeline.
+	  rrbs.py: null
+	  # Or you can point to a specific config to be used in this project:
+	  wgbs.py: wgbs_flavor1.yaml
+
+
+This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of wgbs.py (for this project only). Your pipelines will need to understand the config file (which will happen automatically if you use pypiper).
+
+
+Project config section: pipeline_args
+"""""""""""""""""""""""""""""""""""""""""""
+Sometimes a project requires tweaking a pipeline, but does not justify a completely separate _pipeline config_ file. For simpler cases, you can use the `pipeline_args` section, which lets you specify command-line parameters via the project config. This lets you fine-tune your pipeline, so it can run slightly differently for different projects.
+
+Example:
+
+.. code-block:: yaml
+
+	pipeline_args:
+	  rrbs.py:  # pipeline identifier: must match the name of the pipeline script
+		# here, include all project-specific args for this pipeline
+		"--flavor": simple
+		"--flag": null
+
+
+The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
+
+
+Project config section: track_configurations
+"""""""""""""""""""""""""""""""""""""""""""""""
+The `track_configurations` section is for making trackhubs.
+
+.. warning::
+	missing info here
+
 
 
  Here's an example. Additional fields can be added as well.
@@ -83,134 +184,3 @@ Looper requires only one argument: a *project config file* that specifies inform
 	  hub_name: ews_hub
 	  short_label_column: sample_name
 	  email: nathan@code.databio.org
-
-
-
-Details on project config file sections:
-
-
-Project config section: paths
-"""""""""""""""""""""""""""""""""""""""""""
-
-The `paths` section contains paths to various parts of the project: the output directory (the parent directory), the results subdirector, the submission subdirectory (where submit scripts are stored), and pipeline scripts.
-
-Project config section: metadata
-"""""""""""""""""""""""""""""""""""""""""""
-
-Pointers to sample annotation sheets.
-
-Project config section: pipeline_config
-"""""""""""""""""""""""""""""""""""""""""""
-Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a _pipeline config_ file, and then specify that file in the _project config_ file.
-
-Example:
-
-.. code-block:: yaml
-
-	pipeline_config:
-	  # pipeline configuration files used in project.
-	  # Key string must match the _name of the pipeline script_ (including extension)
-	  # Relative paths are relative to this project config file.
-	  # Default (null) means use the generic config for the pipeline.
-	  rrbs.py: null
-	  # Or you can point to a specific config to be used in this project:
-	  wgbs.py: wgbs_flavor1.yaml
-
-
-This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of wgbs.py (for this project only). Your pipelines will need to understand the config file (which will happen automatically if you use pypiper).
-
-
-Project config section: pipeline_args
-"""""""""""""""""""""""""""""""""""""""""""
-Sometimes a project requires tweaking a pipeline, but does not justify a completely separate _pipeline config_ file. For simpler cases, you can use the `pipeline_args` section, which lets you specify command-line parameters via the project config. This lets you fine-tune your pipeline, so it can run slightly differently for different projects.
-
-Example:
-
-.. code-block:: yaml
-
-	pipeline_args:
-	  rrbs.py:  # pipeline identifier: must match the name of the pipeline script
-		# here, include all project-specific args for this pipeline
-		"--flavor": simple
-		"--flag": null
-
-
-The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
-
-Project config section: compute
-"""""""""""""""""""""""""""""""""""""""""""
-For each iteration, `looper` will create one or more submission scripts for that sample. The `compute` specifies how jobs these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the `compute` section.
-
-Example:
-
-.. code-block:: yaml
-
-	compute:
-	  submission_template: pipelines/templates/slurm_template.sub
-	  submission_command: sbatch
-
-
-There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
-
-Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
-
-In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge_template.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
-
-
-Project config section: data_sources
-"""""""""""""""""""""""""""""""""""""""""""
-
-The `data_sources` section uses regex-like commands to point to different spots on the filesystem for data. The variables (specified by ``{variable}``) are populated first by shell environment variables, and then by sample attributes (columns in the sample annotation sheet).
-
-Example:
-
-.. code-block:: yaml
-
-  data_sources:
-    source1: /path/to/raw/data/{sample_name}_{sample_type}.bam
-    source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
-
-For more details, see :ref:`advanced-derived-columns`.
-
-Project config section: derived_columns
-"""""""""""""""""""""""""""""""""""""""""""
-``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources. Corresponding sample attributes will then have as their value not the entry in the table, but the value derived from the string replacement of sample attributes specified in the config file.
-
-Example:
-
-.. code-block:: yaml
-
-  derived_columns: [read1, read2, data_1]
-
-
-For more details, see :ref:`advanced-derived-columns`.
-
-
-Project config section: track_configurations
-"""""""""""""""""""""""""""""""""""""""""""""""
-The `track_configurations` section is for making trackhubs.
-
-.. warning::
-	missing info here
-
-
-Project config section: subprojects
-"""""""""""""""""""""""""""""""""""""""""""""""
-
-Subprojects are useful to define multiple similar projects within a single project config file. Under the subprojects key, you can specify names of subprojects, and then underneath of of these you can specify any project config variables that you want to overwrite for that particular subproject.
-
-For example:
-
-.. code-block:: yaml
-
-	subprojects:
-	  diverse:
-		metadata:
-		  sample_annotation: psa_rrbs_diverse.csv
-	  cancer:
-		metadata:
-		  sample_annotation: psa_rrbs_intracancer.csv
-
-This project would specify 2 subprojects that have almost the exact same settings, but change only their metadata/sample_annotation parameter. Rather than defining two 99% identical project config files, you can use a subproject. 
-
-
