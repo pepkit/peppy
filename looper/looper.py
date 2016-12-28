@@ -56,7 +56,6 @@ def parse_arguments():
 		'--limit', dest='limit', type=int,
 		help="Limit to n samples.", default=None)
 
-
 	# Summarize command
 	summarize_subparser = subparsers.add_parser(
 		"summarize", help="Summarize statistics of project samples.")
@@ -205,7 +204,6 @@ def run(prj, args, remaining_args):
 			if hasattr(prj.compute, "partition"):
 				submit_settings["partition"] = prj.compute["partition"]
 
-
 			# Pipeline name is the key used for flag checking
 			pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
@@ -230,18 +228,19 @@ def run(prj, args, remaining_args):
 			# should add the arguments to the command string.
 
 			# Check for a pipeline config file
-			# Index with 'pl_id' instead of 'pipeline' because we don't care about
-			# parameters here.
-			if hasattr(prj.pipeline_config, pl_id):
-				# First priority: pipeline config specified in project config
-				pl_config_file = getattr(prj.pipeline_config, pl_id)
-				if pl_config_file:  # make sure it's not null (which it could be provided as null)
-					if not os.path.isfile(pl_config_file):
-						print("Pipeline config file specified but not found: " + pl_config_file)
-						raise IOError(pl_config_file)
-					print("Found config file:" + getattr(prj.pipeline_config, pl_id))
-					# Append arg for config file if found
-					cmd += " -C " + pl_config_file
+			if hasattr(prj, "pipeline_config"):
+				# Index with 'pl_id' instead of 'pipeline' because we don't care about
+				# parameters here.
+				if hasattr(prj.pipeline_config, pl_id):
+					# First priority: pipeline config specified in project config
+					pl_config_file = getattr(prj.pipeline_config, pl_id)
+					if pl_config_file:  # make sure it's not null (which it could be provided as null)
+						if not os.path.isfile(pl_config_file):
+							print("Pipeline config file specified but not found: " + pl_config_file)
+							raise IOError(pl_config_file)
+						print("Found config file:" + getattr(prj.pipeline_config, pl_id))
+						# Append arg for config file if found
+						cmd += " -C " + pl_config_file
 
 			# Append output parent folder
 			cmd += " -O " + prj.paths.results_subdir
