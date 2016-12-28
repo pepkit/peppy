@@ -35,9 +35,9 @@ Explore!
 	# get all bam files of WGBS samples
 	[s.mapped for s in prj.samples if s.library == "WGBS"]
 
-	prj.paths.results  # results directory of project
+	prj.metadata.results  # results directory of project
 	# export again the project's annotation
-	prj.sheet.to_csv(os.path.join(prj.paths.output_dir, "sample_annotation.csv"))
+	prj.sheet.to_csv(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
 
 	# project options are read from the config file
 	# but can be changed on the fly:
@@ -190,7 +190,7 @@ class Project(AttributeDict):
 		# Get project name
 		# deduce from output_dir variable in config file:
 
-		self.name = _os.path.basename(self.paths.output_dir)
+		self.name = _os.path.basename(self.metadata.output_dir)
 		self.subproject = subproject
 
 		# TODO:
@@ -237,14 +237,16 @@ class Project(AttributeDict):
 			self.metadata.add_entries(self.paths.__dict__)
 			print(self.metadata)
 			print(self.paths)
-			#self.paths = None
+			self.paths = None
+
+		#self.paths = self.metadata
 
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
 		for var in mandatory:
-			if not hasattr(self.paths, var):
+			if not hasattr(self.metadata, var):
 				raise KeyError("Required field not in config file: %s" % var)
-			setattr(self.paths, var, _os.path.expandvars(getattr(self.paths, var)))
+			setattr(self.metadata, var, _os.path.expandvars(getattr(self.metadata, var)))
 
 		# Variables which are relative to the config file
 		# All variables in these sections should be relative to the project config
@@ -273,15 +275,15 @@ class Project(AttributeDict):
 		# And Variables relative to pipelines_dir
 		if hasattr(self, "compute"):
 			if not _os.path.isabs(self.compute.submission_template):
-				# self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+				# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
 				# Relative to looper environment config file.
 				if self.looperenv_file:
 					self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
 				else:
-					self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+					self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
 		else:
 			self.compute = AttributeDict({})
-			self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, "templates", "localhost_template.sub")
+			self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, "templates", "localhost_template.sub")
 			self.compute.submission_command = "sh"
 
 		# Required variables check
@@ -294,17 +296,17 @@ class Project(AttributeDict):
 			"submission_subdir": "submission"
 		}
 		for key, value in config_vars.items():
-			if hasattr(self.paths, key):
-				if not _os.path.isabs(getattr(self.paths, key)):
-					setattr(self.paths, key, _os.path.join(self.paths.output_dir, getattr(self.paths, key)))
+			if hasattr(self.metadata, key):
+				if not _os.path.isabs(getattr(self.metadata, key)):
+					setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
 			else:
-				setattr(self.paths, key, _os.path.join(self.paths.output_dir, value))
+				setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, value))
 
 	def make_project_dirs(self):
 		"""
 		Creates project directory structure if it doesn't exist.
 		"""
-		for name, path in self.paths.__dict__.items():
+		for name, path in self.metadata.__dict__.items():
 			if name not in ["pipelines_dir"]:   # this is a list just to support future variables
 				if not _os.path.exists(path):
 					try:
@@ -337,7 +339,7 @@ class Project(AttributeDict):
 			print(self.looperenv.compute[setting])
 			print(self.looperenv.compute)
 			if not _os.path.isabs(self.compute.submission_template):
-			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+			#self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
 			# Relative to looper environment config file.
 				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
 		else:
@@ -537,7 +539,7 @@ class SampleSheet(object):
 			import pipelines  # try to use a pipelines package is installed
 		except ImportError:
 			try:
-				sys.path.append(self.prj.paths.pipelines_dir)  # try using the pipeline package from the config file
+				sys.path.append(self.prj.metadata.pipelines_dir)  # try using the pipeline package from the config file
 				import pipelines
 			except ImportError:
 				return Sample(series)  # if so, return generic Sample
@@ -669,8 +671,8 @@ class Sample(object):
 		# Sample dirs
 		self.paths = Paths()
 		# Only when sample is added to project, can paths be added -
-		# this is because sample-specific files will be created in a data root directory dependendt on the project.
-		# The SampleSheet object, after beeing added to a project, will
+		# this is because sample-specific files will be created in a data root directory dependent on the project.
+		# The SampleSheet object, after being added to a project, will
 		# call Sample.set_file_paths(), creating the data_path of the sample (the bam file)
 		# and other paths.
 
@@ -748,9 +750,9 @@ class Sample(object):
 				return obj
 
 		# if path is not specified, use default:
-		# prj.paths.submission_dir + sample_name + yaml
+		# prj.metadata.submission_dir + sample_name + yaml
 		if path is None:
-			self.yaml_file = _os.path.join(self.prj.paths.submission_subdir, self.sample_name + ".yaml")
+			self.yaml_file = _os.path.join(self.prj.metadata.submission_subdir, self.sample_name + ".yaml")
 		else:
 			self.yaml_file = path
 
@@ -842,8 +844,8 @@ class Sample(object):
 					self.required_paths += " " + getattr(self, col)
 
 		# parent
-		self.results_subdir = self.prj.paths.results_subdir
-		self.paths.sample_root = _os.path.join(self.prj.paths.results_subdir, self.sample_name)
+		self.results_subdir = self.prj.metadata.results_subdir
+		self.paths.sample_root = _os.path.join(self.prj.metadata.results_subdir, self.sample_name)
 
 		# Track url
 		try:
