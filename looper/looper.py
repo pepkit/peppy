@@ -23,7 +23,6 @@ except:
 	sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
 	from looper.models import Project, PipelineInterface, ProtocolMapper
 
-
 def parse_arguments():
 	"""
 	Argument Parsing.
@@ -460,17 +459,9 @@ def cluster_submit(
 	make_sure_path_exists(os.path.dirname(submit_script))
 
 	# read in submit_template
-	if submit_template:
-		with open(submit_template, 'r') as handle:
-			filedata = handle.read()
-	else:  # No submit_template; use local
-		filedata = """#!/bin/bash
+	with open(submit_template, 'r') as handle:
+		filedata = handle.read()
 
-echo 'Compute node:' `hostname`
-echo 'Start time:' `date +'%Y-%m-%d %T'`
-
-{CODE} > {LOGFILE}
-"""
 	# update variable dict with any additional arguments
 	# print(variables_dict["CODE"] + " " + str(" ".join(remaining_args)))
 	variables_dict["CODE"] += " " + str(" ".join(remaining_args))

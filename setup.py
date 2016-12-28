@@ -56,6 +56,7 @@ setup(
 		],
 	},
 	scripts=scripts,
+	package_data={'looper': ['submit_templates/*']},
 	include_package_data=True,
 	**extra
 )
