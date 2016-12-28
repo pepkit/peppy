@@ -100,12 +100,12 @@ def run(prj, args, remaining_args):
 	"""
 
 	# Look up the looper config files:
-	pipeline_interface_file = os.path.join(prj.paths.pipelines_dir, "config/pipeline_interface.yaml")
+	pipeline_interface_file = os.path.join(prj.metadata.pipelines_dir, "config/pipeline_interface.yaml")
 
 	print("Pipeline interface config: " + pipeline_interface_file)
 	pipeline_interface = PipelineInterface(pipeline_interface_file)
 
-	protocol_mappings_file = os.path.join(prj.paths.pipelines_dir, "config/protocol_mappings.yaml")
+	protocol_mappings_file = os.path.join(prj.metadata.pipelines_dir, "config/protocol_mappings.yaml")
 	print("Protocol mappings config: " + protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
@@ -127,7 +127,7 @@ def run(prj, args, remaining_args):
 	for sample in prj.samples:
 		sample_count += 1
 		sys.stdout.write("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\t")
-		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
 		fail = False
 		fail_message = ""
@@ -207,8 +207,8 @@ def run(prj, args, remaining_args):
 			pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
 			# Build basic command line string
-			base_pipeline_script = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pipeline)
-			cmd = os.path.join(prj.paths.pipelines_dir, pipelines_subdir, pipeline)
+			base_pipeline_script = os.path.join(prj.metadata.pipelines_dir, pipelines_subdir, pipeline)
+			cmd = os.path.join(prj.metadata.pipelines_dir, pipelines_subdir, pipeline)
 
 			# Append arguments for this pipeline
 			# Sample-level arguments are handled by the pipeline interface.
@@ -242,7 +242,7 @@ def run(prj, args, remaining_args):
 						cmd += " -C " + pl_config_file
 
 			# Append output parent folder
-			cmd += " -O " + prj.paths.results_subdir
+			cmd += " -O " + prj.metadata.results_subdir
 
 			# Append arg for cores (number of processors to use)
 			if submit_settings["cores"] > 1:
@@ -261,7 +261,7 @@ def run(prj, args, remaining_args):
 			submit_count += cluster_submit(
 				sample, prj.compute.submission_template,
 				prj.compute.submission_command, submit_settings,
-				prj.paths.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
+				prj.metadata.submission_subdir, pipeline_outfolder, pl_name, args.time_delay,
 				submit=True, dry_run=args.dry_run, ignore_flags=args.ignore_flags,
 				remaining_args=remaining_args)
 
@@ -295,7 +295,7 @@ def summarize(prj):
 
 	for sample in prj.samples:
 		sys.stdout.write("### " + sample.sample_name + "\t")
-		pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
 		# Grab the basic info from the annotation sheet for this sample.
 		# This will correspond to a row in the output.
@@ -323,7 +323,7 @@ def summarize(prj):
 
 	# all samples are parsed. Produce file.
 
-	tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
+	tsv_outfile_path = os.path.join(prj.metadata.output_dir, prj.name)
 	if prj.subproject:
 		tsv_outfile_path += '_' + prj.subproject
 	tsv_outfile_path += '_stats_summary.tsv'
@@ -376,7 +376,7 @@ def summarize(prj):
 
 	# # For each pipeline, write a summary tsv file.
 	# for pl_name, cols in columns.items():
-	# 	tsv_outfile_path = os.path.join(prj.paths.output_dir, prj.name)
+	# 	tsv_outfile_path = os.path.join(prj.metadata.output_dir, prj.name)
 	# 	if prj.subproject:
 	# 		tsv_outfile_path += '_' + prj.subproject
 	# 	tsv_outfile_path += '_' + pl_name + '_stats_summary.tsv'
@@ -403,7 +403,7 @@ def destroy(prj, args):
 	else:
 		for sample in prj.samples:
 			sys.stdout.write("### " + sample.sample_name + "\t")
-			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+			pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 			destroy_sample_results(pipeline_outfolder, args)
 		return 0
 
@@ -417,7 +417,7 @@ def clean(prj, args):
 	else:
 		for sample in prj.samples:
 			sys.stdout.write("### " + sample.sample_name + "\t")
-			pipeline_outfolder = os.path.join(prj.paths.results_subdir, sample.sample_name)
+			pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 			cleanup_files = glob.glob(os.path.join(pipeline_outfolder,  "*_cleanup.sh"))
 			print(cleanup_files)
 		return 0
@@ -568,7 +568,7 @@ def check(prj):
 	Checks flag status
 	"""
 	# prefix
-	pf = "ls " + prj.paths.results_subdir + "/"
+	pf = "ls " + prj.metadata.results_subdir + "/"
 	cmd = os.path.join(pf + "*/*.flag | xargs -n1 basename | sort | uniq -c")
 	print(cmd)
 	subprocess.call(cmd, shell=True)
@@ -595,7 +595,7 @@ def main():
 	# add sample sheet
 	prj.add_sample_sheet()
 
-	print("Results subdir: " + prj.paths.results_subdir)
+	print("Results subdir: " + prj.metadata.results_subdir)
 	print("Command: " + args.command)
 
 	if args.command == "run":
