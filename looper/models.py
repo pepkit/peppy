@@ -272,17 +272,21 @@ class Project(AttributeDict):
 					# Set the path to an absolute path, relative to project config
 					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
 
-		
 		# For the compute infrastructure, use the looperenv file; if such a file
 		# does not exist, then just assume we want local serial computation.
 		# And Variables relative to pipelines_dir
-		if not _os.path.isabs(self.compute.submission_template):
-			#self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
-			# Relative to looper environment config file.
-			if self.looperenv_file:
-				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
-			else:
-				self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+		if hasattr(self, "compute"):
+			if not _os.path.isabs(self.compute.submission_template):
+				# self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+				# Relative to looper environment config file.
+				if self.looperenv_file:
+					self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+				else:
+					self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, self.compute.submission_template)
+		else:
+			self.compute = AttributeDict({})
+			self.compute.submission_template = _os.path.join(self.paths.pipelines_dir, "templates", "localhost_template.sub")
+			self.compute.submission_command = "sh"
 
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
@@ -419,7 +423,7 @@ class Project(AttributeDict):
 		# With all samples, prepare file paths and get read type (optionally make sample dirs)
 		for sample in self.samples:
 			if hasattr(sample, "organism"):
-				sample.get_genome()
+				sample.get_genome_transcriptome()
 			sample.set_file_paths()
 			if not sample.check_input_exists():
 				continue
@@ -492,7 +496,7 @@ class SampleSheet(object):
 			raise e
 
 		# Check mandatory items are there
-		req = ["sample_name", "library", "organism"]
+		req = ["sample_name"]
 		missing = [col for col in req if col not in self.df.columns]
 
 		if len(missing) != 0:
@@ -500,7 +504,7 @@ class SampleSheet(object):
 
 	def make_sample(self, series):
 		"""
-		Make a children of class Sample dependent on its "library" attribute.
+		Make a children of class Sample dependent on its "library" attribute if existing.
 
 		:param series: Pandas `Series` object.
 		:type series: pandas.Series
@@ -509,13 +513,17 @@ class SampleSheet(object):
 		"""
 		import sys
 		import inspect
+
+		if not hasattr(series, "library"):
+			return Sample(series)
+
+		# If "library" attribute exists, try to get a matched Sample object for it from any "pipelines" repository.
 		try:
 			import pipelines  # try to use a pipelines package is installed
 		except ImportError:
 			try:
 				sys.path.append(self.prj.paths.pipelines_dir)  # try using the pipeline package from the config file
 				import pipelines
-				print("Successfully imported modules: " + str(self.prj.paths.pipelines_dir))
 			except ImportError:
 				return Sample(series)  # if so, return generic Sample
 
@@ -671,8 +679,7 @@ class Sample(object):
 		"""
 		Check provided sample annotation is valid.
 
-		It requires fields `sample_name`, `library`, `organism` to be existent and non-empty.
-		If `data_path` is not provided or empty, then `flowcell`, `lane`, `BSF_name` are all required.
+		It requires the field `sample_name` is existent and non-empty.
 		"""
 		def check_attrs(req):
 			for attr in req:
@@ -682,42 +689,13 @@ class Sample(object):
 					raise ValueError("Empty value for " + attr + " (sample: " + str(self) + ")")
 
 		# Check mandatory items are there.
-		# this will require sample_name
-		# later I will implement this in a way that sample names are not mandatory,
-		# but created from the sample's attributes
-		check_attrs(["sample_name", "library", "organism"])
-
-		# NS REMARK: derived_columns makes this annoying; you don't necessary need these columns;
-		# for flexibility, we should not enforce things like this at this stage.
-		# TODO: Remove these attribute checks
-		# Check that either data_path is specified or that BSF fields exist
-		# if hasattr(self, "data_source"):
-		# 	if (self.data_source == "nan") or (self.data_source == ""):
-		# 		# then it must have all of the following:
-		# 		check_attrs(["flowcell", "lane", "BSF_name"])
-		# else:
-		# 	check_attrs(["flowcell", "lane", "BSF_name"])
+		# We always require a sample_name
+		check_attrs(["sample_name"])
 
 	def generate_name(self):
 		"""
 		Generates a name for the sample by joining some of its attribute strings.
 		"""
-		# fields = [
-		#	"cellLine", "numberCells", "library", "ip",
-		#	"patient", "patientID", "sampleID", "treatment", "condition",
-		#	"biologicalReplicate", "technicalReplicate",
-		#	"experimentName", "genome"]
-
-		# attributes = [self.__getattribute__(attr) for attr in fields if hasattr(self, attr) and str(self.__getattribute__(attr)) != "nan"]
-		# # for float values (if a value in a colum is nan) get a string that discards the float part
-		# fields = list()
-		# for attr in attributes:
-		#	 if type(attr) is str:
-		#		 fields.append(attr)
-		#	 elif type(attr) is _pd.np.float64:
-		#		 fields.append(str(int(attr)))
-		# # concatenate to form the name
-		# self.sample_name = "_".join([str(attr) for attr in fields])
 		raise NotImplementedError("Not implemented in new code base.")
 
 	def as_series(self):
@@ -793,7 +771,7 @@ class Sample(object):
 
 			return val
 
-	def get_genome(self):
+	def get_genome_transcriptome(self):
 		"""
 		Get genome and transcriptome, based on project config file.
 		If not available (matching config), genome and transcriptome will be set to sample.organism.
@@ -801,14 +779,12 @@ class Sample(object):
 		try:
 			self.genome = getattr(self.prj.genomes, self.organism)
 		except AttributeError:
-			# self.genome = self.organism
-			raise AttributeError("Config lacks genome mapping for organism: " + self.organism)
+			print(Warning("Config lacks genome mapping for organism: " + self.organism))
 		# get transcriptome
 		try:
 			self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
 		except AttributeError:
-			# self.genome = self.organism
-			raise AttributeError("Config lacks transcriptome mapping for organism: " + self.organism)
+			print(Warning("Config lacks transcriptome mapping for organism: " + self.organism))
 
 	def set_file_paths(self, overide=False):
 		"""
