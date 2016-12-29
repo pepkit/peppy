@@ -4,11 +4,12 @@
 compute:
   default:
     submission_template: localhost_template.sub
-    submission_command: sh    
+    submission_command: sh
+    partition: longq  # For backwards-compatibility with old projects at CeMM; to be removed.
   local:
     submission_template: localhost_template.sub
     submission_command: sh
-  slurm:
+  slurm_cemm:
     submission_template: slurm_template.sub
     submission_command: sbatch
     partition: longq
