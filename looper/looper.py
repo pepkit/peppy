@@ -52,6 +52,10 @@ def parse_arguments():
 		'--compute', dest='compute', type=str,
 		help="Employ looper environment compute settings.", default=None)
 	run_subparser.add_argument(
+		'--env', dest='env', type=str,
+		help="Employ looper environment compute settings. [Default:" + os.getenv("LOOPERENV", "") + "]",
+		default=os.getenv("LOOPERENV", ""))
+	run_subparser.add_argument(
 		'--limit', dest='limit', type=int,
 		help="Limit to n samples.", default=None)
 
@@ -600,7 +604,9 @@ def main():
 	args, remaining_args = parse_arguments()
 
 	# Initialize project
-	prj = Project(args.config_file, args.subproject, file_checks=args.file_checks)
+	prj = Project(args.config_file, args.subproject,
+		file_checks = args.file_checks,
+		looperenv_file = getattr(args, 'env', None))
 	# add sample sheet
 	prj.add_sample_sheet()
 

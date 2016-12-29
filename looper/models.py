@@ -144,41 +144,25 @@ class Project(AttributeDict):
 		from looper.models import Project
 		prj = Project("config.yaml")
 	"""
-	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False):
+	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
 		# super(Project, self).__init__(**config_file)
-		try:
-			self.looperenv_file = _os.environ["LOOPERENV"]
-		except:
-			self.looperenv_file = None
-
+				
 		# Initialize local, serial compute as default (no cluster submission)
 		from pkg_resources import resource_filename
-		submission_template = resource_filename("looper", 'submit_templates/localhost_template.sub')
-		self.compute = AttributeDict({"submission_template": submission_template})
-		self.compute.submission_template = submission_template
-		self.compute.submission_command = "sh"
 
+		# Start with default looperenv
+		default_looperenv = resource_filename("looper", 'submit_templates/default_looperenv.yaml')
+		self.update_looperenv(default_looperenv)
 
 		# Load settings from looper environment yaml for local compute infrastructure.
-		try:
-			with open(_os.environ["LOOPERENV"], 'r') as handle:
-				looperenv = _yaml.load(handle)
-			print(looperenv)
-			self.looperenv = AttributeDict(looperenv)
-			if hasattr(self.looperenv, "compute") and hasattr(self.looperenv.compute, "default"):
-				print("Loading default compute settings...")
-				print(self.looperenv.compute.default)
-				self.compute.add_entries(self.looperenv.compute.default.__dict__)
-			else:
-				print("No default settings in looper env config file: " + self.looperenv_file)
-		except Exception as e:
-			try:
-				print("Can't load looperenv config file: " + _os.environ["LOOPERENV"])
-				print(str(type(e).__name__) + str(e))
-				raise e
-			except KeyError:
-				print("Unset LOOPERENV. Please set environment variable LOOPERENV to configure the local looper environment.")
+		if looperenv_file == '' or looperenv_file is None:
+			print("Using default LOOPERENV. You may set environment variable 'LOOPERENV' to configure compute settings.")
+		else:
+			self.update_looperenv(looperenv_file)
 
+		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
+		self.set_compute("default")
+		
 		print(self.compute)
 		# optional configs
 		self.permissive = permissive
@@ -286,25 +270,47 @@ class Project(AttributeDict):
 					# Set the path to an absolute path, relative to project config
 					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
 
-		# For the compute infrastructure, use the looperenv file; if such a file
-		# does not exist, then just assume we want local serial computation.
-		# And Variables relative to pipelines_dir
-		if hasattr(self, "compute"):
-			if not _os.path.isabs(self.compute.submission_template):
-				# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
-				# Relative to looper environment config file.
-				if self.looperenv_file:
-					self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
-				else:
-					self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
-		else:
-			self.compute = AttributeDict({})
-			self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, "templates", "localhost_template.sub")
-			self.compute.submission_command = "sh"
-
+		
+		# compute.submission_template could have been reset by project config into a relative path;
+		# make sure it stays absolute
+		if not _os.path.isabs(self.compute.submission_template):
+			# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
+			# Relative to looper environment config file.
+			self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+			
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
 			raise KeyError("Required field not in config file: %s" % "sample_annotation")
+
+
+	def update_looperenv(self, looperenv_file):
+		try:
+			with open(looperenv_file, 'r') as handle:
+				looperenv = _yaml.load(handle)
+				print("Loading LOOPERENV: " + looperenv_file)
+				print(looperenv)
+
+				# Any compute.submission_template variables should be made absolute; relative
+				# to current looperenv yaml file
+				y = looperenv['compute']
+				for key, value in y.items():
+					if type(y[key]) is dict:
+						for key2, value2 in y[key].items():
+							if key2 == 'submission_template':
+								if not _os.path.isabs(y[key][key2]):
+									y[key][key2] = _os.path.join(_os.path.dirname(looperenv_file), y[key][key2])
+
+				looperenv['compute'] = y
+				if hasattr(self, "looperenv"):
+					self.looperenv.add_entries(looperenv)
+				else:	
+					self.looperenv = AttributeDict(looperenv)
+
+			self.looperenv_file = looperenv_file
+
+		except Exception as e:
+			print("Can't load looperenv config file: " + looperenv_file)
+			print(str(type(e).__name__) + str(e))
 
 
 	def make_project_dirs(self):
@@ -339,7 +345,10 @@ class Project(AttributeDict):
 		
 		if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
 			print("Loading compute settings: " + setting)
-			self.compute.add_entries(self.looperenv.compute[setting].__dict__)
+			if hasattr(self, "compute"):
+				self.compute.add_entries(self.looperenv.compute[setting].__dict__)
+			else:
+				self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
 
 			print(self.looperenv.compute[setting])
 			print(self.looperenv.compute)
