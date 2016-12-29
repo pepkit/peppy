@@ -398,42 +398,71 @@ def summarize(prj):
 	# 	print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
 
 
-def destroy(prj, args):
+def destroy(prj, args, preview_flag = True):
 	"""
+	Completely removes all output files and folders produced by any pipelines.
 	"""
-	if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
-		print("Destroy action aborted by user.")
-		return 1
-	else:
-		for sample in prj.samples:
-			sys.stdout.write("### " + sample.sample_name + "\t")
-			pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
-			destroy_sample_results(pipeline_outfolder, args)
-		return 0
-
-
-def clean(prj, args):
-	"""
-	Clean will remove all intermediate files, defined by piper clean scripts, in the project.
-	"""
-	if args.dry_run:
-		print "DRY RUN. I would have removed: "
-	elif not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
-		print("Clean action aborted by user.")
-		return 1
+	print("Results to destroy:")
 
 	for sample in prj.samples:
 		sys.stdout.write("### " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+		if preview_flag:
+			# Preview: Don't actually delete, just show files.
+			print(str(pipeline_outfolder))
+		else:
+			destroy_sample_results(pipeline_outfolder, args)
+
+	if not preview_flag:
+		print("Destroy complete.")
+		return 0
+
+	if args.dry_run:
+		print("Dry run. No files destroyed.")
+		return 0
+	
+	if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
+		print("Destroy action aborted by user.")
+		return 1
+
+	# Finally, run the true destroy:
+
+	return destroy(prj, args, preview_flag = False)
+
+
+def clean(prj, args, preview_flag = True):
+	"""
+	Clean will remove all intermediate files, defined by pypiper clean scripts, in the project.
+	"""
+
+	print("Files to clean:")
+	for sample in prj.samples:
+		sys.stdout.write("### " + sample.sample_name + "\t")
+		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 		cleanup_files = glob.glob(os.path.join(pipeline_outfolder,  "*_cleanup.sh"))
-		if args.dry_run:
+		if preview_flag:
+			# Preview: Don't actually clean, just show what we're going to clean.
 			print(str(cleanup_files))
 		else:
 			for file in cleanup_files:
 				print(file)
 				subprocess.call(["sh", file])
 
-	return 0
+	if not preview_flag:
+		print("Clean complete.")
+		return 0
+
+	if args.dry_run:
+		print("Dry run. No files cleaned.")
+		return 0
+	
+	if not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
+		print("Clean action aborted by user.")
+		return 1
+
+	# Finally, run the true clean:
+
+	return clean(prj, args, preview_flag = False)
 
 
 def get_file_size(filename):
