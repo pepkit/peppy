@@ -637,7 +637,6 @@ class Sample(object):
 	# but complications with serializing and code maintenance
 	# made me go back and implement it as a top-level object
 	def __init__(self, series, permissive=True):
-		import re
 		# Passed series must either be a pd.Series or a daugther class
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
@@ -651,25 +650,6 @@ class Sample(object):
 		# Set series attributes on self
 		for key, value in series.to_dict().items():
 			setattr(self, key, value)
-
-		# Enforce type of name attributes as str without whitespace
-		attributes = ["sample_name", "BSF_name"]
-		for attr in attributes:
-			if hasattr(self, attr):
-				# throw error if either variable contains whitespace
-				if re.search(r"\s", str(getattr(self, attr))):
-					raise ValueError("Sample '%s' has whitespace in variable '%s'" % (str(getattr(self, attr)), attr))
-				# else, set attribute as variable value
-				setattr(self, attr, str(getattr(self, attr)))
-
-		# Enforce type attributes as int
-		attributes = ["lane"]
-		for attr in attributes:
-			if hasattr(self, attr):
-				try:
-					setattr(self, attr, int(getattr(self, attr)))
-				except:
-					pass
 
 		# Check if required attributes exist and are not empty
 		self.check_valid()
