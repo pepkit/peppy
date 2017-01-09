@@ -493,6 +493,8 @@ class SampleSheet(object):
 	:type merge_technical: bool
 	:param merge_biological: Should biological replicates be merged?
 	:type merge_biological: bool
+	:param dtype: Data type to read csv file as. Default=str.
+	:type dtype: type
 
 	:Example:
 
@@ -502,13 +504,13 @@ class SampleSheet(object):
 		prj = Project("config.yaml")
 		sheet = SampleSheet("sheet.csv")
 	"""
-	def __init__(self, csv, **kwargs):
+	def __init__(self, csv, dtype=str, **kwargs):
 
 		super(SampleSheet, self).__init__()
 
 		self.csv = csv
 		self.samples = list()
-		self.check_sheet()
+		self.check_sheet(dtype)
 
 	def __repr__(self):
 		if hasattr(self, "prj"):
@@ -516,13 +518,13 @@ class SampleSheet(object):
 		else:
 			return "SampleSheet with %i samples." % len(self.df)
 
-	def check_sheet(self):
+	def check_sheet(self, dtype):
 		"""
 		Check if csv file exists and has all required columns.
 		"""
 		# Read in sheet
 		try:
-			self.df = _pd.read_csv(self.csv)
+			self.df = _pd.read_csv(self.csv, dtype=dtype)
 		except IOError("Given csv file couldn't be read.") as e:
 			raise e
 
