@@ -10,7 +10,7 @@ The format is simple and modular, so you only need to define the components you 
 1. **Project config file** - a ``yaml`` file describing input and output file paths and other (optional) project settings
 2. **Sample annotation sheet** - a ``csv`` file with 1 row per sample
 
-In the simplest case, ``project_config.yaml`` is just a few lines of ``yaml``. Here's a minimal example **project_config.yaml**:
+The first file (**project config**) is just a few lines of ``yaml`` in the simplest case. Here's a minimal example **project_config.yaml**:
 
 
 .. code-block:: yaml
@@ -21,7 +21,9 @@ In the simplest case, ``project_config.yaml`` is just a few lines of ``yaml``. H
 	  pipelines_dir: /path/to/pipelines/repository
 
 
-The **output_dir** describes where you want to save pipeline results, and **pipelines_dir** describes where your pipeline code is stored. You will also need a second file to describe samples, which is a comma-separated value (``csv``) file containing at least a unique identifier column named ``sample_name``, a column named ``library`` describing the sample type, and some way of specifying an input file. Here's a minimal example of **sample_annotation.csv**:
+The **output_dir** describes where you want to save pipeline results, and **pipelines_dir** describes where your pipeline code is stored.
+
+The second file (**sample annotation sheet**) is where you list your samples, which is a comma-separated value (``csv``) file containing at least a few defined columns: a unique identifier column named ``sample_name``; a column named ``library`` describing the sample type (e.g. RNA-seq); and some way of specifying an input file. Here's a minimal example of **sample_annotation.csv**:
 
 
 .. csv-table:: Minimal Sample Annotation Sheet
@@ -34,11 +36,11 @@ The **output_dir** describes where you want to save pipeline results, and **pipe
    "frog_4", "RNA-seq", "frog4.fq.gz"
 
 
-With those two simple files, you could run looper, and that's fine for just running a quick test on a few files. In practice, you'll probably want to use some of the more advanced features of looper by adding additional information to your configuration ``yaml`` file and your sample annotation ``csv`` file.
+With those two simple files, you could run looper, and that's fine for just running a quick test on a few files. You just type: ``looper run path/to/project_config.yaml`` and it will run all your samples through the appropriate pipeline. In practice, you'll probably want to use some of the more advanced features of looper by adding additional information to your configuration ``yaml`` file and your sample annotation ``csv`` file.
 
-For example, by default, your jobs will run serially on your local computer, where you're running ``looper``. If you want to submit to a cluster resource manager (like SLURM or SGE), you just need to specify a ``compute`` section.
+For example, by default, your jobs will run serially on your local computer, where you're running ``looper``. If you want to submit to a cluster resource manager (like SLURM or SGE), you just need to add a ``compute`` section to your **project config file**.
 
-Let's go through the more advanced details of both annotation sheets and project config files:
+Now, let's go through the more advanced details of both annotation sheets and project config files:
 
 .. include:: sample-annotation-sheet.rst
 
