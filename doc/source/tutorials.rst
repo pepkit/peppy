@@ -24,10 +24,17 @@ Now you can run this project with looper! Just use ``looper run``:
 
 .. code:: bash
 
-	looper run microtest/config/microtest_config.yaml
+	looper run microtest/config/microtest_config.tutorial.yaml
+
+.. HINT::
+
+	If the looper executable isn't in your path, check out the :doc:`FAQ <faq>`.
 
 
-If the looper executable isn't in your path, check out the :doc:`FAQ <faq>`.
+In this example we've now ran one example sample (an amplicon sequencing library to determine percentage of indels in amplicon) through a pipeline that processes that kind of data.
+
+From here to running hundreds of samples from varyied types is virtually the same effort!
+
 
 Pipeline outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -49,8 +56,6 @@ To use pre-made pipelines with your project, all you have to do is :doc:`define 
 
 .. [1] This variable can also be specified in the ``results_subdir`` variable under the ``paths`` section of the project config file
 .. [2] This variable can also be specified in the ``submission_subdir`` variable under the ``paths`` section of the project config file
-
-
 
 
 .. note::
