@@ -136,6 +136,8 @@ class Project(AttributeDict):
 	:type permissive: bool
 	:param file_checks: Whether sample input files should be checked for their attributes (read type, read length) if this is not set in sample metadata.
 	:type file_checks: bool
+	:param looperenv_file: Looperenv YAML file specifying compute settings.
+	:type looperenv_file: str
 
 	:Example:
 
@@ -146,7 +148,7 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
 		# super(Project, self).__init__(**config_file)
-				
+
 		# Initialize local, serial compute as default (no cluster submission)
 		from pkg_resources import resource_filename
 
@@ -162,7 +164,7 @@ class Project(AttributeDict):
 
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
 		self.set_compute("default")
-		
+
 		print(self.compute)
 		# optional configs
 		self.permissive = permissive
@@ -192,7 +194,6 @@ class Project(AttributeDict):
 		# samples
 		self.samples = list()
 
-
 	def __repr__(self):
 		if hasattr(self, "name"):
 			name = self.name
@@ -200,7 +201,6 @@ class Project(AttributeDict):
 			name = "[no name]"
 
 		return "Project '%s'" % name + "\nConfig: " + str(self.config)
-
 
 	def parse_config_file(self, subproject=None):
 		"""
@@ -226,7 +226,7 @@ class Project(AttributeDict):
 			print(self.paths)
 			self.paths = None
 
-		#self.paths = self.metadata
+		# self.paths = self.metadata
 
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
@@ -234,7 +234,6 @@ class Project(AttributeDict):
 			if not hasattr(self.metadata, var):
 				raise KeyError("Required field not in config file: %s" % var)
 			setattr(self.metadata, var, _os.path.expandvars(getattr(self.metadata, var)))
-
 
 		# These are optional because there are defaults
 		config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
@@ -270,20 +269,20 @@ class Project(AttributeDict):
 					# Set the path to an absolute path, relative to project config
 					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
 
-		
 		# compute.submission_template could have been reset by project config into a relative path;
 		# make sure it stays absolute
 		if not _os.path.isabs(self.compute.submission_template):
 			# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
 			# Relative to looper environment config file.
 			self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
-			
+
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
 			raise KeyError("Required field not in config file: %s" % "sample_annotation")
 
-
 	def update_looperenv(self, looperenv_file):
+		"""
+		"""
 		try:
 			with open(looperenv_file, 'r') as handle:
 				looperenv = _yaml.load(handle)
@@ -303,7 +302,7 @@ class Project(AttributeDict):
 				looperenv['compute'] = y
 				if hasattr(self, "looperenv"):
 					self.looperenv.add_entries(looperenv)
-				else:	
+				else:
 					self.looperenv = AttributeDict(looperenv)
 
 			self.looperenv_file = looperenv_file
@@ -311,7 +310,6 @@ class Project(AttributeDict):
 		except Exception as e:
 			print("Can't load looperenv config file: " + looperenv_file)
 			print(str(type(e).__name__) + str(e))
-
 
 	def make_project_dirs(self):
 		"""
@@ -342,7 +340,7 @@ class Project(AttributeDict):
 		Sets the compute attributes according to the specified settings in the environment file
 		:param: setting	An option for compute settings as specified in the environment file.
 		"""
-		
+
 		if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
 			print("Loading compute settings: " + setting)
 			if hasattr(self, "compute"):
@@ -353,8 +351,8 @@ class Project(AttributeDict):
 			print(self.looperenv.compute[setting])
 			print(self.looperenv.compute)
 			if not _os.path.isabs(self.compute.submission_template):
-			#self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
-			# Relative to looper environment config file.
+				# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
+				# Relative to looper environment config file.
 				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
 		else:
 			print("Cannot load compute settings: " + setting)
