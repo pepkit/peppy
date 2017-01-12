@@ -34,7 +34,6 @@ Contents
 	tutorials.rst
 	define-your-project.rst
 	connecting-pipelines.rst
-	usage-and-commands.rst
 	advanced.rst
 	config-files.rst
 	api.rst
