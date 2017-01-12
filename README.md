@@ -4,28 +4,36 @@
 
 __`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. Looper was conceived to use [pypiper](https://github.com/epigen/pypiper/) pipelines, but does not require this.
 
+
 # Links
 
  * Public-facing permalink: http://databio.org/looper
- * Documentation: [Read the Docs](http://looper.readthedocs.org/) (still under heavy work)
+ * Documentation: [Read the Docs](http://looper.readthedocs.org/)
  * Source code: http://github.com/epigen/looper
 
 
 # Installing
+Looper supports Python 2.7 only and has been tested only in Linux.
 
 ```
 pip install https://github.com/epigen/looper/zipball/master
 ```
 
-You will have a `looper` executable and all accessory scripts (from [`scripts/`](scripts/)) in your `$PATH`.
+To have the `looper` executable in your `$PATH`, add the following line to your .bashrc file:
+
+```
+export PATH=$PATH:~/.local/bin
+```
+
 
 # Running pipelines
 
 `Looper` just requires a yaml format config file passed as an argument, which contains all the settings required. This can, for example, submit each job to SLURM (or SGE, or run them locally).
 
 ```bash
-looper run metadata/config.yaml
+looper run project_config.yaml
 ```
+
 
 # Looper commands
 
