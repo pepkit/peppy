@@ -2,7 +2,7 @@ Project config file
 ***************************************************
 
 
-Details on project config file sections:
+A minimal project config file requires very little; only a single section (``metadata`` -- see above). Here are additional details on the optional project config file sections:
 
 
 Project config section: metadata
@@ -10,11 +10,21 @@ Project config section: metadata
 
 The `metadata` section contains paths to various parts of the project: the output directory (the parent directory), the results subdirector, the submission subdirectory (where submit scripts are stored), and pipeline scripts.Pointers to sample annotation sheets. This is the only required section.
 
+Example:
+
+.. code-block:: yaml
+
+	metadata:
+	  sample_annotation: /path/to/sample_annotation.csv
+	  output_dir: /path/to/output/folder
+	  pipelines_dir: /path/to/pipelines/repository
+
+
 
 Project config section: data_sources
 """""""""""""""""""""""""""""""""""""""""""
 
-The `data_sources` section uses regex-like commands to point to different spots on the filesystem for data. The variables (specified by ``{variable}``) are populated first by shell environment variables, and then by sample attributes (columns in the sample annotation sheet).
+The `data_sources` section uses regex-like commands to point to different spots on the filesystem for data. The variables (specified by ``{variable}``) are populated first by sample attributes (columns in the sample annotation sheet). You can also use shell environment variables (like ``${HOME}``) in these 
 
 Example:
 
@@ -23,12 +33,13 @@ Example:
   data_sources:
     source1: /path/to/raw/data/{sample_name}_{sample_type}.bam
     source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
+    source3: ${HOME}/{test_id}.fastq
 
 For more details, see :ref:`advanced-derived-columns`.
 
 Project config section: derived_columns
 """""""""""""""""""""""""""""""""""""""""""
-``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources. Corresponding sample attributes will then have as their value not the entry in the table, but the value derived from the string replacement of sample attributes specified in the config file.
+``derived_columns`` is just a simple list that tells looper which column names it should populate as data_sources. Corresponding sample attributes will then have as their value not the entry in the table, but the value derived from the string replacement of sample attributes specified in the config file. This enables you to point to more than one input file for each sample (for example read1 and read2).
 
 Example:
 
@@ -43,7 +54,7 @@ For more details, see :ref:`advanced-derived-columns`.
 Project config section: subprojects
 """""""""""""""""""""""""""""""""""""""""""""""
 
-Subprojects are useful to define multiple similar projects within a single project config file. Under the subprojects key, you can specify names of subprojects, and then underneath of of these you can specify any project config variables that you want to overwrite for that particular subproject.
+Subprojects are useful to define multiple similar projects within a single project config file. Under the subprojects key, you can specify names of subprojects, and then underneath these you can specify any project config variables that you want to overwrite for that particular subproject. Tell looper to load a particular subproject by passing ``--sp subproject-name`` on the command line.
 
 For example:
 
@@ -57,14 +68,12 @@ For example:
 		metadata:
 		  sample_annotation: psa_rrbs_intracancer.csv
 
-This project would specify 2 subprojects that have almost the exact same settings, but change only their metadata/sample_annotation parameter. Rather than defining two 99% identical project config files, you can use a subproject. 
-
-
+This project would specify 2 subprojects that have almost the exact same settings, but change only their metadata/sample_annotation parameter  (so, each subproject points to a different sample annotation sheet). Rather than defining two 99% identical project config files, you can use a subproject. 
 
 
 Project config section: pipeline_config
 """""""""""""""""""""""""""""""""""""""""""
-Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a _pipeline config_ file, and then specify that file in the _project config_ file.
+Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a **pipeline config** file, and then specify that file in the **project config** file.
 
 Example:
 
@@ -85,7 +94,7 @@ This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of
 
 Project config section: pipeline_args
 """""""""""""""""""""""""""""""""""""""""""
-Sometimes a project requires tweaking a pipeline, but does not justify a completely separate _pipeline config_ file. For simpler cases, you can use the `pipeline_args` section, which lets you specify command-line parameters via the project config. This lets you fine-tune your pipeline, so it can run slightly differently for different projects.
+Sometimes a project requires tweaking a pipeline, but does not justify a completely separate **pipeline config** file. For simpler cases, you can use the `pipeline_args` section, which lets you specify command-line parameters via the project config. This lets you fine-tune your pipeline, so it can run slightly differently for different projects.
 
 Example:
 
@@ -103,14 +112,17 @@ The above specification will now pass '--flavor=simple' and '--flag' whenever rr
 
 Project config section: track_configurations
 """""""""""""""""""""""""""""""""""""""""""""""
-The `track_configurations` section is for making trackhubs.
+The `track_configurations` section is for making trackhubs. This is a work in progress that is functional, but ill-documented, so it is best avoided for now.
 
 .. warning::
 	missing info here
 
 
 
- Here's an example. Additional fields can be added as well.
+Project config complete example
+"""""""""""""""""""""""""""""""""""""""""""
+
+ Here's an example. Additional fields can be added as well and will be ignored.
 
 .. code-block:: yaml
 
@@ -169,6 +181,7 @@ The `track_configurations` section is for making trackhubs.
 	  # Relative paths are relative to the pipelines_dir
 	  submission_template: templates/slurm_template.sub
 	  submission_command: sbatch
+	  partition: longq
 	  # To run on the localhost:
 	  #submission_template: templates/localhost_template.sub
 	  #submission_command: sh
