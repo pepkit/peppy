@@ -3,7 +3,7 @@
 """
 Looper
 
-Looper loops through samples and submits pipelines for them.
+a pipeline submission engine.
 https://github.com/epigen/looper
 """
 
@@ -22,6 +22,7 @@ try:
 except:
 	sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
 	from looper.models import Project, PipelineInterface, ProtocolMapper
+
 
 def parse_arguments():
 	"""
@@ -44,13 +45,14 @@ def parse_arguments():
 	run_subparser.add_argument(
 		'--ignore-flags', dest="ignore_flags", action="store_true",
 		default=False,
-		help="Ignore run status flags? Default: false. By default, pipelines \
-			will not be submitted if a pypiper flag file exists marking the \
-			run (e.g. as 'running' or 'failed'). \
-			Set this option to ignore flags and submit the runs anyway.")
+		help=(
+			"Ignore run status flags? Default: False. By default, pipelines "
+			"will not be submitted if a pypiper flag file exists marking the "
+			"run (e.g. as 'running' or 'failed'). "
+			"Set this option to ignore flags and submit the runs anyway."))
 	run_subparser.add_argument(
 		'--compute', dest='compute', type=str,
-		help="Employ looper environment compute settings.", default=None)
+		help="YAML file with looper environment compute settings.", default=None)
 	run_subparser.add_argument(
 		'--env', dest='env', type=str,
 		help="Employ looper environment compute settings. [Default:" + os.getenv("LOOPERENV", "") + "]",
@@ -72,7 +74,7 @@ def parse_arguments():
 		"check", help="Checks flag status of current runs.")
 
 	clean_subparser = subparsers.add_parser(
-		"clean", help="Runs clean scripts to remove intermediate files.")
+		"clean", help="Runs clean scripts to remove intermediate files of already processed jobs.")
 
 	# Common arguments
 	for subparser in [run_subparser, summarize_subparser, destroy_subparser, check_subparser, clean_subparser]:
@@ -398,7 +400,7 @@ def summarize(prj):
 	# 	print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
 
 
-def destroy(prj, args, preview_flag = True):
+def destroy(prj, args, preview_flag=True):
 	"""
 	Completely removes all output files and folders produced by any pipelines.
 	"""
@@ -420,17 +422,17 @@ def destroy(prj, args, preview_flag = True):
 	if args.dry_run:
 		print("Dry run. No files destroyed.")
 		return 0
-	
+
 	if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
 		print("Destroy action aborted by user.")
 		return 1
 
 	# Finally, run the true destroy:
 
-	return destroy(prj, args, preview_flag = False)
+	return destroy(prj, args, preview_flag=False)
 
 
-def clean(prj, args, preview_flag = True):
+def clean(prj, args, preview_flag=True):
 	"""
 	Clean will remove all intermediate files, defined by pypiper clean scripts, in the project.
 	"""
@@ -439,7 +441,7 @@ def clean(prj, args, preview_flag = True):
 	for sample in prj.samples:
 		sys.stdout.write("### " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
-		cleanup_files = glob.glob(os.path.join(pipeline_outfolder,  "*_cleanup.sh"))
+		cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
 		if preview_flag:
 			# Preview: Don't actually clean, just show what we're going to clean.
 			print(str(cleanup_files))
@@ -455,14 +457,14 @@ def clean(prj, args, preview_flag = True):
 	if args.dry_run:
 		print("Dry run. No files cleaned.")
 		return 0
-	
+
 	if not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
 		print("Clean action aborted by user.")
 		return 1
 
 	# Finally, run the true clean:
 
-	return clean(prj, args, preview_flag = False)
+	return clean(prj, args, preview_flag=False)
 
 
 def get_file_size(filename):
@@ -515,8 +517,6 @@ def cluster_submit(
 	# save submission file
 	with open(submit_script, 'w') as handle:
 		handle.write(filedata)
-
-
 
 	# Prepare and write sample yaml object
 	sample.to_yaml()
@@ -633,9 +633,10 @@ def main():
 	args, remaining_args = parse_arguments()
 
 	# Initialize project
-	prj = Project(args.config_file, args.subproject,
-		file_checks = args.file_checks,
-		looperenv_file = getattr(args, 'env', None))
+	prj = Project(
+		args.config_file, args.subproject,
+		file_checks=args.file_checks,
+		looperenv_file=getattr(args, 'env', None))
 	# add sample sheet
 	prj.add_sample_sheet()
 

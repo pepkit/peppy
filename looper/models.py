@@ -583,7 +583,7 @@ class SampleSheet(object):
 		for i in range(len(self.df)):
 			self.samples.append(self.make_sample(self.df.ix[i].dropna()))
 
-	def as_data_frame(self, all=True):
+	def as_data_frame(self, all_attrs=True):
 		"""
 		Returns a `pandas.DataFrame` representation of self.
 		"""
@@ -593,14 +593,14 @@ class SampleSheet(object):
 
 		return df
 
-	def to_csv(self, path, all=False):
+	def to_csv(self, path, all_attrs=False):
 		"""
 		Saves a csv annotation sheet from the samples.
 
 		:param path: Path to csv file to be written.
 		:type path: str
-		:param all: If all sample attributes should be kept in the annotation sheet.
-		:type all: bool
+		:param all_attrs: If all sample attributes should be kept in the annotation sheet.
+		:type all_attrs: bool
 
 		:Example:
 
@@ -610,7 +610,7 @@ class SampleSheet(object):
 			sheet = SampleSheet("/projects/example/sheet.csv")
 			sheet.to_csv("/projects/example/sheet2.csv")
 		"""
-		df = self.as_data_frame(all=all)
+		df = self.as_data_frame(all_attrs=all_attrs)
 		df.to_csv(path, index=False)
 
 
@@ -729,8 +729,9 @@ class Sample(object):
 			Build representation of object as a dict, recursively
 			for all objects that might be attributes of self.
 
-			:param path: skips including attributes named in provided list.
-			:type path: list
+			:param obj: skips including attributes named in provided list.
+			:param to_skip: List of strings to ignore.
+			:type to_skip: list.
 			"""
 			if type(obj) is list:  # recursive serialization (lists)
 				return [obj2dict(i) for i in obj]
@@ -762,6 +763,9 @@ class Sample(object):
 	def locate_data_source(self, column_name="data_source"):
 		"""
 		Locates the path of input file `data_path` based on a regex.
+
+		:param column_name: Name of sample attribute to get input data.
+		:type column_name: str
 		"""
 		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
@@ -872,8 +876,10 @@ class Sample(object):
 	def check_input_exists(self, permissive=True):
 		"""
 		Creates sample directory structure if it doesn't exist.
-		"""
 
+		:param permissive: Whether error should be ignored if input file does not exist.
+		:type permissive: bool
+		"""
 		l = list()
 		# Sanity check:
 		if not self.data_path:
@@ -896,7 +902,7 @@ class Sample(object):
 
 	def get_read_type(self, n=10, permissive=True):
 		"""
-		Gets the read type (single, paired) and read length of bam file.
+		Gets the read type (single, paired) and read length of an input file.
 
 		:param n: Number of reads to read to determine read type. Default=10.
 		:type n: int
@@ -925,8 +931,10 @@ class Sample(object):
 			"""
 			Check reads in BAM file for read type and lengths.
 
-			:param str bam: BAM file path.
-			:param int o: Number of reads to look at for estimation.
+			:param bam: BAM file path.
+			:type bam: str
+			:param o: Number of reads to look at for estimation.
+			:type o: int
 			"""
 			# view reads
 			p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
@@ -1018,7 +1026,6 @@ class PipelineInterface(object):
 	includes both resources to request for cluster job submission, as well as
 	arguments to be passed from the sample annotation metadata to the pipeline
 	"""
-
 	def __init__(self, yaml_config_file):
 		import yaml
 		self.looper_config_file = yaml_config_file
@@ -1029,7 +1036,10 @@ class PipelineInterface(object):
 
 	def select_pipeline(self, pipeline_name):
 		"""
-		Check to make sure that pipeline has an entry and if so, return it
+		Check to make sure that pipeline has an entry and if so, return it.
+
+		:param pipeline_name: Name of pipeline.
+		:type pipeline_name: str
 		"""
 		if pipeline_name not in self.looper_config:
 			print(
@@ -1041,6 +1051,10 @@ class PipelineInterface(object):
 		return(self.looper_config[pipeline_name])
 
 	def get_pipeline_name(self, pipeline_name):
+		"""
+		:param pipeline_name: Name of pipeline.
+		:type pipeline_name: str
+		"""
 		config = self.select_pipeline(pipeline_name)
 
 		if "name" not in config:
@@ -1055,6 +1069,11 @@ class PipelineInterface(object):
 		"""
 		Given a pipeline name (pipeline_name) and a file size (size), return the
 		resource configuratio specified by the config file.
+
+		:param pipeline_name: Name of pipeline.
+		:type pipeline_name: str
+		:param file_size: Size of input data.
+		:type file_size: float
 		"""
 		config = self.select_pipeline(pipeline_name)
 
@@ -1081,6 +1100,11 @@ class PipelineInterface(object):
 	def get_arg_string(self, pipeline_name, sample):
 		"""
 		For a given pipeline and sample, return the argument string
+
+		:param pipeline_name: Name of pipeline.
+		:type pipeline_name: str
+		:param sample: Sample object.
+		:type sample: Sample
 		"""
 		config = self.select_pipeline(pipeline_name)
 
@@ -1149,6 +1173,10 @@ class ProtocolMapper(object):
 		self.mappings = {k.upper(): v for k, v in self.mappings.items()}
 
 	def build_pipeline(self, protocol):
+		"""
+		:param protocol: Name of protocol.
+		:type protocol: str
+		"""
 		# print("Building pipeline for protocol '" + protocol + "'")
 
 		if protocol not in self.mappings:
@@ -1204,6 +1232,9 @@ class CommandChecker(object):
 	def check_command(name, command):
 		"""
 		Check if command can be called.
+
+		:param command: Name of command to be called.
+		:type command: str
 		"""
 		import os
 
