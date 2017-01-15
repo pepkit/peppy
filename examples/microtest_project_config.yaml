@@ -7,7 +7,7 @@
 # - stats summary scripts
 # - analysis scripts requiring pointers to metadata, results, and other options.
 
-paths:
+metadata:
   # output_dir: ABSOLUTE PATH to the parent, shared space where project results go
   output_dir: /scratch/lab_bock/shared/projects/microtest
   # results and submission subdirs are subdirectors directories under parent output_dir
@@ -18,9 +18,6 @@ paths:
   # pipelines_dir: ABSOLUTE PATH the directory where the Looper will find pipeline
   # scripts (and accompanying pipeline config files) for submission.
   pipelines_dir: $CODEBASE/pipelines
-
-
-metadata:
   # Elements in this section can be absolute or relative.
   # Typically, this project config file is stored with the project metadata, so
   # relative paths are considered relative to this project config file.
@@ -78,17 +75,6 @@ pipeline_config:
 pipeline_args:
   rnaBitSeq.py:
     "-w": 50
-
-
-compute:
-  # submission_template: the submission form which will be replaced with compute resource parameters
-  # Use this to change your cluster manager (SLURM, SGE, LFS, etc)
-  # Relative paths are relative to the pipelines_dir
-  submission_template: templates/slurm_template.sub
-  submission_command: sbatch
-  # To run on the localhost:
-  #submission_template: templates/localhost_template.sub
-  #submission_command: sh
 
 
 trackhubs:

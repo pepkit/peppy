@@ -829,17 +829,17 @@ class Sample(object):
 					# data source value can also be retrieved?
 					setattr(self, col + "_source", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
-					if not self.required_paths:
-						self.required_paths = ""
-					self.required_paths += " " + getattr(self, col)
+		# 			if not self.required_paths:
+		# 				self.required_paths = ""
+		# 			self.required_paths += " " + getattr(self, col)
 
-		# Construct required_inputs
-		if hasattr(self.prj, "required_inputs"):
-			for col in self.prj["required_inputs"]:
+		# # Construct required_inputs
+		# if hasattr(self.prj, "required_inputs"):
+		# 	for col in self.prj["required_inputs"]:
 
-				# Only proceed if the specified column exists.
-				if hasattr(self, col):
-					self.required_paths += " " + getattr(self, col)
+		# 		# Only proceed if the specified column exists.
+		# 		if hasattr(self, col):
+		# 			self.required_paths += " " + getattr(self, col)
 
 		# parent
 		self.results_subdir = self.prj.metadata.results_subdir
@@ -878,6 +878,9 @@ class Sample(object):
 		:param permissive: Whether error should be ignored if input file does not exist.
 		:type permissive: bool
 		"""
+		#hack!
+		#return True
+
 		l = list()
 		# Sanity check:
 		if not self.data_path:
@@ -1095,6 +1098,64 @@ class PipelineInterface(object):
 
 		return(table[current_pick])
 
+	def confirm_required_inputs(self, pipeline_name, sample, permissive = True):
+		config = self.select_pipeline(pipeline_name)
+
+		# Pipeline interface file may specify required input files;
+		if config.has_key('required_input_files'):
+			required_input_attributes = config['required_input_files']
+		else:
+			required_input_attributes = None
+			return True
+
+		print("required_input_attributes" + str(required_input_attributes))
+
+		# Identify and accumulate a list of any missing required inputs for this sample
+		missing_files = []
+		for file_attribute in required_input_attributes:
+			if not hasattr(sample, file_attribute):
+				raise IOError("Sample missing required input attribute: " + file_attribute)
+
+			paths = getattr(sample, file_attribute)
+			# There can be multiple, space-separated values here.
+			for path in paths.split(" "):
+				if not _os.path.exists(path):
+					missing_files.append(path)
+
+		if len(missing_files) > 0:
+			if not permissive:
+				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
+			else:
+				print("Input file does not exist or cannot be read: %s" % str(missing_files))
+				return False
+
+		return True
+
+	def get_total_input_size(self, pipeline_name, sample):
+		# Make this pipeline-specific, since different pipelines may have different inputs.
+		config = self.select_pipeline(pipeline_name)
+		if config.has_key('all_input_files'):
+			files_paths = [getattr(sample, file_attribute) for file_attribute in config['all_input_files']]
+			input_file_size = self.get_file_size(files_paths)
+		elif config.has_key('required_input_files'):
+			files_paths = [getattr(sample, file_attribute) for file_attribute in config['required_input_files']]
+			input_file_size = self.get_file_size(files_paths)
+		else:
+			input_file_size = 0
+
+		return(input_file_size)
+
+	def get_file_size(self, filename):
+		"""
+		Get size of all files in string (space-separated) in gigabytes (Gb).
+		"""
+		try:
+			return sum([float(_os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
+		except OSError:
+			# File not found
+			return 0
+
+
 	def get_arg_string(self, pipeline_name, sample):
 		"""
 		For a given pipeline and sample, return the argument string
@@ -1114,6 +1175,7 @@ class PipelineInterface(object):
 
 		argstring = ""
 		args = config['arguments']
+
 		for key, value in args.iteritems():
 			if self.verbose:
 				print(key, value)

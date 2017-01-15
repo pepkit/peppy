@@ -159,9 +159,9 @@ def run(prj, args, remaining_args):
 
 		# Make sure the input data exists
 		# this requires every input file (in case of merged samples) to exist.
-		if not all(os.path.isfile(f) for f in sample.data_path.split(" ")):
-			fail_message += "Sample input file does not exist."
-			fail = True
+		#if not all(os.path.isfile(f) for f in sample.data_path.split(" ")):
+		#	fail_message += "Sample input file does not exist."
+		#	fail = True
 
 		if fail:
 			print("\nNot submitted: " + fail_message)
@@ -171,14 +171,6 @@ def run(prj, args, remaining_args):
 
 		# Otherwise, process the sample:
 		prj.processed_samples.append(sample.sample_name)
-
-		# get sample input file size, store as attribute
-		if hasattr(sample, "required_paths"):
-			if sample.required_paths is not None:
-				sample.input_file_size = get_file_size(sample.required_paths)
-		if not hasattr(sample, "input_file_size"):
-			sample.input_file_size = get_file_size(sample.data_path)
-		print("({:.2f} Gb)".format(sample.input_file_size))
 
 		# serialize sample
 		sample.to_yaml()
@@ -202,8 +194,21 @@ def run(prj, args, remaining_args):
 			# discard any arguments to get just the (complete) script name,
 			# which is the key in the pipeline interface
 			pl_id = str(pipeline).split(" ")[0]
+
+			# Check for any required inputs before submitting
+			if not pipeline_interface.confirm_required_inputs(pl_id, sample):
+				fail_message = "Required input files not found"
+				print("\nNot submitted: " + fail_message)
+				failures.append([fail_message, sample.sample_name])
+				continue
+
+			# get sample input file size, store as attribute
+			input_file_size = pipeline_interface.get_total_input_size(pl_id, sample)
+			sample.input_file_size = input_file_size  # bad idea; it's relative to pipeline.
+			print("({:.2f} Gb)".format(input_file_size))
+
 			# Identify the cluster resources we will require for this submission
-			submit_settings = pipeline_interface.choose_resource_package(pl_id, sample.input_file_size)
+			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
 
 			# Reset the partition if it was specified on the command-line
 			if hasattr(prj.compute, "partition"):
