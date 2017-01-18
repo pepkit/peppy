@@ -182,6 +182,12 @@ class Project(AttributeDict):
 		self.name = _os.path.basename(self.metadata.output_dir)
 		self.subproject = subproject
 
+		# Derived columns: by default, use data_source
+		if hasattr(self, "derived_columns"):
+			self.derived_columns.append("data_source")
+		else:
+			self.derived_columns = ["data_source"]
+
 		# TODO:
 		# or require config file to have it:
 		# self.name = self.config["project"]["name"]
@@ -430,7 +436,7 @@ class Project(AttributeDict):
 					merge_table = _pd.read_csv(self.metadata.merge_table)
 
 					if 'sample_name' not in merge_table.columns:
-						raise KeyError("Required merge table column named 'sample_name' is missing.")
+						raise KeyError("Merge table requires a column named 'sample_name'.")
 
 					# for each sample:
 					for sample in self.sheet.samples:
@@ -442,12 +448,36 @@ class Project(AttributeDict):
 							# 1) update the sample values with the merge table
 							# 2) get data source (file path) for each row (which represents a file to be added)
 							# 3) append file path to sample.data_path (space delimited)
-							data_paths = list()
+							merged_cols = {key: "" for key in merge_rows.columns}
+							print(merged_cols)
 							for row in merge_rows.index:
-								sample.update(merge_rows.ix[row].to_dict())  # 1)
-								data_paths.append(sample.locate_data_source())  # 2)
-							sample.data_path = " ".join(data_paths)  # 3)
+								# Update with derived columns
+								row_dict = merge_rows.ix[row].to_dict()
+								for col in merge_rows.columns:
+									print(col)
+									if col == "sample_name":
+										continue
+									if col in self["derived_columns"]:
+										merged_cols[col + "_key"] = ""  # initialize key in parent dict.
+										row_dict[col + "_key"] = row_dict[col]
+										print(row_dict)
+										print("locate", col,  sample.locate_data_source(col, row_dict[col], row_dict))
+										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)
+
+								for key, val in row_dict.items():
+									if key == "sample_name":
+										continue
+									print(key,val)
+									if val:  # this purges out any None entries
+										merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()
+
+							print(merged_cols)
+							merged_cols.pop('sample_name', None)  # Don't update sample_name.
+							sample.update(merged_cols)  # 1)
+							#data_paths.append()  # 2)
+							#sample.data_path = " ".join(data_paths)  # 3)
 							sample.merged = True  # mark sample as merged
+							sample.merged_cols = merged_cols
 
 		# With all samples, prepare file paths and get read type (optionally make sample dirs)
 		for sample in self.samples:
@@ -457,6 +487,8 @@ class Project(AttributeDict):
 			if not sample.check_input_exists():
 				continue
 
+			# For bam files inputs (the most common), we implement here a default
+			# read_type checker
 			# get read type and length if not provided
 			if not hasattr(sample, "read_type") and self.file_checks:
 				sample.get_read_type()
@@ -639,6 +671,7 @@ class Sample(object):
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
+		self.merged_cols = []
 
 		# Keep a list of attributes that came from the sample sheet, so we can provide a
 		# minimal representation of the original sample as provided (in order!).
@@ -758,7 +791,7 @@ class Sample(object):
 		with open(self.yaml_file, 'w') as outfile:
 			outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
-	def locate_data_source(self, column_name="data_source"):
+	def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
 		"""
 		Locates the path of input file `data_path` based on a regex.
 
@@ -767,24 +800,33 @@ class Sample(object):
 		"""
 		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
-		if hasattr(self, column_name):
-			try:
-				regex = self.prj["data_sources"][getattr(self, column_name)]
-			except:
-				print("Config lacks location for data_source: " + getattr(self, column_name))
-				return ""
+		if not source_key:
+			if not hasattr(self, column_name):
+				raise AttributeError("You must provide a source_key, no attribute: " + source_key)
+			else:
+				source_key = getattr(self, column_name)
 
-			# This will populate any environment variables like $VAR with os.environ["VAR"]
-			regex = _os.path.expandvars(regex)
+		try:
+			regex = self.prj["data_sources"][source_key]
+		except:
+			print("Config lacks location for data_source: " + source_key)
+			return ""
 
-			try:
-				val = regex.format(**self.__dict__)
-			except Exception as e:
-				print("Can't format data source correctly:" + regex)
-				print(str(type(e).__name__) + str(e))
-				return ""
+		# This will populate any environment variables like $VAR with os.environ["VAR"]
+		regex = _os.path.expandvars(regex)
 
-			return val
+		try:
+			temp_dict = self.__dict__
+			temp_dict.update(extra_vars)
+			#val = regex.format(**self.__dict__)
+			val = regex.format(**temp_dict)
+			
+		except Exception as e:
+			print("Can't format data source correctly:" + regex)
+			print(str(type(e).__name__) + str(e))
+			return ""
+
+		return val
 
 	def get_genome_transcriptome(self):
 		"""
@@ -801,21 +843,25 @@ class Sample(object):
 		except AttributeError:
 			print(Warning("Config lacks transcriptome mapping for organism: " + self.organism))
 
-	def set_file_paths(self, overide=False):
+	def set_file_paths(self, override=False):
 		"""
 		Sets the paths of all files for this sample.
 		"""
 		# If sample has data_path and is merged, then skip this because the paths are already built
-		if self.merged and hasattr(self, "data_path") and not overide:
+		if self.merged and not override:
 			pass
+		#if self.merged and hasattr(self, "data_path") and not overide:
+		#	pass
 
+		
+		# This block is deprecated by generic derived columsn, of which "data_path" is one
 		# If sample does not have data_path, then build the file path to the input file.
 		# this is built on a regex specified in the config file or the custom one (see `Project`).
-		if hasattr(self, "data_path"):
-			if (self.data_path == "nan") or (self.data_path == ""):
-				self.data_path = self.locate_data_source()
-		else:
-			self.data_path = self.locate_data_source()
+		#if hasattr(self, "data_path"):
+		#	if (self.data_path == "nan") or (self.data_path == ""):
+		#		self.data_path = self.locate_data_source()
+		#else:
+		#	self.data_path = self.locate_data_source()
 
 		# any columns specified as "derived" will be constructed based on regex
 		# in the "data_sources" section (should be renamed?)
@@ -824,10 +870,10 @@ class Sample(object):
 			for col in self.prj["derived_columns"]:
 
 				# Only proceed if the specified column exists.
-				if hasattr(self, col):
+				if hasattr(self, col) and self[col] not in self.merged_cols:
 					# should we set a variable called col_source, so that the original
 					# data source value can also be retrieved?
-					setattr(self, col + "_source", getattr(self, col))
+					setattr(self, col + "_key", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
 		# 			if not self.required_paths:
 		# 				self.required_paths = ""
@@ -881,27 +927,31 @@ class Sample(object):
 		#hack!
 		#return True
 
-		l = list()
+		existing_files = list()
+		missing_files = list()
 		# Sanity check:
+		self.data_path = ""
 		if not self.data_path:
 			self.data_path = ""
 
 		# There can be multiple, space-separated values here.
 		for path in self.data_path.split(" "):
 			if not _os.path.exists(path):
-				l.append(path)
+				missing_files.append(path)
+			else:
+				existing_files.append(path)
 
 		# Only one of the inputs needs exist.
 		# If any of them exists, length will be > 0
-		if len(l) > 0:
+		if len(missing_files) > 0:
 			if not permissive:
-				raise IOError("Input file does not exist or cannot be read: %s" % path)
+				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
 			else:
-				print("Input file does not exist or cannot be read: %s" % ", ".join(l))
+				print("Input file does not exist or cannot be read: %s" % ", ".join(missing_files))
 				return False
 		return True
 
-	def get_read_type(self, n=10, permissive=True):
+	def get_read_type(self, test_path, n=10, permissive=True):
 		"""
 		Gets the read type (single, paired) and read length of an input file.
 
@@ -910,6 +960,16 @@ class Sample(object):
 		:param permissive: Should throw error if sample file is not found/readable?.
 		:type permissive: bool
 		"""
+
+		# First make sure the file exists;
+		existing_files = list()
+		missing_files = list()
+		for path in self.data_path.split(" "):
+			if not _os.path.exists(path):
+				missing_files.append(path)
+			else:
+				existing_files.append(path)
+
 		import subprocess as sp
 		from collections import Counter
 
@@ -1110,6 +1170,9 @@ class PipelineInterface(object):
 
 		print("required_input_attributes" + str(required_input_attributes))
 
+		if type(required_input_attributes) is str:
+			required_input_attributes = [required_input_attributes]
+
 		# Identify and accumulate a list of any missing required inputs for this sample
 		missing_files = []
 		for file_attribute in required_input_attributes:
@@ -1134,11 +1197,13 @@ class PipelineInterface(object):
 	def get_total_input_size(self, pipeline_name, sample):
 		# Make this pipeline-specific, since different pipelines may have different inputs.
 		config = self.select_pipeline(pipeline_name)
+		# Collect all input files (as specified in the pipeline_interface config),
+		# and then append them together with spaces. Now, get the file size for this.
 		if config.has_key('all_input_files'):
-			files_paths = [getattr(sample, file_attribute) for file_attribute in config['all_input_files']]
+			files_paths = " ".join([getattr(sample, file_attribute) for file_attribute in config['all_input_files']])
 			input_file_size = self.get_file_size(files_paths)
 		elif config.has_key('required_input_files'):
-			files_paths = [getattr(sample, file_attribute) for file_attribute in config['required_input_files']]
+			files_paths = " ".join([getattr(sample, file_attribute) for file_attribute in config['required_input_files']])
 			input_file_size = self.get_file_size(files_paths)
 		else:
 			input_file_size = 0

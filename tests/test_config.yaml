@@ -1,0 +1,10 @@
+metadata:
+  sample_annotation: samples.csv
+  output_dir: test
+  pipelines_dir: pipelines
+  merge_table: merge.csv
+
+derived_columns: [dcol1, dcol2]
+
+data_sources:
+  src1: "{sample_name}{col_modifier}.txt"
