@@ -196,11 +196,17 @@ def run(prj, args, remaining_args):
 			pl_id = str(pipeline).split(" ")[0]
 
 			# Check for any required inputs before submitting
-			if not pipeline_interface.confirm_required_inputs(pl_id, sample):
+			try:
+				inputs = pipeline_interface.confirm_required_inputs(pl_id, sample):
+			except IOError:
 				fail_message = "Required input files not found"
 				print("\nNot submitted: " + fail_message)
 				failures.append([fail_message, sample.sample_name])
 				continue
+
+			# add information about read type and length for this pipeline.
+			inputs = pipeline_interface.get_required_input_attributes(pl_id, sample)
+			sample.get_read_type(inputs)
 
 			# get sample input file size, store as attribute
 			input_file_size = pipeline_interface.get_total_input_size(pl_id, sample)

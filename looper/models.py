@@ -484,8 +484,8 @@ class Project(AttributeDict):
 			if hasattr(sample, "organism"):
 				sample.get_genome_transcriptome()
 			sample.set_file_paths()
-			if not sample.check_input_exists():
-				continue
+			#if not sample.check_input_exists():
+			#	continue
 
 			# For bam files inputs (the most common), we implement here a default
 			# read_type checker
@@ -793,10 +793,21 @@ class Sample(object):
 
 	def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
 		"""
-		Locates the path of input file `data_path` based on a regex.
+		Uses the template path provided in the project config section "data_sources" to
+		pieces together an actual path, by substituting varibles (encoded by "{variable}"") with
+		sample attributes.
 
-		:param column_name: Name of sample attribute to get input data.
+		:param column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
 		:type column_name: str
+		:param source_key: The key of the data_source, used to index into the project config data_sources
+		section. By default, the source key will be taken as the value of the specified column (as a sample
+		attribute); but	for cases where the sample doesn't have this attribute yet (e.g. in a merge table),
+		you must specify the source key.
+		:type source_key: str
+		:param extra_vars: By default, locate_data_source will look to populate the template location
+		using attributes found in the current sample; however, you may also provide a dict of
+		extra variables that can also be used for variable replacement. These extra variables are
+		given a higher priority.
 		"""
 		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
@@ -816,6 +827,9 @@ class Sample(object):
 		regex = _os.path.expandvars(regex)
 
 		try:
+			# Grab a temporary dictionary of sample attributes, and update these
+			# with any provided extra variables to use in the replacement.
+			# This is necessary for derived_columns in the 
 			temp_dict = self.__dict__
 			temp_dict.update(extra_vars)
 			#val = regex.format(**self.__dict__)
@@ -848,8 +862,11 @@ class Sample(object):
 		Sets the paths of all files for this sample.
 		"""
 		# If sample has data_path and is merged, then skip this because the paths are already built
-		if self.merged and not override:
-			pass
+		# FALSE! We still need to set file paths on merged samples, now that
+		# merge tables can use derived columns.
+		# Instead, we skip on a per-column basis.
+		#if self.merged and not override:
+		#	pass
 		#if self.merged and hasattr(self, "data_path") and not overide:
 		#	pass
 
@@ -869,7 +886,7 @@ class Sample(object):
 		if hasattr(self.prj, "derived_columns"):
 			for col in self.prj["derived_columns"]:
 
-				# Only proceed if the specified column exists.
+				# Only proceed if the specified column exists, and was not already merged.
 				if hasattr(self, col) and self[col] not in self.merged_cols:
 					# should we set a variable called col_source, so that the original
 					# data source value can also be retrieved?
@@ -917,41 +934,43 @@ class Sample(object):
 
 		return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
 
-	def check_input_exists(self, permissive=True):
-		"""
-		Creates sample directory structure if it doesn't exist.
+	# check input exists is deprecated by PipelineInterface; 
+	# inputs are not relative to a sample, but to a sample/pipeline relationship
+	# def check_input_exists(self, permissive=True):
+	# 	"""
+	# 	Creates sample directory structure if it doesn't exist.
 
-		:param permissive: Whether error should be ignored if input file does not exist.
-		:type permissive: bool
-		"""
-		#hack!
-		#return True
+	# 	:param permissive: Whether error should be ignored if input file does not exist.
+	# 	:type permissive: bool
+	# 	"""
+	# 	#hack!
+	# 	#return True
 
-		existing_files = list()
-		missing_files = list()
-		# Sanity check:
-		self.data_path = ""
-		if not self.data_path:
-			self.data_path = ""
+	# 	existing_files = list()
+	# 	missing_files = list()
+	# 	# Sanity check:
+	# 	self.data_path = ""
+	# 	if not self.data_path:
+	# 		self.data_path = ""
 
-		# There can be multiple, space-separated values here.
-		for path in self.data_path.split(" "):
-			if not _os.path.exists(path):
-				missing_files.append(path)
-			else:
-				existing_files.append(path)
+	# 	# There can be multiple, space-separated values here.
+	# 	for path in self.data_path.split(" "):
+	# 		if not _os.path.exists(path):
+	# 			missing_files.append(path)
+	# 		else:
+	# 			existing_files.append(path)
 
-		# Only one of the inputs needs exist.
-		# If any of them exists, length will be > 0
-		if len(missing_files) > 0:
-			if not permissive:
-				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
-			else:
-				print("Input file does not exist or cannot be read: %s" % ", ".join(missing_files))
-				return False
-		return True
+	# 	# Only one of the inputs needs exist.
+	# 	# If any of them exists, length will be > 0
+	# 	if len(missing_files) > 0:
+	# 		if not permissive:
+	# 			raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
+	# 		else:
+	# 			print("Input file does not exist or cannot be read: %s" % ", ".join(missing_files))
+	# 			return False
+	# 	return True
 
-	def get_read_type(self, test_path, n=10, permissive=True):
+	def get_read_type(self, attribute = "data_path", n=10, permissive=True):
 		"""
 		Gets the read type (single, paired) and read length of an input file.
 
@@ -962,9 +981,15 @@ class Sample(object):
 		"""
 
 		# First make sure the file exists;
+		if not hasattr(self, attribute):
+			return None
+
+		test_path = getattr(self, attribute)
+
+
 		existing_files = list()
 		missing_files = list()
-		for path in self.data_path.split(" "):
+		for path in test_path.split(" "):
 			if not _os.path.exists(path):
 				missing_files.append(path)
 			else:
@@ -1026,7 +1051,7 @@ class Sample(object):
 
 		# for samples with multiple original bams, check all
 		files = list()
-		for input_file in self.data_path.split(" "):
+		for input_file in existing_files:
 			try:
 				# Guess the file type, parse accordingly
 				file_type = bam_or_fastq(input_file)
@@ -1158,15 +1183,22 @@ class PipelineInterface(object):
 
 		return(table[current_pick])
 
-	def confirm_required_inputs(self, pipeline_name, sample, permissive = True):
+	def get_required_input_attributes(self, pipeline_name, sample):
 		config = self.select_pipeline(pipeline_name)
-
-		# Pipeline interface file may specify required input files;
 		if config.has_key('required_input_files'):
 			required_input_attributes = config['required_input_files']
 		else:
 			required_input_attributes = None
-			return True
+
+		return required_input_attributes
+
+
+	def confirm_required_inputs(self, pipeline_name, sample, permissive = True):
+		config = self.select_pipeline(pipeline_name)
+
+		# Pipeline interface file may specify required input files;
+		required_input_attributes = self.get_required_input_attributes()
+
 
 		print("required_input_attributes" + str(required_input_attributes))
 
