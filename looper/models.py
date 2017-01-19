@@ -449,18 +449,16 @@ class Project(AttributeDict):
 							# 2) get data source (file path) for each row (which represents a file to be added)
 							# 3) append file path to sample.data_path (space delimited)
 							merged_cols = {key: "" for key in merge_rows.columns}
-							print(merged_cols)
 							for row in merge_rows.index:
 								# Update with derived columns
 								row_dict = merge_rows.ix[row].to_dict()
 								for col in merge_rows.columns:
-									print(col)
 									if col == "sample_name":
 										continue
 									if col in self["derived_columns"]:
 										merged_cols[col + "_key"] = ""  # initialize key in parent dict.
 										row_dict[col + "_key"] = row_dict[col]
-										print(row_dict)
+#										print(row_dict)
 										print("locate", col,  sample.locate_data_source(col, row_dict[col], row_dict))
 										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)
 
@@ -471,7 +469,6 @@ class Project(AttributeDict):
 									if val:  # this purges out any None entries
 										merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()
 
-							print(merged_cols)
 							merged_cols.pop('sample_name', None)  # Don't update sample_name.
 							sample.update(merged_cols)  # 1)
 							#data_paths.append()  # 2)
@@ -480,9 +477,10 @@ class Project(AttributeDict):
 							sample.merged_cols = merged_cols
 
 		# With all samples, prepare file paths and get read type (optionally make sample dirs)
-		for sample in self.samples:
+		for sample in self.sheet.samples:
 			if hasattr(sample, "organism"):
 				sample.get_genome_transcriptome()
+
 			sample.set_file_paths()
 			#if not sample.check_input_exists():
 			#	continue
@@ -490,11 +488,16 @@ class Project(AttributeDict):
 			# For bam files inputs (the most common), we implement here a default
 			# read_type checker
 			# get read type and length if not provided
-			if not hasattr(sample, "read_type") and self.file_checks:
-				sample.get_read_type()
+			# This is now pipeline-specific
+			#if not hasattr(sample, "read_type") and self.file_checks:
+			#	sample.get_read_type()
 
 			# make sample directory structure
 			# sample.make_sample_dirs()
+
+			# hack
+			if hasattr(sample,"data_source"):
+				sample.data_path = sample.data_source
 
 	def add_sample(self, sample):
 		"""
@@ -671,7 +674,7 @@ class Sample(object):
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
-		self.merged_cols = []
+		self.merged_cols = {}
 
 		# Keep a list of attributes that came from the sample sheet, so we can provide a
 		# minimal representation of the original sample as provided (in order!).
@@ -702,6 +705,7 @@ class Sample(object):
 		# The SampleSheet object, after being added to a project, will
 		# call Sample.set_file_paths(), creating the data_path of the sample (the bam file)
 		# and other paths.
+
 
 	def __repr__(self):
 		return "Sample '%s'" % self.sample_name
@@ -820,7 +824,7 @@ class Sample(object):
 		try:
 			regex = self.prj["data_sources"][source_key]
 		except:
-			print("Config lacks location for data_source: " + source_key)
+			print("Config lacks entry for data_source key: '" + source_key + "'' (in column: '" + column_name + "')")
 			return ""
 
 		# This will populate any environment variables like $VAR with os.environ["VAR"]
@@ -831,14 +835,15 @@ class Sample(object):
 			# with any provided extra variables to use in the replacement.
 			# This is necessary for derived_columns in the 
 			temp_dict = self.__dict__
-			temp_dict.update(extra_vars)
+			if(extra_vars):
+				temp_dict.update(extra_vars)
 			#val = regex.format(**self.__dict__)
 			val = regex.format(**temp_dict)
 			
 		except Exception as e:
 			print("Can't format data source correctly:" + regex)
 			print(str(type(e).__name__) + str(e))
-			return ""
+			return regex
 
 		return val
 
@@ -887,9 +892,8 @@ class Sample(object):
 			for col in self.prj["derived_columns"]:
 
 				# Only proceed if the specified column exists, and was not already merged.
-				if hasattr(self, col) and self[col] not in self.merged_cols:
-					# should we set a variable called col_source, so that the original
-					# data source value can also be retrieved?
+				if hasattr(self, col) and col not in self.merged_cols:
+					# set a variable called {col}_key, so the original source can also be retrieved
 					setattr(self, col + "_key", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
 		# 			if not self.required_paths:
@@ -970,6 +974,207 @@ class Sample(object):
 	# 			return False
 	# 	return True
 
+
+	def set_pipeline_specifics(self, pipeline_interface, pipeline_name):
+		# ngs_inputs
+		#self.ngs_inputs = pipeline_interface.get_ngs_inputs(pipeline_name, self)
+		self.ngs_inputs_attr = pipeline_interface.get_attribute_list(pipeline_name, "ngs_inputs")
+
+		if self.ngs_inputs_attr:
+			# read_type
+			# read_length
+			# paired
+			self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
+			self.set_read_type()
+
+		# input_size
+		self.required_inputs_attr = pipeline_interface.get_attribute_list(pipeline_name, "required_input_files")
+		self.all_inputs_attr = pipeline_interface.get_attribute_list(pipeline_name, "all_input_files")
+		
+		if not self.all_inputs_attr:
+			self.required_inputs_attr = self.required_inputs_attr
+
+		self.required_inputs = self.get_attr_values("required_inputs_attr")
+		self.all_inputs = self.get_attr_values("all_inputs_attr")
+
+		print(self.all_inputs)
+		self.input_file_size = self.get_file_size(self.all_inputs)
+		
+		# pipeline_name
+
+	def get_attr_values(self, attrlist):
+		if not hasattr(self, attrlist):
+			return None
+
+		attribute_list = getattr(self, attrlist)
+
+		if not attribute_list:  # It can be none; if attribute is None, then value is also none
+			return None
+		
+		if type(attribute_list) is not list:
+			attribute_list = [attribute_list]
+
+		values = []
+		
+		for attr in attribute_list:
+			values.append(getattr(self, attr))
+
+		return values
+
+	def get_file_size(self, filename):
+		"""
+		Get size of all files in string (space-separated) in gigabytes (Gb).
+		"""
+		
+		if type(filename) is list:
+			# Recurse
+			return sum([self.get_file_size(x) for x in filename])
+
+		if filename is None:
+			return 0
+
+		try:
+			return sum([float(_os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
+		except OSError:
+			# File not found
+			return 0
+
+	def set_read_type(self, n = 10 , permissive=True):
+		# Initialize the parameters in case there is no input_file,
+		# so these attributes at least exist
+		self.read_length = None
+		self.read_type = None
+		self.paired = None
+
+		# ngs_inputs must be set
+		if not self.ngs_inputs:
+			return False
+
+		ngs_paths = " ".join(self.ngs_inputs)
+
+		existing_files = list()
+		missing_files = list()
+		for path in ngs_paths.split(" "):
+			if not _os.path.exists(path):
+				missing_files.append(path)
+			else:
+				existing_files.append(path)
+
+		import subprocess as sp
+		from collections import Counter
+
+		def bam_or_fastq(input_file):
+			"""
+			Checks if string endswith `bam` or `fastq`.
+			Returns string. Raises TypeError if neither.
+
+			:param input_file: String to check.
+			:type input_file: str
+			"""
+			if input_file.endswith(".bam"):
+				return "bam"
+			elif input_file.endswith(".fastq"):
+				return "fastq"
+			else:
+				raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
+
+		def check_bam(bam, o):
+			"""
+			Check reads in BAM file for read type and lengths.
+
+			:param bam: BAM file path.
+			:type bam: str
+			:param o: Number of reads to look at for estimation.
+			:type o: int
+			"""
+			# view reads
+			try:
+				p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
+
+				# Count paired alignments
+				paired = 0
+				read_length = Counter()
+				while o > 0:
+					line = p.stdout.next().split("\t")
+					flag = int(line[1])
+					read_length[len(line[9])] += 1
+					if 1 & flag:  # check decimal flag contains 1 (paired)
+						paired += 1
+					o -= 1
+				p.kill()
+			except OSError:
+				raise OSError("For NGS inputs, looper uses samtools to auto-populate read_length and read_type attributes.\
+				 Samtools was not found, so these attributes were not populated.")
+
+			return (read_length, paired)
+
+		def check_fastq(fastq, o):
+			"""
+			"""
+			raise NotImplementedError("Detection of read type/length for fastq input is not yet implemented.")
+
+
+		# for samples with multiple original bams, check all
+		files = list()
+		for input_file in existing_files:
+			try:
+				# Guess the file type, parse accordingly
+				file_type = bam_or_fastq(input_file)
+				if file_type == "bam":
+					read_length, paired = check_bam(input_file, n)
+				elif file_type == "fastq":
+					read_length, paired = check_fastq(input_file, n)
+				else:
+					if not permissive:
+						raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
+					else:
+						print(Warning("Type of input file does not end in either '.bam' or '.fastq'"))
+					return
+			except NotImplementedError as e:
+				if not permissive:
+					raise e
+				else:
+					print(e)
+					return
+			except IOError as e:
+				if not permissive:
+					raise e
+				else:
+					print(Warning("Input file does not exist or cannot be read: {}".format(input_file)))
+					self.read_length = None
+					self.read_type = None
+					self.paired = None
+					return
+			except OSError as e:
+				print(Warning(str(e) + " [file: {}]".format(input_file)))
+				self.read_length = None
+				self.read_type = None
+				self.paired = None
+				return
+
+			# Get most abundant read length
+			read_length = sorted(read_length)[-1]
+
+			# If at least half is paired, consider paired end reads
+			if paired > (n / 2):
+				read_type = "paired"
+				paired = True
+			else:
+				read_type = "single"
+				paired = False
+
+			files.append([read_length, read_type, paired])
+
+		# Check agreement between different files
+		# if all values are equal, set to that value;
+		# if not, set to None and warn the user about the inconsistency
+		for i, feature in enumerate(["read_length", "read_type", "paired"]):
+			setattr(self, feature, files[0][i] if len(set(f[i] for f in files)) == 1 else None)
+
+			if getattr(self, feature) is None:
+				print(Warning("Not all input files agree on " + feature + " for sample : %s" % self.name))
+
+
 	def get_read_type(self, attribute = "data_path", n=10, permissive=True):
 		"""
 		Gets the read type (single, paired) and read length of an input file.
@@ -984,7 +1189,12 @@ class Sample(object):
 		if not hasattr(self, attribute):
 			return None
 
-		test_path = getattr(self, attribute)
+
+		if type(attribute) is list:
+			for x in attribute:
+				test_path = test_path + " " + getattr(self, attribute)
+		else:
+			test_path = getattr(self, attribute)
 
 
 		existing_files = list()
@@ -1116,7 +1326,7 @@ class PipelineInterface(object):
 		import yaml
 		self.looper_config_file = yaml_config_file
 		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
-
+		self.DEBUG = True
 		# A variable to control the verbosity level of output
 		self.verbose = 0
 
@@ -1183,32 +1393,56 @@ class PipelineInterface(object):
 
 		return(table[current_pick])
 
-	def get_required_input_attributes(self, pipeline_name, sample):
-		config = self.select_pipeline(pipeline_name)
-		if config.has_key('required_input_files'):
-			required_input_attributes = config['required_input_files']
-		else:
-			required_input_attributes = None
 
-		return required_input_attributes
+	def get_attribute_list(self, pipeline_name, list_key):
+		config = self.select_pipeline(pipeline_name)
+		
+		if config.has_key(list_key):
+			attributes = config[list_key]
+		else:
+			attributes = None
+
+		# Make it a list if the file had a string.
+		if type(attributes) is str:
+			attributes = [attributes]
+
+		return attributes
+
+
+	def get_ngs_inputs(self, pipeline_name, sample):
+		ngs_attributes = self.get_attribute_list(pipeline_name, "ngs_inputs")
+
+		ngs_inputs = []
+		for file_attribute in ngs_input_attributes:
+			if not hasattr(sample, file_attribute):
+				continue
+
+			paths = getattr(sample, file_attribute)
+			# There can be multiple, space-separated values here.
+			for path in paths.split(" "):
+				if _os.path.exists(path):
+					ngs_inputs.append(path)
+
+		return ngs_inputs
 
 
 	def confirm_required_inputs(self, pipeline_name, sample, permissive = True):
 		config = self.select_pipeline(pipeline_name)
 
 		# Pipeline interface file may specify required input files;
-		required_input_attributes = self.get_required_input_attributes()
+		required_input_attributes = self.get_attribute_list(pipeline_name, "required_input_files")
 
+		if not required_input_attributes:
+			return True
 
-		print("required_input_attributes" + str(required_input_attributes))
-
-		if type(required_input_attributes) is str:
-			required_input_attributes = [required_input_attributes]
+		if self.DEBUG:
+			print("required_input_attributes" + str(required_input_attributes))
 
 		# Identify and accumulate a list of any missing required inputs for this sample
 		missing_files = []
 		for file_attribute in required_input_attributes:
 			if not hasattr(sample, file_attribute):
+				print("Sample missing required input attribute: " + file_attribute)
 				raise IOError("Sample missing required input attribute: " + file_attribute)
 
 			paths = getattr(sample, file_attribute)
@@ -1219,6 +1453,7 @@ class PipelineInterface(object):
 
 		if len(missing_files) > 0:
 			if not permissive:
+				print("Input file does not exist or cannot be read: %s" % str(missing_files))
 				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
 			else:
 				print("Input file does not exist or cannot be read: %s" % str(missing_files))
@@ -1231,15 +1466,13 @@ class PipelineInterface(object):
 		config = self.select_pipeline(pipeline_name)
 		# Collect all input files (as specified in the pipeline_interface config),
 		# and then append them together with spaces. Now, get the file size for this.
-		if config.has_key('all_input_files'):
-			files_paths = " ".join([getattr(sample, file_attribute) for file_attribute in config['all_input_files']])
-			input_file_size = self.get_file_size(files_paths)
-		elif config.has_key('required_input_files'):
-			files_paths = " ".join([getattr(sample, file_attribute) for file_attribute in config['required_input_files']])
-			input_file_size = self.get_file_size(files_paths)
-		else:
-			input_file_size = 0
 
+		inputs = self.get_attribute_list(pipeline_name, "all_input_files")
+		if not inputs:
+			inputs = self.get_attribute_list(pipeline_name, "required_input_files")
+
+		input_file_size = self.get_file_size(inputs)
+		
 		return(input_file_size)
 
 	def get_file_size(self, filename):

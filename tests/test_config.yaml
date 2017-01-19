@@ -4,7 +4,9 @@ metadata:
   pipelines_dir: pipelines
   merge_table: merge.csv
 
-derived_columns: [dcol1, dcol2]
+derived_columns: [file, file2, dcol1, dcol2]
 
 data_sources:
-  src1: "{sample_name}{col_modifier}.txt"
+  src1: "$CODEBASE/looper/tests/data/{sample_name}{col_modifier}.txt"
+  src3: "$CODEBASE/looper/tests/data/{sample_name}.txt"
+  src2: "$CODEBASE/looper/tests/data/{sample_name}-bamfile.bam"
