@@ -159,6 +159,7 @@ def run(prj, args, remaining_args):
 
 		# Make sure the input data exists
 		# this requires every input file (in case of merged samples) to exist.
+		# NS: Move this check to within pipeline loop, since it's pipeline dependent.
 		#if not all(os.path.isfile(f) for f in sample.data_path.split(" ")):
 		#	fail_message += "Sample input file does not exist."
 		#	fail = True
@@ -197,7 +198,7 @@ def run(prj, args, remaining_args):
 
 			# Check for any required inputs before submitting
 			try:
-				inputs = pipeline_interface.confirm_required_inputs(pl_id, sample):
+				inputs = pipeline_interface.confirm_required_inputs(pl_id, sample, False)
 			except IOError:
 				fail_message = "Required input files not found"
 				print("\nNot submitted: " + fail_message)
@@ -205,16 +206,11 @@ def run(prj, args, remaining_args):
 				continue
 
 			# add information about read type and length for this pipeline.
-			inputs = pipeline_interface.get_required_input_attributes(pl_id, sample)
-			sample.get_read_type(inputs)
-
-			# get sample input file size, store as attribute
-			input_file_size = pipeline_interface.get_total_input_size(pl_id, sample)
-			sample.input_file_size = input_file_size  # bad idea; it's relative to pipeline.
-			print("({:.2f} Gb)".format(input_file_size))
+			sample.set_pipeline_specifics(pipeline_interface, pl_id)
+			print("({:.2f} Gb)".format(sample.input_file_size))
 
 			# Identify the cluster resources we will require for this submission
-			submit_settings = pipeline_interface.choose_resource_package(pl_id, input_file_size)
+			submit_settings = pipeline_interface.choose_resource_package(pl_id, sample.input_file_size)
 
 			# Reset the partition if it was specified on the command-line
 			if hasattr(prj.compute, "partition"):

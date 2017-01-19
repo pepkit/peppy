@@ -1,1 +1,2 @@
 testlib: testpipeline.sh
+testngs: testngs.sh
