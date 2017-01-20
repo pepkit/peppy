@@ -458,14 +458,12 @@ class Project(AttributeDict):
 									if col in self["derived_columns"]:
 										merged_cols[col + "_key"] = ""  # initialize key in parent dict.
 										row_dict[col + "_key"] = row_dict[col]
-#										print(row_dict)
-										print("locate", col,  sample.locate_data_source(col, row_dict[col], row_dict))
+										#print("locate", col,  sample.locate_data_source(col, row_dict[col], row_dict))
 										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)
 
 								for key, val in row_dict.items():
 									if key == "sample_name":
 										continue
-									print(key,val)
 									if val:  # this purges out any None entries
 										merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()
 
@@ -866,27 +864,8 @@ class Sample(object):
 		"""
 		Sets the paths of all files for this sample.
 		"""
-		# If sample has data_path and is merged, then skip this because the paths are already built
-		# FALSE! We still need to set file paths on merged samples, now that
-		# merge tables can use derived columns.
-		# Instead, we skip on a per-column basis.
-		#if self.merged and not override:
-		#	pass
-		#if self.merged and hasattr(self, "data_path") and not overide:
-		#	pass
-
-		
-		# This block is deprecated by generic derived columsn, of which "data_path" is one
-		# If sample does not have data_path, then build the file path to the input file.
-		# this is built on a regex specified in the config file or the custom one (see `Project`).
-		#if hasattr(self, "data_path"):
-		#	if (self.data_path == "nan") or (self.data_path == ""):
-		#		self.data_path = self.locate_data_source()
-		#else:
-		#	self.data_path = self.locate_data_source()
-
 		# any columns specified as "derived" will be constructed based on regex
-		# in the "data_sources" section (should be renamed?)
+		# in the "data_sources" section of project config
 
 		if hasattr(self.prj, "derived_columns"):
 			for col in self.prj["derived_columns"]:
@@ -896,17 +875,6 @@ class Sample(object):
 					# set a variable called {col}_key, so the original source can also be retrieved
 					setattr(self, col + "_key", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
-		# 			if not self.required_paths:
-		# 				self.required_paths = ""
-		# 			self.required_paths += " " + getattr(self, col)
-
-		# # Construct required_inputs
-		# if hasattr(self.prj, "required_inputs"):
-		# 	for col in self.prj["required_inputs"]:
-
-		# 		# Only proceed if the specified column exists.
-		# 		if hasattr(self, col):
-		# 			self.required_paths += " " + getattr(self, col)
 
 		# parent
 		self.results_subdir = self.prj.metadata.results_subdir
@@ -938,71 +906,84 @@ class Sample(object):
 
 		return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
 
-	# check input exists is deprecated by PipelineInterface; 
-	# inputs are not relative to a sample, but to a sample/pipeline relationship
-	# def check_input_exists(self, permissive=True):
-	# 	"""
-	# 	Creates sample directory structure if it doesn't exist.
 
-	# 	:param permissive: Whether error should be ignored if input file does not exist.
-	# 	:type permissive: bool
-	# 	"""
-	# 	#hack!
-	# 	#return True
-
-	# 	existing_files = list()
-	# 	missing_files = list()
-	# 	# Sanity check:
-	# 	self.data_path = ""
-	# 	if not self.data_path:
-	# 		self.data_path = ""
-
-	# 	# There can be multiple, space-separated values here.
-	# 	for path in self.data_path.split(" "):
-	# 		if not _os.path.exists(path):
-	# 			missing_files.append(path)
-	# 		else:
-	# 			existing_files.append(path)
-
-	# 	# Only one of the inputs needs exist.
-	# 	# If any of them exists, length will be > 0
-	# 	if len(missing_files) > 0:
-	# 		if not permissive:
-	# 			raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
-	# 		else:
-	# 			print("Input file does not exist or cannot be read: %s" % ", ".join(missing_files))
-	# 			return False
-	# 	return True
-
-
-	def set_pipeline_specifics(self, pipeline_interface, pipeline_name):
-		# ngs_inputs
-		#self.ngs_inputs = pipeline_interface.get_ngs_inputs(pipeline_name, self)
-		self.ngs_inputs_attr = pipeline_interface.get_attribute_list(pipeline_name, "ngs_inputs")
-
+	def set_pipeline_attributes(self, pipeline_interface, pipeline_name):
+		"""
+		Some sample attributes are relative to a particular pipeline run, like which files should be considered
+		inputs, what is the total input file size for the sample, etc. This function sets these pipeline-specific
+		sample attributes, provided via a PipelineInterface object and the name of a pipeline to select from
+		that interface.
+		:param pipeline_interface: A PipelineInterface object that has the settings for this given pipeline.
+		:param pipeline_name: Which pipeline to choose.
+		"""
+		# Settings ending in _attr are lists of attribute keys; these attributes are then queried to populate
+		# values for the primary entries.
+		self.ngs_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "ngs_inputs")
+		self.required_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "required_input_files")
+		self.all_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "all_input_files")
+		
 		if self.ngs_inputs_attr:
-			# read_type
-			# read_length
-			# paired
+			# NGS data inputs exit, so we can add attributes like read_type, read_length, paired.
 			self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
 			self.set_read_type()
 
 		# input_size
-		self.required_inputs_attr = pipeline_interface.get_attribute_list(pipeline_name, "required_input_files")
-		self.all_inputs_attr = pipeline_interface.get_attribute_list(pipeline_name, "all_input_files")
-		
 		if not self.all_inputs_attr:
 			self.required_inputs_attr = self.required_inputs_attr
 
+		# Convert attribute keys into values
 		self.required_inputs = self.get_attr_values("required_inputs_attr")
 		self.all_inputs = self.get_attr_values("all_inputs_attr")
-
-		print(self.all_inputs)
 		self.input_file_size = self.get_file_size(self.all_inputs)
 		
 		# pipeline_name
 
+
+	def confirm_required_inputs(self, permissive = False):
+		# set_pipeline_attributes must be run first.
+
+		if not hasattr(self, "required_inputs"):
+			print(Warning("You must run set_pipeline_attributes before confirm_required_inputs"))
+			return True
+
+		if not self.required_inputs:
+			return True
+
+		# Identify and accumulate a list of any missing required inputs for this sample
+
+		# First, attributes
+		missing_attributes = []
+		for file_attribute in self.required_inputs_attr:
+			if not hasattr(self, file_attribute):
+				print("Sample missing required input attribute: " + file_attribute)
+				if not permissive:
+					raise IOError("Sample missing required input attribute: " + file_attribute)
+				else:
+					return False
+
+		# Second, files
+		missing_files = []
+		for paths in self.required_inputs:
+			# There can be multiple, space-separated values here.
+			for path in paths.split(" "):
+				if not _os.path.exists(path):
+					missing_files.append(path)
+
+		if len(missing_files) > 0:
+			print("Input file does not exist or cannot be read: %s" % str(missing_files))
+			if not permissive:
+				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
+			else:
+				return False
+
+		return True
+
+
 	def get_attr_values(self, attrlist):
+		"""
+		Given an attribute that contains a list of attribute keys, returns the corresponding list of attribute values.
+		:param attrlist: An attribute (of self) that holds a list of attribute keys.
+		"""
 		if not hasattr(self, attrlist):
 			return None
 
@@ -1023,7 +1004,9 @@ class Sample(object):
 
 	def get_file_size(self, filename):
 		"""
-		Get size of all files in string (space-separated) in gigabytes (Gb).
+		Get size of all files in string (space-separated) in gigabytes (Gb). Filename can also be
+		a list of space-separated stings.
+		:param filename: A space-separated string or list of space-separated strings of absolute file paths.
 		"""
 		
 		if type(filename) is list:
@@ -1039,7 +1022,16 @@ class Sample(object):
 			# File not found
 			return 0
 
-	def set_read_type(self, n = 10 , permissive=True):
+	def set_read_type(self, n = 10, permissive=True):
+		"""
+		For a sample with attr `ngs_inputs` set, This sets the read type (single, paired) 
+		and read length of an input file.
+
+		:param n: Number of reads to read to determine read type. Default=10.
+		:type n: int
+		:param permissive: Should throw error if sample file is not found/readable?.
+		:type permissive: bool
+		"""
 		# Initialize the parameters in case there is no input_file,
 		# so these attributes at least exist
 		self.read_length = None
@@ -1076,7 +1068,7 @@ class Sample(object):
 			elif input_file.endswith(".fastq"):
 				return "fastq"
 			else:
-				raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
+				raise TypeError("Type of input file does not end in either '.bam' or '.fastq' [file: '" + input_file +"']")
 
 		def check_bam(bam, o):
 			"""
@@ -1103,8 +1095,9 @@ class Sample(object):
 					o -= 1
 				p.kill()
 			except OSError:
-				raise OSError("For NGS inputs, looper uses samtools to auto-populate read_length and read_type attributes.\
-				 Samtools was not found, so these attributes were not populated.")
+				raise OSError("Note (samtools not in path): For NGS inputs, looper needs samtools to auto-populate " +
+				"read_length and read_type attributes. " +
+				"these attributes were not populated.")
 
 			return (read_length, paired)
 
@@ -1173,145 +1166,6 @@ class Sample(object):
 
 			if getattr(self, feature) is None:
 				print(Warning("Not all input files agree on " + feature + " for sample : %s" % self.name))
-
-
-	def get_read_type(self, attribute = "data_path", n=10, permissive=True):
-		"""
-		Gets the read type (single, paired) and read length of an input file.
-
-		:param n: Number of reads to read to determine read type. Default=10.
-		:type n: int
-		:param permissive: Should throw error if sample file is not found/readable?.
-		:type permissive: bool
-		"""
-
-		# First make sure the file exists;
-		if not hasattr(self, attribute):
-			return None
-
-
-		if type(attribute) is list:
-			for x in attribute:
-				test_path = test_path + " " + getattr(self, attribute)
-		else:
-			test_path = getattr(self, attribute)
-
-
-		existing_files = list()
-		missing_files = list()
-		for path in test_path.split(" "):
-			if not _os.path.exists(path):
-				missing_files.append(path)
-			else:
-				existing_files.append(path)
-
-		import subprocess as sp
-		from collections import Counter
-
-		def bam_or_fastq(input_file):
-			"""
-			Checks if string endswith `bam` or `fastq`.
-			Returns string. Raises TypeError if neither.
-
-			:param input_file: String to check.
-			:type input_file: str
-			"""
-			if input_file.endswith(".bam"):
-				return "bam"
-			elif input_file.endswith(".fastq"):
-				return "fastq"
-			else:
-				raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
-
-		def check_bam(bam, o):
-			"""
-			Check reads in BAM file for read type and lengths.
-
-			:param bam: BAM file path.
-			:type bam: str
-			:param o: Number of reads to look at for estimation.
-			:type o: int
-			"""
-			# view reads
-			p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
-
-			# Count paired alignments
-			paired = 0
-			read_length = Counter()
-			while o > 0:
-				line = p.stdout.next().split("\t")
-				flag = int(line[1])
-				read_length[len(line[9])] += 1
-				if 1 & flag:  # check decimal flag contains 1 (paired)
-					paired += 1
-				o -= 1
-			p.kill()
-			return (read_length, paired)
-
-		def check_fastq(fastq, o):
-			"""
-			"""
-			raise NotImplementedError("Detection of read type/length for fastq input is not yet implemented.")
-
-		# Initialize the parameters in case there is no input_file,
-		# so these attributes at least exist
-		self.read_length = None
-		self.read_type = None
-		self.paired = None
-
-		# for samples with multiple original bams, check all
-		files = list()
-		for input_file in existing_files:
-			try:
-				# Guess the file type, parse accordingly
-				file_type = bam_or_fastq(input_file)
-				if file_type == "bam":
-					read_length, paired = check_bam(input_file, n)
-				elif file_type == "fastq":
-					read_length, paired = check_fastq(input_file, n)
-				else:
-					if not permissive:
-						raise TypeError("Type of input file does not end in either '.bam' or '.fastq'")
-					else:
-						print(Warning("Type of input file does not end in either '.bam' or '.fastq'"))
-					return
-			except NotImplementedError as e:
-				if not permissive:
-					raise e
-				else:
-					print(e)
-					return
-			except IOError as e:
-				if not permissive:
-					raise e
-				else:
-					print(Warning("Input file does not exist or cannot be read: {}".format(input_file)))
-					self.read_length = None
-					self.read_type = None
-					self.paired = None
-					return
-
-			# Get most abundant read length
-			read_length = sorted(read_length)[-1]
-
-			# If at least half is paired, consider paired end reads
-			if paired > (n / 2):
-				read_type = "paired"
-				paired = True
-			else:
-				read_type = "single"
-				paired = False
-
-			files.append([read_length, read_type, paired])
-
-		# Check agreement between different files
-		# if all values are equal, set to that value;
-		# if not, set to None and warn the user about the inconsistency
-		for i, feature in enumerate(["read_length", "read_type", "paired"]):
-			setattr(self, feature, files[0][i] if len(set(f[i] for f in files)) == 1 else None)
-
-			if getattr(self, feature) is None:
-				print(Warning("Not all input files agree on read type/length for sample : %s" % self.name))
 
 
 @copy
@@ -1394,96 +1248,22 @@ class PipelineInterface(object):
 		return(table[current_pick])
 
 
-	def get_attribute_list(self, pipeline_name, list_key):
+	def get_attribute(self, pipeline_name, attribute_key):
+		"""
+		Given a pipeline name and an attribute key, returns the value of that attribute.
+		"""
 		config = self.select_pipeline(pipeline_name)
 		
-		if config.has_key(list_key):
-			attributes = config[list_key]
+		if config.has_key(attribute_key):
+			value = config[attribute_key]
 		else:
-			attributes = None
+			value = None
 
 		# Make it a list if the file had a string.
-		if type(attributes) is str:
-			attributes = [attributes]
+		if type(value) is str:
+			value = [value]
 
-		return attributes
-
-
-	def get_ngs_inputs(self, pipeline_name, sample):
-		ngs_attributes = self.get_attribute_list(pipeline_name, "ngs_inputs")
-
-		ngs_inputs = []
-		for file_attribute in ngs_input_attributes:
-			if not hasattr(sample, file_attribute):
-				continue
-
-			paths = getattr(sample, file_attribute)
-			# There can be multiple, space-separated values here.
-			for path in paths.split(" "):
-				if _os.path.exists(path):
-					ngs_inputs.append(path)
-
-		return ngs_inputs
-
-
-	def confirm_required_inputs(self, pipeline_name, sample, permissive = True):
-		config = self.select_pipeline(pipeline_name)
-
-		# Pipeline interface file may specify required input files;
-		required_input_attributes = self.get_attribute_list(pipeline_name, "required_input_files")
-
-		if not required_input_attributes:
-			return True
-
-		if self.DEBUG:
-			print("required_input_attributes" + str(required_input_attributes))
-
-		# Identify and accumulate a list of any missing required inputs for this sample
-		missing_files = []
-		for file_attribute in required_input_attributes:
-			if not hasattr(sample, file_attribute):
-				print("Sample missing required input attribute: " + file_attribute)
-				raise IOError("Sample missing required input attribute: " + file_attribute)
-
-			paths = getattr(sample, file_attribute)
-			# There can be multiple, space-separated values here.
-			for path in paths.split(" "):
-				if not _os.path.exists(path):
-					missing_files.append(path)
-
-		if len(missing_files) > 0:
-			if not permissive:
-				print("Input file does not exist or cannot be read: %s" % str(missing_files))
-				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
-			else:
-				print("Input file does not exist or cannot be read: %s" % str(missing_files))
-				return False
-
-		return True
-
-	def get_total_input_size(self, pipeline_name, sample):
-		# Make this pipeline-specific, since different pipelines may have different inputs.
-		config = self.select_pipeline(pipeline_name)
-		# Collect all input files (as specified in the pipeline_interface config),
-		# and then append them together with spaces. Now, get the file size for this.
-
-		inputs = self.get_attribute_list(pipeline_name, "all_input_files")
-		if not inputs:
-			inputs = self.get_attribute_list(pipeline_name, "required_input_files")
-
-		input_file_size = self.get_file_size(inputs)
-		
-		return(input_file_size)
-
-	def get_file_size(self, filename):
-		"""
-		Get size of all files in string (space-separated) in gigabytes (Gb).
-		"""
-		try:
-			return sum([float(_os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
-		except OSError:
-			# File not found
-			return 0
+		return value
 
 
 	def get_arg_string(self, pipeline_name, sample):
@@ -1516,10 +1296,10 @@ class PipelineInterface(object):
 					arg = getattr(sample, value)
 				except AttributeError as e:
 					print(
-						"Pipeline '" + pipeline_name + "' requests for argument '" +
-						key + "' a sample attribute named '" + value + "'" +
-						" but no such attribute exists for sample '" +
-						sample.sample_name + "'")
+						"Error (missing attribute): '" + pipeline_name + "' requires" +
+						" sample attribute '" + value + "'" +
+						" for argument '" + key + "'" +
+						" [sample '" +	sample.sample_name + "']")
 					raise e
 
 				argstring += " " + str(key) + " " + str(arg)
@@ -1537,10 +1317,10 @@ class PipelineInterface(object):
 						arg = getattr(sample, value)
 					except AttributeError as e:
 						print(
-							"Pipeline '" + pipeline_name + "' requests for OPTIONAL argument '" +
-							key + "' a sample attribute named '" + value + "'" +
-							" but no such attribute exists for sample '" +
-							sample.sample_name + "'")
+							"Note (missing attribute): '" + pipeline_name + "' requests" +
+							" sample attribute '" + value + "'" +
+							" for OPTIONAL argument '" + key + "'" +
+							" [sample '" +	sample.sample_name + "']")
 						continue
 						# raise e
 
