@@ -445,9 +445,11 @@ class Project(AttributeDict):
 						# check if there are rows in the merge table for this sample:
 						if len(merge_rows) > 0:
 							# for each row in the merge table of this sample:
-							# 1) update the sample values with the merge table
-							# 2) get data source (file path) for each row (which represents a file to be added)
-							# 3) append file path to sample.data_path (space delimited)
+							# 1) populate any derived columns
+							# 2) merge derived columns into space-delimited strings
+							# 3) update the sample values with the merge table
+
+							# keep track of merged cols, so we don't re-derive them later.
 							merged_cols = {key: "" for key in merge_rows.columns}
 							for row in merge_rows.index:
 								# Update with derived columns
@@ -458,19 +460,18 @@ class Project(AttributeDict):
 									if col in self["derived_columns"]:
 										merged_cols[col + "_key"] = ""  # initialize key in parent dict.
 										row_dict[col + "_key"] = row_dict[col]
-										#print("locate", col,  sample.locate_data_source(col, row_dict[col], row_dict))
-										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)
+										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)  # 1)
 
+								# Since we are now jamming multiple (merged) entries into a single attribute,
+								# we have to join them into a space-delimited string, and then set to sample attribute
 								for key, val in row_dict.items():
 									if key == "sample_name":
 										continue
 									if val:  # this purges out any None entries
-										merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()
+										merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()  # 2)
 
 							merged_cols.pop('sample_name', None)  # Don't update sample_name.
-							sample.update(merged_cols)  # 1)
-							#data_paths.append()  # 2)
-							#sample.data_path = " ".join(data_paths)  # 3)
+							sample.update(merged_cols)  # 3)
 							sample.merged = True  # mark sample as merged
 							sample.merged_cols = merged_cols
 
@@ -480,20 +481,8 @@ class Project(AttributeDict):
 				sample.get_genome_transcriptome()
 
 			sample.set_file_paths()
-			#if not sample.check_input_exists():
-			#	continue
 
-			# For bam files inputs (the most common), we implement here a default
-			# read_type checker
-			# get read type and length if not provided
-			# This is now pipeline-specific
-			#if not hasattr(sample, "read_type") and self.file_checks:
-			#	sample.get_read_type()
-
-			# make sample directory structure
-			# sample.make_sample_dirs()
-
-			# hack
+			# hack for backwards-compatibility (pipelines should now use `data_source`)
 			if hasattr(sample,"data_source"):
 				sample.data_path = sample.data_source
 
@@ -505,7 +494,7 @@ class Project(AttributeDict):
 		if not isinstance(sample, Sample):
 			raise TypeError("Provided object is not a Sample object.")
 
-		# Tie sample and project bilateraly
+		# Tie sample and project bilaterally
 		sample.prj = self
 		# Append
 		self.samples.append(sample)
@@ -701,8 +690,7 @@ class Sample(object):
 		# Only when sample is added to project, can paths be added -
 		# this is because sample-specific files will be created in a data root directory dependent on the project.
 		# The SampleSheet object, after being added to a project, will
-		# call Sample.set_file_paths(), creating the data_path of the sample (the bam file)
-		# and other paths.
+		# call Sample.set_file_paths().
 
 
 	def __repr__(self):
@@ -831,7 +819,7 @@ class Sample(object):
 		try:
 			# Grab a temporary dictionary of sample attributes, and update these
 			# with any provided extra variables to use in the replacement.
-			# This is necessary for derived_columns in the 
+			# This is necessary for derived_columns in the merge table.
 			temp_dict = self.__dict__
 			if(extra_vars):
 				temp_dict.update(extra_vars)
@@ -918,7 +906,7 @@ class Sample(object):
 		"""
 		# Settings ending in _attr are lists of attribute keys; these attributes are then queried to populate
 		# values for the primary entries.
-		self.ngs_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "ngs_inputs")
+		self.ngs_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "ngs_input_files")
 		self.required_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "required_input_files")
 		self.all_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "all_input_files")
 		
