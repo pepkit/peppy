@@ -196,18 +196,18 @@ def run(prj, args, remaining_args):
 			# which is the key in the pipeline interface
 			pl_id = str(pipeline).split(" ")[0]
 
+			# add pipeline-specific attributes (read type and length, inputs, etc)
+			sample.set_pipeline_attributes(pipeline_interface, pl_id)
+			print("({:.2f} Gb)".format(sample.input_file_size))
+
 			# Check for any required inputs before submitting
 			try:
-				inputs = pipeline_interface.confirm_required_inputs(pl_id, sample, False)
+				inputs = sample.confirm_required_inputs()
 			except IOError:
 				fail_message = "Required input files not found"
 				print("\nNot submitted: " + fail_message)
 				failures.append([fail_message, sample.sample_name])
 				continue
-
-			# add information about read type and length for this pipeline.
-			sample.set_pipeline_specifics(pipeline_interface, pl_id)
-			print("({:.2f} Gb)".format(sample.input_file_size))
 
 			# Identify the cluster resources we will require for this submission
 			submit_settings = pipeline_interface.choose_resource_package(pl_id, sample.input_file_size)
