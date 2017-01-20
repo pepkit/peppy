@@ -1053,7 +1053,7 @@ class Sample(object):
 			"""
 			if input_file.endswith(".bam"):
 				return "bam"
-			elif input_file.endswith(".fastq"):
+			elif input_file.endswith(".fastq") or input_file.endswith(".fq") or input_file.endswith(".fq.gz") or input_file.endswith(".fastq.gz"):
 				return "fastq"
 			else:
 				raise TypeError("Type of input file does not end in either '.bam' or '.fastq' [file: '" + input_file +"']")
