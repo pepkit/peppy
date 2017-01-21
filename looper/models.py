@@ -1021,10 +1021,13 @@ class Sample(object):
 		:type permissive: bool
 		"""
 		# Initialize the parameters in case there is no input_file,
-		# so these attributes at least exist
-		self.read_length = None
-		self.read_type = None
-		self.paired = None
+		# so these attributes at least exist - as long as they are not already set!
+		if not hasattr(self, "read_length"):
+			self.read_length = None
+		if not hasattr(self, "read_type"):
+			self.read_type = None
+		if not hasattr(self, "paired"):
+			self.paired = None
 
 		# ngs_inputs must be set
 		if not self.ngs_inputs:
@@ -1122,15 +1125,21 @@ class Sample(object):
 					raise e
 				else:
 					print(Warning("Input file does not exist or cannot be read: {}".format(input_file)))
-					self.read_length = None
-					self.read_type = None
-					self.paired = None
+					if not hasattr(self, "read_length"):
+						self.read_length = None
+					if not hasattr(self, "read_type"):
+						self.read_type = None
+					if not hasattr(self, "paired"):
+						self.paired = None
 					return
 			except OSError as e:
 				print(Warning(str(e) + " [file: {}]".format(input_file)))
-				self.read_length = None
-				self.read_type = None
-				self.paired = None
+				if not hasattr(self, "read_length"):
+					self.read_length = None
+				if not hasattr(self, "read_type"):
+					self.read_type = None
+				if not hasattr(self, "paired"):
+					self.paired = None
 				return
 
 			# Get most abundant read length
