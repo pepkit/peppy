@@ -29,7 +29,7 @@ class LooperTest(unittest.TestCase):
 		self.assertFalse(self.p.samples[0].merged)
 		self.assertTrue(self.p.samples[1].merged)
 
-		print(self.p.samples[1].merged_cols)
+		#print(self.p.samples[1].merged_cols)
 
 		# Make sure these columns were merged:
 		[x in p.samples[1].merged_cols.keys() for x in ["file2", "dcol1", "file"]]
