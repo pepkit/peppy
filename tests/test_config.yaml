@@ -7,6 +7,6 @@ metadata:
 derived_columns: [file, file2, dcol1, dcol2]
 
 data_sources:
-  src1: "$CODEBASE/looper/tests/data/{sample_name}{col_modifier}.txt"
-  src3: "$CODEBASE/looper/tests/data/{sample_name}.txt"
-  src2: "$CODEBASE/looper/tests/data/{sample_name}-bamfile.bam"
+  src1: "tests/data/{sample_name}{col_modifier}.txt"
+  src3: "tests/data/{sample_name}.txt"
+  src2: "tests/data/{sample_name}-bamfile.bam"
