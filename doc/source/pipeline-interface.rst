@@ -2,8 +2,16 @@
 Pipeline interface YAML
 **************************************************
 
-The pipeline interface file describes how the looper, which submits jobs, knows what resources to request for a pipeline, and what arguments to pass to the
-pipeline. For each pipeline (defined by the filename of the script itself), you specify three components: ``name``, ``arguments``, and ``resources``.
+The pipeline interface file describes how looper, which submits jobs, knows what arguments to pass to the pipeline and (possibly) what resources to request. For each pipeline (defined by the filename of the script itself), you specify some optional and required variables:
+
+- **name (recommended)**: Name of the pipeline
+- **arguments (required)**: List of key-value pairs of arguments, and attribute sources to pass to the pipeline (details below).
+- **resources (required)**: A section outlining how much memory, CPU, and clock time to request, modulated by input file size (details below)
+- **required_input_files (optional)**: A list of sample attributes (annotation sheets column names) that will point to input files that must exist.
+- **all_input_files (optional)**: A list of sample attributes (annotation sheets column names) that will point to input files that are not required, but if they exist, should be counted in the total size calculation for requesting resources.
+- **ngs_input_files (optional)**: A list of sample attributes (annotation sheets column names) that will point to input files to be used for automatic detection of read_length and read_type.
+
+Example:
 
 .. code-block:: yaml
 
