@@ -148,6 +148,7 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
 		# super(Project, self).__init__(**config_file)
+		self.DEBUG = False
 
 		# Initialize local, serial compute as default (no cluster submission)
 		from pkg_resources import resource_filename
@@ -165,7 +166,9 @@ class Project(AttributeDict):
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
 		self.set_compute("default")
 
-		print(self.compute)
+		if self.DEBUG:
+			print(self.compute)
+
 		# optional configs
 		self.permissive = permissive
 		self.file_checks = file_checks
@@ -228,8 +231,9 @@ class Project(AttributeDict):
 			print("Warning: paths section in project config is deprecated. Please move all paths attributes to metadata section.")
 			print("This option will be removed in future versions.")
 			self.metadata.add_entries(self.paths.__dict__)
-			print(self.metadata)
-			print(self.paths)
+			if self.DEBUG:
+				print(self.metadata)
+				print(self.paths)
 			self.paths = None
 
 		# self.paths = self.metadata
@@ -293,7 +297,8 @@ class Project(AttributeDict):
 			with open(looperenv_file, 'r') as handle:
 				looperenv = _yaml.load(handle)
 				print("Loading LOOPERENV: " + looperenv_file)
-				print(looperenv)
+				if self.DEBUG:
+					print(looperenv)
 
 				# Any compute.submission_template variables should be made absolute; relative
 				# to current looperenv yaml file
@@ -354,8 +359,10 @@ class Project(AttributeDict):
 			else:
 				self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
 
-			print(self.looperenv.compute[setting])
-			print(self.looperenv.compute)
+			if self.DEBUG:
+				print(self.looperenv.compute[setting])
+				print(self.looperenv.compute)
+
 			if not _os.path.isabs(self.compute.submission_template):
 				# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
 				# Relative to looper environment config file.
@@ -841,12 +848,12 @@ class Sample(object):
 		try:
 			self.genome = getattr(self.prj.genomes, self.organism)
 		except AttributeError:
-			print(Warning("Config lacks genome mapping for organism: " + self.organism))
+			print(Warning("Project config lacks genome mapping for organism: " + self.organism))
 		# get transcriptome
 		try:
 			self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
 		except AttributeError:
-			print(Warning("Config lacks transcriptome mapping for organism: " + self.organism))
+			print(Warning("Project config lacks transcriptome mapping for organism: " + self.organism))
 
 	def set_file_paths(self, override=False):
 		"""
