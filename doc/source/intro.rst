@@ -37,6 +37,15 @@ Update with:
 	pip install --user --upgrade https://github.com/epigen/looper/zipball/master
 
 
+
+To have the ``looper`` executable in your ``$PATH``, add the following line to your .bashrc file:
+
+.. code-block:: bash
+
+	export PATH=$PATH:~/.local/bin
+
+
+
 Support
 ******************************
 Please use the issue tracker at GitHub to file bug reports or feature requests: https://github.com/epigen/looper/issues.

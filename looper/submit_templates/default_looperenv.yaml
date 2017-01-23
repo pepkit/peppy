@@ -1,0 +1,19 @@
+# submission_template: the submission form which will be replaced with compute resource parameters
+# Use this to change your cluster manager (SLURM, SGE, LFS, etc)
+# Relative paths are relative to this looperenv yaml file
+compute:
+  default:
+    submission_template: localhost_template.sub
+    submission_command: sh
+    partition: longq  # For backwards-compatibility with old projects at CeMM; to be removed.
+  local:
+    submission_template: localhost_template.sub
+    submission_command: sh
+  slurm_cemm:
+    submission_template: slurm_template.sub
+    submission_command: sbatch
+    partition: longq
+  econ:
+    submission_template: slurm_template.sub
+    submission_command: sbatch
+    partition: economy

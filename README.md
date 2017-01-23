@@ -2,37 +2,39 @@
 
 [![Documentation Status](http://readthedocs.org/projects/looper/badge/?version=latest)](http://looper.readthedocs.io/en/latest/?badge=latest)
 
-__`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. It also has several accompanying scripts that use the same infrastructure to do other processing for projects. Looper was conceived to use [`pypiper`](https://github.com/epigen/pypiper/) pipelines, but does not require this.
+__`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. Looper was conceived to use [pypiper](https://github.com/epigen/pypiper/) pipelines, but does not require this.
+
 
 # Links
 
  * Public-facing permalink: http://databio.org/looper
- * Documentation: [Read the Docs](http://looper.readthedocs.org/) (still under heavy work)
+ * Documentation: [Read the Docs](http://looper.readthedocs.org/)
  * Source code: http://github.com/epigen/looper
 
 
 # Installing
+Looper supports Python 2.7 only and has been tested only in Linux.
 
 ```
 pip install https://github.com/epigen/looper/zipball/master
 ```
 
-You will have a `looper` executable and all accessory scripts (from [`scripts/`](scripts/), see below) in your `$PATH`.
+To have the `looper` executable in your `$PATH`, add the following line to your .bashrc file:
+
+```
+export PATH=$PATH:~/.local/bin
+```
+
 
 # Running pipelines
 
 `Looper` just requires a yaml format config file passed as an argument, which contains all the settings required. This can, for example, submit each job to SLURM (or SGE, or run them locally).
 
 ```bash
-looper -c metadata/config.yaml
+looper run project_config.yaml
 ```
 
-# Post-pipeline processing (accessory scripts)
 
-Once a pipeline has been run (or is running), you can do some post-processing on the results. In [`scripts/`](scripts/) are __accessory scripts__ that help with monitoring running pipelines, summarizing pipeline outputs, etc. These scripts are not required by the pipelines, but useful for post-processing. Here are some post-processing scripts:
+# Looper commands
 
-* [scripts/flagCheck.sh](scripts/flagCheck.sh) - Summarize status flag to check on the status (running, completed, or failed) of pipelines.
-* [scripts/make_trackhubs.py](scripts/make_trackhubs.py) - Builds a track hub. Just pass it your config file.
-* [scripts/summarizePipelineStats.R](scripts/summarizePipelineStats.R) - Run this in the output folder and it will aggregate and summarize all key-value pairs reported in the `PIPE_stats` files, into tables for each pipeline, and a combined table across all pipelines run in this folder.
-
-You can find other examples in [scripts/](scripts/).
+Looper can do more than just run your samples through pipelines. Once a pipeline has been run (or is running), you can do some post-processing on the results. These commands help with monitoring running pipelines, summarizing pipeline outputs, etc. This includes `looper clean`, `looper destroy`, `looper summarize`, and more. You can find details about these in the **Commands** section of the documentation.

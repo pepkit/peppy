@@ -1,4 +1,4 @@
-# ! /usr/bin/env python
+#! /usr/bin/env python
 
 #  This script loops through all the samples,
 #  creates trackhubs for them.
@@ -29,6 +29,8 @@ with open(args.config_file, 'r') as config_file:
 
 trackhubs = config.trackhubs
 paths = config.paths
+
+print(config)
 
 if not os.path.exists(paths.output_dir):
 	raise Exception(paths.output_dir + " : that project directory does not exist!")
@@ -71,6 +73,7 @@ try:
 			genome = str(getattr(config.genomes, str(row["organism"])))
 	print 'Pipeline: ' + pipeline
 	print 'Genome: ' + genome
+	print("Trackhub dir: " + trackhubs.trackhub_dir)
 	if pipeline != "":
 		pipeline += '_'
 

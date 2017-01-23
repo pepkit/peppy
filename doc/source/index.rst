@@ -1,9 +1,6 @@
 Welcome
 ^^^^^^^^
 
-.. warning::
-	Looper  is in beta and things may change.
-
 Deploying pipelines just got easier. Looper helps you deploy your current pipeline across a cluster or server with minimal effort on your part.
 
 Looper is a lightweight python toolkit for managing pipeline job creation and submission. To get started, proceed with the :doc:`Introduction <intro>` or use the table of contents below to navigate the docs.
@@ -30,14 +27,15 @@ Contents
 
 	intro.rst
 	features.rst
+	usage-and-commands.rst
 	tutorials.rst
 	define-your-project.rst
 	connecting-pipelines.rst
-	usage-and-commands.rst
 	advanced.rst
 	config-files.rst
 	api.rst
 	faq.rst
+	changelog.rst
 
 
 Indices and tables

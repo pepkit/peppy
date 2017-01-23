@@ -31,3 +31,6 @@ pipelines/pypiper
 
 #make sure to track .gitignore
 !.gitignore
+
+# ignore test results
+tests/test/*
