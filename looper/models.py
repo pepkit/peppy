@@ -203,6 +203,8 @@ class Project(AttributeDict):
 		# samples
 		self.samples = list()
 
+		self.add_sample_sheet()
+
 	def __repr__(self):
 		if hasattr(self, "name"):
 			name = self.name
