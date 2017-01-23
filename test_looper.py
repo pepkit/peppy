@@ -9,11 +9,11 @@ import os
 
 class LooperTest(unittest.TestCase):
 	def setUp(self):
-		p = Project(os.path.expandvars("$CODEBASE/looper/tests/test_config.yaml"))
+		p = Project(os.path.expandvars("tests/test_config.yaml"))
 		p.add_sample_sheet()
 		self.p = p
 
-		pi = PipelineInterface(os.path.expandvars("$CODEBASE/looper/tests/pipelines/config/pipeline_interface.yaml"))
+		pi = PipelineInterface(os.path.expandvars("tests/pipelines/config/pipeline_interface.yaml"))
 		self.pi = pi
 
 	def test1(self):
