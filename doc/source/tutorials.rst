@@ -28,17 +28,17 @@ Now you can run this project with looper! Just use ``looper run``:
 
 .. HINT::
 
-	If the looper executable isn't in your path, check out the :doc:`FAQ <faq>`.
+	If the looper executable isn't in your path, add it with export PATH=~/.local/bin:$PATH -- check out the :doc:`FAQ <faq>`.
 
 
-In this example we've now ran one example sample (an amplicon sequencing library to determine percentage of indels in amplicon) through a pipeline that processes that kind of data.
+In this example, we just ran one example sample (an amplicon sequencing library) through a pipeline that processes amplicon data (to determine percentage of indels in amplicon).
 
-From here to running hundreds of samples from varyied types is virtually the same effort!
+From here to running hundreds of samples of various sample types is virtually the same effort!
 
 
 Pipeline outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Outputs of pipeline runs will be under the directory specified in the ``output_dir`` variable under the ``paths`` section in the project config file (see :doc:`config-files` ) this is usually the name of the project being run.
+Outputs of pipeline runs will be under the directory specified in the ``output_dir`` variable under the ``metadata`` section in the project config file (see :doc:`config-files`). This is usually the name of the project being run; in our example, it's `$HOME/microtest`.
 
 Inside there will be two directories:
 
@@ -46,18 +46,12 @@ Inside there will be two directories:
 -  ``submissions`` [2]_ - which holds yaml representations of the samples and log files of the submited jobs.
 
 
-The sample-specific output of each pipeline type varies and is described in :doc:`pipelines`.
-
 To use pre-made pipelines with your project, all you have to do is :doc:`define your project <define-your-project>` using looper's standard format. To link your own, custom built pipelines, you can :doc:`connect your pipeline to looper <connecting-pipelines>`.
 
 
 
 .. rubric:: Footnotes
 
-.. [1] This variable can also be specified in the ``results_subdir`` variable under the ``paths`` section of the project config file
-.. [2] This variable can also be specified in the ``submission_subdir`` variable under the ``paths`` section of the project config file
-
-
-.. note::
-	These are full-blown pipelines with some other tool dependencies. We should produce a running example with a few samples and a basic pipeline that has no install requirements.
+.. [1] This variable can also be specified in the ``results_subdir`` variable under the ``metadata`` section of the project config file
+.. [2] This variable can also be specified in the ``submission_subdir`` variable under the ``metadata`` section of the project config file
 
