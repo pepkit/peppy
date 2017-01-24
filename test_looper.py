@@ -49,6 +49,17 @@ class LooperTest(unittest.TestCase):
 		self.assertTrue(s2.confirm_required_inputs())
 		self.assertEqual([os.path.basename(x) for x in s2.required_inputs], ['c.txt', 'c.txt'])
 
+		# Make sure derived cols don't get re-derived upon multiple calls of add_sample_sheet()
+		self.assertEqual(p.samples[2].file, "tests/data/c.txt")
+		p.add_sample_sheet()
+		p.add_sample_sheet()
+		self.assertEqual(p.samples[2].file, "tests/data/c.txt")
+
+		# Check that duplicate derived cols can still be derived
+		self.assertEqual(p.samples[2].nonmerged_col, "tests/data/c.txt")
+		self.assertEqual(p.samples[2].locate_data_source('file'), "")
+
+
 		# Can't set a non-ngs sample to an ngs pipeline
 		with self.assertRaises(TypeError):
 			s.set_pipeline_attributes(pi, "testngs.sh")
@@ -60,6 +71,8 @@ class LooperTest(unittest.TestCase):
 		s3.confirm_required_inputs()
 		self.assertEqual(os.path.basename(s3.required_inputs[0]), "d-bamfile.bam")
 		self.assertTrue(s3.confirm_required_inputs())
+
+
 
 
 

@@ -148,7 +148,7 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
 		# super(Project, self).__init__(**config_file)
-		self.DEBUG = False
+		self.DEBUG = True
 
 		# Initialize local, serial compute as default (no cluster submission)
 		from pkg_resources import resource_filename
@@ -187,7 +187,8 @@ class Project(AttributeDict):
 
 		# Derived columns: by default, use data_source
 		if hasattr(self, "derived_columns"):
-			self.derived_columns.append("data_source")
+			if "data_source" not in self.derived_columns:  # do not duplicate!
+				self.derived_columns.append("data_source")
 		else:
 			self.derived_columns = ["data_source"]
 
@@ -409,6 +410,9 @@ class Project(AttributeDict):
 		:type file_checks: bool
 		"""
 		# If options are not passed, used what has been set for project
+		if self.DEBUG:
+			print("Add sample sheet.")
+
 		if permissive is None:
 			permissive = self.permissive
 		else:
@@ -671,6 +675,7 @@ class Sample(object):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
 		self.merged_cols = {}
+		self.derived_cols_done = []
 
 		# Keep a list of attributes that came from the sample sheet, so we can provide a
 		# minimal representation of the original sample as provided (in order!).
@@ -809,7 +814,7 @@ class Sample(object):
 		given a higher priority.
 		"""
 		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
-
+		
 		if not source_key:
 			if not hasattr(self, column_name):
 				raise AttributeError("You must provide a source_key, no attribute: " + source_key)
@@ -867,11 +872,12 @@ class Sample(object):
 		if hasattr(self.prj, "derived_columns"):
 			for col in self.prj["derived_columns"]:
 
-				# Only proceed if the specified column exists, and was not already merged.
-				if hasattr(self, col) and col not in self.merged_cols:
+				# Only proceed if the specified column exists, and was not already merged or derived.
+				if hasattr(self, col) and col not in self.merged_cols and col not in self.derived_cols_done:
 					# set a variable called {col}_key, so the original source can also be retrieved
 					setattr(self, col + "_key", getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
+					self.derived_cols_done.append(col)
 
 		# parent
 		self.results_subdir = self.prj.metadata.results_subdir

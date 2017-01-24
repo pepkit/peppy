@@ -645,7 +645,7 @@ def main():
 		file_checks=args.file_checks,
 		looperenv_file=getattr(args, 'env', None))
 	# add sample sheet
-	prj.add_sample_sheet()
+	#prj.add_sample_sheet()
 
 	print("Results subdir: " + prj.metadata.results_subdir)
 	print("Command: " + args.command)
