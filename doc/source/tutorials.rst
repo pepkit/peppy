@@ -38,7 +38,7 @@ From here to running hundreds of samples of various sample types is virtually th
 
 Pipeline outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Outputs of pipeline runs will be under the directory specified in the ``output_dir`` variable under the ``metadata`` section in the project config file (see :doc:`config-files`). This is usually the name of the project being run; in our example, it's `$HOME/microtest`.
+Outputs of pipeline runs will be under the directory specified in the ``metadata.output_dir`` variable in the project config file. This is usually the name of the project being run; in our example, it's `$HOME/microtest`.
 
 Inside there will be two directories:
 

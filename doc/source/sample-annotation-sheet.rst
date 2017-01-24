@@ -22,24 +22,23 @@ Any additional columns become attributes of your sample and will be part of the 
 
 Special columns
 """"""""""""""""""""""""""""""""""""""""""""""""""
-Mostly, you have complete control over any other column names you want to add, but there are a few reserved names that Looper treats differently. In addition to the required columns (``sample_name`` and ``library), here's a list of other reserved special column names:
+Mostly, you have complete control over any other column names you want to add, but there are a few reserved names that Looper treats differently. In addition to the required columns (``sample_name`` and ``library``), here's a list of other reserved special column names:
 
 - ``run``. If the value of this column is not 1, Looper will not submit the pipeline for that sample. This enables you to submit a subset of samples.
-- ``data_source``. This column is used by default to specify the location of the input data file. Usually you want your annotation sheet to specify the locations of files corresponding to each sample. You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see :ref:`advanced-derived-columns`.
+- ``data_source``. This column is used by default to specify the location of the input data file. Usually you want your annotation sheet to specify the locations of files corresponding to each sample. You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see the advanced section :ref:`advanced-derived-columns`. Here are a few example annotation sheets:
 
 .. csv-table:: Example Sample Annotation Sheet
 	:file: ../../examples/microtest_sample_annotation.csv
 
-Example sample annotation sheet:
 
 .. csv-table:: Example Sample Annotation Sheet
    :header: "sample_name", "library", "organism", "flowcell", "lane", "BSF_name", "data_source"
    :widths: 30, 30, 30, 30, 30, 30, 30
 
-   "albt_0h", "RRBS", "albatross", "BSFX0190", "1", "albt_0h", ""
-   "albt_1h", "RRBS", "albatross", "BSFX0190", "1", "albt_1h", ""
-   "albt_2h", "RRBS", "albatross", "BSFX0190", "1", "albt_2h", ""
-   "albt_3h", "RRBS", "albatross", "BSFX0190", "1", "albt_3h", ""
+   "albt_0h", "RRBS", "albatross", "BSFX0190", "1", "albt_0h", "bsf_sample"
+   "albt_1h", "RRBS", "albatross", "BSFX0190", "1", "albt_1h", "bsf_sample"
+   "albt_2h", "RRBS", "albatross", "BSFX0190", "1", "albt_2h", "bsf_sample"
+   "albt_3h", "RRBS", "albatross", "BSFX0190", "1", "albt_3h", "bsf_sample"
    "frog_0h", "RRBS", "frog", "", "", "", "frog_data"
    "frog_1h", "RRBS", "frog", "", "", "", "frog_data"
    "frog_2h", "RRBS", "frog", "", "", "", "frog_data"

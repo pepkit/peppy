@@ -9,7 +9,7 @@ Simplicity for the beginning, power when you need to expand.
 
 - **Flexible compute:**  If you don't change any settings, looper will simply run your jobs serially. But Looper includes a templating system that will let you process your pipelines on any cluster resource manager (SLURM, SGE, etc.). We include default templates for SLURM and SGE, but it's easy to add your own as well. Looper also gives you a way to determine which compute queue/partition to submit on-the-fly, by passing the ``--compute`` parameter to your call to ``looper run``, making it simple to use by default, but very flexible if you have complex resource needs.
 
-- **Standardized project definition:** Looper defines a flexible standard format for describing projects, and there are other tools that can read these same formats. For example, we are working on an R package that will read the same project definition and provide all your sample metadata (and pipeline results) in and R analysis environment, with no additional effort. With a standardized project definition, the possibilities are endless.
+- **Standardized project definition:** Looper defines a flexible standard format for describing projects, and there are other tools that can read these same formats. For example, we are working on an R package that will read the same project definition and provide all your sample metadata (and pipeline results) in an R analysis environment, with no additional effort. With a standardized project definition, the possibilities are endless.
 
 - **Subprojects:** Subprojects make it easy to define two very similar projects without duplicating project metadata.
 

@@ -26,6 +26,7 @@ Contents
 	:maxdepth: 2
 
 	intro.rst
+	install.rst
 	features.rst
 	usage-and-commands.rst
 	tutorials.rst

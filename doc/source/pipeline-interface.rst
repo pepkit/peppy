@@ -2,7 +2,7 @@
 Pipeline interface YAML
 **************************************************
 
-The pipeline interface file describes how looper, which submits jobs, knows what arguments to pass to the pipeline and (possibly) what resources to request. For each pipeline (defined by the filename of the script itself), you specify some optional and required variables:
+The pipeline interface file describes how looper knows what arguments to pass to the pipeline and (possibly) what resources to request. For each pipeline (defined by the filename of the script itself), you specify some optional and required variables:
 
 - **name (recommended)**: Name of the pipeline
 - **arguments (required)**: List of key-value pairs of arguments, and attribute sources to pass to the pipeline (details below).
@@ -80,7 +80,6 @@ Example:
 	    "--genome": transcriptome
 	    "--input": data_path
 	    "--single-or-paired": read_type
-
 	  resources:
 	    default:
 	      file_size: "0"

@@ -36,9 +36,7 @@ The second file (**sample annotation sheet**) is where you list your samples, wh
    "frog_4", "RNA-seq", "frog4.fq.gz"
 
 
-With those two simple files, you could run looper, and that's fine for just running a quick test on a few files. You just type: ``looper run path/to/project_config.yaml`` and it will run all your samples through the appropriate pipeline. In practice, you'll probably want to use some of the more advanced features of looper by adding additional information to your configuration ``yaml`` file and your sample annotation ``csv`` file.
-
-For example, by default, your jobs will run serially on your local computer, where you're running ``looper``. If you want to submit to a cluster resource manager (like SLURM or SGE), you just need to add a ``compute`` section to your **project config file**.
+With those two simple files, you could run looper, and that's fine for just running a quick test on a few files. You just type: ``looper run path/to/project_config.yaml`` and it will run all your samples through the appropriate pipeline. In practice, you'll probably want to use some of the more advanced features of looper by adding additional information to your configuration ``yaml`` file and your sample annotation ``csv`` file. These advanced options are detailed below.
 
 Now, let's go through the more advanced details of both annotation sheets and project config files:
 

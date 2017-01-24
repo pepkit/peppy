@@ -4,6 +4,9 @@
 
 __`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. Looper was conceived to use [pypiper](https://github.com/epigen/pypiper/) pipelines, but does not require this.
 
+You can download the latest version from the [releases page](https://github.com/epigen/looper/releases).
+
+
 
 # Links
 

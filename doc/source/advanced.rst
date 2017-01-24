@@ -65,15 +65,9 @@ Check out the complete working example in the `microtest repository <https://git
 Using cluster resource managers
 ****************************************
 
-.. warning:: This is still in progress
+For each sample, ``looper`` will create one or more submission scripts for that sample. The ``compute`` settings specify how these scripts will be both produced and run. This makes it very portable and easy to change cluster management systems by just changing a few variables in a configuration file. By default, looper builds a shell script for each sample and runs them serially: the shell will block until the each run is finished and control is returned to ``looper`` for the next iteration. Compute settings can be changed using an environment configuration file called ``looperenv``. Several common engines (SLURM and SGE) come by default, but the system gives you complete flexibility, so you can easily configure looper to work with your resource manager.
 
-Looper uses a template-based system for building scripts. By default, looper will just build a shell script and run them serially. Compute settings can be changed using an environment script, which you point to with a shell environment variable called ``LOOPERENV``.
-
-Complete instructions for configuring your compute environment are availble in the looperenv repository at https://github.com/epigen/looperenv.
-
-For each iteration, ``looper`` will create one or more submission scripts for that sample. The ``compute`` settings specify how these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the ``compute`` section.
-
-Example:
+For complete instructions on configuring your compute environment, see the looperenv repository at https://github.com/epigen/looperenv. Here's a brief overview. Here's an example `looperenv` file:
 
 .. code-block:: yaml
 
@@ -87,49 +81,16 @@ Example:
 	    partition: queue_name
 
 
-There are two sub-parameters in the compute section. First, ``submission_template`` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like ``{VARIABLE}``), which will be populated independently for each sample as defined in ``pipeline_inteface.yaml``. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
+There are two sub-parameters in the compute section. First, ``submission_template`` is a (relative or absolute) path to the template submission script. Looper uses a template-based system for building scripts. This is a template with variables (encoded like ``{VARIABLE}``), which will be populated independently for each sample as defined in ``pipeline_inteface.yaml``. The one variable ``{CODE}`` is a reserved variable that refers to the actual shell command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
 
 Second, the ``submission_command`` is the command-line command that ``looper`` will prepend to the path of the produced submission script to actually run it (``sbatch`` for SLURM, `qsub` for SGE, ``sh`` for localhost, etc).
 
-In `Templates <https://github.com/epigen/looper/tree/master/templates>`__ are examples for submission templates for `SLURM <https://github.com/epigen/looper/blob/master/templates/slurm_template.sub>`__, `SGE <https://github.com/epigen/looper/blob/master/templates/sge_template.sub>`__, and `local runs <https://github.com/epigen/looper/blob/master/templates/localhost_template.sub>`__. For a local run, just pass the script to the shell with ``submission_command: sh``. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to ``looper`` for the next iteration.
-
-
-.. _cluster-resource-managers:
-
-Using cluster resource managers
-****************************************
-
-.. warning:: This is still in progress
-
-Looper uses a template-based system for building scripts. By default, looper will just build a shell script and run them serially. Compute settings can be changed using an environment script, which you point to with a shell environment variable called ``LOOPERENV``.
-
-Complete instructions for configuring your compute environment are availble in the looperenv repository at https://github.com/epigen/looperenv.
-
-For each iteration, `looper` will create one or more submission scripts for that sample. The `compute` settings specify how these scripts will be both produced and run.  This makes it very portable and easy to change cluster management systems, or to just use a local compute power like a laptop or standalone server, by just changing the two variables in the `compute` section.
-
-Example:
-
-.. code-block:: yaml
-
-	compute:
-	  default:
-	    submission_template: pipelines/templates/local_template.sub
-	    submission_command: sh
-	  slurm:
-	    submission_template: pipelines/templates/slurm_template.sub
-	    submission_command: sbatch
-	    partition: queue_name
-
-
-There are two sub-parameters in the compute section. First, `submission_template` is a (relative or absolute) path to the template submission script. This is a template with variables (encoded like `{VARIABLE}`), which will be populated independently for each sample as defined in `pipeline_inteface.yaml`. The one variable ``{CODE}`` is a reserved variable that refers to the actual python command that will run the pipeline. Otherwise, you can use any variables you define in your `pipeline_interface.yaml`.
-
-Second, the `submission_command` is the command-line command that `looper` will prepend to the path of the produced submission script to actually run it (`sbatch` for SLURM, `qsub` for SGE, `sh` for localhost, etc).
-
-In [`templates/`](templates/) are examples for submission templates for [SLURM](templates/slurm_template.sub), [SGE](templates/sge_template.sub), and [local runs](templates/localhost_template.sub). For a local run, just pass the script to the shell with `submission_command: sh`. This will cause each sample to run sequentially, as the shell will block until the run is finished and control is returned to `looper` for the next iteration.
+In `Templates <https://github.com/epigen/looper/tree/master/templates>`__ are examples for submission templates for `SLURM <https://github.com/epigen/looper/blob/master/templates/slurm_template.sub>`__, `SGE <https://github.com/epigen/looper/blob/master/templates/sge_template.sub>`__, and `local runs <https://github.com/epigen/looper/blob/master/templates/localhost_template.sub>`__. 
 
 
 
-Merge table
+
+Handling multiple input files with a merge table
 ****************************************
 
 Sometimes you have multiple input files that you want to merge for one sample. Rather than putting multiple lines in your sample annotation sheet, which causes conceptual and analytical challenges, we introduce a *merge table* which maps input files to samples for samples with more than one input file.
@@ -141,17 +102,7 @@ metadata:
 
 Make sure the ``sample_name`` column of this table matches, and then include any columns you need to point to the data. ``Looper`` will automatically include all of these files as input passed to the pipelines.
 
-Note: to handle different *classes* of input files, like read1 and read2, these are *not* merged and should be handled as different derived columns in the main sample annotation sheet.
-
-
-Data produced at CeMM
-****************************************
-In a case of data produced at CeMM by the BSF, three additional columns will allow the discovery of files associated with the sample:
-
--  ``flowcell`` - the name of the BSF flowcell (should be something like BSFXXX)
--  ``lane`` - the lane number in the instrument
--  ``BSF_name`` - the name used to describe the sample in the BSF annotation.
-
+Note: to handle different *classes* of input files, like read1 and read2, these are *not* merged and should be handled as different derived columns in the main sample annotation sheet (and therefore different arguments to the pipeline).
 
 
 .. _extending-sample-objects:
@@ -163,7 +114,7 @@ Looper uses object oriented programming (OOP) under the hood. This means that co
 
 By default we use `generic models <https://github.com/epigen/looper/tree/master/looper/models.py>`__ (see the `API <api.html>`__ for more) to handle samples in Looper, but these can also be reused in other contexts by importing ``looper.models`` or by means of object serialization through YAML files.
 
-Since these models provide useful methods to interact, update and store attributes in the objects (most nobly *samples* - ``Sample`` object), a useful use case is during the run of a pipeline: pipeline scripts can extend ``Sample`` objects with further attributes or methods.
+Since these models provide useful methods to interact, update, and store attributes in the objects (most nobly *samples* - ``Sample`` object), a useful use case is during the run of a pipeline: pipeline scripts can extend ``Sample`` objects with further attributes or methods.
 
 Example:
 
