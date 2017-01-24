@@ -148,7 +148,7 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
 		# super(Project, self).__init__(**config_file)
-		self.DEBUG = True
+		self.DEBUG = False
 
 		# Initialize local, serial compute as default (no cluster submission)
 		from pkg_resources import resource_filename
@@ -1192,7 +1192,7 @@ class PipelineInterface(object):
 		import yaml
 		self.looper_config_file = yaml_config_file
 		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
-		self.DEBUG = True
+		self.DEBUG = False
 		# A variable to control the verbosity level of output
 		self.verbose = 0
 
