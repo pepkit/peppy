@@ -34,6 +34,7 @@ class LooperTest(unittest.TestCase):
 		# Make sure these columns were merged:
 		[x in p.samples[1].merged_cols.keys() for x in ["file2", "dcol1", "file"]]
 		# Make sure derived columns works on merged table.
+		# print("p.samples[1].file2", p.samples[1].file2)
 		self.assertEqual([os.path.basename(x) for x in p.samples[1].file2.split(" ")],  ['b1.txt', 'b2.txt', 'b3.txt'])
 
 		# This sample should not have any merged columns
@@ -57,8 +58,17 @@ class LooperTest(unittest.TestCase):
 
 		# Check that duplicate derived cols can still be derived
 		self.assertEqual(p.samples[2].nonmerged_col, "tests/data/c.txt")
+		
+		# Trying to derive an already-derived column prints warning and returns empty string:
 		self.assertEqual(p.samples[2].locate_data_source('file'), "")
 
+		# check that derived columns NOT specified in merge table are merged correctly
+		self.assertEqual(p.samples[1].dcol2, "tests/data/b1.txt tests/data/b2.txt tests/data/b3.txt")
+		#print(p.samples[1].dcol2_key)
+		#print(p.samples[1].dcol2)
+		print(p.samples[1].file)
+		print(p.samples[1].data_source)
+		print(p.samples[1].library)
 
 		# Can't set a non-ngs sample to an ngs pipeline
 		with self.assertRaises(TypeError):
@@ -70,6 +80,8 @@ class LooperTest(unittest.TestCase):
 		s3.required_inputs
 		s3.confirm_required_inputs()
 		self.assertEqual(os.path.basename(s3.required_inputs[0]), "d-bamfile.bam")
+
+
 		self.assertTrue(s3.confirm_required_inputs())
 
 

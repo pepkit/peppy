@@ -148,7 +148,7 @@ class Project(AttributeDict):
 	"""
 	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
 		# super(Project, self).__init__(**config_file)
-		self.DEBUG = False
+		self.verbosity = 0
 
 		# Initialize local, serial compute as default (no cluster submission)
 		from pkg_resources import resource_filename
@@ -166,7 +166,7 @@ class Project(AttributeDict):
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
 		self.set_compute("default")
 
-		if self.DEBUG:
+		if self.verbosity:
 			print(self.compute)
 
 		# optional configs
@@ -234,7 +234,7 @@ class Project(AttributeDict):
 			print("Warning: paths section in project config is deprecated. Please move all paths attributes to metadata section.")
 			print("This option will be removed in future versions.")
 			self.metadata.add_entries(self.paths.__dict__)
-			if self.DEBUG:
+			if self.verbosity:
 				print(self.metadata)
 				print(self.paths)
 			self.paths = None
@@ -300,7 +300,7 @@ class Project(AttributeDict):
 			with open(looperenv_file, 'r') as handle:
 				looperenv = _yaml.load(handle)
 				print("Loading LOOPERENV: " + looperenv_file)
-				if self.DEBUG:
+				if self.verbosity:
 					print(looperenv)
 
 				# Any compute.submission_template variables should be made absolute; relative
@@ -330,7 +330,9 @@ class Project(AttributeDict):
 		Creates project directory structure if it doesn't exist.
 		"""
 		for name, path in self.metadata.__dict__.items():
-			if name not in ["pipelines_dir"]:   # this is a list just to support future variables
+			# this is a list just to support future variables
+			#if name not in ["pipelines_dir", "merge_table", "compare_table", "sample_annotation"]:  
+			if name in ["output_dir", "results_subdir", "submission_subdir"]:  # opt-in; which ones actually need to be created?
 				if not _os.path.exists(path):
 					try:
 						_os.makedirs(path)
@@ -362,7 +364,7 @@ class Project(AttributeDict):
 			else:
 				self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
 
-			if self.DEBUG:
+			if self.verbosity:
 				print(self.looperenv.compute[setting])
 				print(self.looperenv.compute)
 
@@ -410,7 +412,7 @@ class Project(AttributeDict):
 		:type file_checks: bool
 		"""
 		# If options are not passed, used what has been set for project
-		if self.DEBUG:
+		if self.verbosity:
 			print("Add sample sheet.")
 
 		if permissive is None:
@@ -465,6 +467,8 @@ class Project(AttributeDict):
 							# keep track of merged cols, so we don't re-derive them later.
 							merged_cols = {key: "" for key in merge_rows.columns}
 							for row in merge_rows.index:
+								if self.verbosity > 1:
+									print ("NEW ROW", row, merge_rows)
 								# Update with derived columns
 								row_dict = merge_rows.ix[row].to_dict()
 								for col in merge_rows.columns:
@@ -475,18 +479,38 @@ class Project(AttributeDict):
 										row_dict[col + "_key"] = row_dict[col]
 										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)  # 1)
 
+								# Also add in any derived cols present 
+								for col in self["derived_columns"]:
+									if hasattr(sample, col) and not col in row_dict:
+										if self.verbosity > 2:
+											print("PROBLEM: ", col)
+										row_dict[col + "_key"] = getattr(sample, col)
+										row_dict[col] = sample.locate_data_source(col, getattr(sample,col), row_dict)
+										if self.verbosity > 2:
+											print("/PROBLEM: ", col, row_dict[col], getattr(sample,col))
+
 								# Since we are now jamming multiple (merged) entries into a single attribute,
 								# we have to join them into a space-delimited string, and then set to sample attribute
 								for key, val in row_dict.items():
 									if key == "sample_name":
 										continue
 									if val:  # this purges out any None entries
-										merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()  # 2)
+										if self.verbosity:
+											print("merge:", sample.name, key,val)
+										if not merged_cols.has_key(key):
+											merged_cols[key] = str(val).rstrip()
+										else:
+											merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()  # 2)
 
 							merged_cols.pop('sample_name', None)  # Don't update sample_name.
 							sample.update(merged_cols)  # 3)
 							sample.merged = True  # mark sample as merged
 							sample.merged_cols = merged_cols
+
+
+
+
+
 
 		# With all samples, prepare file paths and get read type (optionally make sample dirs)
 		for sample in self.sheet.samples:
@@ -494,6 +518,8 @@ class Project(AttributeDict):
 				sample.get_genome_transcriptome()
 
 			sample.set_file_paths()
+
+
 
 			# hack for backwards-compatibility (pipelines should now use `data_source`)
 			if hasattr(sample,"data_source"):
@@ -670,12 +696,14 @@ class Sample(object):
 	# but complications with serializing and code maintenance
 	# made me go back and implement it as a top-level object
 	def __init__(self, series, permissive=True):
-		# Passed series must either be a pd.Series or a daugther class
+		# Passed series must either be a pd.Series or a daughter class
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()
 		self.merged_cols = {}
 		self.derived_cols_done = []
+
+		self.verbosity = 0
 
 		# Keep a list of attributes that came from the sample sheet, so we can provide a
 		# minimal representation of the original sample as provided (in order!).
@@ -814,7 +842,9 @@ class Sample(object):
 		given a higher priority.
 		"""
 		# default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
-		
+		if self.verbosity > 0:
+			print("locate_data_source:", self.name, column_name, source_key, extra_vars)
+
 		if not source_key:
 			if not hasattr(self, column_name):
 				raise AttributeError("You must provide a source_key, no attribute: " + source_key)
@@ -834,12 +864,12 @@ class Sample(object):
 			# Grab a temporary dictionary of sample attributes, and update these
 			# with any provided extra variables to use in the replacement.
 			# This is necessary for derived_columns in the merge table.
-			temp_dict = self.__dict__
+			# .copy() here prevents the actual sample from getting updated by the .update() call.
+			temp_dict = self.__dict__.copy()
 			if(extra_vars):
 				temp_dict.update(extra_vars)
 			#val = regex.format(**self.__dict__)
 			val = regex.format(**temp_dict)
-			
 		except Exception as e:
 			print("Can't format data source correctly:" + regex)
 			print(str(type(e).__name__) + str(e))
@@ -862,7 +892,7 @@ class Sample(object):
 		except AttributeError:
 			print(Warning("Project config lacks transcriptome mapping for organism: " + self.organism))
 
-	def set_file_paths(self, override=False):
+	def set_file_paths(self):
 		"""
 		Sets the paths of all files for this sample.
 		"""
@@ -1192,9 +1222,9 @@ class PipelineInterface(object):
 		import yaml
 		self.looper_config_file = yaml_config_file
 		self.looper_config = yaml.load(open(yaml_config_file, 'r'))
-		self.DEBUG = False
+		
 		# A variable to control the verbosity level of output
-		self.verbose = 0
+		self.verbosity = 0
 
 	def select_pipeline(self, pipeline_name):
 		"""
@@ -1299,7 +1329,7 @@ class PipelineInterface(object):
 		args = config['arguments']
 
 		for key, value in args.iteritems():
-			if self.verbose:
+			if self.verbosity > 0:
 				print(key, value)
 			if value is None:
 				arg = ""
@@ -1320,7 +1350,7 @@ class PipelineInterface(object):
 		if 'optional_arguments' in config:
 			args = config['optional_arguments']
 			for key, value in args.iteritems():
-				if self.verbose:
+				if self.verbosity > 0:
 					print(key, value, "(optional)")
 				if value is None:
 					arg = ""
