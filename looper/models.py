@@ -49,11 +49,13 @@ Explore!
 
 """
 
+from collections import OrderedDict as _OrderedDict
 import os as _os
+from pkg_resources import resource_filename
+
 import pandas as _pd
 from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
-from collections import OrderedDict as _OrderedDict
 
 
 def copy(obj):
@@ -91,8 +93,9 @@ class AttributeDict(object):
 	key notation (Dict["key"]). This class recursively sets Dicts to objects,
 	allowing you to recurse down nested dicts (like: AttributeDict.attr.attr)
 	"""
-	def __init__(self, entries):
-		self.add_entries(entries)
+	def __init__(self, entries=None):
+		if entries:
+			self.add_entries(entries)
 
 	def add_entries(self, entries):
 		for key, value in entries.items():
@@ -147,19 +150,18 @@ class Project(AttributeDict):
 		from looper.models import Project
 		prj = Project("config.yaml")
 	"""
-	def __init__(self, config_file, subproject=None, dry=False, permissive=True, file_checks=False, looperenv_file=None):
-		# super(Project, self).__init__(**config_file)
+	def __init__(self, config_file, subproject=None, dry=False,
+				 permissive=True, file_checks=False, looperenv_file=None):
+		super(Project, self).__init__()
 		self.DEBUG = False
 
 		# Initialize local, serial compute as default (no cluster submission)
-		from pkg_resources import resource_filename
-
 		# Start with default looperenv
 		default_looperenv = resource_filename("looper", 'submit_templates/default_looperenv.yaml')
 		self.update_looperenv(default_looperenv)
 
 		# Load settings from looper environment yaml for local compute infrastructure.
-		if looperenv_file == '' or looperenv_file is None:
+		if not looperenv_file:
 			print("Using default LOOPERENV. You may set environment variable 'LOOPERENV' to configure compute settings.")
 		else:
 			self.update_looperenv(looperenv_file)
