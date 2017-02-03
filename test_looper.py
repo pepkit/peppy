@@ -8,11 +8,19 @@ import os
 
 
 class LooperTest(unittest.TestCase):
+
+	# TODO: docstrings and atomicity/encapsulation.
+	# TODO: conversion to pytest for consistency.
+
+
 	def setUp(self):
+		# TODO: embed file data as string literal here or in a data/resources directory.
+		# TODO: write the file as a classmethod; keep Project() generation from that data a test instance method
+		# TODO: determine why the pandas CSV read call is failing here due to lack of columns to read.
 		p = Project(os.path.expandvars("tests/test_config.yaml"))
-		#p.add_sample_sheet()
 		self.p = p
 
+		# TODO: similarly, file writing as classmethod from embedded string literal data, keeping interface instantiation as test instance method.
 		pi = PipelineInterface(os.path.expandvars("tests/pipelines/config/pipeline_interface.yaml"))
 		self.pi = pi
 
