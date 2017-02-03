@@ -51,6 +51,7 @@ Explore!
 
 import os as _os
 import pandas as _pd
+from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
 from collections import OrderedDict as _OrderedDict
 
@@ -560,6 +561,10 @@ class SampleSheet(object):
 			self.df = _pd.read_csv(self.csv, dtype=dtype)
 		except IOError("Given csv file couldn't be read.") as e:
 			raise e
+		# DEBUG
+		except EmptyDataError:
+			print("Attempted to read {} as data type {}".format(self.csv, str(dtype)))
+			raise
 
 		# Check mandatory items are there
 		req = ["sample_name"]
