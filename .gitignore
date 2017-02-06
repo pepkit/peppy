@@ -34,3 +34,6 @@ pipelines/pypiper
 
 # ignore test results
 tests/test/*
+microtest/
+open_pipelines/
+

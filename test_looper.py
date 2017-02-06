@@ -1,10 +1,17 @@
+#!/usr/bin/env python
+"""Initial, broad-scope looper tests.
 
-from looper.models import copy, Paths, AttributeDict
-from looper.models import Project, SampleSheet, Sample
-from looper.models import PipelineInterface, ProtocolMapper, CommandChecker
+Along with tests/tests.py, this is one of the initial unit test modules.
+The primary function under test here is the creation of a project instance.
+
+"""
 
 import unittest
 import os
+
+from looper import setup_logger
+from looper.models import Project
+from looper.models import PipelineInterface
 
 
 class LooperTest(unittest.TestCase):
