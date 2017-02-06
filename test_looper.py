@@ -9,7 +9,7 @@ The primary function under test here is the creation of a project instance.
 import unittest
 import os
 
-from looper import setup_logger
+from looper import setup_looper_logger
 from looper.models import Project
 from looper.models import PipelineInterface
 
@@ -95,5 +95,6 @@ class LooperTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+	setup_looper_logger()
 	unittest.main()
 

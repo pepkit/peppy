@@ -317,8 +317,8 @@ class Project(AttributeDict):
 		"""
 		try:
 			with open(looperenv_file, 'r') as handle:
-				self._logger.info("Loading {}: {}".format(LOOPERENV_VARNAME,
-											  			  looperenv_file))
+				self._logger.info("Loading %s: %s",
+								  LOOPERENV_VARNAME, looperenv_file)
 				looperenv = _yaml.load(handle)
 				if self.DEBUG:
 					print(looperenv)
