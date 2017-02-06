@@ -2,7 +2,6 @@
 
 import sys
 import os
-import shutil
 
 # take care of extra required modules depending on Python version
 extra = {}

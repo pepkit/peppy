@@ -18,10 +18,12 @@ import time
 import pandas as _pd
 
 try:
-	from .models import Project, PipelineInterface, ProtocolMapper
+	from .models import \
+		Project, PipelineInterface, ProtocolMapper, LOOPERENV_VARNAME
 except:
 	sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
-	from looper.models import Project, PipelineInterface, ProtocolMapper
+	from looper.models import \
+		Project, PipelineInterface, ProtocolMapper, LOOPERENV_VARNAME
 
 
 def parse_arguments():
@@ -55,8 +57,10 @@ def parse_arguments():
 		help="YAML file with looper environment compute settings.", default=None)
 	run_subparser.add_argument(
 		'--env', dest='env', type=str,
-		help="Employ looper environment compute settings. [Default:" + os.getenv("LOOPERENV", "") + "]",
-		default=os.getenv("LOOPERENV", ""))
+		help="Employ looper environment compute settings. "
+			 "[Default: {}]".format(os.getenv("{}".format(LOOPERENV_VARNAME),
+											  "")),
+		default=os.getenv("{}".format(LOOPERENV_VARNAME), ""))
 	run_subparser.add_argument(
 		'--limit', dest='limit', type=int,
 		help="Limit to n samples.", default=None)

@@ -50,12 +50,15 @@ Explore!
 """
 
 from collections import OrderedDict as _OrderedDict
+import logging
 import os as _os
 from pkg_resources import resource_filename
 
 import pandas as _pd
 from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
+
+from . import LOOPERENV_VARNAME
 
 
 def copy(obj):
@@ -150,20 +153,33 @@ class Project(AttributeDict):
 		from looper.models import Project
 		prj = Project("config.yaml")
 	"""
+
 	def __init__(self, config_file, subproject=None, dry=False,
 				 permissive=True, file_checks=False, looperenv_file=None):
+
 		super(Project, self).__init__()
+		self._logger = logging.getLogger(
+			"{}.{}".format(__name__, self.__class__.__name__)
+		)
 		self.DEBUG = False
+
+		self._logger.info("Instantiating %s using config file %s",
+						  self.__class__.__name__, config_file)
 
 		# Initialize local, serial compute as default (no cluster submission)
 		# Start with default looperenv
-		default_looperenv = resource_filename("looper", 'submit_templates/default_looperenv.yaml')
+		default_looperenv = \
+			resource_filename("looper",
+							  "submit_templates/default_looperenv.yaml")
 		self.update_looperenv(default_looperenv)
 
 		# Load settings from looper environment yaml for local compute infrastructure.
 		if not looperenv_file:
-			print("Using default LOOPERENV. You may set environment variable 'LOOPERENV' to configure compute settings.")
+			self._logger.info("Using default {envvar}. You may set environment "
+							  "variable '{envvar}' to configure compute "
+							  "settings.".format(envvar=LOOPERENV_VARNAME))
 		else:
+			self._logger.info("Updating ")
 			self.update_looperenv(looperenv_file)
 
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
@@ -301,8 +317,9 @@ class Project(AttributeDict):
 		"""
 		try:
 			with open(looperenv_file, 'r') as handle:
+				self._logger.info("Loading {}: {}".format(LOOPERENV_VARNAME,
+											  			  looperenv_file))
 				looperenv = _yaml.load(handle)
-				print("Loading LOOPERENV: " + looperenv_file)
 				if self.DEBUG:
 					print(looperenv)
 
@@ -850,7 +867,8 @@ class Sample(object):
 		except Exception as e:
 			print("Can't format data source correctly:" + regex)
 			print(str(type(e).__name__) + str(e))
-			return regex
+			raise
+			#return regex
 
 		return val
 
