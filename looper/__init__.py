@@ -65,6 +65,3 @@ def setup_looper_logger(level=LOGGING_LEVEL,
         handler = handler_type(loc)
         handler.setFormatter(formatter)
         LOOPER_LOGGER.addHandler(handler)
-
-
-    # TODO: warn if requested level is less than the effective level.

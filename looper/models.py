@@ -179,7 +179,8 @@ class Project(AttributeDict):
 							  "variable '{envvar}' to configure compute "
 							  "settings.".format(envvar=LOOPERENV_VARNAME))
 		else:
-			self._logger.info("Updating ")
+			self._logger.info("Updating compute settings (looper environment) "
+							  "based on file '{%s}'", looperenv_file)
 			self.update_looperenv(looperenv_file)
 
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
@@ -223,6 +224,7 @@ class Project(AttributeDict):
 		# samples
 		self.samples = list()
 
+		self._logger.info("Adding sample sheet")
 		self.add_sample_sheet()
 
 	def __repr__(self):
@@ -314,6 +316,10 @@ class Project(AttributeDict):
 
 	def update_looperenv(self, looperenv_file):
 		"""
+		Parse data from looper environment configuration file.
+
+		:param str looperenv_file: path to file with new looper
+			environment configuration data
 		"""
 		try:
 			with open(looperenv_file, 'r') as handle:
@@ -429,10 +435,8 @@ class Project(AttributeDict):
 		:param file_checks: Should it check for properties of sample input files (e.g. read type, length)? Defaults to what is set to the Project.
 		:type file_checks: bool
 		"""
-		# If options are not passed, used what has been set for project
-		if self.DEBUG:
-			print("Add sample sheet.")
 
+		# If options are not passed, used what has been set for project.
 		if permissive is None:
 			permissive = self.permissive
 		else:
@@ -450,10 +454,11 @@ class Project(AttributeDict):
 		else:
 			self.sheet = SampleSheet(csv)
 
-		# pair project and sheet
+		# Pair project and sheet.
 		self.sheet.prj = self
 
-		# Generate sample objects from annotation sheet
+		# Generate sample objects from annotation sheet.
+		self._logger.info("Creating samples from annotation sheet")
 		self.sheet.make_samples()
 
 		# Add samples to Project
@@ -859,16 +864,20 @@ class Sample(object):
 			# with any provided extra variables to use in the replacement.
 			# This is necessary for derived_columns in the merge table.
 			temp_dict = self.__dict__
-			if(extra_vars):
+			if extra_vars:
 				temp_dict.update(extra_vars)
-			#val = regex.format(**self.__dict__)
 			val = regex.format(**temp_dict)
 			
 		except Exception as e:
-			print("Can't format data source correctly:" + regex)
+			print("Can't format data source correctly: " + regex)
+			# DEBUG
+			print("self.__dict__: {}".format(self.__dict__))
 			print(str(type(e).__name__) + str(e))
+
+			# DEBUG
 			raise
-			#return regex
+
+			return regex
 
 		return val
 
