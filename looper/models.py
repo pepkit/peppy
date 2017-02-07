@@ -184,6 +184,7 @@ class Project(AttributeDict):
 			self.update_looperenv(looperenv_file)
 
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
+		self._logger.info("Establishing project compute settings")
 		self.set_compute("default")
 
 		if self.DEBUG:
@@ -221,11 +222,10 @@ class Project(AttributeDict):
 			self.make_project_dirs()
 			# self.set_project_permissions()
 
-		# samples
-		self.samples = list()
-
 		self._logger.info("Adding sample sheet")
+		self.samples = list()
 		self.add_sample_sheet()
+
 
 	def __repr__(self):
 		if hasattr(self, "name"):
@@ -234,6 +234,7 @@ class Project(AttributeDict):
 			name = "[no name]"
 
 		return "Project '%s'" % name + "\nConfig: " + str(self.config)
+
 
 	def parse_config_file(self, subproject=None):
 		"""
@@ -260,8 +261,6 @@ class Project(AttributeDict):
 				print(self.paths)
 			self.paths = None
 
-		# self.paths = self.metadata
-
 		# These are required variables which have absolute paths
 		mandatory = ["output_dir", "pipelines_dir"]
 		for var in mandatory:
@@ -285,34 +284,43 @@ class Project(AttributeDict):
 		# All variables in these sections should be relative to the project config
 		relative_sections = ["metadata", "pipeline_config"]
 
+		self._logger.info("Parsing relative sections")
 		for sect in relative_sections:
 			if not hasattr(self, sect):
+				self._logger.debug("%s lacks relative section '%s', skipping",
+								   self.__class__.__name__, sect)
 				continue
 			relative_vars = getattr(self, sect)
 			if not relative_vars:
+				self._logger.debug("No relative variables, continuing")
 				continue
-			# print(relative_vars.__dict__)
 			for var in relative_vars.__dict__:
-				# print(type(relative_vars), var, getattr(relative_vars, var))
 				if not hasattr(relative_vars, var):
 					continue
 				# It could have been 'null' in which case, don't do this.
 				if getattr(relative_vars, var) is None:
 					continue
 				if not _os.path.isabs(getattr(relative_vars, var)):
-					# Set the path to an absolute path, relative to project config
-					setattr(relative_vars, var, _os.path.join(_os.path.dirname(self.config_file), getattr(relative_vars, var)))
+					# Set path to an absolute path, relative to project config.
+					config_dirpath = _os.path.dirname(self.config_file)
+					additional_from_base = getattr(relative_vars, var)
+					abs_path = _os.path.join(config_dirpath,
+											 additional_from_base)
+					setattr(relative_vars, var, abs_path)
 
-		# compute.submission_template could have been reset by project config into a relative path;
-		# make sure it stays absolute
+		# compute.submission_template could have been reset by project config
+		# into a relative path; make sure it stays absolute.
 		if not _os.path.isabs(self.compute.submission_template):
-			# self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
 			# Relative to looper environment config file.
-			self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+			self.compute.submission_template = _os.path.join(
+					_os.path.dirname(self.looperenv_file),
+					self.compute.submission_template
+			)
 
 		# Required variables check
 		if not hasattr(self.metadata, "sample_annotation"):
-			raise KeyError("Required field not in config file: %s" % "sample_annotation")
+			raise KeyError("Required field not in config file: "
+						   "%s" % "sample_annotation")
 
 	def update_looperenv(self, looperenv_file):
 		"""
@@ -1444,30 +1452,8 @@ class CommandChecker(object):
 	pipeline config file (under "tools") exist and are callable.
 	"""
 	def __init__(self, config):
-		import yaml
-
-		self.config = yaml.load(open(config, 'r'))
-
+		self.config = _yaml.load(open(config, 'r'))
 		# Check if ALL returned elements are True
 		if not all(map(self.check_command, self.config["tools"].items())):
 			raise BaseException("Config file contains non-callable tools.")
 
-	@staticmethod
-	def check_command(name, command):
-		"""
-		Check if command can be called.
-
-		:param command: Name of command to be called.
-		:type command: str
-		"""
-		import os
-
-		# Use `command` to see if command is callable, store exit code
-		code = os.system("command -v {0} >/dev/null 2>&1 || {{ exit 1; }}".format(command))
-
-		# If exit code is not 0, report which command failed and return False, else return True
-		if code != 0:
-			print("Command '{0}' is not callable: {1}".format(name, command))
-			return False
-		else:
-			return True
