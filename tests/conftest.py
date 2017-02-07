@@ -11,6 +11,7 @@ import logging
 import shutil
 import tempfile
 import pytest
+from looper import setup_looper_logger
 from looper.models import PipelineInterface, Project
 
 __author__ = "Vince Reuter"
@@ -157,10 +158,13 @@ def _skeptic_create(request, wanted):
 
 
 @pytest.fixture(scope="function")
-def project(request):
+def proj(request):
     return _skeptic_create(request, Project)
 
 
 @pytest.fixture(scope="function")
 def pipe_iface(request):
     return _skeptic_create(request, PipelineInterface)
+
+
+setup_looper_logger()

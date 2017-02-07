@@ -5,29 +5,30 @@ The primary function under test here is the creation of a project instance.
 
 """
 
+import logging
 import os
 import pytest
-from looper import setup_looper_logger
 from looper.models import Project
 from looper.models import PipelineInterface
 
 
-class LooperTest("project_config_file"):
+_LOGGER = logging.getLogger(__name__)
+
+
+class ProjectTest("project_config_file"):
 
 	# TODO: docstrings and atomicity/encapsulation.
 	# TODO: conversion to pytest for consistency.
 
 
-	def setUp(self):
-		# TODO: embed file data as string literal here or in a data/resources directory.
-		# TODO: write the file as a classmethod; keep Project() generation from that data a test instance method
-		# TODO: determine why the pandas CSV read call is failing here due to lack of columns to read.
-		p = Project(os.path.expandvars("tests/test_config.yaml"))
-		self.p = p
+	def test_inputs_not_set(self, proj):
 
-		# TODO: similarly, file writing as classmethod from embedded string literal data, keeping interface instantiation as test instance method.
-		pi = PipelineInterface(os.path.expandvars("tests/pipelines/config/pipeline_interface.yaml"))
-		self.pi = pi
+		with pytest.raises(AttributeError):
+			proj.samples[2].required_inputs
+		with self.assertRaises(AttributeError):
+			proj.samples[1].all_inputs_attr
+
+
 
 	def test1(self):
 		p = self.p  # for convenience
@@ -41,8 +42,6 @@ class LooperTest("project_config_file"):
 
 		self.assertFalse(self.p.samples[0].merged)
 		self.assertTrue(self.p.samples[1].merged)
-
-		#print(self.p.samples[1].merged_cols)
 
 		# Make sure these columns were merged:
 		[x in p.samples[1].merged_cols.keys() for x in ["file2", "dcol1", "file"]]
@@ -84,15 +83,3 @@ class LooperTest("project_config_file"):
 		s3.confirm_required_inputs()
 		self.assertEqual(os.path.basename(s3.required_inputs[0]), "d-bamfile.bam")
 		self.assertTrue(s3.confirm_required_inputs())
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-	setup_looper_logger()
-	unittest.main()
-
