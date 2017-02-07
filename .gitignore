@@ -47,3 +47,11 @@ Thumbs.db
 
 # libreoffice lock files:
 .~lock*
+
+# Default-named test output
+microtest/
+open_pipelines/
+
+# IDE-specific items
+.idea/
+
