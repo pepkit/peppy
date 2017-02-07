@@ -55,3 +55,6 @@ open_pipelines/
 # IDE-specific items
 .idea/
 
+# pytest-related
+.cache/
+
