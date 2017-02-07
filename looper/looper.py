@@ -239,31 +239,33 @@ def run(prj, args, remaining_args):
 			# these arguments, then it should list looper_args=True and then we
 			# should add the arguments to the command string.
 
-			# Check for a pipeline config file
-			if hasattr(prj, "pipeline_config"):
-				# Index with 'pl_id' instead of 'pipeline' because we don't care about
-				# parameters here.
-				if hasattr(prj.pipeline_config, pl_id):
-					# First priority: pipeline config specified in project config
-					pl_config_file = getattr(prj.pipeline_config, pl_id)
-					if pl_config_file:  # make sure it's not null (which it could be provided as null)
-						if not os.path.isfile(pl_config_file):
-							print("Pipeline config file specified but not found: " + pl_config_file)
-							raise IOError(pl_config_file)
-						print("Found config file:" + getattr(prj.pipeline_config, pl_id))
-						# Append arg for config file if found
-						cmd += " -C " + pl_config_file
+			if pipeline_interface.uses_looper_args(pl_id):
 
-			# Append output parent folder
-			cmd += " -O " + prj.metadata.results_subdir
+				# Check for a pipeline config file
+				if hasattr(prj, "pipeline_config"):
+					# Index with 'pl_id' instead of 'pipeline' because we don't care about
+					# parameters here.
+					if hasattr(prj.pipeline_config, pl_id):
+						# First priority: pipeline config specified in project config
+						pl_config_file = getattr(prj.pipeline_config, pl_id)
+						if pl_config_file:  # make sure it's not null (which it could be provided as null)
+							if not os.path.isfile(pl_config_file):
+								print("Pipeline config file specified but not found: " + pl_config_file)
+								raise IOError(pl_config_file)
+							print("Found config file:" + getattr(prj.pipeline_config, pl_id))
+							# Append arg for config file if found
+							cmd += " -C " + pl_config_file
 
-			# Append arg for cores (number of processors to use)
-			if submit_settings["cores"] > 1:
-				cmd += " -P " + submit_settings["cores"]
+				# Append output parent folder
+				cmd += " -O " + prj.metadata.results_subdir
 
-			# Append arg for memory
-			if submit_settings["mem"] > 1:
-				cmd += " -M " + submit_settings["mem"]
+				# Append arg for cores (number of processors to use)
+				if submit_settings["cores"] > 1:
+					cmd += " -P " + submit_settings["cores"]
+
+				# Append arg for memory
+				if submit_settings["mem"] > 1:
+					cmd += " -M " + submit_settings["mem"]
 
 			# Add the command string and job name to the submit_settings object
 			submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline
