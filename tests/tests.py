@@ -1,12 +1,8 @@
-
-from looper.models import copy, Paths, AttributeDict
-from looper.models import Project, SampleSheet, Sample
-from looper.models import PipelineInterface, ProtocolMapper, CommandChecker
-
+""" Tests for functions and data types defined in looper.model. """
 
 import numpy as np
-from pandas.util.testing import assert_frame_equal, assert_series_equal
-import numpy.testing as npt
+import pytest
+from looper.models import copy, Paths, AttributeDict
 
 
 class ExampleObject():
@@ -33,7 +29,7 @@ def test_Paths():
 
 
 def test_AttributeDict():
-    attrs = [None, "str", 1, 1.0, np.nan, np.random.random(20)]
+    attrs = ["str", 1, 1.0, np.nan, np.random.random(20)]
     # Set and retrieve attributes
     for attr in attrs:
         attrd = AttributeDict({"attr": attr})
@@ -45,3 +41,10 @@ def test_AttributeDict():
         attrd.attrd = AttributeDict({"attr": attr})
         assert attrd.attrd["attr"] is attr
         assert getattr(attrd.attrd, "attr") is attr
+
+
+def test_AttributeDict_null():
+    """ Null value isn't added to AttributeDict. """
+    ad = AttributeDict({"attr": None})
+    with pytest.raises(AttributeError):
+        ad.attr
