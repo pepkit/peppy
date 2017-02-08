@@ -59,6 +59,7 @@ from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
+from exceptions import DefaultLooperenvException
 
 
 def copy(obj):
@@ -168,10 +169,18 @@ class Project(AttributeDict):
 
 		# Initialize local, serial compute as default (no cluster submission)
 		# Start with default looperenv
+		self._logger.debug("Establishing default looperenv compute settings")
+		self.looperenv, self.looperenv_file = None, None
 		default_looperenv = \
 			resource_filename("looper",
 							  "submit_templates/default_looperenv.yaml")
 		self.update_looperenv(default_looperenv)
+		# Ensure that update set looperenv and looperenv file attributes.
+		if self.looperenv is None or self.looperenv_file is None:
+			raise DefaultLooperenvException(
+				"Failed to setup default looperenv from data in {}.".
+				format(default_looperenv)
+			)
 
 		# Load settings from looper environment yaml for local compute infrastructure.
 		if not looperenv_file:
@@ -198,6 +207,7 @@ class Project(AttributeDict):
 		self.config_file = _os.path.abspath(config_file)
 
 		# Parse config file
+		self.config, self.paths = None, None    # Set by config parsing call.
 		self.parse_config_file(subproject)
 
 		# Get project name
@@ -224,6 +234,10 @@ class Project(AttributeDict):
 
 		self._logger.info("Adding sample sheet")
 		self.samples = list()
+
+		# Sheet will be set to non-null value by call to add_sample_sheet().
+		# That call also sets the samples (list) attribute for the instance.
+		self.sheet = None
 		self.add_sample_sheet()
 
 
@@ -456,11 +470,8 @@ class Project(AttributeDict):
 			file_checks = self.file_checks
 
 		# Make SampleSheet object
-		# by default read sample_annotation, but allow csv argument to be passed here explicitely
-		if csv is None:
-			self.sheet = SampleSheet(self.metadata.sample_annotation)
-		else:
-			self.sheet = SampleSheet(csv)
+		# By default read sample_annotation, but allow explict CSV arg.
+		self.sheet = SampleSheet(csv or self.metadata.sample_annotation)
 
 		# Pair project and sheet.
 		self.sheet.prj = self
@@ -472,7 +483,7 @@ class Project(AttributeDict):
 		# Add samples to Project
 		for sample in self.sheet.samples:
 			sample.merged = False  # mark sample as not merged - will be overwritten later if indeed merged
-			self.add_sample(sample)
+			self.add_sample(sample)		# Side-effect: self.samples += [sample]
 
 		# Merge sample files (!) using merge table if provided:
 		if hasattr(self.metadata, "merge_table"):

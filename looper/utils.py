@@ -1,4 +1,4 @@
-""" Helpers without an abvious logical home. """
+""" Helpers without an obvious logical home. """
 
 from collections import defaultdict
 import logging
@@ -15,6 +15,11 @@ class CommandChecker(object):
     Validate call success of executables
     associated with sections of a config file.
     """
+
+    # TODO:
+    # Test this with additional pipeline config file,
+    # pointed to in relevant section of project config file:
+    # http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config
 
     def __init__(self, path_conf_file, include=None, exclude=None):
         """

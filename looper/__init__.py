@@ -13,6 +13,10 @@ from sys import stderr
 
 
 LOOPERENV_VARNAME = "LOOPERENV"
+SUBMISSION_TEMPLATES_FOLDER = "submit_templates"
+DEFAULT_LOOPERENV_FILENAME = "default_looperenv.yaml"
+DEFAULT_LOOPERENV_CONFIG_RELATIVE = os.path.join(SUBMISSION_TEMPLATES_FOLDER,
+                                                 DEFAULT_LOOPERENV_FILENAME)
 
 DEFAULT_LOGGING = {""}
 LOGGING_LEVEL = logging.INFO
