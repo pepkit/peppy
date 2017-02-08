@@ -17,6 +17,12 @@ class CommandChecker(object):
     """
 
     # TODO:
+    # It appears that this isn't currently used.
+    # It could be included as a validation stage in Project instantiation.
+    # Such use would be skipped or need to pass for Project instance
+    # lacking pipeline-specific configuration.
+
+    # TODO:
     # Test this with additional pipeline config file,
     # pointed to in relevant section of project config file:
     # http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config

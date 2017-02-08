@@ -189,11 +189,12 @@ class Project(AttributeDict):
 							  "settings.".format(envvar=LOOPERENV_VARNAME))
 		else:
 			self._logger.info("Updating compute settings (looper environment) "
-							  "based on file '{%s}'", looperenv_file)
+							  "based on file '%s'", looperenv_file)
 			self.update_looperenv(looperenv_file)
 
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
 		self._logger.info("Establishing project compute settings")
+		self.compute = None
 		self.set_compute("default")
 
 		if self.DEBUG:
@@ -419,7 +420,8 @@ class Project(AttributeDict):
 				# Relative to looper environment config file.
 				self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
 		else:
-			print("Cannot load compute settings: " + setting)
+			self._logger.warn("Cannot load compute settings: %s (%s)",
+							  setting, str(type(setting)))
 
 	def get_arg_string(self, pipeline_name):
 		"""
@@ -698,12 +700,7 @@ class SampleSheet(object):
 @copy
 class Sample(object):
 	"""
-	Class to model Samples basd on a pandas Series.
-
-	:param series: Pandas `Series` object.
-	:type series: pandas.Series
-	:param permissive: Should throw error if sample file is not found/readable?.
-	:type permissive: bool
+	Class to model Samples based on a pandas Series.
 
 	:Example:
 
@@ -717,8 +714,13 @@ class Sample(object):
 	# Originally, this object was inheriting from _pd.Series,
 	# but complications with serializing and code maintenance
 	# made me go back and implement it as a top-level object
-	def __init__(self, series, permissive=True):
-		# Passed series must either be a pd.Series or a daugther class
+	def __init__(self, series):
+		"""
+		Instantiate `Sample` with data from given series.
+
+		:param pandas.core.series.Series series: data for instance
+		"""
+		# Passed series must either be a pd.Series or a daughter class
 		if not isinstance(series, _pd.Series):
 			raise TypeError("Provided object is not a pandas Series.")
 		super(Sample, self).__init__()

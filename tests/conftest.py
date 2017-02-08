@@ -71,6 +71,21 @@ testngs.sh:
 """.splitlines(True)
 
 
+SAMPLE_ANNOTATION_LINES = """sample_name,library,file,file2,organism,nonmerged_col,data_source,dcol2
+a,testlib,src3,src3,,src3,src3,
+b,testlib,,,,src3,src3,src1
+c,testlib,src3,src3,,src3,src3,
+d,testngs,src2,src3,human,,src3,
+""".splitlines(True)
+
+
+MERGE_TABLE_LINES = """sample_name,file,file2,dcol1,col_modifier
+b,src1,src1,src1,1
+b,src1,src1,src1,2
+b,src1,src1,src1,3
+""".splitlines(True)
+
+
 _DATA_BY_TYPE = {
     Project: PROJECT_CONFIG_LINES,
     PipelineInterface: PIPELINE_INTERFACE_CONFIG_LINES
