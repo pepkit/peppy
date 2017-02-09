@@ -1007,10 +1007,7 @@ class Sample(object):
 		if not self.required_inputs:
 			return True
 
-		# Identify and accumulate a list of any missing required inputs for this sample
-
 		# First, attributes
-		missing_attributes = []
 		for file_attribute in self.required_inputs_attr:
 			if not hasattr(self, file_attribute):
 				print("Sample missing required input attribute: " + file_attribute)

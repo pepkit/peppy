@@ -5,81 +5,142 @@ The primary function under test here is the creation of a project instance.
 
 """
 
+import itertools
 import logging
 import os
 import pytest
-from looper.models import Project
-from looper.models import PipelineInterface
+import numpy.random as nprand
+
+from conftest import \
+	EXPECTED_MERGE_COLUMNS, EXPECTED_MERGED_SAMPLE_FILEPATHS, \
+	FILE_BY_SAMPLE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
+	NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ProjectTest("project_config_file"):
+
+class ProjectConstructorTest("project_config_file"):
 
 	# TODO: docstrings and atomicity/encapsulation.
 	# TODO: conversion to pytest for consistency.
 
 
-	def test_inputs_not_set(self, proj):
-
+	@pytest.mark.parametrize(argnames="attr_name",
+							 argvalues=["required_inputs", "all_input_attr"])
+	def test_sample_required_inputs_not_set(self, proj, attr_name):
+		""" Samples' inputs are not set in `Project` ctor. """
+		# TODO: update this to check for null if design is changed as may be.
 		with pytest.raises(AttributeError):
-			proj.samples[2].required_inputs
-		with self.assertRaises(AttributeError):
-			proj.samples[1].all_inputs_attr
+			getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
 
 
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=MERGED_SAMPLE_INDICES)
+	def test_merge_samples_positive(self, proj, sample_index):
+		""" Samples annotation lines say only sample 'b' should be merged. """
+		assert proj.samples[sample_index].merged
 
-	def test1(self):
-		p = self.p  # for convenience
-		pi = self.pi
 
-		# Should not be set yet.
-		with self.assertRaises(AttributeError):
-			p.samples[2].required_inputs
-		with self.assertRaises(AttributeError):
-			p.samples[1].all_inputs_attr
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=set(range(NUM_SAMPLES)) -
+									   MERGED_SAMPLE_INDICES)
+	def test_merge_samples_negative(self, proj, sample_index):
+		assert not proj.samples[sample_index].merged
 
-		self.assertFalse(self.p.samples[0].merged)
-		self.assertTrue(self.p.samples[1].merged)
 
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=MERGED_SAMPLE_INDICES)
+	def test_data_sources_derivation(self, proj, sample_index):
+		""" Samples in merge file, check data_sources --> derived_columns. """
 		# Make sure these columns were merged:
-		[x in p.samples[1].merged_cols.keys() for x in ["file2", "dcol1", "file"]]
+		merged_columns = \
+			list(proj.samples[sample_index].merged_cols.keys())
+		assert EXPECTED_MERGE_COLUMNS == merged_columns
+
+
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=MERGED_SAMPLE_INDICES)
+	def test_derived_columns_merge_table_sample(self, proj, sample_index):
 		# Make sure derived columns works on merged table.
-		self.assertEqual([os.path.basename(x) for x in p.samples[1].file2.split(" ")],  ['b1.txt', 'b2.txt', 'b3.txt'])
-
-		# This sample should not have any merged columns
-		self.assertEqual(len(p.samples[2].merged_cols.keys()), 0)
-
-		s = p.samples[0]
-		s.set_pipeline_attributes(pi, "testpipeline.sh")
-		self.assertEqual([os.path.basename(x) for x in s.required_inputs], ['a.txt', 'a.txt'])
-
-		s2 = p.samples[2]
-		s2.set_pipeline_attributes(pi, "testpipeline.sh")
-		s2.required_inputs
-		self.assertTrue(s2.confirm_required_inputs())
-		self.assertEqual([os.path.basename(x) for x in s2.required_inputs], ['c.txt', 'c.txt'])
-
-		# Make sure derived cols don't get re-derived upon multiple calls of add_sample_sheet()
-		self.assertEqual(p.samples[2].file, "tests/data/c.txt")
-		p.add_sample_sheet()
-		p.add_sample_sheet()
-		self.assertEqual(p.samples[2].file, "tests/data/c.txt")
-
-		# Check that duplicate derived cols can still be derived
-		self.assertEqual(p.samples[2].nonmerged_col, "tests/data/c.txt")
-		self.assertEqual(p.samples[2].locate_data_source('file'), "")
+		observed_merged_sample_filepaths = \
+			[os.path.basename(f) for f in
+			 proj.samples[sample_index].file2.split(" ")]
+		assert EXPECTED_MERGED_SAMPLE_FILEPATHS == \
+			   observed_merged_sample_filepaths
 
 
-		# Can't set a non-ngs sample to an ngs pipeline
-		with self.assertRaises(TypeError):
-			s.set_pipeline_attributes(pi, "testngs.sh")
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=set(range(NUM_SAMPLES)) -
+									   MERGED_SAMPLE_INDICES)
+	def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
+		""" Samples not in the `merge_table` lack merged columns. """
+		# Assert the negative to cover empty dict/AttributeDict/None/etc.
+		assert not proj.samples[sample_index].merged_cols
 
-		# But it works for this NGS sample:
-		s3 = p.samples[3]
-		s3.set_pipeline_attributes(pi, "testngs.sh")
-		s3.required_inputs
-		s3.confirm_required_inputs()
-		self.assertEqual(os.path.basename(s3.required_inputs[0]), "d-bamfile.bam")
-		self.assertTrue(s3.confirm_required_inputs())
+
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=range(NUM_SAMPLES))
+	def test_multiple_add_sample_sheet_calls_no_rederivation(self, proj,
+															 sample_index):
+		""" Don't rederive `derived_columns` for multiple calls. """
+		assert FILE_BY_SAMPLE[sample_index] == proj.samples[sample_index].file
+		proj.add_sample_sheet()
+		proj.add_sample_sheet()
+		assert FILE_BY_SAMPLE[sample_index] == proj.samples[sample_index].file
+		proj.add_sample_sheet()
+		assert FILE_BY_SAMPLE[sample_index] == proj.samples[sample_index].file
+
+
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=range(NUM_SAMPLES))
+	def test_duplicate_derived_columns_still_derived(self, proj):
+		sample_index = 2
+		assert "tests/data/c.txt" == proj.samples[sample_index].nonmerged_col
+		assert "" == proj.samples[sample_index].locate_data_source('file')
+
+
+
+class SampleWrtProjectCtorTests:
+	""" Tests for `Sample` related to `Project` construction """
+
+
+	@pytest.mark.parametrize(
+		argnames="pipe_name,sample_index",
+		argvalues=itertools.product(PIPELINE_TO_REQD_INFILES_BY_SAMPLE.keys(),
+									range(NUM_SAMPLES))
+	)
+	def test_required_inputs(self, proj, pipe_iface,
+							 pipe_script, sample_index):
+		expected_required_inputs = \
+			PIPELINE_TO_REQD_INFILES_BY_SAMPLE[pipe_script][sample_index]
+		sample = proj.samples[sample_index]
+		sample.set_pipeline_attributes(pipe_iface, pipe_script)
+		observed_required_inputs = [os.path.basename(f)
+									for f in sample.required_inputs]
+		assert expected_required_inputs == observed_required_inputs
+		assert sample.confirm_required_inputs()
+
+
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=NGS_SAMPLE_INDICES)
+	def test_ngs_pipe_ngs_sample(self, proj, pipe_iface, sample_index):
+		sample = proj.samples[sample_index]
+		sample.set_pipeline_attributes(pipe_iface, "testngs.sh")
+		expected_required_input = \
+			os.path.basename(
+				PIPELINE_TO_REQD_INFILES_BY_SAMPLE["testngs.sh"][sample_index])
+		assert sample.confirm_required_inputs()
+		assert 1 == len(sample.required_inputs)
+		assert expected_required_input == sample.required_inputs[0]
+
+
+
+	@pytest.mark.parametrize(argnames="sample_index",
+							 argvalues=set(range(NUM_SAMPLES)) -
+									   NGS_SAMPLE_INDICES)
+	def test_ngs_pipe_non_ngs_sample(self, proj, pipe_iface, sample_index):
+		sample = proj.samples[sample_index]
+		with pytest.raises(TypeError):
+			sample.set_pipeline_attributes(pipe_iface, "testngs.sh")

@@ -69,6 +69,17 @@ testngs.sh:
       time: "2-00:00:00"
       partition: "longq"
 """.splitlines(True)
+_FILE_FILE2_BY_SAMPLE = [
+        ["a.txt", "a.txt"],
+        ["b.txt", "b.txt"],
+        ["c.txt", "c.txt"],
+        ["d-bamfile.bam", "d.txt"]
+]
+FILE_BY_SAMPLE = [[f] for f, _ in _FILE_FILE2_BY_SAMPLE]
+PIPELINE_TO_REQD_INFILES_BY_SAMPLE = {
+    "testpipeline.sh": _FILE_FILE2_BY_SAMPLE,
+    "testngs.sh": FILE_BY_SAMPLE
+}
 
 
 SAMPLE_ANNOTATION_LINES = """sample_name,library,file,file2,organism,nonmerged_col,data_source,dcol2
@@ -77,6 +88,8 @@ b,testlib,,,,src3,src3,src1
 c,testlib,src3,src3,,src3,src3,
 d,testngs,src2,src3,human,,src3,
 """.splitlines(True)
+NUM_SAMPLES = len(SAMPLE_ANNOTATION_LINES) - 1
+NGS_SAMPLE_INDICES = {3}
 
 
 MERGE_TABLE_LINES = """sample_name,file,file2,dcol1,col_modifier
@@ -84,6 +97,17 @@ b,src1,src1,src1,1
 b,src1,src1,src1,2
 b,src1,src1,src1,3
 """.splitlines(True)
+# Only sample 'b' is merged, and it's in index-1 in the annotation lines.
+MERGED_SAMPLE_INDICES = {1}
+# In merge_table lines, file2 --> src1.
+# In project config's data_sources section,
+# src1 --> "tests/data/{sample_name}{col_modifier}.txt"
+EXPECTED_MERGED_SAMPLE_FILEPATHS = {
+    "file2": ["tests/data/b1.txt", "tests/data/b2.txt", "tests/data/b3.txt"]
+}
+
+# These are the derived_columns values specified in the merge_table header.
+EXPECTED_MERGE_COLUMNS = ["file", "file2", "dcol1"]
 
 
 _DATA_BY_TYPE = {
