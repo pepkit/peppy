@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 
-@pytest.mark.usefixtures("project_config_file")
+@pytest.mark.usefixtures("write_project_files")
 class ProjectConstructorTest:
 
 	# TODO: docstrings and atomicity/encapsulation.
@@ -103,7 +103,7 @@ class ProjectConstructorTest:
 
 
 
-@pytest.mark.usefixtures("project_config_file", "pipe_iface_config_file")
+@pytest.mark.usefixtures("write_project_files", "pipe_iface_config_file")
 class SampleWrtProjectCtorTests:
 	""" Tests for `Sample` related to `Project` construction """
 
