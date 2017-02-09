@@ -93,7 +93,14 @@ _FILE_FILE2_BY_SAMPLE = [
         ["c.txt", "c.txt"],
         ["d-bamfile.bam", "d.txt"]
 ]
-FILE_BY_SAMPLE = [[f] for f, _ in _FILE_FILE2_BY_SAMPLE]
+# Values expected when accessing a proj.samples[<index>].file
+# file is mapped to data_source by sample annotations and merge_table.
+FILE_BY_SAMPLE = [
+        ["a.txt"],
+        ["b1.txt", "b2.txt", "b3.txt"],
+        ["c.txt"],
+        ["d-bamfile.bam"]
+]
 PIPELINE_TO_REQD_INFILES_BY_SAMPLE = {
     "testpipeline.sh": _FILE_FILE2_BY_SAMPLE,
     "testngs.sh": FILE_BY_SAMPLE

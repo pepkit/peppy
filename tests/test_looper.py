@@ -5,7 +5,6 @@ The primary function under test here is the creation of a project instance.
 
 """
 
-import itertools
 import logging
 import os
 import pytest
@@ -86,12 +85,16 @@ class ProjectConstructorTest:
     def test_multiple_add_sample_sheet_calls_no_rederivation(self, proj,
                                                              sample_index):
         """ Don't rederive `derived_columns` for multiple calls. """
-        assert FILE_BY_SAMPLE[sample_index] == proj.samples[sample_index].file
+        expected_files = FILE_BY_SAMPLE[sample_index]
+        def _observed(p):
+            return [os.path.basename(f)
+                    for f in p.samples[sample_index].file.split(" ")]
+        assert expected_files == _observed(proj)
         proj.add_sample_sheet()
         proj.add_sample_sheet()
-        assert FILE_BY_SAMPLE[sample_index] == proj.samples[sample_index].file
+        assert expected_files == _observed(proj)
         proj.add_sample_sheet()
-        assert FILE_BY_SAMPLE[sample_index] == proj.samples[sample_index].file
+        assert expected_files == _observed(proj)
 
 
     def test_duplicate_derived_columns_still_derived(self, proj):
