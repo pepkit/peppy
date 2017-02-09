@@ -870,14 +870,16 @@ class Sample(object):
 		
 		if not source_key:
 			if not hasattr(self, column_name):
-				raise AttributeError("You must provide a source_key, no attribute: " + source_key)
+				raise AttributeError("You must provide a source_key, "
+									 "no attribute: {}".format(source_key))
 			else:
 				source_key = getattr(self, column_name)
 
 		try:
 			regex = self.prj["data_sources"][source_key]
 		except:
-			print("Config lacks entry for data_source key: '" + source_key + "'' (in column: '" + column_name + "')")
+			print("Config lacks entry for data_source key: "
+				  "'{}' (in column: '{}')".format(source_key, column_name))
 			return ""
 
 		# This will populate any environment variables like $VAR with os.environ["VAR"]
@@ -1028,10 +1030,13 @@ class Sample(object):
 					missing_files.append(path)
 
 		if len(missing_files) > 0:
-			print("Input file does not exist or cannot be read: %s" % str(missing_files))
+			message = "Missing/unreadable file(s): {}".\
+					format(", ".join(["'{}'".format(path)
+									  for path in missing_files]))
 			if not permissive:
-				raise IOError("Input file does not exist or cannot be read: %s" % str(missing_files))
+				raise IOError(message)
 			else:
+				print(message)
 				return False
 
 		return True

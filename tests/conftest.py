@@ -10,6 +10,8 @@ test execution is not deleteriously affected, then it should be no problem.
 import logging
 import os
 import shutil
+import string
+import subprocess
 import tempfile
 
 from pandas.io.parsers import EmptyDataError
@@ -22,10 +24,11 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-setup_looper_logger()
+setup_looper_logger(level=logging.DEBUG)
 _LOGGER = logging.getLogger(__name__)
 
 
+# {basedir} lines are formatted during file write; other braced entries remain.
 PROJECT_CONFIG_LINES = """metadata:
   sample_annotation: samples.csv
   output_dir: test
@@ -35,10 +38,17 @@ PROJECT_CONFIG_LINES = """metadata:
 derived_columns: [file, file2, dcol1, dcol2, nonmerged_col, nonmerged_col, data_source]
 
 data_sources:
-  src1: "tests/data/{sample_name}{col_modifier}.txt"
-  src3: "tests/data/{sample_name}.txt"
-  src2: "tests/data/{sample_name}-bamfile.bam"
+  src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
+  src3: "{basedir}/data/{sample_name}.txt"
+  src2: "{basedir}/data/{sample_name}-bamfile.bam"
 """.splitlines(True)
+
+# Connected with project config lines & should match; separate for clarity.
+ANNOTATIONS_FILENAME = "samples.csv"
+MERGE_TABLE_FILENAME = "merge.csv"
+SRC1_TEMPLATE = "data/{sample_name}{col_modifier}.txt"
+SRC2_TEMPLATE = "data/{sample_name}-bamfile.bam"
+SRC3_TEMPLATE = "data/{sample_name}.txt"
 
 
 PIPELINE_INTERFACE_CONFIG_LINES = """testpipeline.sh:
@@ -79,7 +89,7 @@ testngs.sh:
 """.splitlines(True)
 _FILE_FILE2_BY_SAMPLE = [
         ["a.txt", "a.txt"],
-        ["b.txt", "b.txt"],
+        ["b3.txt", "b3.txt"],
         ["c.txt", "c.txt"],
         ["d-bamfile.bam", "d.txt"]
 ]
@@ -109,23 +119,24 @@ b,src1,src1,src1,3
 MERGED_SAMPLE_INDICES = {1}
 # In merge_table lines, file2 --> src1.
 # In project config's data_sources section,
-# src1 --> "tests/data/{sample_name}{col_modifier}.txt"
+# src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILEPATHS = {
-    "file2": ["tests/data/b1.txt", "tests/data/b2.txt", "tests/data/b3.txt"]
+    "file2": ["data/b1.txt", "data/b2.txt", "data/b3.txt"]
 }
 
 # These are the derived_columns values specified in the merge_table header.
 EXPECTED_MERGE_COLUMNS = ["file", "file2", "dcol1"]
 
 
-_DATA_BY_TYPE = {
-    Project: PROJECT_CONFIG_LINES,
-    PipelineInterface: PIPELINE_INTERFACE_CONFIG_LINES
-}
 _ATTR_BY_TYPE = {
     Project: "project_config_file",
     PipelineInterface: "pipe_iface_config_file"
 }
+
+
+class _DataSourceFormatMapping(dict):
+    def __missing__(self, derived_column):
+        return "{" + derived_column + "}"
 
 
 def _write_temp(lines, dirpath, fname):
@@ -143,10 +154,14 @@ def _write_temp(lines, dirpath, fname):
     :param str fname: name for file in `dirpath` to which to write `lines`
     :return str: full path to written file
     """
+    partial_replacement = _DataSourceFormatMapping(basedir=dirpath)
     filepath = os.path.join(dirpath, fname)
     _LOGGER.debug("Writing %d lines to file '%s'", len(lines), filepath)
+    data_source_formatter = string.Formatter()
     with open(filepath, 'w') as tmpf:
         for l in lines:
+            if "{basedir}" in l:
+                l = data_source_formatter.vformat(l, (), partial_replacement)
             tmpf.write(l)
         return tmpf.name
 
@@ -156,22 +171,46 @@ def write_project_files(request):
     """
     Write project config data to a temporary file system location.
 
-    :param : path to temporary directory,
-        provided by invocation of the builtin pytest fixture
+    :param pytest._pytest.fixtures.SubRequest request: object requesting
+        this fixture
     :return str: path to the temporary file with configuration data
     """
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
                                  dirpath=dirpath, fname="project_config.yaml")
     path_merge_table_file = _write_temp(
-            MERGE_TABLE_LINES, dirpath=dirpath, fname="merge.csv")
+            MERGE_TABLE_LINES,
+            dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+    )
     path_sample_annotation_file = _write_temp(
-            SAMPLE_ANNOTATION_LINES, dirpath=dirpath, fname="samples.csv")
+            SAMPLE_ANNOTATION_LINES,
+            dirpath=dirpath, fname=ANNOTATIONS_FILENAME
+    )
     request.cls.project_config_file = path_conf_file
     request.cls.merge_table_file = path_merge_table_file
     request.cls.sample_annotation_file = path_sample_annotation_file
+    _write_test_data_files(tempdir=dirpath)
     yield path_conf_file, path_merge_table_file, path_sample_annotation_file
     shutil.rmtree(dirpath)
+
+_TEST_DATA_FOLDER = "data"
+_BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
+                             _TEST_DATA_FOLDER, "d-bamfile.bam")
+_TEST_DATA_FILE_BASENAMES = ["a", "b1", "b2", "b3", "c", "d"]
+_TEST_DATA = {"{}.txt".format(name):
+              "This is the content of test file {}.".format(name)
+              for name in _TEST_DATA_FILE_BASENAMES}
+
+
+def _write_test_data_files(tempdir):
+    data_files_subdir = os.path.join(tempdir, _TEST_DATA_FOLDER)
+    os.makedirs(data_files_subdir)    # Called 1x/tempdir, so should not exist.
+    subprocess.check_call(["cp", _BAMFILE_PATH, data_files_subdir])
+    for fname, data in _TEST_DATA.items():
+        filepath = os.path.join(tempdir, _TEST_DATA_FOLDER, fname)
+        with open(filepath, 'w') as testfile:
+            _LOGGER.debug("Writing test data file to '%s'", filepath)
+            testfile.write(data)
 
 
 @pytest.fixture(scope="class")
@@ -208,20 +247,6 @@ def _create(request, wanted):
         with open(data_source, 'r') as datafile:
             print("File contents:\n{}".format(datafile.readlines()))
         raise
-
-    """
-
-    data = _DATA_BY_TYPE[wanted]    # KeyError --> unexpected desired data type
-
-    logging.info("Couldn't create %s via requestor's class's config file; "
-                 "request may have come from an extra-class function; "
-                 "will attempt creation by writing tempfile in %s.",
-                 Project.__class__.__name, dirpath)
-
-    return wanted(_write_temp(data, dirpath=dirpath,
-                              suffix=".yaml", delete=False))
-    """
-
 
 
 @pytest.fixture(scope="function")
