@@ -116,7 +116,7 @@ _DATA_BY_TYPE = {
 }
 _ATTR_BY_TYPE = {
     Project: "project_config_file",
-    PipelineInterface: "project_config_file"
+    PipelineInterface: "pipe_iface_config_file"
 }
 
 

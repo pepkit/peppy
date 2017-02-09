@@ -21,7 +21,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 
-class ProjectConstructorTest("project_config_file"):
+@pytest.mark.usefixtures("project_config_file")
+class ProjectConstructorTest:
 
 	# TODO: docstrings and atomicity/encapsulation.
 	# TODO: conversion to pytest for consistency.
@@ -95,19 +96,20 @@ class ProjectConstructorTest("project_config_file"):
 
 	@pytest.mark.parametrize(argnames="sample_index",
 							 argvalues=range(NUM_SAMPLES))
-	def test_duplicate_derived_columns_still_derived(self, proj):
+	def test_duplicate_derived_columns_still_derived(self, proj, sample_index):
 		sample_index = 2
 		assert "tests/data/c.txt" == proj.samples[sample_index].nonmerged_col
 		assert "" == proj.samples[sample_index].locate_data_source('file')
 
 
 
+@pytest.mark.usefixtures("project_config_file", "pipe_iface_config_file")
 class SampleWrtProjectCtorTests:
 	""" Tests for `Sample` related to `Project` construction """
 
 
 	@pytest.mark.parametrize(
-		argnames="pipe_name,sample_index",
+		argnames="pipe_script,sample_index",
 		argvalues=itertools.product(PIPELINE_TO_REQD_INFILES_BY_SAMPLE.keys(),
 									range(NUM_SAMPLES))
 	)

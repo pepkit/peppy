@@ -59,7 +59,7 @@ from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
-from exceptions import DefaultLooperenvException
+from exceptions import *
 
 
 def copy(obj):
@@ -170,7 +170,6 @@ class Project(AttributeDict):
 		# Initialize local, serial compute as default (no cluster submission)
 		# Start with default looperenv
 		self._logger.debug("Establishing default looperenv compute settings")
-		self.looperenv, self.looperenv_file = None, None
 		default_looperenv = \
 			resource_filename("looper",
 							  "submit_templates/default_looperenv.yaml")
@@ -194,8 +193,10 @@ class Project(AttributeDict):
 
 		# Here, looperenv has been loaded (either custom or default). Initialize default compute settings.
 		self._logger.info("Establishing project compute settings")
-		self.compute = None
 		self.set_compute("default")
+		if self.compute is None:
+			raise ComputeEstablishmentException()
+
 
 		if self.DEBUG:
 			print(self.compute)
@@ -373,6 +374,8 @@ class Project(AttributeDict):
 		except Exception as e:
 			print("Can't load looperenv config file: " + looperenv_file)
 			print(str(type(e).__name__) + str(e))
+			# DEBUG
+			raise
 
 	def make_project_dirs(self):
 		"""

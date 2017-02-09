@@ -59,4 +59,6 @@ open_pipelines/
 .cache/
 .coverage
 
+# Reserved files for comparison
+*RESERVE*
 
