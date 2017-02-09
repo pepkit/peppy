@@ -142,7 +142,7 @@ def _write_temp(lines, dirpath, suffix, delete):
 
 
 @pytest.fixture(scope="class")
-def project_config_file(tmpdir):
+def project_config_file(request):
     """
     Write project config data to a temporary file system location.
 
@@ -150,12 +150,16 @@ def project_config_file(tmpdir):
         provided by invocation of the builtin pytest fixture
     :return str: path to the temporary file with configuration data
     """
-    return _write_temp(PROJECT_CONFIG_LINES,
-                       dirpath=str(tmpdir), suffix=".yaml", delete=False)
+    dirpath = tempfile.mkdtemp()
+    path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
+                       dirpath=dirpath, suffix=".yaml", delete=False)
+    request.cls.project_config_file = path_conf_file
+    yield path_conf_file
+    shutil.rmtree(dirpath)
 
 
 @pytest.fixture(scope="class")
-def pipe_iface_config_file(tmpdir):
+def pipe_iface_config_file(request):
     """
     Write pipeline interface config data to a temporary file system location.
 
@@ -163,8 +167,12 @@ def pipe_iface_config_file(tmpdir):
         provided by invocation of the builtin pytest fixture
     :return str: path to the temporary file with configuration data
     """
-    return _write_temp(PIPELINE_INTERFACE_CONFIG_LINES,
-                       dirpath=str(tmpdir), suffix=".yaml", delete=False)
+    dirpath = tempfile.mkdtemp()
+    path_conf_file = _write_temp(PIPELINE_INTERFACE_CONFIG_LINES,
+                       dirpath=dirpath, suffix=".yaml", delete=False)
+    request.cls.pipe_iface_config_file = path_conf_file
+    yield path_conf_file
+    shutil.rmtree(dirpath)
 
 
 def _req_cls_att(req, attr):
@@ -179,20 +187,21 @@ def _skeptic_create(request, wanted):
     data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
     if data_source:
         return wanted(data_source)
+    # DEBUG
+    raise AttributeError
+
+    """
 
     data = _DATA_BY_TYPE[wanted]    # KeyError --> unexpected desired data type
-    dirpath = tempfile.mkdtemp()
+
     logging.info("Couldn't create %s via requestor's class's config file; "
                  "request may have come from an extra-class function; "
                  "will attempt creation by writing tempfile in %s.",
                  Project.__class__.__name, dirpath)
 
-    def tearDown():
-        shutil.rmtree(dirpath)
-    request.addFinalizer(tearDown)
-
     return wanted(_write_temp(data, dirpath=dirpath,
                               suffix=".yaml", delete=False))
+    """
 
 
 
