@@ -21,9 +21,7 @@ from looper import setup_looper_logger
 from looper.models import PipelineInterface, Project
 
 
-# To decrease default verbosity,
-setup_looper_logger(level=logging.WARN)
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = None
 
 
 # {basedir} lines are formatted during file write; other braced entries remain.
@@ -142,57 +140,19 @@ _ATTR_BY_TYPE = {
 }
 
 
-def _discover_modules():
-    """
-    Find set of available modules to allow dynamic addition of cmdl args.
 
-    :return set[str]: available modules that inform args augmentation
-        function of what's feasible
-    """
-    import sys
-    modnames = set(sys.modules.keys())
-    for site_pack_path in filter(lambda path: path.endswith("site-packages"),
-                                 sys.path):
-        try:
-            modnames |= set(os.listdir(site_pack_path))
-        except OSError:
-            _LOGGER.debug("Couldn't list module candidates from %s, skipping",
-                          site_pack_path)
-    try:
-        import pip
-    except ImportError:
-        _LOGGER.debug("No pip, skipping")
-    else:
-        try:
-            pip_loc = os.path.dirname(pip.__file__)
-            more_mods = os.listdir(os.path.dirname(pip_loc))
-        except Exception:
-            pass
-        else:
-            modnames |= set(more_mods)
-    return modnames
+def pytest_addoption(parser):
+    parser.addoption("--logging-level",
+                     default="WARN",
+                     choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
+                     help="Project root logger level to use for tests")
 
 
-# TODO: test speed and messages with and without this, in & out of venv.
-def pytest_cmdline_preparse(args):
-    """
-    Dynamically add arguments to pytest command-line invocation.
-
-    :param list[str] args: pytest flags and arguments
-    :return list[str]: same as input, with dynamic flag(s)/arg(s)
-        added as feasible
-    """
-    modnames = _discover_modules()
-    test_dist_modname = "xdist"
-    _LOGGER.debug("Searching %d modules for pytest test distribution "
-                  "module %s", test_dist_modname)
-    if test_dist_modname in modnames:
-        from multiprocessing import cpu_count
-        num_cpu_use = max(1, cpu_count() / 2)
-        args[:] = ["-n", str(num_cpu_use)] + args
-        _LOGGER.debug("Distributing tests over %d CPU(s)", num_cpu_use)
-    else:
-        _LOGGER.debug("Not distributing tests")
+@pytest.fixture(scope="session", autouse=True)
+def conf_logs(request):
+    setup_looper_logger(request.config.getoption("--logging-level"))
+    global _LOGGER
+    _LOGGER = logging.getLogger(__name__)
 
 
 
