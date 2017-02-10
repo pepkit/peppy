@@ -19,8 +19,10 @@ class CommandChecker(object):
     # TODO:
     # It appears that this isn't currently used.
     # It could be included as a validation stage in Project instantiation.
-    # Such use would be skipped or need to pass for Project instance
-    # lacking pipeline-specific configuration.
+    # If Project instance being validated lacked specific relevant
+    # configuration section the call here would either need to be skipped,
+    # or this would need to pass in such a scenario. That would not be
+    # a challenge, but it just needs to be noted.
 
     # TODO:
     # Test this with additional pipeline config file,
@@ -45,20 +47,21 @@ class CommandChecker(object):
         self._logger = logging.getLogger(
             "{}.{}".format(__name__, self.__class__.__name__))
 
-        # TODO: could write strategy as argument if more than just YAML.
+        # TODO: could provide parse strategy as parameter to supplement YAML.
         # TODO: could also derive parsing behavior from extension.
         self.path = path_conf_file
         with open(self.path, 'r') as conf_file:
             data = yaml.safe_load(conf_file)
 
-
+        # Determine which sections to validate.
         sections = {include} if isinstance(include, str) else \
                    set(include or data.keys())
         excl = {exclude} if isinstance(exclude, str) else set(exclude or [])
         sections -= excl
 
         self._logger.info("Validating %d sections: %s",
-                          len(sections), ", ".join(sections))
+                          len(sections),
+                          ", ".join(["'{}'".format(s) for s in sections]))
 
         # Store per-command mapping of status, nested under section.
         self.section_to_fail_by_command = defaultdict(dict)
@@ -123,8 +126,12 @@ class CommandChecker(object):
         Determine whether *every* command succeeded for *every* config file
         section that was validated during instance construction.
 
-        :return bool: status conjunction value
+        :return bool: conjunction of execution success test result values,
+            obtained by testing each executable in every validated section
         """
+        # This will raise exception even if validation was attempted,
+        # but no sections were used. Effectively, delegate responsibility
+        # to the caller to initiate validation only if doing so is relevant.
         if not self.section_to_fail_by_command:
             raise ValueError("No commands validated")
         return 0 == len(self.failures)

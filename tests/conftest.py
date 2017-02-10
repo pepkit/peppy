@@ -20,10 +20,8 @@ import pytest
 from looper import setup_looper_logger
 from looper.models import PipelineInterface, Project
 
-__author__ = "Vince Reuter"
-__email__ = "vreuter@virginia.edu"
 
-
+# To decrease default verbosity,
 setup_looper_logger(level=logging.WARN)
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +85,9 @@ testngs.sh:
       time: "2-00:00:00"
       partition: "longq"
 """.splitlines(True)
+
+# These per-sample file lists pertain to the expected required inputs.
+# These map to required_input_files in the pipeline interface config files.
 _FILE_FILE2_BY_SAMPLE = [
         ["a.txt", "a.txt"],
         ["b3.txt", "b3.txt"],
@@ -106,40 +107,101 @@ PIPELINE_TO_REQD_INFILES_BY_SAMPLE = {
     "testngs.sh": FILE_BY_SAMPLE
 }
 
-
 SAMPLE_ANNOTATION_LINES = """sample_name,library,file,file2,organism,nonmerged_col,data_source,dcol2
 a,testlib,src3,src3,,src3,src3,
 b,testlib,,,,src3,src3,src1
 c,testlib,src3,src3,,src3,src3,
 d,testngs,src2,src3,human,,src3,
 """.splitlines(True)
+
+# Derived from sample annotation lines
 NUM_SAMPLES = len(SAMPLE_ANNOTATION_LINES) - 1
 NGS_SAMPLE_INDICES = {3}
-
 
 MERGE_TABLE_LINES = """sample_name,file,file2,dcol1,col_modifier
 b,src1,src1,src1,1
 b,src1,src1,src1,2
 b,src1,src1,src1,3
 """.splitlines(True)
+
 # Only sample 'b' is merged, and it's in index-1 in the annotation lines.
 MERGED_SAMPLE_INDICES = {1}
 # In merge_table lines, file2 --> src1.
 # In project config's data_sources section,
 # src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
-
 # These are the derived_columns values specified in the merge_table header.
 EXPECTED_MERGE_COLUMNS = {"file", "file2", "dcol1"}
 
 
+# Discover name of attribute pointing to location of test config file based
+# on the type of model instance being requested in a test fixture.
 _ATTR_BY_TYPE = {
     Project: "project_config_file",
     PipelineInterface: "pipe_iface_config_file"
 }
 
 
+def _discover_modules():
+    """
+    Find set of available modules to allow dynamic addition of cmdl args.
+
+    :return set[str]: available modules that inform args augmentation
+        function of what's feasible
+    """
+    import sys
+    modnames = set(sys.modules.keys())
+    for site_pack_path in filter(lambda path: path.endswith("site-packages"),
+                                 sys.path):
+        try:
+            modnames |= set(os.listdir(site_pack_path))
+        except OSError:
+            _LOGGER.debug("Couldn't list module candidates from %s, skipping",
+                          site_pack_path)
+    try:
+        import pip
+    except ImportError:
+        _LOGGER.debug("No pip, skipping")
+    else:
+        try:
+            pip_loc = os.path.dirname(pip.__file__)
+            more_mods = os.listdir(os.path.dirname(pip_loc))
+        except Exception:
+            pass
+        else:
+            modnames |= set(more_mods)
+    return modnames
+
+
+# TODO: test speed and messages with and without this, in & out of venv.
+def pytest_cmdline_preparse(args):
+    """
+    Dynamically add arguments to pytest command-line invocation.
+
+    :param list[str] args: pytest flags and arguments
+    :return list[str]: same as input, with dynamic flag(s)/arg(s)
+        added as feasible
+    """
+    modnames = _discover_modules()
+    test_dist_modname = "xdist"
+    _LOGGER.debug("Searching %d modules for pytest test distribution "
+                  "module %s", test_dist_modname)
+    if test_dist_modname in modnames:
+        from multiprocessing import cpu_count
+        num_cpu_use = max(1, cpu_count() / 2)
+        args[:] = ["-n", str(num_cpu_use)] + args
+        _LOGGER.debug("Distributing tests over %d CPU(s)", num_cpu_use)
+    else:
+        _LOGGER.debug("Not distributing tests")
+
+
+
 class _DataSourceFormatMapping(dict):
+    """
+    Partially format text with braces. This helps since bracing is the
+    mechanism that `looper` uses to derive columns, but it's also the
+    core string formatting mechanism.
+    """
     def __missing__(self, derived_column):
         return "{" + derived_column + "}"
 
@@ -198,6 +260,8 @@ def write_project_files(request):
     yield path_conf_file, path_merge_table_file, path_sample_annotation_file
     shutil.rmtree(dirpath)
 
+
+# Placed here for data/use locality.
 _TEST_DATA_FOLDER = "data"
 _BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
                              _TEST_DATA_FOLDER, "d-bamfile.bam")
@@ -208,6 +272,13 @@ _TEST_DATA = {"{}.txt".format(name):
 
 
 def _write_test_data_files(tempdir):
+    """
+    Write the temporary data files used by the tests.
+
+    :param str tempdir: path to tests' primary temporary directory,
+        within which temp data files may be placed directly or within
+        subdirectory/ies.
+    """
     data_files_subdir = os.path.join(tempdir, _TEST_DATA_FOLDER)
     os.makedirs(data_files_subdir)    # Called 1x/tempdir, so should not exist.
     subprocess.check_call(["cp", _BAMFILE_PATH, data_files_subdir])
@@ -228,7 +299,6 @@ def pipe_iface_config_file(request):
     :return str: path to the temporary file with configuration data
     """
     dirpath = tempfile.mkdtemp()
-    # TODO: determine name/subdir to which this needs to be written for recog.
     path_conf_file = _write_temp(
             PIPELINE_INTERFACE_CONFIG_LINES,
             dirpath=dirpath, fname="pipeline_interface.yaml"
@@ -239,10 +309,12 @@ def pipe_iface_config_file(request):
 
 
 def _req_cls_att(req, attr):
+    """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
 
 
 def _create(request, wanted):
+    """ Create instance of `wanted` type, using file in `request` class. """
     data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
     _LOGGER.debug("Using %s as source of data to build %s",
                   data_source, wanted.__class__.__name__)
@@ -256,9 +328,27 @@ def _create(request, wanted):
 
 @pytest.fixture(scope="function")
 def proj(request):
+    """
+    Create `looper` `Project` instance using data from file
+    pointed to by class of `request`.
+
+    :param pytest._pytest.fixtures.SubRequest request: test case requesting
+        a project instance
+    :return looper.models.Project: object created by parsing
+        data in file pointed to by `request` class
+    """
     return _create(request, Project)
 
 
 @pytest.fixture(scope="function")
 def pipe_iface(request):
+    """
+    Create `looper` `PipelineInterface` instance using data from file
+    pointed to by class of `request`.
+
+    :param pytest._pytest.fixtures.SubRequest request: test case requesting
+        a project instance
+    :return looper.models.PipelineInterface: object created by parsing
+        data in file pointed to by `request` class
+    """
     return _create(request, PipelineInterface)

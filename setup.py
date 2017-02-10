@@ -29,7 +29,8 @@ def get_static(name, condition=None):
 # scripts to be added to the $PATH
 scripts = get_static("scripts", condition="'.' in x")
 
-version = open("VERSION").read().strip()
+with open("VERSION", 'r') as versionfile:
+	version = versionfile.read().strip()
 
 # setup
 setup(
