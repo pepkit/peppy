@@ -32,7 +32,7 @@ This is common, and it works in a pinch with Looper, but what if the data get mo
 	"frog_0h", "RRBS", "frog", "0", "source1"
 	"frog_1h", "RRBS", "frog", "1", "source1"
 
-Then, in your config file you specify which sample attributes (similar to the metadata columns) are derived (in this case, ``file_path``), as well as a string that will construct your path based on other sample attributes encoded using brackets as in ``{sample_attribute}``, like this:
+Then, in your config file you specify which sample attributes (similar to the metadata columns) are derived (in this case, ``file_path``), as well as a string that will construct your path based on other sample attributes encoded using braces as in ``{sample_attribute}``, like this:
 
 
 .. code-block:: yaml

@@ -377,7 +377,6 @@ class Project(AttributeDict):
 		except Exception as e:
 			print("Can't load looperenv config file: " + looperenv_file)
 			print(str(type(e).__name__) + str(e))
-			# DEBUG
 			raise
 
 	def make_project_dirs(self):
@@ -899,13 +898,7 @@ class Sample(object):
 			
 		except Exception as e:
 			print("Can't format data source correctly: " + regex)
-			# DEBUG
-			print("self.__dict__: {}".format(self.__dict__))
 			print(str(type(e).__name__) + str(e))
-
-			# DEBUG
-			raise
-
 			return regex
 
 		return val

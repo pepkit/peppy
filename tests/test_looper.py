@@ -62,13 +62,8 @@ class ProjectConstructorTest:
                                 not col_key.endswith(COL_KEY_SUFFIX),
                 proj.samples[sample_index].merged_cols.keys()
         )
-        # DEBUG
-        try:
-            # Order may be lost due to mapping; we don't care here.
-            assert set(EXPECTED_MERGE_COLUMNS) == set(merged_columns)
-        except AssertionError:
-            print("MERGED_COLUMNS: {}".format(proj.samples[sample_index].merged_cols))
-            raise
+        # Order may be lost due to mapping; we don't care here.
+        assert set(EXPECTED_MERGE_COLUMNS) == set(merged_columns)
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -159,7 +154,6 @@ class SampleWrtProjectCtorTests:
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=set(range(NUM_SAMPLES)) -
                                        NGS_SAMPLE_INDICES)
-    @pytest.mark.skip("Reduce output verbosit")
     def test_ngs_pipe_non_ngs_sample(self, proj, pipe_iface, sample_index):
             sample = proj.samples[sample_index]
             with pytest.raises(TypeError):

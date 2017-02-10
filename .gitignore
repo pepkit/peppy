@@ -6,6 +6,7 @@ tests/test/*
 doc/build/*
 
 # generic ignore list:
+*.lst
 
 # Compiled source 
 *.com
