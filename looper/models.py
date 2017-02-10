@@ -62,6 +62,9 @@ from . import LOOPERENV_VARNAME
 from exceptions import *
 
 
+COL_KEY_SUFFIX = "_key"
+
+
 def copy(obj):
 	def copy(self):
 		"""
@@ -520,8 +523,8 @@ class Project(AttributeDict):
 									if col == "sample_name":
 										continue
 									if col in self["derived_columns"]:
-										merged_cols[col + "_key"] = ""  # initialize key in parent dict.
-										row_dict[col + "_key"] = row_dict[col]
+										merged_cols[col + COL_KEY_SUFFIX] = ""  # initialize key in parent dict.
+										row_dict[col + COL_KEY_SUFFIX] = row_dict[col]
 										row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)  # 1)
 
 								# Since we are now jamming multiple (merged) entries into a single attribute,
@@ -935,7 +938,7 @@ class Sample(object):
 				# Only proceed if the specified column exists, and was not already merged or derived.
 				if hasattr(self, col) and col not in self.merged_cols and col not in self.derived_cols_done:
 					# set a variable called {col}_key, so the original source can also be retrieved
-					setattr(self, col + "_key", getattr(self, col))
+					setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
 					setattr(self, col, self.locate_data_source(col))
 					self.derived_cols_done.append(col)
 

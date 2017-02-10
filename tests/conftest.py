@@ -24,7 +24,7 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-setup_looper_logger(level=logging.DEBUG)
+setup_looper_logger(level=logging.WARN)
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -127,12 +127,10 @@ MERGED_SAMPLE_INDICES = {1}
 # In merge_table lines, file2 --> src1.
 # In project config's data_sources section,
 # src1 --> "data/{sample_name}{col_modifier}.txt"
-EXPECTED_MERGED_SAMPLE_FILEPATHS = {
-    "file2": ["data/b1.txt", "data/b2.txt", "data/b3.txt"]
-}
+EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
 
 # These are the derived_columns values specified in the merge_table header.
-EXPECTED_MERGE_COLUMNS = ["file", "file2", "dcol1"]
+EXPECTED_MERGE_COLUMNS = {"file", "file2", "dcol1"}
 
 
 _ATTR_BY_TYPE = {

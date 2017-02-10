@@ -10,8 +10,10 @@ import os
 import pytest
 import numpy.random as nprand
 
+from looper.models import COL_KEY_SUFFIX
+
 from conftest import \
-    EXPECTED_MERGE_COLUMNS, EXPECTED_MERGED_SAMPLE_FILEPATHS, \
+    EXPECTED_MERGE_COLUMNS, EXPECTED_MERGED_SAMPLE_FILES, \
     FILE_BY_SAMPLE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 
@@ -55,9 +57,18 @@ class ProjectConstructorTest:
     def test_data_sources_derivation(self, proj, sample_index):
         """ Samples in merge file, check data_sources --> derived_columns. """
         # Make sure these columns were merged:
-        merged_columns = \
-            list(proj.samples[sample_index].merged_cols.keys())
-        assert EXPECTED_MERGE_COLUMNS == merged_columns
+        merged_columns = filter(
+                lambda col_key: (col_key != "col_modifier") and
+                                not col_key.endswith(COL_KEY_SUFFIX),
+                proj.samples[sample_index].merged_cols.keys()
+        )
+        # DEBUG
+        try:
+            # Order may be lost due to mapping; we don't care here.
+            assert set(EXPECTED_MERGE_COLUMNS) == set(merged_columns)
+        except AssertionError:
+            print("MERGED_COLUMNS: {}".format(proj.samples[sample_index].merged_cols))
+            raise
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -67,7 +78,7 @@ class ProjectConstructorTest:
         observed_merged_sample_filepaths = \
             [os.path.basename(f) for f in
              proj.samples[sample_index].file2.split(" ")]
-        assert EXPECTED_MERGED_SAMPLE_FILEPATHS == \
+        assert EXPECTED_MERGED_SAMPLE_FILES == \
                observed_merged_sample_filepaths
 
 
