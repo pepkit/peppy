@@ -120,7 +120,7 @@ class AttributeDict(object):
 					# Create new AttributeDict
 					self.__dict__[key] = AttributeDict(value)
 			else:
-				if type(value) is not type(None):
+				if value is not None:
 					# Overwrite even if it's a dict; only if it's not None
 					self.__dict__[key] = value
 
