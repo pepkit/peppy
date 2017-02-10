@@ -1,6 +1,7 @@
 """ Exceptions for specific looper issues. """
 
 
+# Simplify imports, especially for models.
 __all__ = ["LooperConstructionException", "ProjectConstructionException",
            "DefaultLooperenvException", "ComputeEstablishmentException"]
 
