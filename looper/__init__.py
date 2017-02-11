@@ -26,8 +26,7 @@ DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelna
 LOOPER_LOGGER = None
 
 
-def setup_looper_logger(level=LOGGING_LEVEL,
-                        additional_locations=(),
+def setup_looper_logger(level, additional_locations=None,
                         fmt=None, datefmt=None):
     """
     Called by test configuration via `pytest`'s `conftest`.
@@ -44,17 +43,24 @@ def setup_looper_logger(level=LOGGING_LEVEL,
     global LOOPER_LOGGER
     LOOPER_LOGGER = logging.getLogger(__name__.split(".")[0])
     LOOPER_LOGGER.handlers = []
-    LOOPER_LOGGER.setLevel(level)
+    try:
+        LOOPER_LOGGER.setLevel(level)
+    except Exception:
+        logging.error("Can's set logging level to %s; using %s",
+                      str(LOGGING_LEVEL))
+        level = LOGGING_LEVEL
+        LOOPER_LOGGER.setLevel(level)
 
     # Process any additional locations.
     locations_exception = None
     where = LOGGING_LOCATIONS
-    if isinstance(additional_locations, str):
-        additional_locations = (additional_locations, )
-    try:
-        where = LOGGING_LOCATIONS + tuple(additional_locations)
-    except TypeError as e:
-        locations_exception = e
+    if additional_locations:
+        if isinstance(additional_locations, str):
+            additional_locations = (additional_locations, )
+        try:
+            where = LOGGING_LOCATIONS + tuple(additional_locations)
+        except TypeError as e:
+            locations_exception = e
     if locations_exception:
         logging.warn("Could not interpret {} as supplementary root logger "
                      "target destinations; using {} as root logger location(s)".

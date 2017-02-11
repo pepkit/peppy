@@ -10,6 +10,7 @@ https://github.com/epigen/looper
 import argparse
 import errno
 import glob
+import logging
 import os
 import re
 import subprocess
@@ -25,6 +26,9 @@ except:
 	sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
 	from looper.models import \
 		Project, PipelineInterface, ProtocolMapper, LOOPERENV_VARNAME
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def parse_arguments():
@@ -43,7 +47,7 @@ def parse_arguments():
 				  version="%(prog)s " + "get version")
 
 	# Logging control
-	parser.add_argument("--logging-level",
+	parser.add_argument("--logging-level", default="INFO",
 				  choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
 				  help="Minimum level of interest w.r.t. log messages")
 	parser.add_argument("--logfile", help="Path to central logfile location")
@@ -93,7 +97,7 @@ def parse_arguments():
 
 	# Common arguments
 	for subparser in [run_subparser, summarize_subparser,
-			    destroy_subparser, check_subparser, clean_subparser]:
+				destroy_subparser, check_subparser, clean_subparser]:
 		subparser.add_argument(
 			'--file-checks', dest='file_checks',
 		action='store_false', default=True,
@@ -109,10 +113,14 @@ def parse_arguments():
 
 	# To enable the loop to pass args directly on to the pipelines...
 	args, remaining_args = parser.parse_known_args()
+	global _LOGGER
+	_LOGGER = setup_looper_logger(
+		args.logging_level, (args.logfile, ),
+		fmt=args.logging_fmt, datefmt=args.logging_datefmt)
 
 	if len(remaining_args) > 0:
-		print("Remaining arguments passed to pipelines: {}".
-		  format(" ".join([str(x) for x in remaining_args])))
+		logging.info("Remaining arguments passed to pipelines: {}".
+				 format(" ".join([str(x) for x in remaining_args])))
 
 	return args, remaining_args
 
@@ -126,12 +134,12 @@ def run(prj, args, remaining_args):
 	pipeline_interface_file = os.path.join(prj.metadata.pipelines_dir,
 							 "config/pipeline_interface.yaml")
 
-	print("Pipeline interface config: " + pipeline_interface_file)
+	_LOGGER.info("Pipeline interface config: %s", pipeline_interface_file)
 	pipeline_interface = PipelineInterface(pipeline_interface_file)
 
 	protocol_mappings_file = os.path.join(prj.metadata.pipelines_dir,
 							"config/protocol_mappings.yaml")
-	print("Protocol mappings config: {}".format(protocol_mappings_file))
+	_LOGGER.info("Protocol mappings config: %s", protocol_mappings_file)
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
 	# Update to project-specific protocol mappings
@@ -184,9 +192,8 @@ def run(prj, args, remaining_args):
 		#	fail = True
 
 		if fail:
-			print("\nNot submitted: " + fail_message)
+			_LOGGER.warn("\nNot submitted: %s", fail_message)
 			failures.append([fail_message, sample.sample_name])
-
 			continue
 
 		# Otherwise, process the sample:
@@ -199,9 +206,10 @@ def run(prj, args, remaining_args):
 		if hasattr(sample, "library"):
 			pipelines = protocol_mappings.build_pipeline(sample.library.upper())
 		else:
-			print(Warning(
-				"Sample '{}' does not have a 'library' attribute and therefore "
-				"cannot be mapped to any pipeline. Skipping.".format(sample.name)))
+			_LOGGER.warn(
+				"Sample '%s' does not have a 'library' attribute and "
+				"therefore cannot be mapped to any pipeline, skipping",
+				str(sample.name))
 			continue
 
 		# We require that the pipelines and config files live in
@@ -210,21 +218,21 @@ def run(prj, args, remaining_args):
 
 		# Go through all pipelines to submit for this protocol
 		for pipeline in pipelines:
-			print("Pipeline: " + pipeline)
+			_LOGGER.info("Pipeline: '%s'", pipeline)
 			# discard any arguments to get just the (complete) script name,
 			# which is the key in the pipeline interface
 			pl_id = str(pipeline).split(" ")[0]
 
 			# add pipeline-specific attributes (read type and length, inputs, etc)
 			sample.set_pipeline_attributes(pipeline_interface, pl_id)
-			print("({:.2f} Gb)".format(sample.input_file_size))
+			_LOGGER.info("({.2f} Gb)".format(sample.input_file_size))
 
 			# Check for any required inputs before submitting
 			try:
 				inputs = sample.confirm_required_inputs()
 			except IOError:
 				fail_message = "Required input files not found"
-				print("\nNot submitted: " + fail_message)
+				_LOGGER.error("\nNot submitted: %s", fail_message)
 				failures.append([fail_message, sample.sample_name])
 				continue
 
@@ -269,9 +277,9 @@ def run(prj, args, remaining_args):
 						pl_config_file = getattr(prj.pipeline_config, pl_id)
 						if pl_config_file:  # make sure it's not null (which it could be provided as null)
 							if not os.path.isfile(pl_config_file):
-								print("Pipeline config file specified but not found: " + pl_config_file)
+								_LOGGER.error("Pipeline config file specified but not found: %s", str(pl_config_file))
 								raise IOError(pl_config_file)
-							print("Found config file:" + getattr(prj.pipeline_config, pl_id))
+							_LOGGER.info("Found config file: %s", str(getattr(prj.pipeline_config, pl_id)))
 							# Append arg for config file if found
 							cmd += " -C " + pl_config_file
 
@@ -303,11 +311,11 @@ def run(prj, args, remaining_args):
 	if args.dry_run:
 		msg += " Dry run. No jobs were actually submitted"
 
-	print(msg)
+	_LOGGER.info(msg)
 
-	if (len(failures) > 0):
-		print("Failure count: " + str(len(failures)) + ". Reasons for failure:")
-		# print(failures)
+	if len(failures) > 0:
+		_LOGGER.info("Failure count: %d; Reasons for failure:",
+				 len(failures))
 
 		from collections import defaultdict
 		groups = defaultdict(str)
@@ -315,7 +323,7 @@ def run(prj, args, remaining_args):
 			groups[msg] += sample_name + "; "
 
 		for name, values in groups.iteritems():
-			print("  " + str(name) + ":" + str(values))
+			_LOGGER.info("  " + str(name) + ":" + str(values))
 
 
 def summarize(prj):
@@ -338,7 +346,7 @@ def summarize(prj):
 		# Version 0.3 standardized all stats into a single file
 		stats_file = os.path.join(pipeline_outfolder, "stats.tsv")
 		if os.path.isfile(stats_file):
-			print('Found: ' + stats_file)
+			_LOGGER.info("Found stats file: '%s'", stats_file)
 		else:
 			continue  # raise Exception(stat_file_path + " : file does not exist!")
 
@@ -372,7 +380,7 @@ def summarize(prj):
 
 	tsv_outfile.close()
 
-	print("Summary (n=" + str(len(stats)) + "): " + tsv_outfile_path)
+	_LOGGER.info("Summary (n=" + str(len(stats)) + "): " + tsv_outfile_path)
 
 	# 	# There may be multiple pipeline outputs to consider.
 	# 	globs = glob.glob(os.path.join(pipeline_outfolder, "*stats.tsv"))
@@ -432,27 +440,27 @@ def destroy(prj, args, preview_flag=True):
 	"""
 	Completely removes all output files and folders produced by any pipelines.
 	"""
-	print("Results to destroy:")
+	_LOGGER.info("Results to destroy:")
 
 	for sample in prj.samples:
 		sys.stdout.write("### " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 		if preview_flag:
 			# Preview: Don't actually delete, just show files.
-			print(str(pipeline_outfolder))
+			_LOGGER.info(str(pipeline_outfolder))
 		else:
 			destroy_sample_results(pipeline_outfolder, args)
 
 	if not preview_flag:
-		print("Destroy complete.")
+		_LOGGER.info("Destroy complete.")
 		return 0
 
 	if args.dry_run:
-		print("Dry run. No files destroyed.")
+		_LOGGER.info("Dry run. No files destroyed.")
 		return 0
 
 	if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
-		print("Destroy action aborted by user.")
+		_LOGGER.info("Destroy action aborted by user.")
 		return 1
 
 	# Finally, run the true destroy:
@@ -465,29 +473,29 @@ def clean(prj, args, preview_flag=True):
 	Clean will remove all intermediate files, defined by pypiper clean scripts, in the project.
 	"""
 
-	print("Files to clean:")
+	_LOGGER.info("Files to clean:")
 	for sample in prj.samples:
 		sys.stdout.write("### " + sample.sample_name + "\t")
 		pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 		cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
 		if preview_flag:
 			# Preview: Don't actually clean, just show what we're going to clean.
-			print(str(cleanup_files))
+			_LOGGER.info(str(cleanup_files))
 		else:
 			for file in cleanup_files:
-				print(file)
+				_LOGGER.info(file)
 				subprocess.call(["sh", file])
 
 	if not preview_flag:
-		print("Clean complete.")
+		_LOGGER.info("Clean complete.")
 		return 0
 
 	if args.dry_run:
-		print("Dry run. No files cleaned.")
+		_LOGGER.info("Dry run. No files cleaned.")
 		return 0
 
 	if not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
-		print("Clean action aborted by user.")
+		_LOGGER.info("Clean action aborted by user.")
 		return 1
 
 	# Finally, run the true clean:
@@ -553,7 +561,7 @@ def cluster_submit(
 	if not ignore_flags:
 		flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
 		if (len(flag_files) > 0):
-			print("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
+			_LOGGER.info("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
 			submit = False
 		else:
 			pass
@@ -561,7 +569,7 @@ def cluster_submit(
 
 	if submit:
 		if dry_run:
-			print("\tDRY RUN: I would have submitted this")
+			_LOGGER.info("\tDRY RUN: I would have submitted this")
 			return 1
 		else:
 			subprocess.call(submission_command + " " + submit_script, shell=True)
@@ -615,12 +623,12 @@ def destroy_sample_results(result_outfolder, args):
 	import shutil
 	if os.path.exists(result_outfolder):
 		if args.dry_run:
-			print("DRY RUN. I would have removed: " + result_outfolder)
+			_LOGGER.info("DRY RUN. I would have removed: " + result_outfolder)
 		else:
-			print("Removing: " + result_outfolder)
+			_LOGGER.info("Removing: " + result_outfolder)
 			shutil.rmtree(result_outfolder)
 	else:
-		print(result_outfolder + " does not exist.")
+		_LOGGER.info(result_outfolder + " does not exist.")
 
 
 def uniqify(seq):
@@ -640,7 +648,7 @@ def check(prj):
 	# prefix
 	pf = "ls " + prj.metadata.results_subdir + "/"
 	cmd = os.path.join(pf + "*/*.flag | xargs -n1 basename | sort | uniq -c")
-	print(cmd)
+	_LOGGER.info(cmd)
 	subprocess.call(cmd, shell=True)
 
 	flags = ["completed", "running", "failed", "waiting"]
@@ -652,16 +660,13 @@ def check(prj):
 
 	for f, count in counts.items():
 		if count < 30 and count > 0:
-			print(f + " (" + str(count) + ")")
+			_LOGGER.info(f + " (" + str(count) + ")")
 			subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell=True)
 
 
 def main():
-	# Parse command-line arguments
+	# Parse command-line arguments and establish logger.
 	args, remaining_args = parse_arguments()
-
-	setup_looper_logger(args.logging_level, (args.logfile, ),
-				  fmt=args.logging_fmt, datefmt=args.logging_datefmt)
 
 	# Initialize project
 	prj = Project(
@@ -669,8 +674,8 @@ def main():
 		file_checks=args.file_checks,
 		looperenv_file=getattr(args, 'env', None))
 
-	print("Results subdir: " + prj.metadata.results_subdir)
-	print("Command: " + args.command)
+	_LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
+	_LOGGER.info("Command: " + args.command)
 
 	if args.command == "run":
 		if args.compute:
@@ -694,5 +699,5 @@ if __name__ == '__main__':
 	try:
 		sys.exit(main())
 	except KeyboardInterrupt:
-		print("Program canceled by user!")
+		_LOGGER.error("Program canceled by user!")
 		sys.exit(1)
