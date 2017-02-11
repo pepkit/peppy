@@ -44,6 +44,8 @@ class CommandChecker(object):
             inclusion parameter, but for specific sections to exclude.
         """
 
+        super(CommandChecker, self).__init__()
+
         self._logger = logging.getLogger(
             "{}.{}".format(__name__, self.__class__.__name__))
 
@@ -64,7 +66,7 @@ class CommandChecker(object):
                           ", ".join(["'{}'".format(s) for s in sections]))
 
         # Store per-command mapping of status, nested under section.
-        self.section_to_fail_by_command = defaultdict(dict)
+        self.section_to_status_by_command = defaultdict(dict)
         # Store only information about the failures.
         self.failures_by_section = defaultdict(list)    # Access by section.
         self.failures = set()                           # Access by command.
@@ -98,10 +100,10 @@ class CommandChecker(object):
                     except ValueError:
                         # Treat item as command itself.
                         name, command = "", cmd_item
-                    failed = self._store_status(section=s, command=command,
-                                                name=name)
+                    success = self._store_status(section=s, command=command,
+                                                 name=name)
                     self._logger.debug("Command '%s': %s", command,
-                                       "FAILURE" if failed else "SUCCESS")
+                                       "SUCCESS" if success else "FAILURE")
 
 
     def _store_status(self, section, command, name):
@@ -110,14 +112,14 @@ class CommandChecker(object):
         data structures with information about the success/fail status.
         Return the result of the execution test.
         """
-        failed = fails(command, name)
+        succeeded = succeeds(command, name)
         # Store status regardless of its value in the instance's largest DS.
-        self.section_to_fail_by_command[section][command] = failed
-        if failed:
+        self.section_to_status_by_command[section][command] = succeeded
+        if not succeeded:
             # Only update the failure-specific structures conditionally.
             self.failures_by_section[section].append(command)
             self.failures.add(command)
-        return failed
+        return succeeded
 
 
     @property
@@ -132,13 +134,13 @@ class CommandChecker(object):
         # This will raise exception even if validation was attempted,
         # but no sections were used. Effectively, delegate responsibility
         # to the caller to initiate validation only if doing so is relevant.
-        if not self.section_to_fail_by_command:
+        if not self.section_to_status_by_command:
             raise ValueError("No commands validated")
         return 0 == len(self.failures)
 
 
 
-def fails(command, name=""):
+def succeeds(command, name=""):
     """
     Check if command can be called.
 
@@ -152,6 +154,7 @@ def fails(command, name=""):
         "command -v {0} >/dev/null 2>&1 || {{ exit 1; }}".format(command))
 
     if code != 0:
+        alias_value = " ('{}') ".format(name) if name else " "
         _LOGGER.debug("Command{0}is not callable: {1}".
-                      format("('{}')".format(name) if name else " ", command))
-    return bool(code)
+                      format(alias_value, command))
+    return not bool(code)
