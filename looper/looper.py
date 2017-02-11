@@ -36,10 +36,10 @@ def parse_arguments():
 	epilog += "\nhttps://github.com/epigen/looper"
 
 	parser = argparse.ArgumentParser(
-        description=description, epilog=epilog,
-        formatter=argparse.ArgumentDefaultsHelpFormatter)
+		description=description, epilog=epilog,
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--version", action="version",
-                        version="%(prog)s " + "get version")
+				version="%(prog)s " + "get version")
 	subparsers = parser.add_subparsers(dest='command')
 
 	# Run command
@@ -61,7 +61,7 @@ def parse_arguments():
 		help="YAML file with looper environment compute settings.")
 	run_subparser.add_argument(
 		'--env', dest='env',
-        default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
+	  default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
 		help="Employ looper environment compute settings.")
 	run_subparser.add_argument(
 		'--limit', dest='limit', type=int, help="Limit to n samples.")
@@ -80,14 +80,14 @@ def parse_arguments():
 
 	clean_subparser = subparsers.add_parser(
 		"clean", help="Runs clean scripts to remove intermediate "
-                      "files of already processed jobs.")
+			    "files of already processed jobs.")
 
 	# Common arguments
 	for subparser in [run_subparser, summarize_subparser,
-                      destroy_subparser, check_subparser, clean_subparser]:
+			    destroy_subparser, check_subparser, clean_subparser]:
 		subparser.add_argument(
 			'--file-checks', dest='file_checks',
-            action='store_false', default=True,
+		action='store_false', default=True,
 			help="Perform input file checks. Default=True.")
 		subparser.add_argument(
 			'-d', '--dry-run', dest='dry_run', action='store_true',
@@ -103,7 +103,7 @@ def parse_arguments():
 
 	if len(remaining_args) > 0:
 		print("Remaining arguments passed to pipelines: {}".
-              format(" ".join([str(x) for x in remaining_args])))
+		  format(" ".join([str(x) for x in remaining_args])))
 
 	return args, remaining_args
 
@@ -115,13 +115,13 @@ def run(prj, args, remaining_args):
 
 	# Look up the looper config files:
 	pipeline_interface_file = os.path.join(prj.metadata.pipelines_dir,
-                                           "config/pipeline_interface.yaml")
+							 "config/pipeline_interface.yaml")
 
 	print("Pipeline interface config: " + pipeline_interface_file)
 	pipeline_interface = PipelineInterface(pipeline_interface_file)
 
 	protocol_mappings_file = os.path.join(prj.metadata.pipelines_dir,
-                                          "config/protocol_mappings.yaml")
+							"config/protocol_mappings.yaml")
 	print("Protocol mappings config: {}".format(protocol_mappings_file))
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
