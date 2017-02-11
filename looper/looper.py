@@ -7,10 +7,10 @@ a pipeline submission engine.
 https://github.com/epigen/looper
 """
 
+import argparse
 import sys
 import os
 import subprocess
-from argparse import ArgumentParser
 import glob
 import errno
 import re
@@ -30,20 +30,24 @@ def parse_arguments():
 	"""
 	Argument Parsing.
 	"""
+
 	description = "%(prog)s - Loops through samples and submits pipelines for them."
 	epilog = "For command line options of each command, type: %(prog)s COMMAND -h"
 	epilog += "\nhttps://github.com/epigen/looper"
 
-	parser = ArgumentParser(description=description, epilog=epilog)
-	parser.add_argument("--version", action="version", version="%(prog)s " + "get version")
+	parser = argparse.ArgumentParser(
+        description=description, epilog=epilog,
+        formatter=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument("--version", action="version",
+                        version="%(prog)s " + "get version")
 	subparsers = parser.add_subparsers(dest='command')
 
 	# Run command
 	run_subparser = subparsers.add_parser(
 		"run", help="Main Looper function: Submit jobs for samples.")
 	run_subparser.add_argument(
-		'-t', '--time-delay', dest='time_delay', type=int,
-		help="Time delay in seconds between job submissions.", default=0)
+		'-t', '--time-delay', dest='time_delay', type=int, default=0,
+		help="Time delay in seconds between job submissions.")
 	run_subparser.add_argument(
 		'--ignore-flags', dest="ignore_flags", action="store_true",
 		default=False,
@@ -53,17 +57,14 @@ def parse_arguments():
 			"run (e.g. as 'running' or 'failed'). "
 			"Set this option to ignore flags and submit the runs anyway."))
 	run_subparser.add_argument(
-		'--compute', dest='compute', type=str,
-		help="YAML file with looper environment compute settings.", default=None)
+		'--compute', dest='compute',
+		help="YAML file with looper environment compute settings.")
 	run_subparser.add_argument(
-		'--env', dest='env', type=str,
-		help="Employ looper environment compute settings. "
-			 "[Default: {}]".format(os.getenv("{}".format(LOOPERENV_VARNAME),
-											  "")),
-		default=os.getenv("{}".format(LOOPERENV_VARNAME), ""))
+		'--env', dest='env',
+        default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
+		help="Employ looper environment compute settings.")
 	run_subparser.add_argument(
-		'--limit', dest='limit', type=int,
-		help="Limit to n samples.", default=None)
+		'--limit', dest='limit', type=int, help="Limit to n samples.")
 
 	# Summarize command
 	summarize_subparser = subparsers.add_parser(
@@ -78,28 +79,31 @@ def parse_arguments():
 		"check", help="Checks flag status of current runs.")
 
 	clean_subparser = subparsers.add_parser(
-		"clean", help="Runs clean scripts to remove intermediate files of already processed jobs.")
+		"clean", help="Runs clean scripts to remove intermediate "
+                      "files of already processed jobs.")
 
 	# Common arguments
-	for subparser in [run_subparser, summarize_subparser, destroy_subparser, check_subparser, clean_subparser]:
+	for subparser in [run_subparser, summarize_subparser,
+                      destroy_subparser, check_subparser, clean_subparser]:
 		subparser.add_argument(
-			'--file-checks', dest='file_checks', action='store_false',
-			help="Perform input file checks. Default=True.", default=True)
+			'--file-checks', dest='file_checks',
+            action='store_false', default=True,
+			help="Perform input file checks. Default=True.")
 		subparser.add_argument(
 			'-d', '--dry-run', dest='dry_run', action='store_true',
 			help="Don't actually submit.", default=False)
 		subparser.add_argument(
-			'--sp', dest='subproject', type=str,
-			help="Supply subproject", default=None)
+			'--sp', dest='subproject', help="Supply subproject")
 		subparser.add_argument(
-			dest='config_file', type=str,
+			dest='config_file',
 			help="Project YAML config file.")
 
 	# To enable the loop to pass args directly on to the pipelines...
 	args, remaining_args = parser.parse_known_args()
 
 	if len(remaining_args) > 0:
-		print("Remaining arguments passed to pipelines: {}".format(" ".join([str(x) for x in remaining_args])))
+		print("Remaining arguments passed to pipelines: {}".
+              format(" ".join([str(x) for x in remaining_args])))
 
 	return args, remaining_args
 
@@ -110,13 +114,15 @@ def run(prj, args, remaining_args):
 	"""
 
 	# Look up the looper config files:
-	pipeline_interface_file = os.path.join(prj.metadata.pipelines_dir, "config/pipeline_interface.yaml")
+	pipeline_interface_file = os.path.join(prj.metadata.pipelines_dir,
+                                           "config/pipeline_interface.yaml")
 
 	print("Pipeline interface config: " + pipeline_interface_file)
 	pipeline_interface = PipelineInterface(pipeline_interface_file)
 
-	protocol_mappings_file = os.path.join(prj.metadata.pipelines_dir, "config/protocol_mappings.yaml")
-	print("Protocol mappings config: " + protocol_mappings_file)
+	protocol_mappings_file = os.path.join(prj.metadata.pipelines_dir,
+                                          "config/protocol_mappings.yaml")
+	print("Protocol mappings config: {}".format(protocol_mappings_file))
 	protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
 	# Update to project-specific protocol mappings
