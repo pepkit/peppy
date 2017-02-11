@@ -422,7 +422,7 @@ class Project(AttributeDict):
 
             self._logger.debug("%s: %s", str(setting),
                                self.looperenv.compute[setting])
-            self._logger("Compute: %s", str(self.looperenv.compute))
+            self._logger.info("Compute: %s", str(self.looperenv.compute))
 
             if not _os.path.isabs(self.compute.submission_template):
                 # self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
