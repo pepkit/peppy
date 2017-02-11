@@ -282,7 +282,7 @@ def _create(request, wanted):
         return wanted(data_source)
     except EmptyDataError:
         with open(data_source, 'r') as datafile:
-            print("File contents:\n{}".format(datafile.readlines()))
+            _LOGGER.error("File contents:\n{}".format(datafile.readlines()))
         raise
 
 

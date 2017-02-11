@@ -8,14 +8,15 @@ https://github.com/epigen/looper
 """
 
 import argparse
-import sys
-import os
-import subprocess
-import glob
 import errno
+import glob
+import os
 import re
+import subprocess
+import sys
 import time
 import pandas as _pd
+from . import setup_looper_logger
 
 try:
 	from .models import \
@@ -40,6 +41,15 @@ def parse_arguments():
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--version", action="version",
 				  version="%(prog)s " + "get version")
+
+	# Logging control
+	parser.add_argument("--logging-level",
+				  choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
+				  help="Minimum level of interest w.r.t. log messages")
+	parser.add_argument("--logfile", help="Path to central logfile location")
+	parser.add_argument("--logging-fmt",  help="Logging message template")
+	parser.add_argument("--logging-datefmt", help="Time formatter for logs")
+
 	subparsers = parser.add_subparsers(dest='command')
 
 	# Run command
@@ -49,8 +59,7 @@ def parse_arguments():
 		'-t', '--time-delay', dest='time_delay', type=int, default=0,
 		help="Time delay in seconds between job submissions.")
 	run_subparser.add_argument(
-		'--ignore-flags', dest="ignore_flags", action="store_true",
-		default=False,
+		'--ignore-flags', action="store_true", default=False,
 		help=("Ignore run status flags? Default: False. "
 			"By default, pipelines will not be submitted if a pypiper "
 			"flag file exists marking the run "
@@ -60,11 +69,11 @@ def parse_arguments():
 		'--compute', dest='compute',
 		help="YAML file with looper environment compute settings.")
 	run_subparser.add_argument(
-		'--env', dest='env',
+		'--env',
 		default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
 		help="Employ looper environment compute settings.")
 	run_subparser.add_argument(
-		'--limit', dest='limit', type=int, help="Limit to n samples.")
+		'--limit', type=int, help="Limit to n samples.")
 
 	# Summarize command
 	summarize_subparser = subparsers.add_parser(
@@ -650,6 +659,9 @@ def check(prj):
 def main():
 	# Parse command-line arguments
 	args, remaining_args = parse_arguments()
+
+	setup_looper_logger(args.logging_level, (args.logfile, ),
+				  fmt=args.logging_fmt, datefmt=args.logging_datefmt)
 
 	# Initialize project
 	prj = Project(

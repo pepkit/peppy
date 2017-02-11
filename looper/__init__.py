@@ -28,7 +28,7 @@ LOOPER_LOGGER = None
 
 def setup_looper_logger(level=LOGGING_LEVEL,
                         additional_locations=(),
-                        fmt=DEFAULT_LOGGING_FMT, datefmt=None):
+                        fmt=None, datefmt=None):
     """
     Called by test configuration via `pytest`'s `conftest`.
     All arguments are optional and have suitable defaults.
@@ -36,8 +36,8 @@ def setup_looper_logger(level=LOGGING_LEVEL,
     :param int | str level: logging level
     :param tuple(str | FileIO[str]) additional_locations: supplementary
         destination(s) to which to ship logs
-    :param str fmt: message format string for log message
-    :param str datefmt: datetime format string for log message time
+    :param str fmt: message format string for log message, optional
+    :param str datefmt: datetime format string for log message time, optional
     """
 
     # Establish the logger.
@@ -56,12 +56,12 @@ def setup_looper_logger(level=LOGGING_LEVEL,
     except TypeError as e:
         locations_exception = e
     if locations_exception:
-        print("Could not interpret {} as supplementary root logger target "
-              "destinations; using {} as root logger location(s)".
-              format(additional_locations, LOGGING_LOCATIONS))
+        logging.warn("Could not interpret {} as supplementary root logger "
+                     "target destinations; using {} as root logger location(s)".
+                     format(additional_locations, LOGGING_LOCATIONS))
 
     # Add the handlers.
-    formatter = logging.Formatter(fmt, datefmt)
+    formatter = logging.Formatter(fmt or DEFAULT_LOGGING_FMT, datefmt)
     for loc in where:
         if isinstance(loc, str):
             # File destination
@@ -74,8 +74,8 @@ def setup_looper_logger(level=LOGGING_LEVEL,
             handler_type = logging.StreamHandler
         else:
             # Strange supplementary destination
-            print("{} as logs destination appears to be neither"
-                  " a filepath nor a stream.".format(loc))
+            logging.warn("{} as logs destination appears to be neither "
+                         "a filepath nor a stream.".format(loc))
             continue
         handler = handler_type(loc)
         handler.setLevel(level)
