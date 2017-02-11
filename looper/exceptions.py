@@ -28,7 +28,7 @@ class LooperConstructionException(Exception):
             except AttributeError:
                 typename = str(datatype)
         explanation = "Error creating {dt}; stage: {s}; context: {c}".\
-            format(dt=typename, s=stage or filler, context=context or filler)
+            format(dt=typename, s=stage or filler, c=context or filler)
         super(LooperConstructionException, self).__init__(explanation)
 
 
