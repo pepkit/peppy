@@ -39,7 +39,7 @@ def parse_arguments():
 		description=description, epilog=epilog,
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--version", action="version",
-				version="%(prog)s " + "get version")
+				  version="%(prog)s " + "get version")
 	subparsers = parser.add_subparsers(dest='command')
 
 	# Run command
@@ -51,11 +51,11 @@ def parse_arguments():
 	run_subparser.add_argument(
 		'--ignore-flags', dest="ignore_flags", action="store_true",
 		default=False,
-		help=(
-			"Ignore run status flags? Default: False. By default, pipelines "
-			"will not be submitted if a pypiper flag file exists marking the "
-			"run (e.g. as 'running' or 'failed'). "
-			"Set this option to ignore flags and submit the runs anyway."))
+		help=("Ignore run status flags? Default: False. "
+			"By default, pipelines will not be submitted if a pypiper "
+			"flag file exists marking the run "
+			"(e.g. as 'running' or 'failed'). Set this option "
+			"to ignore flags and submit the runs anyway."))
 	run_subparser.add_argument(
 		'--compute', dest='compute',
 		help="YAML file with looper environment compute settings.")
