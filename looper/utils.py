@@ -112,7 +112,7 @@ class CommandChecker(object):
         data structures with information about the success/fail status.
         Return the result of the execution test.
         """
-        succeeded = succeeds(command, name)
+        succeeded = is_command_callable(command, name)
         # Store status regardless of its value in the instance's largest DS.
         self.section_to_status_by_command[section][command] = succeeded
         if not succeeded:
@@ -140,7 +140,7 @@ class CommandChecker(object):
 
 
 
-def succeeds(command, name=""):
+def is_command_callable(command, name=""):
     """
     Check if command can be called.
 
