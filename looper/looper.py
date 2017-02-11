@@ -61,7 +61,7 @@ def parse_arguments():
 		help="YAML file with looper environment compute settings.")
 	run_subparser.add_argument(
 		'--env', dest='env',
-	  default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
+		default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
 		help="Employ looper environment compute settings.")
 	run_subparser.add_argument(
 		'--limit', dest='limit', type=int, help="Limit to n samples.")
