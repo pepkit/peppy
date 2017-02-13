@@ -556,7 +556,7 @@ class Project(AttributeDict):
                                     if key == "sample_name":
                                         continue
                                     if val:  # this purges out any None entries
-                                        self._logger.debug("merge: sample 's'; %s=%s",
+                                        self._logger.debug("merge: sample '%s'; %s=%s",
                                                            str(sample.name), str(key), str(val))
                                         if not merged_cols.has_key(key):
                                             merged_cols[key] = str(val).rstrip()
