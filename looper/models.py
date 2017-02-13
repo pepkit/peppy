@@ -592,7 +592,7 @@ class SampleSheet(object):
 		missing = [col for col in req if col not in self.df.columns]
 
 		if len(missing) != 0:
-			raise ValueError("Annotation sheet is missing columns: %s" % " ".join(missing))
+			raise ValueError("Annotation sheet (" + str(self.csv) + ") is missing columns: %s" % " ".join(missing))
 
 	def make_sample(self, series):
 		"""
@@ -1241,6 +1241,14 @@ class PipelineInterface(object):
 			raise Exception("You need to teach the looper about that pipeline")
 
 		return(self.looper_config[pipeline_name])
+
+	def uses_looper_args(self, pipeline_name):
+		config = self.select_pipeline(pipeline_name)
+
+		if hasattr(config, "looper_args") and config.looper_args:
+			return True
+		else:
+			return False
 
 	def get_pipeline_name(self, pipeline_name):
 		"""
