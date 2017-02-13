@@ -530,13 +530,25 @@ class Project(AttributeDict):
                                         row_dict[col + COL_KEY_SUFFIX] = row_dict[col]
                                         row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)  # 1)
 
-                                # Since we are now jamming multiple (merged) entries into a single attribute,
-                                # we have to join them into a space-delimited string, and then set to sample attribute
-                                for key, val in row_dict.items():
-                                    if key == "sample_name":
-                                        continue
-                                    if val:  # this purges out any None entries
-                                        merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()  # 2)
+								# Also add in any derived cols present
+								for col in self["derived_columns"]:
+									if hasattr(sample, col) and not col in row_dict:
+										self._logger.debug("PROBLEM adding derived column: '%s'", str(col))
+										row_dict[col + "_key"] = getattr(sample, col)
+										row_dict[col] = sample.locate_data_source(col, getattr(sample,col), row_dict)
+										self._logger.debug("/PROBLEM adding derive column: '%s', %s, %s", str(col), str(row_dict[col]), str(getattr(sample,col)))
+
+								# Since we are now jamming multiple (merged) entries into a single attribute,
+								# we have to join them into a space-delimited string, and then set to sample attribute
+								for key, val in row_dict.items():
+									if key == "sample_name":
+										continue
+									if val:  # this purges out any None entries
+										self._logger.debug("merge: sample 's'; %s=%s", str(sample.name), str(key), str(val))
+										if not merged_cols.has_key(key):
+											merged_cols[key] = str(val).rstrip()
+										else:
+											merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()  # 2)
 
                             merged_cols.pop('sample_name', None)  # Don't update sample_name.
                             sample.update(merged_cols)  # 3)
@@ -901,7 +913,8 @@ class Sample(object):
             # Grab a temporary dictionary of sample attributes, and update these
             # with any provided extra variables to use in the replacement.
             # This is necessary for derived_columns in the merge table.
-            temp_dict = self.__dict__
+            # .copy() here prevents the actual sample from getting updated by the .update() call.
+            temp_dict = self.__dict__.copy()
             if extra_vars:
                 temp_dict.update(extra_vars)
             val = regex.format(**temp_dict)
@@ -1259,8 +1272,8 @@ class PipelineInterface(object):
     def __init__(self, yaml_config_file):
         import yaml
         self.looper_config_file = yaml_config_file
-        self.looper_config = yaml.load(open(yaml_config_file, 'r'))
-        self.DEBUG = False
+        with open(yaml_config_file, 'r') as f:
+            self.looper_config = yaml.load(f)
         self._logger = logging.getLogger(
             "{}.{}".format(__name__, self.__class__.__name__))
 
@@ -1476,13 +1489,16 @@ class ProtocolMapper(object):
 
 
 class CommandChecker(object):
-    """
-    This class checks if programs specified in a
-    pipeline config file (under "tools") exist and are callable.
-    """
-    def __init__(self, config):
-        self.config = _yaml.load(open(config, 'r'))
-        # Check if ALL returned elements are True
-        if not all(map(self.check_command, self.config["tools"].items())):
-            raise BaseException("Config file contains non-callable tools.")
+	"""
+	This class checks if programs specified in a
+	pipeline config file (under "tools") exist and are callable.
+	"""
+	def __init__(self, config):
+		import yaml
+
+		self.config = yaml.load(open(config, 'r'))
+
+		# Check if ALL returned elements are True
+		if not all(map(self.check_command, self.config["tools"].items())):
+			raise BaseException("Config file contains non-callable tools.")
 
