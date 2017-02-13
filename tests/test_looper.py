@@ -13,7 +13,7 @@ import numpy.random as nprand
 from looper.models import COL_KEY_SUFFIX
 
 from conftest import \
-    EXPECTED_MERGE_COLUMNS, EXPECTED_MERGED_SAMPLE_FILES, \
+    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     FILE_BY_SAMPLE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 
@@ -62,8 +62,9 @@ class ProjectConstructorTest:
                                 not col_key.endswith(COL_KEY_SUFFIX),
                 proj.samples[sample_index].merged_cols.keys()
         )
-        # Order may be lost due to mapping; we don't care here.
-        assert set(EXPECTED_MERGE_COLUMNS) == set(merged_columns)
+        # Order may be lost due to mapping.
+        # We don't care about that here, or about duplicates.
+        assert set(DERIVED_COLNAMES) == set(merged_columns)
 
 
     @pytest.mark.parametrize(argnames="sample_index",

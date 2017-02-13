@@ -31,13 +31,16 @@ PROJECT_CONFIG_LINES = """metadata:
   pipelines_dir: pipelines
   merge_table: merge.csv
 
-derived_columns: [file, file2, dcol1, dcol2, nonmerged_col, nonmerged_col, data_source]
+derived_columns: [{derived_column_names}]
 
 data_sources:
   src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
   src3: "{basedir}/data/{sample_name}.txt"
   src2: "{basedir}/data/{sample_name}-bamfile.bam"
 """.splitlines(True)
+# Will populate the corresponding string format entry in project config lines.
+DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
+                    "nonmerged_col", "nonmerged_col", "data_source"]
 
 # Connected with project config lines & should match; separate for clarity.
 ANNOTATIONS_FILENAME = "samples.csv"
@@ -128,8 +131,6 @@ MERGED_SAMPLE_INDICES = {1}
 # In project config's data_sources section,
 # src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
-# These are the derived_columns values specified in the merge_table header.
-EXPECTED_MERGE_COLUMNS = {"file", "file2", "dcol1"}
 
 
 # Discover name of attribute pointing to location of test config file based
@@ -181,14 +182,21 @@ def _write_temp(lines, dirpath, fname):
     :param str fname: name for file in `dirpath` to which to write `lines`
     :return str: full path to written file
     """
-    partial_replacement = _DataSourceFormatMapping(basedir=dirpath)
+    basedir_replacement = _DataSourceFormatMapping(basedir=dirpath)
+    derived_columns_replacement = _DataSourceFormatMapping(
+            **{"derived_column_names": ", ".join(DERIVED_COLNAMES)}
+    )
     filepath = os.path.join(dirpath, fname)
     _LOGGER.debug("Writing %d lines to file '%s'", len(lines), filepath)
     data_source_formatter = string.Formatter()
     with open(filepath, 'w') as tmpf:
         for l in lines:
             if "{basedir}" in l:
-                l = data_source_formatter.vformat(l, (), partial_replacement)
+                l = data_source_formatter.vformat(
+                    l, (), basedir_replacement)
+            elif "{derived_column_names}" in l:
+                l = data_source_formatter.vformat(
+                    l, (), derived_columns_replacement)
             tmpf.write(l)
         return tmpf.name
 

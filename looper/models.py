@@ -240,7 +240,6 @@ class Project(AttributeDict):
             self.make_project_dirs()
             # self.set_project_permissions()
 
-        self._logger.info("Adding sample sheet")
         self.samples = list()
 
         # Sheet will be set to non-null value by call to add_sample_sheet().
@@ -469,6 +468,8 @@ class Project(AttributeDict):
         :type file_checks: bool
         """
 
+        self._logger.info("Adding sample sheet")
+
         # If options are not passed, used what has been set for project.
         if permissive is None:
             permissive = self.permissive
@@ -520,35 +521,48 @@ class Project(AttributeDict):
                             # keep track of merged cols, so we don't re-derive them later.
                             merged_cols = {key: "" for key in merge_rows.columns}
                             for row in merge_rows.index:
+                                self._logger.debug(
+                                    "New row: {}, {}".format(row, merge_rows))
                                 # Update with derived columns
                                 row_dict = merge_rows.ix[row].to_dict()
                                 for col in merge_rows.columns:
                                     if col == "sample_name":
                                         continue
                                     if col in self["derived_columns"]:
-                                        merged_cols[col + COL_KEY_SUFFIX] = ""  # initialize key in parent dict.
+                                        # Initialize key in parent dict.
+                                        merged_cols[col + COL_KEY_SUFFIX] = ""
                                         row_dict[col + COL_KEY_SUFFIX] = row_dict[col]
-                                        row_dict[col] = sample.locate_data_source(col, row_dict[col], row_dict)  # 1)
+                                        row_dict[col] = sample.locate_data_source(
+                                            col, row_dict[col], row_dict)  # 1)
 
-								# Also add in any derived cols present
-								for col in self["derived_columns"]:
-									if hasattr(sample, col) and not col in row_dict:
-										self._logger.debug("PROBLEM adding derived column: '%s'", str(col))
-										row_dict[col + "_key"] = getattr(sample, col)
-										row_dict[col] = sample.locate_data_source(col, getattr(sample,col), row_dict)
-										self._logger.debug("/PROBLEM adding derive column: '%s', %s, %s", str(col), str(row_dict[col]), str(getattr(sample,col)))
+                                # Also add in any derived cols present
+                                for col in self["derived_columns"]:
+                                    if hasattr(sample, col) and not col in row_dict:
+                                        self._logger.debug(
+                                            "PROBLEM adding derived column: '%s'",
+                                            str(col))
+                                        row_dict[col + "_key"] = getattr(sample, col)
+                                        row_dict[col] = sample.locate_data_source(
+                                            col, getattr(sample,col), row_dict)
+                                        self._logger.debug(
+                                            "/PROBLEM adding derived column: "
+                                            "'%s', %s, %s",
+                                            str(col), str(row_dict[col]),
+                                            str(getattr(sample,col)))
 
-								# Since we are now jamming multiple (merged) entries into a single attribute,
-								# we have to join them into a space-delimited string, and then set to sample attribute
-								for key, val in row_dict.items():
-									if key == "sample_name":
-										continue
-									if val:  # this purges out any None entries
-										self._logger.debug("merge: sample 's'; %s=%s", str(sample.name), str(key), str(val))
-										if not merged_cols.has_key(key):
-											merged_cols[key] = str(val).rstrip()
-										else:
-											merged_cols[key] = " ".join([merged_cols[key], str(val)]).strip()  # 2)
+                                # Since we are now jamming multiple (merged) entries into a single attribute,
+                                # we have to join them into a space-delimited string, and then set to sample attribute
+                                for key, val in row_dict.items():
+                                    if key == "sample_name":
+                                        continue
+                                    if val:  # this purges out any None entries
+                                        self._logger.debug("merge: sample 's'; %s=%s",
+                                                           str(sample.name), str(key), str(val))
+                                        if not merged_cols.has_key(key):
+                                            merged_cols[key] = str(val).rstrip()
+                                        else:
+                                            merged_cols[key] = " ".join([merged_cols[key],
+                                                                         str(val)]).strip()  # 2)
 
                             merged_cols.pop('sample_name', None)  # Don't update sample_name.
                             sample.update(merged_cols)  # 3)
@@ -1184,11 +1198,14 @@ class Sample(object):
                     o -= 1
                 p.kill()
             except OSError:
-                raise OSError("Note (samtools not in path): For NGS inputs, looper needs samtools to auto-populate " +
-                "read_length and read_type attributes. " +
-                "these attributes were not populated.")
+                reason = "Note (samtools not in path): For NGS inputs, " \
+                         "looper needs samtools to auto-populate " \
+                         "'read_length' and 'read_type' attributes; " \
+                         "these attributes were not populated."
+                self._LOGGER.error(reason)
+                raise OSError(reason)
 
-            return (read_length, paired)
+            return read_length, paired
 
         def check_fastq(fastq, o):
             """
@@ -1489,16 +1506,16 @@ class ProtocolMapper(object):
 
 
 class CommandChecker(object):
-	"""
-	This class checks if programs specified in a
-	pipeline config file (under "tools") exist and are callable.
-	"""
-	def __init__(self, config):
-		import yaml
+    """
+    This class checks if programs specified in a
+    pipeline config file (under "tools") exist and are callable.
+    """
+    def __init__(self, config):
+        import yaml
 
-		self.config = yaml.load(open(config, 'r'))
+        self.config = yaml.load(open(config, 'r'))
 
-		# Check if ALL returned elements are True
-		if not all(map(self.check_command, self.config["tools"].items())):
-			raise BaseException("Config file contains non-callable tools.")
+        # Check if ALL returned elements are True
+        if not all(map(self.check_command, self.config["tools"].items())):
+            raise BaseException("Config file contains non-callable tools.")
 
