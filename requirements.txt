@@ -1,2 +1,3 @@
-pandas
-pyyaml
+pandas>=0.19
+pyyaml>=3.12
+

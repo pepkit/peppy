@@ -3,7 +3,11 @@ python:
   - "2.7"
   - "3.5"
   - "3.6"
-install: "pip install -r requirements.txt"
+before_install:
+  - pip install -U pip
+install:
+  - pip install -U -r requirements.txt
+  - pip install -U -r addl-test-reqs.txt
 script: pytest
 branches:
   only:
