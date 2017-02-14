@@ -6,6 +6,7 @@ tests/test/*
 doc/build/*
 
 # generic ignore list:
+*.lst
 
 # Compiled source 
 *.com
@@ -47,3 +48,18 @@ Thumbs.db
 
 # libreoffice lock files:
 .~lock*
+
+# Default-named test output
+microtest/
+open_pipelines/
+
+# IDE-specific items
+.idea/
+
+# pytest-related
+.cache/
+.coverage
+
+# Reserved files for comparison
+*RESERVE*
+
