@@ -9,5 +9,5 @@ install:
 script: pytest
 branches:
   only:
-  - travis_setup
+  - travis_setup_and_spaces
 
