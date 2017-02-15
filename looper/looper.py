@@ -19,7 +19,7 @@ import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT
 from utils import VersionInHelpParser
-from _version import __version__
+from . import __version__
 
 try:
 	from .models import \
