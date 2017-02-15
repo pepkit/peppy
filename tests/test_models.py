@@ -77,7 +77,13 @@ class AttributeDictTests:
 
 def _assert_entirely_equal(observed, expected):
     try:
-        assert (observed == expected) or \
-               (np.isnan(observed) and np.isnan(expected))
+        assert observed == expected
+    except AssertionError:
+        try:
+            assert np.isnan(observed) and np.isnan(expected)
+            # DEBUG
+        except TypeError:
+            print observed, expected
+
     except ValueError:
         assert (observed == expected).all()

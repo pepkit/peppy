@@ -104,11 +104,12 @@ class AttributeDict(MutableMapping):
 
     def __init__(self, entries=None,
                  force_nulls=False, attribute_identity=False):
-        self.__dict__["_force_nulls"] = force_nulls
-        self.__dict__["_attribute_identity"] = attribute_identity
-        self.__dict__["_logger"] = logging.getLogger("{}.{}".format(
-            __name__, self.__class__.__name__))
-        self.__dict__["_data_"] = {}
+        self.__dict__["__meta__"] = {}
+        self.__dict__["__meta__"]["_force_nulls"] = force_nulls
+        self.__dict__["__meta__"]["_attribute_identity"] = attribute_identity
+        self.__dict__["__meta__"]["_logger"] = \
+                logging.getLogger("{}.{}".format(__name__,
+                                                 self.__class__.__name__))
         if entries:
             self.add_entries(entries)
 
@@ -130,25 +131,17 @@ class AttributeDict(MutableMapping):
             self[key] = value
 
 
-    def __setattr__(self, key, value):
-        if key in self.__dict__:
-            self._logger.warn(
-                    "Setting attribute for self-member %s; %s parameters are "
-                    "immutable post-construction, so this affects data only.",
-                    str(key), self.__class__.__name__)
-        self.__setitem__(key, value)
-
-
     def __getattr__(self, item):
+        # TODO: try to implement as something like "is_reserved".
+        if item in ["_force_nulls", "_attribute_identity", "_logger"]:
+            return self.__dict__["__meta__"][item]
         try:
-            return self.__dict__["_data_"][item]
+            return self.__dict__[item]
         except KeyError:
-            try:
-                return self.__dict__[item]
-            except KeyError:
-                if self._attribute_identity:
-                    return item
-                raise AttributeError(item)
+            if self._attribute_identity:
+                return item
+            self._logger.log(0, "Data: %s", str(self))
+            raise AttributeError(item)
 
 
     def __setitem__(self, key, value):
@@ -164,11 +157,13 @@ class AttributeDict(MutableMapping):
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
         """
+        self._logger.log(0, "Executing __setitem__ for '%s', '%s'",
+                           key, str(value))
         if isinstance(value, dict):
             try:
-                existing = self._data_[key]
+                existing = self.__dict__[key]
             except KeyError:
-                self._data_[key] = AttributeDict(value)
+                self.__dict__[key] = AttributeDict(value)
             else:
                 if isinstance(existing, AttributeDict):
                     self._logger.debug("Updating key: {}".format(key))
@@ -176,9 +171,10 @@ class AttributeDict(MutableMapping):
                     existing.add_entries(value)
                 else:
                     # Create new AttributeDict, replacing previous value.
-                    self._data_[key] = AttributeDict(value)
-        elif value is not None or key not in self._data_ or self._force_nulls:
-            self._data_[key] = value
+                    self.__dict__[key] = AttributeDict(value)
+        elif value is not None or \
+                key not in self.__dict__ or self._force_nulls:
+            self.__dict__[key] = value
         else:
             self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
                                format(k=key, v=value, nulls=self._force_nulls))
@@ -187,6 +183,8 @@ class AttributeDict(MutableMapping):
     def __getitem__(self, item):
         try:
             return getattr(self, item)
+        except TypeError:
+            raise KeyError(item)
         except AttributeError:
             if self._attribute_identity:
                 return item
@@ -195,9 +193,22 @@ class AttributeDict(MutableMapping):
 
     def __delitem__(self, item):
         try:
-            del self._data_[item]
+            del self.__dict__[item]
         except KeyError:
             self._logger.debug("No item {} to delete".format(item))
+
+
+    def __eq__(self, other):
+        for k, v in self.items():
+            if k == "__meta__":
+                continue
+            if k in other and v == other[k]:
+                continue
+            return False
+        return True
+
+    def __ne__(self, other):
+        return not self == other
 
 
     # Provide remaining dict-like functionality from builtin.
@@ -205,16 +216,24 @@ class AttributeDict(MutableMapping):
     # the mixin methods of the collections ABCs and implementations here.
 
     def __iter__(self):
-        return iter(self._data_)
+        return iter(self.__dict__)
 
     def __len__(self):
-        return len(self._data_)
+        return len(self.__dict__)
 
     def __str__(self):
-        return str(self._data_)
+        return str(self.__dict__)
 
     def __repr__(self):
-        return repr(self._data_)
+        return repr(self.__dict__)
+
+
+
+class MetadataException(Exception):
+    """ Attempt to access restricted metadata item/attribute. """
+    def __init__(self, reason):
+        super(MetadataException, self).__init__(reason)
+
 
 
 @copy
@@ -248,7 +267,6 @@ class Project(AttributeDict):
         self._logger = logging.getLogger(
             "{}.{}".format(__name__, self.__class__.__name__)
         )
-        self.DEBUG = False
 
         self._logger.info("Instantiating %s using config file %s",
                           self.__class__.__name__, config_file)
@@ -397,7 +415,7 @@ class Project(AttributeDict):
             if not relative_vars:
                 self._logger.debug("No relative variables, continuing")
                 continue
-            for var in relative_vars.__dict__:
+            for var in relative_vars.keys():
                 if not hasattr(relative_vars, var):
                     continue
                 # It could have been 'null' in which case, don't do this.
@@ -439,8 +457,8 @@ class Project(AttributeDict):
                 looperenv = _yaml.load(handle)
                 self._logger.debug("Looperenv: %s", str(looperenv))
 
-                # Any compute.submission_template variables should be made absolute; relative
-                # to current looperenv yaml file
+                # Any compute.submission_template variables should be made
+                # absolute, relative to current looperenv yaml file
                 y = looperenv['compute']
                 for key, value in y.items():
                     if type(y[key]) is dict:
@@ -498,8 +516,12 @@ class Project(AttributeDict):
         if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
             self._logger.info("Loading compute settings %s", str(setting))
             if hasattr(self, "compute"):
+                self._logger.debug("Adding compute entries for setting %s",
+                                   setting)
                 self.compute.add_entries(self.looperenv.compute[setting].__dict__)
             else:
+                self._logger.debug("Creating compute entries for setting '%s'",
+                                   setting)
                 self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
 
             self._logger.debug("%s: %s", str(setting),
