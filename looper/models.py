@@ -50,7 +50,6 @@ Explore!
 """
 
 from collections import MutableMapping, OrderedDict as _OrderedDict
-import inspect
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -199,7 +198,7 @@ class AttributeDict(MutableMapping):
 
 
     def __eq__(self, other):
-        for k, v in self.items():
+        for k, v in self.__dict__.items():
             if k == "__meta__":
                 continue
             if k in other and v == other[k]:
@@ -216,10 +215,10 @@ class AttributeDict(MutableMapping):
     # the mixin methods of the collections ABCs and implementations here.
 
     def __iter__(self):
-        return iter(self.__dict__)
+        return iter(filter(lambda (k, _): k != "__meta__", self.__dict__.items()))
 
     def __len__(self):
-        return len(self.__dict__)
+        return sum(1 for _ in self)
 
     def __str__(self):
         return str(self.__dict__)
@@ -399,7 +398,17 @@ class Project(AttributeDict):
                 if not _os.path.isabs(getattr(self.metadata, key)):
                     setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
             else:
-                setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, value))
+                outdir = self.metadata.output_dir
+                # DEBUG
+                try:
+                    outpath = _os.path.join(outdir, value)
+                except (AttributeError, TypeError):
+                    print("output_dir: {} ({})".
+                                       format(outdir, type(outdir)))
+                    print("value: {} ({})".
+                                       format(value, type(value)))
+                    raise
+                setattr(self.metadata, key, _os.path.join(outpath, value))
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to the project config
@@ -416,18 +425,31 @@ class Project(AttributeDict):
                 self._logger.debug("No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
-                if not hasattr(relative_vars, var):
-                    continue
+                # DEBUG
+                try:
+                    if not hasattr(relative_vars, var):
+                        continue
+                except TypeError:
+                    print("var: {} ({})".format(var, type(var)))
+                    print("relative vars: {} ({})".format(relative_vars, type(relative_vars)))
+                    raise
                 # It could have been 'null' in which case, don't do this.
                 if getattr(relative_vars, var) is None:
                     continue
-                if not _os.path.isabs(getattr(relative_vars, var)):
-                    # Set path to an absolute path, relative to project config.
-                    config_dirpath = _os.path.dirname(self.config_file)
-                    additional_from_base = getattr(relative_vars, var)
-                    abs_path = _os.path.join(config_dirpath,
-                                             additional_from_base)
-                    setattr(relative_vars, var, abs_path)
+
+                # DEBUG
+                try:
+                    rel_vars_path = getattr(relative_vars, var)
+                    if not _os.path.isabs(rel_vars_path):
+                        # Set path to an absolute path, relative to project config.
+                        config_dirpath = _os.path.dirname(self.config_file)
+                        additional_from_base = getattr(relative_vars, var)
+                        abs_path = _os.path.join(config_dirpath,
+                                                 additional_from_base)
+                        setattr(relative_vars, var, abs_path)
+                except AttributeError:
+                    print("rel_vars_path: {}".format(rel_vars_path))
+                    raise
 
         # compute.submission_template could have been reset by project config
         # into a relative path; make sure it stays absolute.
