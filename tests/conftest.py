@@ -151,10 +151,6 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
     level = request.config.getoption("--logging-level")
-    try:
-        level = int(level)
-    except ValueError:
-        level = level.upper()
     setup_looper_logger(level=level)
     global _LOGGER
     _LOGGER = logging.getLogger(__name__)

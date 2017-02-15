@@ -11,7 +11,7 @@ Workflow explained:
 
 In the process, stuff is checked:
     - project structure (created if not existing)
-    - existance of csv sample sheet with minimal fields
+    - existence of csv sample sheet with minimal fields
     - Constructing a path to a sample's input file and checking for its existance
     - read type/length of samples (optionally)
 
@@ -103,10 +103,24 @@ class AttributeDict(MutableMapping):
 
     def __init__(self, entries=None,
                  force_nulls=False, attribute_identity=False):
-        self._force_nulls = force_nulls
-        self._attribute_identity = attribute_identity
+        """
+        Establish a logger for this instance, set initial entries,
+        and determine behavior with regard to null values and behavior
+        for attribute requests.
+
+        :param collections.Iterable | collections.Mapping entries: collection
+            of key-value pairs, initial data for this mapping
+        :param bool force_nulls: whether to allow a null value to overwrite
+            an existing non-null value
+        :param bool attribute_identity: whether to return attribute name
+            requested rather than exception when unset attribute/key is queried
+        """
         self._logger = logging.getLogger(
                 "{}.{}".format(__name__, self.__class__.__name__))
+        # Null value can squash non-null?
+        self._force_nulls = force_nulls
+        # Return requested attribute name if not set?
+        self._attribute_identity = attribute_identity
         if entries:
             self.add_entries(entries)
 
@@ -119,8 +133,6 @@ class AttributeDict(MutableMapping):
             of pairs of keys and values
         """
         # Permit mapping-likes and iterables of pairs.
-        # DEBUG
-        print("DATA: {}".format(self.__dict__))
         try:
             entries_iter = entries.items()
         except AttributeError:
@@ -153,8 +165,6 @@ class AttributeDict(MutableMapping):
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
         """
-        # DEBUG
-        print("__setitem__: {}, {}".format(key, value))
         self._logger.log(0, "Executing __setitem__ for '%s', '%s'",
                            key, str(value))
         if isinstance(value, dict):
@@ -171,8 +181,6 @@ class AttributeDict(MutableMapping):
         else:
             self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
                                format(k=key, v=value, nulls=self._force_nulls))
-        # DEBUG
-        print("self.__dict__: {}".format(self.__dict__))
 
 
     def __getitem__(self, item):
@@ -203,16 +211,11 @@ class AttributeDict(MutableMapping):
     def __ne__(self, other):
         return not self == other
 
-
-    # Provide remaining dict-like functionality from builtin.
-    # Additional desired functions are defined indirectly via
-    # the mixin methods of the collections ABCs and implementations here.
-
     def __iter__(self):
         # TODO: try to implement as something like "is_reserved".
         return iter([k for k in self.__dict__.keys()
-                     if k not in ["_force_nulls",
-                                  "_attribute_identity", "_logger"]])
+                     if k not in
+                     ["_force_nulls", "_attribute_identity", "_logger"]])
 
     def __len__(self):
         return sum(1 for _ in self) - \
@@ -223,13 +226,6 @@ class AttributeDict(MutableMapping):
 
     def __repr__(self):
         return repr(self.__dict__)
-
-
-
-class MetadataException(Exception):
-    """ Attempt to access restricted metadata item/attribute. """
-    def __init__(self, reason):
-        super(MetadataException, self).__init__(reason)
 
 
 
@@ -394,22 +390,16 @@ class Project(AttributeDict):
         for key, value in config_vars.items():
             if hasattr(self.metadata, key):
                 if not _os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
+                    setattr(self.metadata, key,
+                            _os.path.join(self.metadata.output_dir,
+                                          getattr(self.metadata, key)))
             else:
                 outdir = self.metadata.output_dir
-                # DEBUG
-                try:
-                    outpath = _os.path.join(outdir, value)
-                except (AttributeError, TypeError):
-                    print("output_dir: {} ({})".
-                                       format(outdir, type(outdir)))
-                    print("value: {} ({})".
-                                       format(value, type(value)))
-                    raise
+                outpath = _os.path.join(outdir, value)
                 setattr(self.metadata, key, _os.path.join(outpath, value))
 
         # Variables which are relative to the config file
-        # All variables in these sections should be relative to the project config
+        # All variables in these sections should be relative to project config.
         relative_sections = ["metadata", "pipeline_config"]
 
         self._logger.info("Parsing relative sections")
@@ -423,31 +413,19 @@ class Project(AttributeDict):
                 self._logger.debug("No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
-                # DEBUG
-                try:
-                    if not hasattr(relative_vars, var):
-                        continue
-                except TypeError:
-                    print("var: {} ({})".format(var, type(var)))
-                    print("relvars: {} ({})".format(relative_vars, type(relative_vars)))
-                    raise
+                if not hasattr(relative_vars, var):
+                    continue
                 # It could have been 'null' in which case, don't do this.
                 if getattr(relative_vars, var) is None:
                     continue
-
-                # DEBUG
-                try:
-                    rel_vars_path = getattr(relative_vars, var)
-                    if not _os.path.isabs(rel_vars_path):
-                        # Set path to an absolute path, relative to project config.
-                        config_dirpath = _os.path.dirname(self.config_file)
-                        additional_from_base = getattr(relative_vars, var)
-                        abs_path = _os.path.join(config_dirpath,
-                                                 additional_from_base)
-                        setattr(relative_vars, var, abs_path)
-                except AttributeError:
-                    print("rel_vars_path: {}".format(rel_vars_path))
-                    raise
+                rel_vars_path = getattr(relative_vars, var)
+                if not _os.path.isabs(rel_vars_path):
+                    # Set path to an absolute path, relative to project config.
+                    config_dirpath = _os.path.dirname(self.config_file)
+                    additional_from_base = getattr(relative_vars, var)
+                    abs_path = _os.path.join(config_dirpath,
+                                             additional_from_base)
+                    setattr(relative_vars, var, abs_path)
 
         # compute.submission_template could have been reset by project config
         # into a relative path; make sure it stays absolute.

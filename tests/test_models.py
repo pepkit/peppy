@@ -76,14 +76,10 @@ class AttributeDictTests:
 
 
 def _assert_entirely_equal(observed, expected):
+    """ Accommodate equality assertion for varied data, including NaN. """
     try:
         assert observed == expected
     except AssertionError:
-        try:
-            assert np.isnan(observed) and np.isnan(expected)
-            # DEBUG
-        except TypeError:
-            print observed, expected
-
+        assert np.isnan(observed) and np.isnan(expected)
     except ValueError:
         assert (observed == expected).all()

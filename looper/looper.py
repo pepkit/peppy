@@ -44,12 +44,11 @@ def parse_arguments():
         description=description, epilog=epilog,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--version", action="version",
-                  version="%(prog)s " + "get version")
+                        version="%(prog)s " + "get version")
 
     # Logging control
     parser.add_argument("--logging-level", default="INFO",
-                  choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
-                  help="Minimum level of interest w.r.t. log messages")
+                        help="Minimum level of interest w.r.t. log messages")
     parser.add_argument("--logfile", help="Path to central logfile location")
     parser.add_argument("--logging-fmt",  help="Logging message template")
     parser.add_argument("--logging-datefmt", help="Time formatter for logs")
