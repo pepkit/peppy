@@ -121,6 +121,8 @@ class AttributeDict(MutableMapping):
             of pairs of keys and values
         """
         # Permit mapping-likes and iterables of pairs.
+        # DEBUG
+        print("DATA: {}".format(self.__dict__))
         try:
             entries_iter = entries.items()
         except AttributeError:
@@ -156,27 +158,26 @@ class AttributeDict(MutableMapping):
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
         """
+        # DEBUG
+        print("__setitem__: {}, {}".format(key, value))
         self._logger.log(0, "Executing __setitem__ for '%s', '%s'",
                            key, str(value))
         if isinstance(value, dict):
             try:
-                existing = self.__dict__[key]
-            except KeyError:
+                # Combine them.
+                self._logger.debug("Updating key: {}".format(key))
+                self.__dict__[key].add_entries()
+            except (AttributeError, KeyError):
+                # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            else:
-                if isinstance(existing, AttributeDict):
-                    self._logger.debug("Updating key: {}".format(key))
-                    # Combine them.
-                    existing.add_entries(value)
-                else:
-                    # Create new AttributeDict, replacing previous value.
-                    self.__dict__[key] = AttributeDict(value)
         elif value is not None or \
                 key not in self.__dict__ or self._force_nulls:
             self.__dict__[key] = value
         else:
             self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
                                format(k=key, v=value, nulls=self._force_nulls))
+        # DEBUG
+        print("self.__dict__: {}".format(self.__dict__))
 
 
     def __getitem__(self, item):
