@@ -49,7 +49,7 @@ Explore!
 
 """
 
-from collections import OrderedDict as _OrderedDict
+from collections import MutableMapping, OrderedDict as _OrderedDict
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -93,7 +93,7 @@ class Paths(object):
 
 
 @copy
-class AttributeDict(object):
+class AttributeDict(MutableMapping):
     """
     A class to convert a nested Dictionary into an object with key-values
     accessibly using attribute notation (AttributeDict.attribute) instead of
@@ -101,40 +101,123 @@ class AttributeDict(object):
     allowing you to recurse down nested dicts (like: AttributeDict.attr.attr)
     """
 
-    _LOGGER = logging.getLogger("AttributeDict")
-
-    def __init__(self, entries=None):
+    def __init__(self, entries=None,
+                 force_nulls=False, attribute_identity=False):
+        self.force_nulls = force_nulls
+        self.attribute_identity = attribute_identity
+        self._logger = logging.getLogger("{}.{}".format(
+            __name__, self.__class__.__name__))
+        self._data_ = {}
         if entries:
             self.add_entries(entries)
 
-    def add_entries(self, entries):
-        for key, value in entries.items():
-            if type(value) is dict:
-                # key exists
-                if hasattr(self, key):
-                    if type(self[key]) is AttributeDict:
-                        self._LOGGER.debug("Updating key: {}".format(key))
-                        # Combine them
-                        self.__dict__[key].add_entries(value)
-                    else:
-                        # Create new AttributeDict, replace previous value
-                        self.__dict__[key] = AttributeDict(value)
-                else:
-                    # Create new AttributeDict
-                    self.__dict__[key] = AttributeDict(value)
-            else:
-                if value is not None:
-                    # Overwrite even if it's a dict; only if it's not None
-                    self.__dict__[key] = value
 
-    def __getitem__(self, key):
+    def add_entries(self, entries):
         """
-        Provides dict-style access to attributes
+        Update this `AttributeDict` with provided key-value pairs.
+
+        :param collections.Iterable | collections.Mapping entries: collection
+            of pairs of keys and values
         """
-        return getattr(self, key)
+        # Permit mapping-likes and iterables of pairs.
+        try:
+            entries_iter = entries.items()
+        except AttributeError:
+            entries_iter = entries
+        # Assume we now have pairs; allow corner cases to fail hard here.
+        for key, value in entries_iter:
+            self[key] = value
+
+
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)
+
+
+    def __getattr__(self, item):
+        try:
+            return self._data_[item]
+        except KeyError:
+            try:
+                return self.__dict__[item]
+            except KeyError:
+                pass
+        finally:
+            pass
+        if item in self.__dict__:
+            return self.__dict__[item]
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            raise AttributeError(item)
+
+
+    def __setitem__(self, key, value):
+        """
+        This is the key to making this a unique data type. Flag set at
+        time of construction determines whether it's possible for a null
+        value to squash a non-null value. The combination of that flag and
+        one indicating whether request for value for unset attribute should
+        return the attribute name itself determines if any attribute/key
+        may be set to a null value.
+
+        :param str key: name of the key/attribute for which to establish value
+        :param object value: value to which set the given key; if the value is
+            a mapping-like object, other keys' values may be combined.
+        """
+        if key in self.__dict__:
+            raise KeyError("{} is a {} member; it can't be added as a "
+                           "data key".format(key, self.__class__.__name__))
+        if isinstance(value, dict):
+            try:
+                existing = self._data_[key]
+            except KeyError:
+                self._data_[key] = AttributeDict(value)
+            else:
+                if isinstance(existing, AttributeDict):
+                    self._logger.debug("Updating key: {}".format(key))
+                    # Combine them.
+                    existing.add_entries(value)
+                else:
+                    # Create new AttributeDict, replacing previous value.
+                    self._data_[key] = AttributeDict(value)
+        elif value is not None or key not in self._data or self.force_nulls:
+            self._data_[key] = value
+        else:
+            self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
+                               format(k=key, v=value, nulls=self.force_nulls))
+
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            if self.attribute_identity:
+                return item
+            raise KeyError(item)
+
+
+    def __delitem__(self, item):
+        try:
+            del self._data_[item]
+        except KeyError:
+            self._logger.debug("No item {} to delete".format(item))
+
+
+    # Provide remaining dict-like functionality from builtin.
+    # Additional desired functions are defined indirectly via
+    # the mixin methods of the collections ABCs and implementations here.
+
+    def __iter__(self):
+        return iter(self._data_)
+
+    def __len__(self):
+        return len(self._data_)
+
+    def __str__(self):
+        return str(self._data_)
 
     def __repr__(self):
-        return str(self.__dict__)
+        return repr(self._data_)
 
 
 @copy

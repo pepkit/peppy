@@ -5,11 +5,12 @@ import pytest
 from looper.models import AttributeDict, Paths, copy
 
 
-_ATTR_VALUES = ["str", 1, 1.0, np.nan]
+_ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
+                "", "str", -1, 0, 1.0, np.nan]
 
 
 
-class ExampleObject():
+class ExampleObject:
     pass
 
 
@@ -40,8 +41,8 @@ class AttributeDictTests:
 
     @pytest.mark.parametrize(argnames="attval",
                              argvalues=_ATTR_VALUES + [np.random.random(20)])
-    def test_AttributeDict_ctor_non_null_value(self, attval):
-        """ Test attr fetch with both dictionary syntax and with object syntax. """
+    def test_ctor_non_nested(self, attval):
+        """ Test attr fetch, with dictionary syntax and with object syntax. """
         # Set and retrieve attributes
         attrd = AttributeDict({"attr": attval})
         assert attrd["attr"] is attval
@@ -50,7 +51,7 @@ class AttributeDictTests:
 
     @pytest.mark.parametrize(argnames="attval",
                              argvalues=_ATTR_VALUES + [np.random.random(20)])
-    def test_AttributeDict_nested_non_null_value(self, attval):
+    def test_ctor_nested(self, attval):
         """ Test AttributeDict nesting functionality. """
         attrd = AttributeDict({"attr": attval})
         attrd.attrd = AttributeDict({"attr": attval})
@@ -59,16 +60,16 @@ class AttributeDictTests:
         assert attrd["attrd"].attr is attval
 
 
-    def test_AttributeDict_ctor_null_value_getattr_access(self):
-        attrd = AttributeDict({"attr": None})
+    @pytest.mark.parametrize(argnames="missing", argvalues=[None, "att", 1])
+    def test_missing_getattr(self, missing):
+        attrd = AttributeDict()
         with pytest.raises(AttributeError):
-            attrd.attr
+            getattr(attrd, missing)
 
 
-    @pytest.mark.xfail(reason="__getitem__ access style uses getattr",
-                       raises=AttributeError)
-    def test_AttributeDict_ctor_null_value_getitem_access(self):
-        key = "att"
-        attrd = AttributeDict({key: None})
+    @pytest.mark.parametrize(argnames="missing",
+                             argvalues=["", "b", "missing"])
+    def test_missing_getattr(self, missing):
+        attrd = AttributeDict()
         with pytest.raises(KeyError):
-            attrd[key]
+            attrd[missing]
