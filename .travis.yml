@@ -1,0 +1,13 @@
+language: python
+python:
+  - "2.7"
+before_install:
+  - pip install -U pip
+install:
+  - pip install -U -r requirements.txt
+  - pip install -U -r addl-test-reqs.txt
+script: pytest
+branches:
+  only:
+  - features_0.5
+

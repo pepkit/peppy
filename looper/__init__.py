@@ -43,6 +43,13 @@ def setup_looper_logger(level, additional_locations=None,
     global LOOPER_LOGGER
     LOOPER_LOGGER = logging.getLogger(__name__.split(".")[0])
     LOOPER_LOGGER.handlers = []
+
+    # Handle int- or text-specific logging level.
+    try:
+        level = int(level)
+    except ValueError:
+        level = level.upper()
+
     try:
         LOOPER_LOGGER.setLevel(level)
     except Exception:

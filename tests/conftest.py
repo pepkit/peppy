@@ -145,13 +145,13 @@ _ATTR_BY_TYPE = {
 def pytest_addoption(parser):
     parser.addoption("--logging-level",
                      default="WARN",
-                     choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
                      help="Project root logger level to use for tests")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
-    setup_looper_logger(request.config.getoption("--logging-level"))
+    level = request.config.getoption("--logging-level")
+    setup_looper_logger(level=level)
     global _LOGGER
     _LOGGER = logging.getLogger(__name__)
 

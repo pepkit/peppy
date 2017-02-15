@@ -11,7 +11,7 @@ Workflow explained:
 
 In the process, stuff is checked:
     - project structure (created if not existing)
-    - existance of csv sample sheet with minimal fields
+    - existence of csv sample sheet with minimal fields
     - Constructing a path to a sample's input file and checking for its existance
     - read type/length of samples (optionally)
 
@@ -49,7 +49,7 @@ Explore!
 
 """
 
-from collections import OrderedDict as _OrderedDict
+from collections import MutableMapping, OrderedDict as _OrderedDict
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -93,7 +93,7 @@ class Paths(object):
 
 
 @copy
-class AttributeDict(object):
+class AttributeDict(MutableMapping):
     """
     A class to convert a nested Dictionary into an object with key-values
     accessibly using attribute notation (AttributeDict.attribute) instead of
@@ -101,40 +101,132 @@ class AttributeDict(object):
     allowing you to recurse down nested dicts (like: AttributeDict.attr.attr)
     """
 
-    _LOGGER = logging.getLogger("AttributeDict")
+    def __init__(self, entries=None,
+                 force_nulls=False, attribute_identity=False):
+        """
+        Establish a logger for this instance, set initial entries,
+        and determine behavior with regard to null values and behavior
+        for attribute requests.
 
-    def __init__(self, entries=None):
+        :param collections.Iterable | collections.Mapping entries: collection
+            of key-value pairs, initial data for this mapping
+        :param bool force_nulls: whether to allow a null value to overwrite
+            an existing non-null value
+        :param bool attribute_identity: whether to return attribute name
+            requested rather than exception when unset attribute/key is queried
+        """
+        self._logger = logging.getLogger(
+                "{}.{}".format(__name__, self.__class__.__name__))
+        # Null value can squash non-null?
+        self._force_nulls = force_nulls
+        # Return requested attribute name if not set?
+        self._attribute_identity = attribute_identity
         if entries:
             self.add_entries(entries)
 
-    def add_entries(self, entries):
-        for key, value in entries.items():
-            if type(value) is dict:
-                # key exists
-                if hasattr(self, key):
-                    if type(self[key]) is AttributeDict:
-                        self._LOGGER.debug("Updating key: {}".format(key))
-                        # Combine them
-                        self.__dict__[key].add_entries(value)
-                    else:
-                        # Create new AttributeDict, replace previous value
-                        self.__dict__[key] = AttributeDict(value)
-                else:
-                    # Create new AttributeDict
-                    self.__dict__[key] = AttributeDict(value)
-            else:
-                if value is not None:
-                    # Overwrite even if it's a dict; only if it's not None
-                    self.__dict__[key] = value
 
-    def __getitem__(self, key):
+    def add_entries(self, entries):
         """
-        Provides dict-style access to attributes
+        Update this `AttributeDict` with provided key-value pairs.
+
+        :param collections.Iterable | collections.Mapping entries: collection
+            of pairs of keys and values
         """
-        return getattr(self, key)
+        # Permit mapping-likes and iterables of pairs.
+        try:
+            entries_iter = entries.items()
+        except AttributeError:
+            entries_iter = entries
+        # Assume we now have pairs; allow corner cases to fail hard here.
+        for key, value in entries_iter:
+            self[key] = value
+
+
+    def __getattr__(self, item):
+        try:
+            return self.__dict__[item]
+        except KeyError:
+            if self._attribute_identity:
+                return item
+            self._logger.log(0, "Data: %s", str(self))
+            raise AttributeError(item)
+
+
+    def __setitem__(self, key, value):
+        """
+        This is the key to making this a unique data type. Flag set at
+        time of construction determines whether it's possible for a null
+        value to squash a non-null value. The combination of that flag and
+        one indicating whether request for value for unset attribute should
+        return the attribute name itself determines if any attribute/key
+        may be set to a null value.
+
+        :param str key: name of the key/attribute for which to establish value
+        :param object value: value to which set the given key; if the value is
+            a mapping-like object, other keys' values may be combined.
+        """
+        self._logger.log(0, "Executing __setitem__ for '%s', '%s'",
+                           key, str(value))
+        if isinstance(value, dict):
+            try:
+                # Combine them.
+                self._logger.debug("Updating key: {}".format(key))
+                self.__dict__[key].add_entries()
+            except (AttributeError, KeyError):
+                # Create new AttributeDict, replacing previous value.
+                self.__dict__[key] = AttributeDict(value)
+        elif value is not None or \
+                key not in self.__dict__ or self._force_nulls:
+            self.__dict__[key] = value
+        else:
+            self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
+                               format(k=key, v=value, nulls=self._force_nulls))
+
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except TypeError:
+            raise KeyError(item)
+        except AttributeError:
+            if self._attribute_identity:
+                return item
+            raise KeyError(item)
+
+
+    def __delitem__(self, item):
+        try:
+            del self.__dict__[item]
+        except KeyError:
+            self._logger.debug("No item {} to delete".format(item))
+
+
+    def __eq__(self, other):
+        for k in iter(self):
+            if k in other and self.__dict__[k] == other[k]:
+                continue
+            return False
+        return True
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __iter__(self):
+        # TODO: try to implement as something like "is_reserved".
+        return iter([k for k in self.__dict__.keys()
+                     if k not in
+                     ["_force_nulls", "_attribute_identity", "_logger"]])
+
+    def __len__(self):
+        return sum(1 for _ in self) - \
+               len(["_force_nulls", "_attribute_identity", "_logger"])
+
+    def __str__(self):
+        return str(self.__dict__)
 
     def __repr__(self):
-        return str(self.__dict__)
+        return repr(self.__dict__)
+
 
 
 @copy
@@ -168,7 +260,6 @@ class Project(AttributeDict):
         self._logger = logging.getLogger(
             "{}.{}".format(__name__, self.__class__.__name__)
         )
-        self.DEBUG = False
 
         self._logger.info("Instantiating %s using config file %s",
                           self.__class__.__name__, config_file)
@@ -299,12 +390,16 @@ class Project(AttributeDict):
         for key, value in config_vars.items():
             if hasattr(self.metadata, key):
                 if not _os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
+                    setattr(self.metadata, key,
+                            _os.path.join(self.metadata.output_dir,
+                                          getattr(self.metadata, key)))
             else:
-                setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, value))
+                outdir = self.metadata.output_dir
+                outpath = _os.path.join(outdir, value)
+                setattr(self.metadata, key, _os.path.join(outpath, value))
 
         # Variables which are relative to the config file
-        # All variables in these sections should be relative to the project config
+        # All variables in these sections should be relative to project config.
         relative_sections = ["metadata", "pipeline_config"]
 
         self._logger.info("Parsing relative sections")
@@ -317,13 +412,14 @@ class Project(AttributeDict):
             if not relative_vars:
                 self._logger.debug("No relative variables, continuing")
                 continue
-            for var in relative_vars.__dict__:
+            for var in relative_vars.keys():
                 if not hasattr(relative_vars, var):
                     continue
                 # It could have been 'null' in which case, don't do this.
                 if getattr(relative_vars, var) is None:
                     continue
-                if not _os.path.isabs(getattr(relative_vars, var)):
+                rel_vars_path = getattr(relative_vars, var)
+                if not _os.path.isabs(rel_vars_path):
                     # Set path to an absolute path, relative to project config.
                     config_dirpath = _os.path.dirname(self.config_file)
                     additional_from_base = getattr(relative_vars, var)
@@ -359,8 +455,8 @@ class Project(AttributeDict):
                 looperenv = _yaml.load(handle)
                 self._logger.debug("Looperenv: %s", str(looperenv))
 
-                # Any compute.submission_template variables should be made absolute; relative
-                # to current looperenv yaml file
+                # Any compute.submission_template variables should be made
+                # absolute, relative to current looperenv yaml file
                 y = looperenv['compute']
                 for key, value in y.items():
                     if type(y[key]) is dict:
@@ -418,8 +514,12 @@ class Project(AttributeDict):
         if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
             self._logger.info("Loading compute settings %s", str(setting))
             if hasattr(self, "compute"):
+                self._logger.debug("Adding compute entries for setting %s",
+                                   setting)
                 self.compute.add_entries(self.looperenv.compute[setting].__dict__)
             else:
+                self._logger.debug("Creating compute entries for setting '%s'",
+                                   setting)
                 self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
 
             self._logger.debug("%s: %s", str(setting),
