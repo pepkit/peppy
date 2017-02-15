@@ -1,12 +1,22 @@
 """ Helpers without an obvious logical home. """
 
+from argparse import ArgumentParser
 from collections import defaultdict
 import logging
 import os
 import yaml
+from _version import __version__
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+
+class VersionInHelpParser(ArgumentParser):
+    def format_help(self):
+        """ Add version information to help text. """
+        return "version: {}\n".format(__version__) + \
+               super(VersionInHelpParser, self).format_help()
 
 
 

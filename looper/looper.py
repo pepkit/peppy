@@ -18,6 +18,7 @@ import sys
 import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT
+from utils import VersionInHelpParser
 from _version import __version__
 
 try:
@@ -41,7 +42,7 @@ def parse_arguments():
 	epilog = "For subcommand-specific options, type: '%(prog)s <subcommand> -h'"
 	epilog += "\nhttps://github.com/epigen/looper"
 
-	parser = argparse.ArgumentParser(
+	parser = VersionInHelpParser(
 		description=description, epilog=epilog,
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("-V", "--version", action="version",
