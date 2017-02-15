@@ -50,6 +50,7 @@ Explore!
 """
 
 from collections import MutableMapping, OrderedDict as _OrderedDict
+import inspect
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -103,11 +104,11 @@ class AttributeDict(MutableMapping):
 
     def __init__(self, entries=None,
                  force_nulls=False, attribute_identity=False):
-        self.force_nulls = force_nulls
-        self.attribute_identity = attribute_identity
-        self._logger = logging.getLogger("{}.{}".format(
+        self.__dict__["_force_nulls"] = force_nulls
+        self.__dict__["_attribute_identity"] = attribute_identity
+        self.__dict__["_logger"] = logging.getLogger("{}.{}".format(
             __name__, self.__class__.__name__))
-        self._data_ = {}
+        self.__dict__["_data_"] = {}
         if entries:
             self.add_entries(entries)
 
@@ -130,25 +131,24 @@ class AttributeDict(MutableMapping):
 
 
     def __setattr__(self, key, value):
+        if key in self.__dict__:
+            self._logger.warn(
+                    "Setting attribute for self-member %s; %s parameters are "
+                    "immutable post-construction, so this affects data only.",
+                    str(key), self.__class__.__name__)
         self.__setitem__(key, value)
 
 
     def __getattr__(self, item):
         try:
-            return self._data_[item]
+            return self.__dict__["_data_"][item]
         except KeyError:
             try:
                 return self.__dict__[item]
             except KeyError:
-                pass
-        finally:
-            pass
-        if item in self.__dict__:
-            return self.__dict__[item]
-        try:
-            return self.__getitem__(item)
-        except KeyError:
-            raise AttributeError(item)
+                if self._attribute_identity:
+                    return item
+                raise AttributeError(item)
 
 
     def __setitem__(self, key, value):
@@ -164,9 +164,6 @@ class AttributeDict(MutableMapping):
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
         """
-        if key in self.__dict__:
-            raise KeyError("{} is a {} member; it can't be added as a "
-                           "data key".format(key, self.__class__.__name__))
         if isinstance(value, dict):
             try:
                 existing = self._data_[key]
@@ -180,18 +177,18 @@ class AttributeDict(MutableMapping):
                 else:
                     # Create new AttributeDict, replacing previous value.
                     self._data_[key] = AttributeDict(value)
-        elif value is not None or key not in self._data or self.force_nulls:
+        elif value is not None or key not in self._data_ or self._force_nulls:
             self._data_[key] = value
         else:
             self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
-                               format(k=key, v=value, nulls=self.force_nulls))
+                               format(k=key, v=value, nulls=self._force_nulls))
 
 
     def __getitem__(self, item):
         try:
             return getattr(self, item)
         except AttributeError:
-            if self.attribute_identity:
+            if self._attribute_identity:
                 return item
             raise KeyError(item)
 

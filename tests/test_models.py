@@ -32,7 +32,7 @@ class PathsTests:
         """ Check that Paths attribute can be set and returned as expected. """
         paths = Paths()
         paths.example_attr = attr
-        assert getattr(paths, "example_attr") is attr
+        _assert_entirely_equal(getattr(paths, "example_attr"), attr)
 
 
 class AttributeDictTests:
@@ -45,8 +45,8 @@ class AttributeDictTests:
         """ Test attr fetch, with dictionary syntax and with object syntax. """
         # Set and retrieve attributes
         attrd = AttributeDict({"attr": attval})
-        assert attrd["attr"] is attval
-        assert getattr(attrd, "attr") is attval
+        _assert_entirely_equal(attrd["attr"], attval)
+        _assert_entirely_equal(getattr(attrd, "attr"), attval)
 
 
     @pytest.mark.parametrize(argnames="attval",
@@ -55,12 +55,12 @@ class AttributeDictTests:
         """ Test AttributeDict nesting functionality. """
         attrd = AttributeDict({"attr": attval})
         attrd.attrd = AttributeDict({"attr": attval})
-        assert attrd.attrd["attr"] is attval
-        assert getattr(attrd.attrd, "attr") is attval
-        assert attrd["attrd"].attr is attval
+        _assert_entirely_equal(attrd.attrd["attr"], attval)
+        _assert_entirely_equal(getattr(attrd.attrd, "attr"), attval)
+        _assert_entirely_equal(attrd["attrd"].attr, attval)
 
 
-    @pytest.mark.parametrize(argnames="missing", argvalues=[None, "att", 1])
+    @pytest.mark.parametrize(argnames="missing", argvalues=["att", ""])
     def test_missing_getattr(self, missing):
         attrd = AttributeDict()
         with pytest.raises(AttributeError):
@@ -69,7 +69,15 @@ class AttributeDictTests:
 
     @pytest.mark.parametrize(argnames="missing",
                              argvalues=["", "b", "missing"])
-    def test_missing_getattr(self, missing):
+    def test_missing_getitem(self, missing):
         attrd = AttributeDict()
         with pytest.raises(KeyError):
             attrd[missing]
+
+
+def _assert_entirely_equal(observed, expected):
+    try:
+        assert (observed == expected) or \
+               (np.isnan(observed) and np.isnan(expected))
+    except ValueError:
+        assert (observed == expected).all()
