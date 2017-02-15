@@ -17,9 +17,8 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT
+from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT, __version__
 from utils import VersionInHelpParser
-from . import __version__
 
 try:
 	from .models import \

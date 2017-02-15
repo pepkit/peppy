@@ -7,11 +7,10 @@ local level, but this will at least provide a foundation.
 
 """
 
-__version__ = "0.4.0"
-
 import logging
 import os
 from sys import stderr
+from _version import __version__
 
 
 LOOPERENV_VARNAME = "LOOPERENV"
