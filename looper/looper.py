@@ -18,6 +18,7 @@ import sys
 import time
 import pandas as _pd
 from . import setup_looper_logger
+from _version import __version__
 
 try:
 	from .models import \
@@ -43,8 +44,8 @@ def parse_arguments():
 	parser = argparse.ArgumentParser(
 		description=description, epilog=epilog,
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	parser.add_argument("--version", action="version",
-				  version="%(prog)s " + "get version")
+	parser.add_argument("-V", "--version", action="version",
+				  version="%(prog)s {v}".format(v=__version__))
 
 	# Logging control
 	parser.add_argument("--logging-level", default="INFO",
