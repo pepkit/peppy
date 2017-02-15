@@ -103,12 +103,10 @@ class AttributeDict(MutableMapping):
 
     def __init__(self, entries=None,
                  force_nulls=False, attribute_identity=False):
-        self.__dict__["__meta__"] = {}
-        self.__dict__["__meta__"]["_force_nulls"] = force_nulls
-        self.__dict__["__meta__"]["_attribute_identity"] = attribute_identity
-        self.__dict__["__meta__"]["_logger"] = \
-                logging.getLogger("{}.{}".format(__name__,
-                                                 self.__class__.__name__))
+        self._force_nulls = force_nulls
+        self._attribute_identity = attribute_identity
+        self._logger = logging.getLogger(
+                "{}.{}".format(__name__, self.__class__.__name__))
         if entries:
             self.add_entries(entries)
 
@@ -133,9 +131,6 @@ class AttributeDict(MutableMapping):
 
 
     def __getattr__(self, item):
-        # TODO: try to implement as something like "is_reserved".
-        if item in ["_force_nulls", "_attribute_identity", "_logger"]:
-            return self.__dict__["__meta__"][item]
         try:
             return self.__dict__[item]
         except KeyError:
@@ -199,10 +194,8 @@ class AttributeDict(MutableMapping):
 
 
     def __eq__(self, other):
-        for k, v in self.__dict__.items():
-            if k == "__meta__":
-                continue
-            if k in other and v == other[k]:
+        for k in iter(self):
+            if k in other and self.__dict__[k] == other[k]:
                 continue
             return False
         return True
@@ -216,10 +209,14 @@ class AttributeDict(MutableMapping):
     # the mixin methods of the collections ABCs and implementations here.
 
     def __iter__(self):
-        return iter(filter(lambda (k, _): k != "__meta__", self.__dict__.items()))
+        # TODO: try to implement as something like "is_reserved".
+        return iter([k for k in self.__dict__.keys()
+                     if k not in ["_force_nulls",
+                                  "_attribute_identity", "_logger"]])
 
     def __len__(self):
-        return sum(1 for _ in self)
+        return sum(1 for _ in self) - \
+               len(["_force_nulls", "_attribute_identity", "_logger"])
 
     def __str__(self):
         return str(self.__dict__)
@@ -432,7 +429,7 @@ class Project(AttributeDict):
                         continue
                 except TypeError:
                     print("var: {} ({})".format(var, type(var)))
-                    print("relative vars: {} ({})".format(relative_vars, type(relative_vars)))
+                    print("relvars: {} ({})".format(relative_vars, type(relative_vars)))
                     raise
                 # It could have been 'null' in which case, don't do this.
                 if getattr(relative_vars, var) is None:
