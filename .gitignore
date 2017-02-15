@@ -63,3 +63,8 @@ open_pipelines/
 # Reserved files for comparison
 *RESERVE*
 
+# Build-related stuff
+build/
+dist/
+looper.egg-info/
+
