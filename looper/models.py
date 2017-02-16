@@ -523,7 +523,7 @@ class Project(AttributeDict):
 
             self._logger.debug("%s: %s", str(setting),
                                self.looperenv.compute[setting])
-            self._logger.info("Compute: %s", str(self.looperenv.compute))
+            self._logger.debug("Compute: %s", str(self.looperenv.compute))
 
             if not _os.path.isabs(self.compute.submission_template):
                 # self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
@@ -1386,11 +1386,14 @@ class PipelineInterface(object):
 
     def __init__(self, yaml_config_file):
         import yaml
+        self._logger = logging.getLogger(
+            "{}.{}".format(__name__, self.__class__.__name__))
+        self._logger.info("Creating %s from file '%s'",
+                          self.__class__.__name__, yaml_config_file)
         self.looper_config_file = yaml_config_file
         with open(yaml_config_file, 'r') as f:
             self.looper_config = yaml.load(f)
-        self._logger = logging.getLogger(
-            "{}.{}".format(__name__, self.__class__.__name__))
+
 
     def select_pipeline(self, pipeline_name):
         """
