@@ -665,8 +665,11 @@ def check(prj):
 
 
 def main():
+
 	# Parse command-line arguments and establish logger.
 	args, remaining_args = parse_arguments()
+
+	setup_looper_logger(args.logging_level or logging.INFO)
 
 	# Initialize project
 	prj = Project(
