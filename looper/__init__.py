@@ -24,9 +24,6 @@ LOGGING_LOCATIONS = (stderr, )
 DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelname)s] > %(message)s"
 
 
-LOOPER_LOGGER = None
-
-
 def setup_looper_logger(level, additional_locations=None,
                         fmt=None, datefmt=None):
     """
@@ -38,11 +35,11 @@ def setup_looper_logger(level, additional_locations=None,
         destination(s) to which to ship logs
     :param str fmt: message format string for log message, optional
     :param str datefmt: datetime format string for log message time, optional
+    :return logging.Logger: project-root logger
     """
 
     # Establish the logger.
-    global LOOPER_LOGGER
-    LOOPER_LOGGER = logging.getLogger(__name__.split(".")[0])
+    LOOPER_LOGGER = logging.getLogger("looper")
     LOOPER_LOGGER.handlers = []
 
     # Handle int- or text-specific logging level.
@@ -95,3 +92,5 @@ def setup_looper_logger(level, additional_locations=None,
         handler.setLevel(level)
         handler.setFormatter(formatter)
         LOOPER_LOGGER.addHandler(handler)
+
+    return LOOPER_LOGGER
