@@ -1,6 +1,6 @@
 testpipeline.sh:
   name: test_pipeline  # Name used by pypiper so looper can find the logs
-  looper_args: True
+  looper_args: False
   arguments:
     "--input": file
   optional_arguments:

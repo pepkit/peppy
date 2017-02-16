@@ -84,9 +84,9 @@ class LooperTest(unittest.TestCase):
 
 		self.assertTrue(s3.confirm_required_inputs())
 
-
-
-
+		# test uses_looper_args
+		self.assertTrue(pi.uses_looper_args("testngs.sh"))
+		self.assertFalse(pi.uses_looper_args("testpipeline.sh"))
 
 
 
