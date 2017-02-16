@@ -55,7 +55,6 @@ import os as _os
 from pkg_resources import resource_filename
 
 import pandas as _pd
-from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
@@ -646,10 +645,6 @@ class SampleSheet(object):
             self.df = _pd.read_csv(self.csv, dtype=dtype)
         except IOError("Given csv file couldn't be read.") as e:
             raise e
-        except EmptyDataError:
-            self._logger.error("Attempted to read {} as data type {}".
-                               format(self.csv, str(dtype)))
-            raise
 
         # Check mandatory items are there
         req = ["sample_name"]
