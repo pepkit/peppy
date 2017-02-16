@@ -847,7 +847,7 @@ class Sample(object):
         :param path: A file path to write yaml to.
         :type path: str
         """
-        def obj2dict(obj, to_skip=["samples", "sheet", "sheet_attributes"]):
+        def obj2dict(obj, to_skip=("samples", "sheet", "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
@@ -859,9 +859,9 @@ class Sample(object):
             if type(obj) is list:  # recursive serialization (lists)
                 return [obj2dict(i) for i in obj]
             elif type(obj) is dict:  # recursive serialization (dict)
-                return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip)}
+                return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip and not isinstance(v, logging.Logger))}
             elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip)}
+                return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip and not isinstance(v, logging.Logger))}
             elif hasattr(obj, 'dtype'):  # numpy data types
                 return obj.item()
             elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
