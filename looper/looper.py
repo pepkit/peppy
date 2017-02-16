@@ -226,7 +226,7 @@ def run(prj, args, remaining_args):
 
 			# add pipeline-specific attributes (read type and length, inputs, etc)
 			sample.set_pipeline_attributes(pipeline_interface, pl_id)
-			_LOGGER.info("({.2f} Gb)".format(sample.input_file_size))
+			_LOGGER.info("({:.2f} Gb)".format(sample.input_file_size))
 
 			# Check for any required inputs before submitting
 			try:
