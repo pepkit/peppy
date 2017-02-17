@@ -10,6 +10,7 @@ local level, but this will at least provide a foundation.
 import logging
 import os
 from sys import stderr
+from _version import __version__
 
 
 LOOPERENV_VARNAME = "LOOPERENV"
@@ -18,7 +19,7 @@ DEFAULT_LOOPERENV_FILENAME = "default_looperenv.yaml"
 DEFAULT_LOOPERENV_CONFIG_RELATIVE = os.path.join(SUBMISSION_TEMPLATES_FOLDER,
                                                  DEFAULT_LOOPERENV_FILENAME)
 
-LOGGING_LEVEL = logging.INFO
+LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stderr, )
 DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelname)s] > %(message)s"
 

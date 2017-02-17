@@ -17,7 +17,8 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger
+from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT, __version__
+from utils import VersionInHelpParser
 
 try:
 	from .models import \
@@ -36,22 +37,23 @@ def parse_arguments():
 	Argument Parsing.
 	"""
 
-	description = "%(prog)s - Loops through samples and submits pipelines for them."
-	epilog = "For command line options of each command, type: %(prog)s COMMAND -h"
+	description = "%(prog)s - Loop through samples and submit pipelines for them."
+	epilog = "For subcommand-specific options, type: '%(prog)s <subcommand> -h'"
 	epilog += "\nhttps://github.com/epigen/looper"
 
-	parser = argparse.ArgumentParser(
+	parser = VersionInHelpParser(
 		description=description, epilog=epilog,
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	parser.add_argument("--version", action="version",
-				  version="%(prog)s " + "get version")
+	parser.add_argument("-V", "--version", action="version",
+				  version="%(prog)s {v}".format(v=__version__))
 
 	# Logging control
-	parser.add_argument("--logging-level", default="INFO",
+	parser.add_argument("--logging-level", default=LOGGING_LEVEL,
 				  choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
 				  help="Minimum level of interest w.r.t. log messages")
 	parser.add_argument("--logfile", help="Path to central logfile location")
-	parser.add_argument("--logging-fmt",  help="Logging message template")
+	parser.add_argument("--logging-fmt", default=DEFAULT_LOGGING_FMT,
+						help="Logging message template")
 	parser.add_argument("--logging-datefmt", help="Time formatter for logs")
 
 	subparsers = parser.add_subparsers(dest='command')
