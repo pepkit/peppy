@@ -55,7 +55,6 @@ import os as _os
 from pkg_resources import resource_filename
 
 import pandas as _pd
-from pandas.io.parsers import EmptyDataError
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
@@ -424,7 +423,7 @@ class Project(AttributeDict):
 
             self._logger.debug("%s: %s", str(setting),
                                self.looperenv.compute[setting])
-            self._logger.info("Compute: %s", str(self.looperenv.compute))
+            self._logger.debug("Compute: %s", str(self.looperenv.compute))
 
             if not _os.path.isabs(self.compute.submission_template):
                 # self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
@@ -646,10 +645,6 @@ class SampleSheet(object):
             self.df = _pd.read_csv(self.csv, dtype=dtype)
         except IOError("Given csv file couldn't be read.") as e:
             raise e
-        except EmptyDataError:
-            self._logger.error("Attempted to read {} as data type {}".
-                               format(self.csv, str(dtype)))
-            raise
 
         # Check mandatory items are there
         req = ["sample_name"]
@@ -852,7 +847,7 @@ class Sample(object):
         :param path: A file path to write yaml to.
         :type path: str
         """
-        def obj2dict(obj, to_skip=["samples", "sheet", "sheet_attributes"]):
+        def obj2dict(obj, to_skip=("samples", "sheet", "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
@@ -864,9 +859,9 @@ class Sample(object):
             if type(obj) is list:  # recursive serialization (lists)
                 return [obj2dict(i) for i in obj]
             elif type(obj) is dict:  # recursive serialization (dict)
-                return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip)}
+                return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip and not isinstance(v, logging.Logger))}
             elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip)}
+                return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip and not isinstance(v, logging.Logger))}
             elif hasattr(obj, 'dtype'):  # numpy data types
                 return obj.item()
             elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
@@ -1291,11 +1286,14 @@ class PipelineInterface(object):
 
     def __init__(self, yaml_config_file):
         import yaml
+        self._logger = logging.getLogger(
+            "{}.{}".format(__name__, self.__class__.__name__))
+        self._logger.info("Creating %s from file '%s'",
+                          self.__class__.__name__, yaml_config_file)
         self.looper_config_file = yaml_config_file
         with open(yaml_config_file, 'r') as f:
             self.looper_config = yaml.load(f)
-        self._logger = logging.getLogger(
-            "{}.{}".format(__name__, self.__class__.__name__))
+
 
     def select_pipeline(self, pipeline_name):
         """
@@ -1316,7 +1314,7 @@ class PipelineInterface(object):
     def uses_looper_args(self, pipeline_name):
         config = self.select_pipeline(pipeline_name)
 
-        if hasattr(config, "looper_args") and config.looper_args:
+        if "looper_args" in config and config["looper_args"]:
             return True
         else:
             return False

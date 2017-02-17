@@ -13,8 +13,8 @@ import numpy.random as nprand
 from looper.models import COL_KEY_SUFFIX
 
 from conftest import \
-    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
-    FILE_BY_SAMPLE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
+    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, FILE_BY_SAMPLE, \
+    LOOPER_ARGS_BY_PIPELINE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 
 
@@ -151,7 +151,6 @@ class SampleWrtProjectCtorTests:
                observed_required_input_basename
 
 
-
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=set(range(NUM_SAMPLES)) -
                                        NGS_SAMPLE_INDICES)
@@ -159,3 +158,10 @@ class SampleWrtProjectCtorTests:
             sample = proj.samples[sample_index]
             with pytest.raises(TypeError):
                 sample.set_pipeline_attributes(pipe_iface, "testngs.sh")
+
+
+    @pytest.mark.parametrize(argnames="pipeline,expected",
+                             argvalues=LOOPER_ARGS_BY_PIPELINE.items())
+    def test_looper_args_usage(self, pipe_iface, pipeline, expected):
+        observed = pipe_iface.uses_looper_args(pipeline)
+        assert (expected and observed) or not (observed or expected)

@@ -28,7 +28,7 @@ except:
 		Project, PipelineInterface, ProtocolMapper, LOOPERENV_VARNAME
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = None
 
 
 def parse_arguments():
@@ -113,10 +113,11 @@ def parse_arguments():
 
 	# To enable the loop to pass args directly on to the pipelines...
 	args, remaining_args = parser.parse_known_args()
-	global _LOGGER
-	_LOGGER = setup_looper_logger(
+	setup_looper_logger(
 		args.logging_level, (args.logfile, ),
 		fmt=args.logging_fmt, datefmt=args.logging_datefmt)
+	global _LOGGER
+	_LOGGER = logging.getLogger(__name__)
 
 	if len(remaining_args) > 0:
 		logging.info("Remaining arguments passed to pipelines: {}".
@@ -225,7 +226,7 @@ def run(prj, args, remaining_args):
 
 			# add pipeline-specific attributes (read type and length, inputs, etc)
 			sample.set_pipeline_attributes(pipeline_interface, pl_id)
-			_LOGGER.info("({.2f} Gb)".format(sample.input_file_size))
+			_LOGGER.info("({:.2f} Gb)".format(sample.input_file_size))
 
 			# Check for any required inputs before submitting
 			try:
@@ -665,6 +666,7 @@ def check(prj):
 
 
 def main():
+
 	# Parse command-line arguments and establish logger.
 	args, remaining_args = parse_arguments()
 
