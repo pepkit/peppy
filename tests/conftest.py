@@ -52,7 +52,7 @@ SRC3_TEMPLATE = "data/{sample_name}.txt"
 
 PIPELINE_INTERFACE_CONFIG_LINES = """testpipeline.sh:
   name: test_pipeline  # Name used by pypiper so looper can find the logs
-  looper_args: True
+  looper_args: False
   arguments:
     "--input": file
   optional_arguments:
@@ -86,6 +86,12 @@ testngs.sh:
       time: "2-00:00:00"
       partition: "longq"
 """.splitlines(True)
+
+# Determined by "looper_args" in pipeline interface lines.
+LOOPER_ARGS_BY_PIPELINE = {
+    "testpipeline.sh": False,
+    "testngs.sh": True
+}
 
 # These per-sample file lists pertain to the expected required inputs.
 # These map to required_input_files in the pipeline interface config files.
