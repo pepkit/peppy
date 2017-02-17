@@ -326,3 +326,14 @@ def pipe_iface(request):
         data in file pointed to by `request` class
     """
     return _create(request, PipelineInterface)
+
+
+def pytest_generate_tests(metafunc):
+    """ Centralize dynamic test case parameterization. """
+    if "empty_collection" in metafunc.fixturenames:
+        # Test case strives to validate expected behavior on empty container.
+        collection_types = [tuple, list, set, dict]
+        metafunc.parametrize(
+                "empty_collection",
+                argvalues=[ctype() for ctype in collection_types],
+                ids=[ctype.__name__ for ctype in collection_types])

@@ -131,11 +131,14 @@ class AttributeDict(MutableMapping):
         :param collections.Iterable | collections.Mapping entries: collection
             of pairs of keys and values
         """
-        # Permit mapping-likes and iterables of pairs.
+        # Permit mapping-likes and iterables/generators of pairs.
+        if callable(entries):
+            entries = entries()
         try:
             entries_iter = entries.items()
         except AttributeError:
             entries_iter = entries
+
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
             self[key] = value
@@ -184,12 +187,14 @@ class AttributeDict(MutableMapping):
 
     def __getitem__(self, item):
         try:
+            # Ability to handle returning requested item itself is delegated.
             return getattr(self, item)
         except TypeError:
-            raise KeyError(item)
+            # Perhaps numeric key (overridden __getattr__ not attempted).
+            return self.__dict__[item]
         except AttributeError:
-            if self._attribute_identity:
-                return item
+            # Requested item is unknown, but request was made via
+            # __getitem__ syntax, not attribute-access syntax.
             raise KeyError(item)
 
 
@@ -211,14 +216,12 @@ class AttributeDict(MutableMapping):
         return not self == other
 
     def __iter__(self):
-        # TODO: try to implement as something like "is_reserved".
-        return iter([k for k in self.__dict__.keys()
-                     if k not in
-                     ["_force_nulls", "_attribute_identity", "_logger"]])
+        return iter([k for k in self.__dict__.keys() if k not in
+                     ("_logger", "_force_nulls",
+                      "_attribute_identity", "_meta")])
 
     def __len__(self):
-        return sum(1 for _ in self) - \
-               len(["_force_nulls", "_attribute_identity", "_logger"])
+        return sum(1 for _ in iter(self))
 
     def __str__(self):
         return str(self.__dict__)

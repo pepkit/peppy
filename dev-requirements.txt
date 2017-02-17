@@ -1,3 +1,1 @@
-pandas
-pyyaml
-pytest==3.0.6
+pytest>=3.0.6

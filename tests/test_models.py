@@ -35,8 +35,85 @@ class PathsTests:
         _assert_entirely_equal(getattr(paths, "example_attr"), attr)
 
 
-class AttributeDictTests:
-    """ Tests for the AttributeDict ADT """
+class AttributeConstructionDictTests:
+    """Tests for the AttributeDict ADT.
+
+    Note that the implementation of the equality comparison operator
+    is tested indirectly via the mechanism of many of the assertion
+    statements used throughout these test cases.
+
+    """
+
+    # Refer to tail of class definition for
+    # data and fixtures specific to this class.
+
+    def test_null_construction(self):
+        """ Null entries value creates empty AttributeDict. """
+        assert {} == AttributeDict(None)
+
+
+    def test_empty_construction(self, empty_collection):
+        """ Empty entries container create empty AttributeDict. """
+        assert {} == AttributeDict(empty_collection)
+
+
+    @pytest.mark.parametrize(
+            argnames="entries_type",
+            argvalues=["gen", "dict", "zip", "list", "items"])
+    def test_construction_modes_supported(self, _base_mapping, entries_type):
+        """ Construction just requires key-value pairs. """
+        if entries_type == "zip":
+            entries = zip(self._BASE_KEYS, self._BASE_VALUES)
+        else:
+            entries = self._entries_stream
+            if entries_type in ["dict", "items"]:
+                entries = dict(entries())
+                if entries_type == "items":
+                    entries = entries.items()
+            elif entries_type == "list":
+                list(entries())
+            elif entries_type == "gen":
+                pass
+            else:
+                raise ValueError("Unexpected entries type: {}".
+                                 format(entries_type))
+        expected = _base_mapping
+        observed = AttributeDict(entries)
+        assert expected == observed
+
+
+    # TODO: ensure that we cover tests cases for both merged and non-merged.
+
+    @pytest.mark.parametrize(argnames="comp_func",
+                             argvalues=["keys", "values", "items"])
+    def test_raw_dict_values(self, comp_func):
+        """ AttributeDict can store mappings as values, no problem. """
+        attrdict = AttributeDict(self._LOCATIONS_FLATMAP)
+        raw_dict_getter = getattr(self._LOCATIONS_FLATMAP, comp_func)
+        attrdict_getter = getattr(attrdict, comp_func)
+        expected = raw_dict_getter.__call__()
+        observed = attrdict_getter.__call__()
+        assert expected == observed
+
+
+    def test_raw_dict_values_nested(self):
+        """ AttributeDict can also store nested mappings as values. """
+        assert self._SEASON_HIERARCHY == AttributeDict(self._SEASON_HIERARCHY)
+
+
+    def test_values_type_jambalaya(self):
+        # TODO -- Noah's ark here; make sure that there are at least two of each value type --> consider nesting also.
+        pass
+
+
+    def test_AttributeDict_values(self):
+        """ An AttributeDict can store other AttributeDict instances. """
+        pass
+
+
+    def test_AttributeDict_values_nested(self):
+        """ An AttributeDict can store nested AttributeDict instances. """
+        pass
 
 
     @pytest.mark.parametrize(argnames="attval",
@@ -58,6 +135,50 @@ class AttributeDictTests:
         _assert_entirely_equal(attrd.attrd["attr"], attval)
         _assert_entirely_equal(getattr(attrd.attrd, "attr"), attval)
         _assert_entirely_equal(attrd["attrd"].attr, attval)
+
+
+    # Provide some basic atomic-type data.
+    _BASE_KEYS = ("epigenomics", "H3K", 2, 7,
+                  "ac", "EWS", "FLI1")
+    _BASE_VALUES = ("topic", "marker", 4, 14,
+                    "acetylation", "RNA binding protein", "FLI1")
+    _LOCATIONS_FLATMAP = {"BIG": 4, 6: "CPHG"}
+    _SEASON_HIERARCHY = {
+            "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
+            "summer": {"June": 30, "July": 31, "August": 31},
+            "fall": {"September": 30, "October": 31, "November": 30},
+            "winter": {"December": 31, "January": 31}
+    }
+
+
+    @pytest.fixture(scope="function")
+    def _base_mapping(self):
+        return dict(zip(self._BASE_KEYS, self._BASE_VALUES))
+
+
+    @pytest.fixture(scope="function")
+    def _entries_stream(self):
+        for k, v in zip(self._BASE_KEYS, self._BASE_VALUES):
+            yield k, v
+
+
+
+class AttributeDictAddEntriesTests:
+    """Validate behavior of post-construction addition of entries.
+
+    Though entries may and often will be provided at instantiation time,
+    AttributeDict is motivated to support inheritance by domain-specific
+    data types for which use cases are likely to be unable to provide
+    all relevant data at construction time. So let's verify that we get the
+    expected behavior when entries are added after initial construction.
+
+    """
+    pass
+
+
+
+class AttributeDictItemAccessTests:
+    """ Tests for access of items (key- or attribute- style). """
 
 
     @pytest.mark.parametrize(argnames="missing", argvalues=["att", ""])
@@ -83,3 +204,7 @@ def _assert_entirely_equal(observed, expected):
         assert np.isnan(observed) and np.isnan(expected)
     except ValueError:
         assert (observed == expected).all()
+
+
+class SerializationTests:
+    """ Ensure that  """

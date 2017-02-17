@@ -1,2 +1,2 @@
-pandas>=0.19
+pandas>=0.19.2
 pyyaml>=3.12
