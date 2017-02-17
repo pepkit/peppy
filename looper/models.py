@@ -1314,7 +1314,7 @@ class PipelineInterface(object):
     def uses_looper_args(self, pipeline_name):
         config = self.select_pipeline(pipeline_name)
 
-        if hasattr(config, "looper_args") and config.looper_args:
+        if "looper_args" in config and config["looper_args"]:
             return True
         else:
             return False
