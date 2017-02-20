@@ -147,6 +147,19 @@ _ATTR_BY_TYPE = {
 }
 
 
+# TODO: split models conftest stuff into its own subdirectory.
+# Provide some basic atomic-type data for models tests.
+_BASE_KEYS = ("epigenomics", "H3K", 2, 7,
+              "ac", "EWS", "FLI1")
+_BASE_VALUES = ("topic", "marker", 4, 14,
+                "acetylation", "RNA binding protein", "FLI1")
+_SEASON_HIERARCHY = {
+    "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
+    "summer": {"June": 30, "July": 31, "August": 31},
+    "fall": {"September": 30, "October": 31, "November": 30},
+    "winter": {"December": 31, "January": 31}
+}
+
 
 def pytest_addoption(parser):
     parser.addoption("--logging-level",
@@ -326,6 +339,28 @@ def pipe_iface(request):
         data in file pointed to by `request` class
     """
     return _create(request, PipelineInterface)
+
+
+
+def basic_entries():
+    for k, v in zip(_BASE_KEYS, _BASE_VALUES):
+        yield k, v
+
+
+def nested_entries():
+    for k, v in _SEASON_HIERARCHY.items():
+        yield k, v
+
+
+
+@pytest.fixture(scope="function", params=[])
+def pa():
+    pass
+
+
+@pytest.fixture(scope="function")
+def mark_xfail(request):
+    pass
 
 
 def pytest_generate_tests(metafunc):

@@ -150,8 +150,14 @@ class AttributeDict(MutableMapping):
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
-        :raises
+        :raises AttributeDict._MetadataOperationException: if the attribute
+            for which access was attempted is a special metadata item
+        :raises AttributeError: if the requested item has not been set and
+            this `AttributeDict` instance is not configured to return the
+            requested key/item itself when it's missing
         """
+        if item in ("_logger", "_force_nulls", "_attribute_identity"):
+            raise self._MetadataOperationException(item)
         try:
             return self.__dict__[item]
         except KeyError:
@@ -159,6 +165,7 @@ class AttributeDict(MutableMapping):
                 return item
             self._logger.log(0, "Data: %s", str(self))
             raise AttributeError(item)
+
 
     def __setitem__(self, key, value):
         """
@@ -190,6 +197,7 @@ class AttributeDict(MutableMapping):
             self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
                                format(k=key, v=value, nulls=self._force_nulls))
 
+
     def __getitem__(self, item):
         try:
             # Ability to handle returning requested item itself is delegated.
@@ -203,6 +211,8 @@ class AttributeDict(MutableMapping):
             raise KeyError(item)
 
     def __delitem__(self, item):
+        if item in ("_logger", "_force_nulls", "_attribute_identity"):
+            raise self._MetadataOperationException(item)
         try:
             del self.__dict__[item]
         except KeyError:
@@ -220,8 +230,7 @@ class AttributeDict(MutableMapping):
 
     def __iter__(self):
         return iter([k for k in self.__dict__.keys() if k not in
-                     ("_logger", "_force_nulls",
-                      "_attribute_identity", "_meta")])
+                     ("_logger", "_force_nulls", "_attribute_identity")])
 
     def __len__(self):
         return sum(1 for _ in iter(self))
@@ -232,6 +241,14 @@ class AttributeDict(MutableMapping):
     def __repr__(self):
         return repr(self.__dict__)
 
+
+    class _MetadataOperationException(Exception):
+        """ Illegal/unsupported operation, motivated by `AttributeDict`. """
+        def __init__(self, meta_item):
+            explanation = "Attempted unsupported operation on {} item '{}'".\
+                    format(AttributeDict.__name__, meta_item)
+            super(AttributeDict._MetadataOperationException,
+                  self).__init__(explanation)
 
 
 @copy

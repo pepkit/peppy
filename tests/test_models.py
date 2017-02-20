@@ -3,39 +3,16 @@
 import itertools
 import numpy as np
 import pytest
+from conftest import basic_entries, nested_entries
 from looper.models import AttributeDict, Paths, copy
 
 
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
                 "", "str", -1, 0, 1.0, np.nan]
 
-
-# Provide some basic atomic-type data.
-_BASE_KEYS = ("epigenomics", "H3K", 2, 7,
-              "ac", "EWS", "FLI1")
-_BASE_VALUES = ("topic", "marker", 4, 14,
-                "acetylation", "RNA binding protein", "FLI1")
-_LOCATIONS_FLATMAP = {"BIG": 4, 6: "CPHG"}
-_SEASON_HIERARCHY = {
-    "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
-    "summer": {"June": 30, "July": 31, "August": 31},
-    "fall": {"September": 30, "October": 31, "November": 30},
-    "winter": {"December": 31, "January": 31}
-}
-
-
 _ENTRIES_PROVISION_MODES = ["gen", "dict", "zip", "list", "items"]
 _COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
                          "keys", "values", "items"]
-
-def basic_entries():
-    for k, v in zip(_BASE_KEYS, _BASE_VALUES):
-        yield k, v
-
-
-def nested_entries():
-    for k, v in _SEASON_HIERARCHY.items():
-        yield k, v
 
 
 class ExampleObject:
@@ -121,17 +98,10 @@ class AttributeConstructionDictTests:
 
 
     @pytest.mark.parametrize(
-            argnames="entries,comp_func",
-            argvalues=itertools.product(
-                    [basic_entries, nested_entries], _COMPARISON_FUNCTIONS),
-            ids=["{entry_type}-{comp_func}".format(entry_type=gen.__name__,
-                                                   comp_func=comp_func)
-                 for gen, comp_func in itertools.product(
-                     [basic_entries, nested_entries], _COMPARISON_FUNCTIONS)]
-    )
+            argnames="comp_func", argvalues=_COMPARISON_FUNCTIONS)
     def test_abstract_mapping_method_implementations(self, entries, comp_func):
         """ AttributeDict can store mappings as values, no problem. """
-        data = dict(entries())
+        data = dict(basic_entries())
         attrdict = AttributeDict(data)
         if comp_func in ["__eq__", "__ne__"]:
             are_equal = getattr(attrdict, comp_func).__call__(data)
@@ -141,7 +111,7 @@ class AttributeConstructionDictTests:
             attrdict_comp_func = getattr(attrdict, comp_func)
             expected = raw_dict_comp_func.__call__()
             observed = attrdict_comp_func.__call__()
-            assert expected == observed
+            assert observed == expected
 
 
     # TODO: ensure that we cover tests cases for both merged and non-merged.
