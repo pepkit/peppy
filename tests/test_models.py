@@ -96,15 +96,21 @@ class AttributeConstructionDictTests:
     # TODO: ensure that we cover tests cases for both merged and non-merged.
 
     @pytest.mark.parametrize(argnames="comp_func",
-                             argvalues=["keys", "values", "items"])
+                             argvalues=["__eq__", "__ne__", "__len__",
+                                        "keys", "values", "items"])
     def test_raw_dict_values(self, comp_func):
         """ AttributeDict can store mappings as values, no problem. """
         attrdict = AttributeDict(self._LOCATIONS_FLATMAP)
-        raw_dict_getter = getattr(self._LOCATIONS_FLATMAP, comp_func)
-        attrdict_getter = getattr(attrdict, comp_func)
-        expected = raw_dict_getter.__call__()
-        observed = attrdict_getter.__call__()
-        assert expected == observed
+        if comp_func in ["__eq__", "__ne__"]:
+            are_equal = getattr(attrdict, comp_func). \
+                    __call__(self._LOCATIONS_FLATMAP)
+            assert are_equal if comp_func == "__eq__" else (not are_equal)
+        else:
+            raw_dict_comp_func = getattr(self._LOCATIONS_FLATMAP, comp_func)
+            attrdict_comp_func = getattr(attrdict, comp_func)
+            expected = raw_dict_comp_func.__call__()
+            observed = attrdict_comp_func.__call__()
+            assert expected == observed
 
 
     def test_raw_dict_values_nested(self):
@@ -114,6 +120,10 @@ class AttributeConstructionDictTests:
 
     def test_numeric_key(self):
         """ AttributeDict enables dot-notation access to numeric key/attr. """
+        pass
+
+
+    def test_numeric_key_matching(self):
         pass
 
 
