@@ -40,7 +40,18 @@ class AttributeConstructionDictTests:
 
     Note that the implementation of the equality comparison operator
     is tested indirectly via the mechanism of many of the assertion
-    statements used throughout these test cases.
+    statements used throughout these test cases. Some test cases are
+    parameterized by comparison function to test for equivalence, rather
+    than via input data as is typically the case. This avoids some overhead,
+    This is both to ensure that the implemented `collections.MutableMapping`
+    or `collections.abc.MutableMapping` methods are valid, and to more
+    explicitly separate the data input type cases (entirely distinct test
+    methods rather than parameterization of the same test). Another valid
+    strategy implementation of these tests would be to take the product of
+    the set of comparison methods and the set of all input data cases to
+    test, but that would give way to somewhat of an unwieldy parameterization
+    scheme, and it would sacrifice some of the readability that we get by
+    separating distinct input data test cases into separate test methods.
 
     """
 
@@ -61,7 +72,7 @@ class AttributeConstructionDictTests:
             argnames="entries_type",
             argvalues=["gen", "dict", "zip", "list", "items"])
     def test_construction_modes_supported(self, _base_mapping, entries_type):
-        """ Construction just requires key-value pairs. """
+        """ Construction wants key-value pairs; wrapping doesn't matter. """
         if entries_type == "zip":
             entries = zip(self._BASE_KEYS, self._BASE_VALUES)
         else:
@@ -101,7 +112,13 @@ class AttributeConstructionDictTests:
         assert self._SEASON_HIERARCHY == AttributeDict(self._SEASON_HIERARCHY)
 
 
+    def test_numeric_key(self):
+        """ AttributeDict enables dot-notation access to numeric key/attr. """
+        pass
+
+
     def test_values_type_jambalaya(self):
+        """ AttributeDict can store values of varies types. """
         # TODO -- Noah's ark here; make sure that there are at least two of each value type --> consider nesting also.
         pass
 
@@ -124,6 +141,12 @@ class AttributeConstructionDictTests:
         attrd = AttributeDict({"attr": attval})
         _assert_entirely_equal(attrd["attr"], attval)
         _assert_entirely_equal(getattr(attrd, "attr"), attval)
+
+
+    def test_delayed_item_insertion(self):
+        # TODO: unmatched key, matched key, atomic, mapping, nested mapping,
+        # TODO(continued): AttributeDict, non AttributeDict mapping value.
+        pass
 
 
     @pytest.mark.parametrize(argnames="attval",
