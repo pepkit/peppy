@@ -1,5 +1,6 @@
 """ Tests for data type and function definitions in the `models` module. """
 
+import itertools
 import numpy as np
 import pytest
 from looper.models import AttributeDict, Paths, copy
@@ -8,6 +9,32 @@ from looper.models import AttributeDict, Paths, copy
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
                 "", "str", -1, 0, 1.0, np.nan]
 
+
+# Provide some basic atomic-type data.
+_BASE_KEYS = ("epigenomics", "H3K", 2, 7,
+              "ac", "EWS", "FLI1")
+_BASE_VALUES = ("topic", "marker", 4, 14,
+                "acetylation", "RNA binding protein", "FLI1")
+_LOCATIONS_FLATMAP = {"BIG": 4, 6: "CPHG"}
+_SEASON_HIERARCHY = {
+    "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
+    "summer": {"June": 30, "July": 31, "August": 31},
+    "fall": {"September": 30, "October": 31, "November": 30},
+    "winter": {"December": 31, "January": 31}
+}
+
+
+_ENTRIES_PROVISION_MODES = ["gen", "dict", "zip", "list", "items"]
+
+
+def basic_entries():
+    for k, v in zip(_BASE_KEYS, _BASE_VALUES):
+        yield k, v
+
+
+def nested_entries():
+    for k, v in _SEASON_HIERARCHY.items():
+        yield k, v
 
 
 class ExampleObject:
@@ -43,16 +70,8 @@ class AttributeConstructionDictTests:
     statements used throughout these test cases. Some test cases are
     parameterized by comparison function to test for equivalence, rather
     than via input data as is typically the case. This avoids some overhead,
-    This is both to ensure that the implemented `collections.MutableMapping`
-    or `collections.abc.MutableMapping` methods are valid, and to more
-    explicitly separate the data input type cases (entirely distinct test
-    methods rather than parameterization of the same test). Another valid
-    strategy implementation of these tests would be to take the product of
-    the set of comparison methods and the set of all input data cases to
-    test, but that would give way to somewhat of an unwieldy parameterization
-    scheme, and it would sacrifice some of the readability that we get by
-    separating distinct input data test cases into separate test methods.
-
+    This is to ensure that the implemented `collections.MutableMapping`
+    or `collections.abc.MutableMapping` methods are valid.
     """
 
     # Refer to tail of class definition for
@@ -69,63 +88,55 @@ class AttributeConstructionDictTests:
 
 
     @pytest.mark.parametrize(
-            argnames="entries_type",
-            argvalues=["gen", "dict", "zip", "list", "items"])
-    def test_construction_modes_supported(self, _base_mapping, entries_type):
+            argnames="entries_gen,entries_provision_type",
+            argvalues=itertools.product([basic_entries, nested_entries],
+                                        _ENTRIES_PROVISION_MODES),
+            ids=["{entries}-{mode}".format(entries=gen.__name__, mode=mode)
+                 for gen, mode in
+                 itertools.product([basic_entries, nested_entries],
+                                    _ENTRIES_PROVISION_MODES)])
+    def test_construction_modes_supported(
+            self, entries_gen, entries_provision_type):
         """ Construction wants key-value pairs; wrapping doesn't matter. """
-        if entries_type == "zip":
-            entries = zip(self._BASE_KEYS, self._BASE_VALUES)
+        entries_mapping = dict(entries_gen())
+        if entries_provision_type == "dict":
+            entries = entries_mapping
+        elif entries_provision_type == "zip":
+            keys, values = zip(*entries_gen())
+            entries = zip(keys, values)
+        elif entries_provision_type == "items":
+            entries = entries_mapping.items()
+        elif entries_provision_type == "list":
+            entries = list(entries_gen())
+        elif entries_provision_type == "gen":
+            entries = entries_gen
         else:
-            entries = self._entries_stream
-            if entries_type in ["dict", "items"]:
-                entries = dict(entries())
-                if entries_type == "items":
-                    entries = entries.items()
-            elif entries_type == "list":
-                list(entries())
-            elif entries_type == "gen":
-                pass
-            else:
-                raise ValueError("Unexpected entries type: {}".
-                                 format(entries_type))
-        expected = _base_mapping
+            raise ValueError("Unexpected entries type: {}".
+                             format(entries_provision_type))
+        expected = entries_mapping
         observed = AttributeDict(entries)
         assert expected == observed
 
-
-    # TODO: ensure that we cover tests cases for both merged and non-merged.
 
     @pytest.mark.parametrize(argnames="comp_func",
                              argvalues=["__eq__", "__ne__", "__len__",
                                         "keys", "values", "items"])
     def test_raw_dict_values(self, comp_func):
         """ AttributeDict can store mappings as values, no problem. """
-        attrdict = AttributeDict(self._LOCATIONS_FLATMAP)
+        attrdict = AttributeDict(_LOCATIONS_FLATMAP)
         if comp_func in ["__eq__", "__ne__"]:
             are_equal = getattr(attrdict, comp_func). \
-                    __call__(self._LOCATIONS_FLATMAP)
+                    __call__(_LOCATIONS_FLATMAP)
             assert are_equal if comp_func == "__eq__" else (not are_equal)
         else:
-            raw_dict_comp_func = getattr(self._LOCATIONS_FLATMAP, comp_func)
+            raw_dict_comp_func = getattr(_LOCATIONS_FLATMAP, comp_func)
             attrdict_comp_func = getattr(attrdict, comp_func)
             expected = raw_dict_comp_func.__call__()
             observed = attrdict_comp_func.__call__()
             assert expected == observed
 
 
-    def test_raw_dict_values_nested(self):
-        """ AttributeDict can also store nested mappings as values. """
-        assert self._SEASON_HIERARCHY == AttributeDict(self._SEASON_HIERARCHY)
-
-
-    def test_numeric_key(self):
-        """ AttributeDict enables dot-notation access to numeric key/attr. """
-        pass
-
-
-    def test_numeric_key_matching(self):
-        pass
-
+    # TODO: ensure that we cover tests cases for both merged and non-merged.
 
     def test_values_type_jambalaya(self):
         """ AttributeDict can store values of varies types. """
@@ -142,6 +153,10 @@ class AttributeConstructionDictTests:
         """ An AttributeDict can store nested AttributeDict instances. """
         pass
 
+    def test_raw_dict_values_nested(self):
+        """ AttributeDict can also store nested mappings as values. """
+        assert _SEASON_HIERARCHY == AttributeDict(_SEASON_HIERARCHY)
+
 
     @pytest.mark.parametrize(argnames="attval",
                              argvalues=_ATTR_VALUES + [np.random.random(20)])
@@ -151,12 +166,6 @@ class AttributeConstructionDictTests:
         attrd = AttributeDict({"attr": attval})
         _assert_entirely_equal(attrd["attr"], attval)
         _assert_entirely_equal(getattr(attrd, "attr"), attval)
-
-
-    def test_delayed_item_insertion(self):
-        # TODO: unmatched key, matched key, atomic, mapping, nested mapping,
-        # TODO(continued): AttributeDict, non AttributeDict mapping value.
-        pass
 
 
     @pytest.mark.parametrize(argnames="attval",
@@ -170,33 +179,13 @@ class AttributeConstructionDictTests:
         _assert_entirely_equal(attrd["attrd"].attr, attval)
 
 
-    # Provide some basic atomic-type data.
-    _BASE_KEYS = ("epigenomics", "H3K", 2, 7,
-                  "ac", "EWS", "FLI1")
-    _BASE_VALUES = ("topic", "marker", 4, 14,
-                    "acetylation", "RNA binding protein", "FLI1")
-    _LOCATIONS_FLATMAP = {"BIG": 4, 6: "CPHG"}
-    _SEASON_HIERARCHY = {
-            "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
-            "summer": {"June": 30, "July": 31, "August": 31},
-            "fall": {"September": 30, "October": 31, "November": 30},
-            "winter": {"December": 31, "January": 31}
-    }
-
-
-    @pytest.fixture(scope="function")
-    def _base_mapping(self):
-        return dict(zip(self._BASE_KEYS, self._BASE_VALUES))
-
-
-    @pytest.fixture(scope="function")
-    def _entries_stream(self):
-        for k, v in zip(self._BASE_KEYS, self._BASE_VALUES):
-            yield k, v
+    def _assert_raw_dict_attrdict_specific_method_expectation(
+            self, raw_dict, attrdict, method_name):
+        pass
 
 
 
-class AttributeDictAddEntriesTests:
+class AttributeDictUpdateTests:
     """Validate behavior of post-construction addition of entries.
 
     Though entries may and often will be provided at instantiation time,
@@ -207,6 +196,16 @@ class AttributeDictAddEntriesTests:
 
     """
     pass
+
+
+    def test_setattr_allowed(self):
+        pass
+
+
+    def test_delayed_item_insertion(self):
+        # TODO: unmatched key, matched key, atomic, mapping, nested mapping,
+        # TODO(continued): AttributeDict, non AttributeDict mapping value.
+        pass
 
 
 
@@ -229,6 +228,21 @@ class AttributeDictItemAccessTests:
             attrd[missing]
 
 
+    def test_numeric_key(self):
+        """ AttributeDict preserves the property that attribute request must be string. """
+        ad = AttributeDict({1: 'a'})
+        assert 'a' == ad[1]
+        with pytest.raises(TypeError):
+            getattr(ad, 1)
+
+
+
+class AttributeDictSerializationTests:
+    """ Ensure that we can make a file roundtrip for `AttributeDict` """
+    pass
+
+
+
 def _assert_entirely_equal(observed, expected):
     """ Accommodate equality assertion for varied data, including NaN. """
     try:
@@ -239,5 +253,3 @@ def _assert_entirely_equal(observed, expected):
         assert (observed == expected).all()
 
 
-class SerializationTests:
-    """ Ensure that  """

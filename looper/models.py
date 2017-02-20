@@ -138,13 +138,20 @@ class AttributeDict(MutableMapping):
             entries_iter = entries.items()
         except AttributeError:
             entries_iter = entries
-
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
             self[key] = value
 
 
     def __getattr__(self, item):
+        """
+        Fetch the value associated with the provided identifier. Unlike an
+        ordinary object, `AttributeDict` supports fetching
+
+        :param int | str item: identifier for value to fetch
+        :return object: whatever value corresponds to the requested key/item
+        :raises
+        """
         try:
             return self.__dict__[item]
         except KeyError:
@@ -152,7 +159,6 @@ class AttributeDict(MutableMapping):
                 return item
             self._logger.log(0, "Data: %s", str(self))
             raise AttributeError(item)
-
 
     def __setitem__(self, key, value):
         """
@@ -184,7 +190,6 @@ class AttributeDict(MutableMapping):
             self._logger.debug("Not setting {k} to {v}; force_nulls: {nulls}".
                                format(k=key, v=value, nulls=self._force_nulls))
 
-
     def __getitem__(self, item):
         try:
             # Ability to handle returning requested item itself is delegated.
@@ -197,13 +202,11 @@ class AttributeDict(MutableMapping):
             # __getitem__ syntax, not attribute-access syntax.
             raise KeyError(item)
 
-
     def __delitem__(self, item):
         try:
             del self.__dict__[item]
         except KeyError:
             self._logger.debug("No item {} to delete".format(item))
-
 
     def __eq__(self, other):
         for k in iter(self):
