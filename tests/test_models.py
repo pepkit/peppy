@@ -25,7 +25,8 @@ _SEASON_HIERARCHY = {
 
 
 _ENTRIES_PROVISION_MODES = ["gen", "dict", "zip", "list", "items"]
-
+_COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
+                         "keys", "values", "items"]
 
 def basic_entries():
     for k, v in zip(_BASE_KEYS, _BASE_VALUES):
@@ -94,7 +95,8 @@ class AttributeConstructionDictTests:
             ids=["{entries}-{mode}".format(entries=gen.__name__, mode=mode)
                  for gen, mode in
                  itertools.product([basic_entries, nested_entries],
-                                    _ENTRIES_PROVISION_MODES)])
+                                    _ENTRIES_PROVISION_MODES)]
+    )
     def test_construction_modes_supported(
             self, entries_gen, entries_provision_type):
         """ Construction wants key-value pairs; wrapping doesn't matter. """
@@ -118,18 +120,24 @@ class AttributeConstructionDictTests:
         assert expected == observed
 
 
-    @pytest.mark.parametrize(argnames="comp_func",
-                             argvalues=["__eq__", "__ne__", "__len__",
-                                        "keys", "values", "items"])
-    def test_raw_dict_values(self, comp_func):
+    @pytest.mark.parametrize(
+            argnames="entries,comp_func",
+            argvalues=itertools.product(
+                    [basic_entries, nested_entries], _COMPARISON_FUNCTIONS),
+            ids=["{entry_type}-{comp_func}".format(entry_type=gen.__name__,
+                                                   comp_func=comp_func)
+                 for gen, comp_func in itertools.product(
+                     [basic_entries, nested_entries], _COMPARISON_FUNCTIONS)]
+    )
+    def test_abstract_mapping_method_implementations(self, entries, comp_func):
         """ AttributeDict can store mappings as values, no problem. """
-        attrdict = AttributeDict(_LOCATIONS_FLATMAP)
+        data = dict(entries())
+        attrdict = AttributeDict(data)
         if comp_func in ["__eq__", "__ne__"]:
-            are_equal = getattr(attrdict, comp_func). \
-                    __call__(_LOCATIONS_FLATMAP)
+            are_equal = getattr(attrdict, comp_func).__call__(data)
             assert are_equal if comp_func == "__eq__" else (not are_equal)
         else:
-            raw_dict_comp_func = getattr(_LOCATIONS_FLATMAP, comp_func)
+            raw_dict_comp_func = getattr(data, comp_func)
             attrdict_comp_func = getattr(attrdict, comp_func)
             expected = raw_dict_comp_func.__call__()
             observed = attrdict_comp_func.__call__()
@@ -137,12 +145,6 @@ class AttributeConstructionDictTests:
 
 
     # TODO: ensure that we cover tests cases for both merged and non-merged.
-
-    def test_values_type_jambalaya(self):
-        """ AttributeDict can store values of varies types. """
-        # TODO -- Noah's ark here; make sure that there are at least two of each value type --> consider nesting also.
-        pass
-
 
     def test_AttributeDict_values(self):
         """ An AttributeDict can store other AttributeDict instances. """
@@ -153,9 +155,12 @@ class AttributeConstructionDictTests:
         """ An AttributeDict can store nested AttributeDict instances. """
         pass
 
-    def test_raw_dict_values_nested(self):
-        """ AttributeDict can also store nested mappings as values. """
-        assert _SEASON_HIERARCHY == AttributeDict(_SEASON_HIERARCHY)
+
+
+    def test_values_type_jambalaya(self):
+        """ AttributeDict can store values of varies types. """
+        # TODO -- Noah's ark here; make sure that there are at least two of each value type --> consider nesting also.
+        pass
 
 
     @pytest.mark.parametrize(argnames="attval",
@@ -177,11 +182,6 @@ class AttributeConstructionDictTests:
         _assert_entirely_equal(attrd.attrd["attr"], attval)
         _assert_entirely_equal(getattr(attrd.attrd, "attr"), attval)
         _assert_entirely_equal(attrd["attrd"].attr, attval)
-
-
-    def _assert_raw_dict_attrdict_specific_method_expectation(
-            self, raw_dict, attrdict, method_name):
-        pass
 
 
 
