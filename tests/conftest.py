@@ -159,6 +159,8 @@ _SEASON_HIERARCHY = {
     "fall": {"September": 30, "October": 31, "November": 30},
     "winter": {"December": 31, "January": 31}
 }
+COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
+                        "keys", "values", "items"]
 
 
 def pytest_addoption(parser):
@@ -351,16 +353,6 @@ def nested_entries():
     for k, v in _SEASON_HIERARCHY.items():
         yield k, v
 
-
-
-@pytest.fixture(scope="function", params=[])
-def pa():
-    pass
-
-
-@pytest.fixture(scope="function")
-def mark_xfail(request):
-    pass
 
 
 def pytest_generate_tests(metafunc):

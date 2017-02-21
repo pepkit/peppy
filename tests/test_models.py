@@ -3,7 +3,7 @@
 import itertools
 import numpy as np
 import pytest
-from conftest import basic_entries, nested_entries
+from conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from looper.models import AttributeDict, Paths, copy
 
 
@@ -11,8 +11,7 @@ _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
                 "", "str", -1, 0, 1.0, np.nan]
 
 _ENTRIES_PROVISION_MODES = ["gen", "dict", "zip", "list", "items"]
-_COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
-                         "keys", "values", "items"]
+
 
 
 class ExampleObject:
@@ -98,21 +97,31 @@ class AttributeConstructionDictTests:
 
 
     @pytest.mark.parametrize(
-            argnames="comp_func", argvalues=_COMPARISON_FUNCTIONS)
-    def test_abstract_mapping_method_implementations(self, entries, comp_func):
+            argnames="entries,comp_func",
+            argvalues=itertools.product([basic_entries, nested_entries],
+                                        COMPARISON_FUNCTIONS),
+            ids=["{}-{}".format(gen.__name__, name_comp_func)
+                 for gen, name_comp_func in itertools.product(
+                     [basic_entries, nested_entries], COMPARISON_FUNCTIONS)]
+    )
+    def test_abstract_mapping_method_implementations_basic(
+            self, comp_func, entries):
         """ AttributeDict can store mappings as values, no problem. """
-        data = dict(basic_entries())
-        attrdict = AttributeDict(data)
-        if comp_func in ["__eq__", "__ne__"]:
-            are_equal = getattr(attrdict, comp_func).__call__(data)
-            assert are_equal if comp_func == "__eq__" else (not are_equal)
-        else:
-            raw_dict_comp_func = getattr(data, comp_func)
-            attrdict_comp_func = getattr(attrdict, comp_func)
-            expected = raw_dict_comp_func.__call__()
-            observed = attrdict_comp_func.__call__()
-            assert observed == expected
+        if entries.__name__ == nested_entries.__name__ and comp_func in ("values", "items"):
+            pytest.xfail("Nested AD values involve behavioral metadata")
+        self._validate_mapping_function_implementation(
+            entries_gen=entries, name_comp_func=comp_func)
 
+    """
+    @pytest.mark.xfail(reason="Nested AD values involve behavioral metadata",
+                       strict=False)
+    @pytest.mark.parametrize(
+        argnames="comp_func", argvalues=COMPARISON_FUNCTIONS)
+    def test_abstract_mapping_method_implementations_nested(self, comp_func):
+        # AttributeDict can store mappings as values, no problem.
+        self._validate_mapping_function_implementation(
+            entries_gen=nested_entries, name_comp_func=comp_func)
+    """
 
     # TODO: ensure that we cover tests cases for both merged and non-merged.
 
@@ -153,6 +162,27 @@ class AttributeConstructionDictTests:
         _assert_entirely_equal(getattr(attrd.attrd, "attr"), attval)
         _assert_entirely_equal(attrd["attrd"].attr, attval)
 
+
+    @staticmethod
+    def _validate_mapping_function_implementation(entries_gen, name_comp_func):
+        data = dict(entries_gen())
+        attrdict = AttributeDict(data)
+        if __name__ == '__main__':
+            if name_comp_func in ["__eq__", "__ne__"]:
+                are_equal = getattr(attrdict, name_comp_func).__call__(data)
+                assert are_equal if name_comp_func == "__eq__" \
+                        else (not are_equal)
+            else:
+                raw_dict_comp_func = getattr(data, name_comp_func)
+                attrdict_comp_func = getattr(attrdict, name_comp_func)
+                expected = raw_dict_comp_func.__call__()
+                observed = attrdict_comp_func.__call__()
+                try:
+                    # Most comparison methods are returning iterables.
+                    assert set(expected) == set(observed)
+                except TypeError:
+                    # Could be int or other non-iterable that we're comparing.
+                    assert expected == observed
 
 
 class AttributeDictUpdateTests:
