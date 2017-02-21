@@ -152,20 +152,21 @@ class AttributeDict(MutableMapping):
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
-        :raises AttributeDict.MetadataOperationException: if the attribute
+        :raises MetadataOperationException: if the attribute
             for which access was attempted is a special metadata item
         :raises AttributeError: if the requested item has not been set and
             this `AttributeDict` instance is not configured to return the
             requested key/item itself when it's missing
         """
         if item in ATTRDICT_METADATA:
-            raise self.MetadataOperationException(item)
+            raise MetadataOperationException(self, item)
         try:
             return self.__dict__[item]
         except KeyError:
             if self.__dict__["_attribute_identity"]:
                 return item
-            self._log_(0, "Data: {}".format(self))
+            # Directly access instance dict here to avoid recursion.
+            self.__dict__["_logger"].log(0, "Data: {}".format(self))
             raise AttributeError(item)
 
 
@@ -181,6 +182,8 @@ class AttributeDict(MutableMapping):
         :param str key: name of the key/attribute for which to establish value
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
+        :raises AttributeDict.MetadataOperationException: if attempt is made
+            to set value for privileged metadata key
         """
         self._log_(0, "Executing __setitem__ for '{}', '{}'".
                    format(key, str(value)))
@@ -205,10 +208,7 @@ class AttributeDict(MutableMapping):
     def __getitem__(self, item):
         try:
             # Ability to handle returning requested item itself is delegated.
-            return getattr(self, item)
-        except TypeError:
-            # Perhaps numeric key (overridden __getattr__ not attempted).
-            return self.__dict__[item]
+            return self.__getattr__(item)
         except AttributeError:
             # Requested item is unknown, but request was made via
             # __getitem__ syntax, not attribute-access syntax.
@@ -216,7 +216,7 @@ class AttributeDict(MutableMapping):
 
     def __delitem__(self, item):
         if item in ATTRDICT_METADATA:
-            raise self.MetadataOperationException(item)
+            raise MetadataOperationException(self, item)
         try:
             del self.__dict__[item]
         except KeyError:
@@ -245,18 +245,9 @@ class AttributeDict(MutableMapping):
     def __repr__(self):
         return repr(self.__dict__)
 
-
     def _log_(self, level, message):
         self.__dict__["_logger"].log(level, message)
 
-
-    class MetadataOperationException(Exception):
-        """ Illegal/unsupported operation, motivated by `AttributeDict`. """
-        def __init__(self, meta_item):
-            explanation = "Attempted unsupported operation on {} item '{}'".\
-                    format(AttributeDict.__name__, meta_item)
-            super(AttributeDict.MetadataOperationException, self).\
-                    __init__(explanation)
 
 
 @copy

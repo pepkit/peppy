@@ -4,6 +4,7 @@ import itertools
 import numpy as np
 import pytest
 from conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
+from looper.exceptions import MetadataOperationException
 from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
 
 
@@ -175,8 +176,8 @@ class AttributeDictUpdateTests:
         "abc", 123,
         (4, "text", ("nes", "ted")), list("-101")
     ]
-    _GETTERS = ["__getattr__", "__setattr__"]
-    _SETTERS = ["__getitem__", "__setitem__"]
+    _GETTERS = ["__getattr__", "__getitem__"]
+    _SETTERS = ["__setattr__", "__setitem__"]
 
 
     @pytest.mark.parametrize(
@@ -210,8 +211,8 @@ class AttributeDictUpdateTests:
 
         # Validate set/get for each value.
         for value in item_values:
-            setter.__call__(item_name, value)
-            assert getter.__call__(item_name) == value
+            setter(item_name, value)
+            assert getter(item_name) == value
 
 
     @pytest.mark.parametrize(
@@ -231,8 +232,12 @@ class AttributeDictUpdateTests:
         touch = getattr(ad, funcname)
         args = (name_metadata_item, )
         if funcname in ["__setattr__", "__setitem__"]:
+            pytest.xfail(
+                    "Since {} is recursive, it's difficult to prohibit "
+                    "post-construction attempts to set metadata. It may "
+                    "not even be desirable".format(AttributeDict.__name__))
             args += (dummy_setattr_value, )
-        with pytest.raises(AttributeDict.MetadataOperationException):
+        with pytest.raises(MetadataOperationException):
             touch.__call__(*args)
 
 

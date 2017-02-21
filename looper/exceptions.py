@@ -1,9 +1,32 @@
 """ Exceptions for specific looper issues. """
 
 
-# Simplify imports, especially for models.
-__all__ = ["LooperConstructionException", "ProjectConstructionException",
-           "DefaultLooperenvException", "ComputeEstablishmentException"]
+# Simplify imports by permitting '*', especially for models.
+__all__ = ["ComputeEstablishmentException", "DefaultLooperenvException",
+           "LooperConstructionException", "MetadataOperationException",
+           "ProjectConstructionException"]
+
+
+class MetadataOperationException(Exception):
+    """ Illegal/unsupported operation, motivated by `AttributeDict`. """
+    def __init__(self, obj, meta_item):
+        """
+        Instance with which the access attempt was made, along with the
+        name of the reserved/privileged metadata item, define the exception.
+
+        :param object obj: instance with which
+            offending operation was attempted
+        :param str meta_item: name of the reserved metadata item
+        """
+        try:
+            classname = obj.__class__.__name__
+        except AttributeError:
+            # Maybe we were given a class or function not an instance?
+            classname = obj.__name__
+        explanation = "Attempted unsupported operation on {} item '{}'". \
+            format(classname, meta_item)
+        super(MetadataOperationException, self). \
+            __init__(explanation)
 
 
 class LooperConstructionException(Exception):
