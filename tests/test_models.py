@@ -183,10 +183,14 @@ class AttributeDictUpdateTests:
                                         ("__getattr__", "__getitem__"),
                                         (False, True)))
     def test_set_get_atomic(self, setter_name, getter_name, is_novel):
+        """ For new and existing items, validate set/get behavior. """
 
+        # Establish the AttributeDict for the test case.
         data = dict(basic_entries())
         ad = AttributeDict(basic_entries())
 
+        # Establish a ground truth and select name/value(s) based on
+        # whether or not the test case wants to test a new or existing item.
         if is_novel:
             item_name = "awesome_novel_attribute"
             assert item_name not in ad
@@ -200,31 +204,27 @@ class AttributeDictUpdateTests:
             assert getattr(ad, item_name) == item_value
             item_values = [item_value]
 
+        # Determine which functions to use to make the set/get calls.
         setter = getattr(ad, setter_name)
         getter = getattr(ad, getter_name)
+
+        # Validate set/get for each value.
         for value in item_values:
             setter.__call__(item_name, value)
             assert getter.__call__(item_name) == value
 
 
-
-
-
-    @pytest.mark.parametrize(
-            argnames="initial",
-            argvalues=[{}, dict(basic_entries())])
-    def test_setattr_novel(self, initial):
-        ad = AttributeDict()
-        pass
-
-    def test_setattr_extant(self):
-        pass
-
     def test_setattr_reserved(self):
         pass
 
+
+    def test_setitem_reserved(self):
+        pass
+
+
     def test_setattr_raw_dict_novel(self):
         pass
+
 
     def test_setattr_raw_dict_extant(self):
         pass
@@ -235,18 +235,6 @@ class AttributeDictUpdateTests:
 
 
     def test_setattr_attrdict_extant(self):
-        pass
-
-
-    def test_setitem_novel(self):
-        ad = AttributeDict()
-
-
-    def test_setitem_extant(self):
-        pass
-
-
-    def test_setitem_reserved(self):
         pass
 
 
@@ -276,6 +264,11 @@ class AttributeDictUpdateTests:
         return AttributeDict(dict(nested_entries()))
 
 
+class AttributeDictSerializationTests:
+    """ Ensure that we can make a file roundtrip for `AttributeDict` """
+    pass
+
+
 
 class AttributeDictItemAccessTests:
     """ Tests for access of items (key- or attribute- style). """
@@ -302,12 +295,6 @@ class AttributeDictItemAccessTests:
         assert 'a' == ad[1]
         with pytest.raises(TypeError):
             getattr(ad, 1)
-
-
-
-class AttributeDictSerializationTests:
-    """ Ensure that we can make a file roundtrip for `AttributeDict` """
-    pass
 
 
 
