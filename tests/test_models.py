@@ -107,39 +107,11 @@ class AttributeConstructionDictTests:
     def test_abstract_mapping_method_implementations_basic(
             self, comp_func, entries):
         """ AttributeDict can store mappings as values, no problem. """
-        if entries.__name__ == nested_entries.__name__ and comp_func in ("values", "items"):
+        if entries.__name__ == nested_entries.__name__ and \
+                        comp_func in ("values", "items"):
             pytest.xfail("Nested AD values involve behavioral metadata")
         self._validate_mapping_function_implementation(
             entries_gen=entries, name_comp_func=comp_func)
-
-    """
-    @pytest.mark.xfail(reason="Nested AD values involve behavioral metadata",
-                       strict=False)
-    @pytest.mark.parametrize(
-        argnames="comp_func", argvalues=COMPARISON_FUNCTIONS)
-    def test_abstract_mapping_method_implementations_nested(self, comp_func):
-        # AttributeDict can store mappings as values, no problem.
-        self._validate_mapping_function_implementation(
-            entries_gen=nested_entries, name_comp_func=comp_func)
-    """
-
-    # TODO: ensure that we cover tests cases for both merged and non-merged.
-
-    def test_AttributeDict_values(self):
-        """ An AttributeDict can store other AttributeDict instances. """
-        pass
-
-
-    def test_AttributeDict_values_nested(self):
-        """ An AttributeDict can store nested AttributeDict instances. """
-        pass
-
-
-
-    def test_values_type_jambalaya(self):
-        """ AttributeDict can store values of varies types. """
-        # TODO -- Noah's ark here; make sure that there are at least two of each value type --> consider nesting also.
-        pass
 
 
     @pytest.mark.parametrize(argnames="attval",
@@ -185,6 +157,7 @@ class AttributeConstructionDictTests:
                     assert expected == observed
 
 
+
 class AttributeDictUpdateTests:
     """Validate behavior of post-construction addition of entries.
 
@@ -195,17 +168,112 @@ class AttributeDictUpdateTests:
     expected behavior when entries are added after initial construction.
 
     """
-    pass
+
+    # TODO: ensure that we cover tests cases for both merged and non-merged.
+
+    _TOTALLY_ARBITRARY_VALUES = [
+        "abc", 123,
+        (4, "text", ("nes", "ted")), list("-101")
+    ]
 
 
-    def test_setattr_allowed(self):
+    @pytest.mark.parametrize(
+            argnames="setter_name,getter_name,is_novel",
+            argvalues=itertools.product(("__setattr__", "__setitem__"),
+                                        ("__getattr__", "__getitem__"),
+                                        (False, True)))
+    def test_set_get_atomic(self, setter_name, getter_name, is_novel):
+
+        data = dict(basic_entries())
+        ad = AttributeDict(basic_entries())
+
+        if is_novel:
+            item_name = "awesome_novel_attribute"
+            assert item_name not in ad
+            with pytest.raises(AttributeError):
+                getattr(ad, item_name)
+            item_values = self._TOTALLY_ARBITRARY_VALUES
+        else:
+            item_name = np.random.choice(a=data.keys(), size=1)[0]
+            item_value = data[item_name]
+            assert ad[item_name] == item_value
+            assert getattr(ad, item_name) == item_value
+            item_values = [item_value]
+
+        setter = getattr(ad, setter_name)
+        getter = getattr(ad, getter_name)
+        for value in item_values:
+            setter.__call__(item_name, value)
+            assert getter.__call__(item_name) == value
+
+
+
+
+
+    @pytest.mark.parametrize(
+            argnames="initial",
+            argvalues=[{}, dict(basic_entries())])
+    def test_setattr_novel(self, initial):
+        ad = AttributeDict()
+        pass
+
+    def test_setattr_extant(self):
+        pass
+
+    def test_setattr_reserved(self):
+        pass
+
+    def test_setattr_raw_dict_novel(self):
+        pass
+
+    def test_setattr_raw_dict_extant(self):
         pass
 
 
-    def test_delayed_item_insertion(self):
-        # TODO: unmatched key, matched key, atomic, mapping, nested mapping,
-        # TODO(continued): AttributeDict, non AttributeDict mapping value.
+    def test_setattr_attrdict_novel(self):
         pass
+
+
+    def test_setattr_attrdict_extant(self):
+        pass
+
+
+    def test_setitem_novel(self):
+        ad = AttributeDict()
+
+
+    def test_setitem_extant(self):
+        pass
+
+
+    def test_setitem_reserved(self):
+        pass
+
+
+    def test_setitem_raw_dict_novel(self):
+        pass
+
+
+    def test_setitem_raw_dict_extant(self):
+        pass
+
+
+    def test_setitem_attrdict_novel(self):
+        pass
+
+
+    def test_setitem_attrdict_extant(self):
+        pass
+
+
+    @pytest.fixture(scope="function")
+    def base_attrdict(self):
+        return AttributeDict(dict(basic_entries()))
+
+
+    @pytest.fixture(scope="function")
+    def nested_attrdict(self):
+        return AttributeDict(dict(nested_entries()))
 
 
 

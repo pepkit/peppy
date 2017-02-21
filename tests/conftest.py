@@ -149,10 +149,9 @@ _ATTR_BY_TYPE = {
 
 # TODO: split models conftest stuff into its own subdirectory.
 # Provide some basic atomic-type data for models tests.
-_BASE_KEYS = ("epigenomics", "H3K", 2, 7,
-              "ac", "EWS", "FLI1")
-_BASE_VALUES = ("topic", "marker", 4, 14,
-                "acetylation", "RNA binding protein", "FLI1")
+_BASE_KEYS = ("epigenomics", "H3K", "ac", "EWS", "FLI1")
+_BASE_VALUES = \
+    ("topic", "marker", "acetylation", "RNA binding protein", "FLI1")
 _SEASON_HIERARCHY = {
     "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
     "summer": {"June": 30, "July": 31, "August": 31},
