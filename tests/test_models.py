@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 import pytest
 from conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
-from looper.models import AttributeDict, Paths, copy
+from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
 
 
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
@@ -175,13 +175,13 @@ class AttributeDictUpdateTests:
         "abc", 123,
         (4, "text", ("nes", "ted")), list("-101")
     ]
+    _GETTERS = ["__getattr__", "__setattr__"]
+    _SETTERS = ["__getitem__", "__setitem__"]
 
 
     @pytest.mark.parametrize(
             argnames="setter_name,getter_name,is_novel",
-            argvalues=itertools.product(("__setattr__", "__setitem__"),
-                                        ("__getattr__", "__getitem__"),
-                                        (False, True)))
+            argvalues=itertools.product(_SETTERS, _GETTERS, (False, True)))
     def test_set_get_atomic(self, setter_name, getter_name, is_novel):
         """ For new and existing items, validate set/get behavior. """
 
@@ -214,8 +214,26 @@ class AttributeDictUpdateTests:
             assert getter.__call__(item_name) == value
 
 
-    def test_setattr_reserved(self):
-        pass
+    @pytest.mark.parametrize(
+            argnames="funcname,name_metadata_item",
+            argvalues=itertools.product(_GETTERS + _SETTERS,
+                                        ATTRDICT_METADATA),
+            ids=["{}, '{}'".format(func.strip("_"), attr)
+                 for func, attr in itertools.product(_GETTERS + _SETTERS,
+                                                     ATTRDICT_METADATA)]
+    )
+    def test_touch_privileged_metadata_item(self, funcname,
+                                            name_metadata_item):
+        """ AttributeDict has a few metadata members that may not be set. """
+        ad = AttributeDict(dict(basic_entries()))
+        assert hasattr(ad, name_metadata_item)
+        dummy_setattr_value = "this_will_fail"
+        touch = getattr(ad, funcname)
+        args = (name_metadata_item, )
+        if funcname in ["__setattr__", "__setitem__"]:
+            args += (dummy_setattr_value, )
+        with pytest.raises(AttributeDict.MetadataOperationException):
+            touch.__call__(*args)
 
 
     def test_setitem_reserved(self):
