@@ -10,8 +10,14 @@ from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
 
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
                 "", "str", -1, 0, 1.0, np.nan]
-
 _ENTRIES_PROVISION_MODES = ["gen", "dict", "zip", "list", "items"]
+ADDITIONAL_NON_NESTED = {"West Complex": {"CPHG": 6}, "BIG": {"MR-4": 6}}
+ADDITIONAL_NESTED = {"JPA": {"West Complex": {"CPHG": 6}},
+                     "Lane": {"BIG": {"MR-4": 6}}}
+ADDITIONAL_VALUES_BY_NESTING = {
+    False: ADDITIONAL_NON_NESTED,
+    True: ADDITIONAL_NESTED
+}
 
 
 
@@ -221,8 +227,7 @@ class AttributeDictUpdateTests:
                                         ATTRDICT_METADATA),
             ids=["{}, '{}'".format(func.strip("_"), attr)
                  for func, attr in itertools.product(_GETTERS + _SETTERS,
-                                                     ATTRDICT_METADATA)]
-    )
+                                                     ATTRDICT_METADATA)])
     def test_touch_privileged_metadata_item(self, funcname,
                                             name_metadata_item):
         """ AttributeDict has a few metadata members that may not be set. """
@@ -241,19 +246,38 @@ class AttributeDictUpdateTests:
             touch.__call__(*args)
 
 
-    def test_setitem_reserved(self):
-        pass
-
-
-    def test_setattr_raw_dict_novel(self):
-        pass
+    @pytest.mark.parametrize(
+            argnames="initial_entries,name_update_func,is_update_attrdict,nested,validation_getter",
+            argvalues=itertools.product([basic_entries, nested_entries],
+                                        _SETTERS + ["add_entries"],
+                                        [False, True],
+                                        [False, True],
+                                        ["__getitem__", "__getattr__"]))
+    def test_new_entries_mappings(
+            self, initial_entries, name_update_func,
+            is_update_attrdict, nested, validation_getter):
+        """ Raw mapping for previously-unknown key becomes AttributeDict. """
+        ad = AttributeDict(dict(initial_entries()))
+        setter = getattr(ad, name_update_func)
+        new_entries_data = ADDITIONAL_VALUES_BY_NESTING[nested]
+        if setter == "add_entries":
+            setter({k: (AttributeDict(v) if is_update_attrdict else v)
+                    for k, v in new_entries_data.items()})
+        else:
+            for k, v in new_entries_data.items():
+                setter(k, AttributeDict(v) if is_update_attrdict else v)
+        validation_getter = getattr(ad, validation_getter)
+        for k, v in new_entries_data.items():
+            assert v == validation_getter(k)
 
 
     def test_setattr_raw_dict_extant(self):
+        """ Raw mapping for already-known key with mapping merges Attrdict. """
         pass
 
 
     def test_setattr_attrdict_novel(self):
+        """  """
         pass
 
 
@@ -275,16 +299,6 @@ class AttributeDictUpdateTests:
 
     def test_setitem_attrdict_extant(self):
         pass
-
-
-    @pytest.fixture(scope="function")
-    def base_attrdict(self):
-        return AttributeDict(dict(basic_entries()))
-
-
-    @pytest.fixture(scope="function")
-    def nested_attrdict(self):
-        return AttributeDict(dict(nested_entries()))
 
 
 class AttributeDictSerializationTests:
