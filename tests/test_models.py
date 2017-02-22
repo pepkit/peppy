@@ -231,28 +231,37 @@ class AttributeDictUpdateTests:
     def test_touch_privileged_metadata_item(self, funcname,
                                             name_metadata_item):
         """ AttributeDict has a few metadata members that may not be set. """
+
+        # Create AttributeDict and ensure it has the target item.
         ad = AttributeDict(dict(basic_entries()))
         assert hasattr(ad, name_metadata_item)
-        dummy_setattr_value = "this_will_fail"
+
+        # If current test parameter is a setter, it needs a value argument.
+        dummy_value = "this_will_fail"
         touch = getattr(ad, funcname)
         args = (name_metadata_item, )
+
+        # Make the actual call under test.
         if funcname in ["__setattr__", "__setitem__"]:
             pytest.xfail(
                     "Since {} is recursive, it's difficult to prohibit "
                     "post-construction attempts to set metadata. It may "
                     "not even be desirable".format(AttributeDict.__name__))
-            args += (dummy_setattr_value, )
+            args += (dummy_value, )
         with pytest.raises(MetadataOperationException):
             touch.__call__(*args)
 
 
     @pytest.mark.parametrize(
-            argnames="initial_entries,name_update_func,is_update_attrdict,nested,validation_getter",
+            argnames=["initial_entries", "name_update_func",
+                      "is_update_attrdict", "nested", "validation_getter"],
             argvalues=itertools.product([basic_entries, nested_entries],
                                         _SETTERS + ["add_entries"],
                                         [False, True],
                                         [False, True],
-                                        ["__getitem__", "__getattr__"]))
+                                        ["__getitem__", "__getattr__"]),
+            ids=lambda arg: arg.__name__ if callable(arg) else str(arg)
+    )
     def test_new_entries_mappings(
             self, initial_entries, name_update_func,
             is_update_attrdict, nested, validation_getter):
@@ -260,20 +269,24 @@ class AttributeDictUpdateTests:
         ad = AttributeDict(dict(initial_entries()))
         setter = getattr(ad, name_update_func)
         new_entries_data = ADDITIONAL_VALUES_BY_NESTING[nested]
-        if setter == "add_entries":
+        if name_update_func == "add_entries":
             setter({k: (AttributeDict(v) if is_update_attrdict else v)
                     for k, v in new_entries_data.items()})
         else:
             for k, v in new_entries_data.items():
                 setter(k, AttributeDict(v) if is_update_attrdict else v)
         validation_getter = getattr(ad, validation_getter)
-        for k, v in new_entries_data.items():
-            assert v == validation_getter(k)
+        for item_name, expected_value in new_entries_data.items():
+            # A value that's a mapping is inserted as AttributeDict.
+            observed_value = validation_getter(item_name)
+            assert isinstance(observed_value, AttributeDict)
+            # Check equality on the mapping's contents.
+            assert expected_value == observed_value
 
 
     def test_setattr_raw_dict_extant(self):
         """ Raw mapping for already-known key with mapping merges Attrdict. """
-        pass
+        ad = AttributeDict()
 
 
     def test_setattr_attrdict_novel(self):
