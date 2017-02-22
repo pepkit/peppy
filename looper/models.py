@@ -145,6 +145,10 @@ class AttributeDict(MutableMapping):
             self[key] = value
 
 
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)
+
+
     def __getattr__(self, item):
         """
         Fetch the value associated with the provided identifier. Unlike an
