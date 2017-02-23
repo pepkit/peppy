@@ -202,7 +202,7 @@ class AttributeDict(MutableMapping):
                        format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            self._LOGGER.debug("Setting '{}' to {}".format(key, value))
+            _LOGGER.debug("Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
             self._log_(logging.DEBUG,
