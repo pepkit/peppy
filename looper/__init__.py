@@ -25,7 +25,6 @@ LOGGING_LOCATIONS = (stderr, )
 # Default user logging format is simple
 DEFAULT_LOGGING_FMT = "%(message)s"
 # Developer logger format is more information-rich
-#DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelname)s] > %(message)s"
 DEV_LOGGING_FMT = "%(module)s:%(lineno)d [%(levelname)s] > %(message)s "
 
 
