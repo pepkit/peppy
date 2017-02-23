@@ -143,7 +143,7 @@ class AttributeDict(MutableMapping):
             if key in ATTRDICT_METADATA:
                 _LOGGER.debug("Not adding {}".format(key))
                 continue
-            self[key] = value
+            self.__setitem__(key, value)
 
 
     def __setattr__(self, key, value):
@@ -399,7 +399,7 @@ class Project(AttributeDict):
         Parse provided yaml config file and check required fields exist.
         """
 
-        _LOGGER.debug("Setting %s data from %s",
+        _LOGGER.debug("Setting %s data from '%s'",
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
             self.config = _yaml.load(handle)
@@ -411,7 +411,11 @@ class Project(AttributeDict):
 
         # Overwrite any config entries with entries in the subproject
         if "subprojects" in self.config and subproject:
+            _LOGGER.debug("Adding entries for subproject {}".
+                          format(subproject))
             self.add_entries(self.config['subprojects'][subproject])
+        else:
+            _LOGGER.debug("No subproject")
 
         # In looper 0.4 we eliminated the paths section for simplicity.
         # For backwards compatibility, mirror the paths section into metadata
