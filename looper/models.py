@@ -141,6 +141,7 @@ class AttributeDict(MutableMapping):
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
             if key in ATTRDICT_METADATA:
+                _LOGGER.debug("Not adding {}".format(key))
                 continue
             self[key] = value
 
@@ -191,12 +192,14 @@ class AttributeDict(MutableMapping):
                    format(key, str(value)))
         if isinstance(value, dict):
             try:
-                # Combine them.
-                self._log_(logging.DEBUG, "Updating key: {}".format(key))
+                # Combine AttributeDict instances.
+                self._log_(logging.DEBUG, "Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
+            self._log_(logging.DEBUG, "'{}' now has keys {}".
+                       format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
             self.__dict__[key] = value
