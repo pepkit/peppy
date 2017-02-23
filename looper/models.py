@@ -404,6 +404,8 @@ class Project(AttributeDict):
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
             self.config = _yaml.load(handle)
+        _LOGGER.debug("{} config: {}".format(
+            self.__class__.__name__, self.config))
 
         # parse yaml into the project's attributes
         _LOGGER.debug("Adding {} attributes for {}: {}".format(
