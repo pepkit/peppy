@@ -287,7 +287,7 @@ class AttributeDictUpdateTests:
 
 
 
-class AttributeDictMergeTests:
+class AttributeDictCollisionTests:
     """ Tests for proper merging and type conversion of mappings. 
      AttributeDict converts a mapping being inserted as a value to an 
      AttributeDict. If assigning to a key that already contains a mapping, 
@@ -342,15 +342,24 @@ class AttributeDictMergeTests:
         assert higher_level_tempdict == attrdict
 
 
-    def test_override_atomic_with_mapping(self):
+    @pytest.mark.parametrize(
+            argnames="name_update_func",
+            argvalues=["add_entries", "__setattr__", "__setitem__"])
+    def test_squash_existing(self, name_update_func):
         """ When a value that's a mapping is assigned to existing key with 
         non-mapping value, the new value overwrites the old. """
-        pass
-
-
-    def test_add_entries_function(self):
-        """ add_entries() is available to augment setitem and setattr. """
-        pass
+        ad = AttributeDict({"MR": 4})
+        assert 4 == ad.MR
+        assert 4 == ad["MR"]
+        new_value = [4, 5, 6]
+        args = ("MR", new_value)
+        setter = getattr(ad, name_update_func)
+        if name_update_func == "add_entries":
+            setter([args])
+        else:
+            setter(*args)
+        assert new_value == ad.MR
+        assert new_value == ad["MR"]
 
 
 
