@@ -49,13 +49,12 @@ def parse_arguments():
 
     # Logging control
     parser.add_argument("--logging-level", default=LOGGING_LEVEL,
-                  choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
                   help=argparse.SUPPRESS)
     parser.add_argument("--logfile", help="Path to central logfile location")
-    parser.add_argument("--dbg", default=False, help=argparse.SUPPRESS,
-                        action="store_true")
+    parser.add_argument("--dbg", action="store_true", help=argparse.SUPPRESS)
+    
     # Template format for logging message
-    parser.add_argument("--logging-fmt", dest="logging_fmt", default=DEFAULT_LOGGING_FMT,
+    parser.add_argument("--logging-fmt", default=DEFAULT_LOGGING_FMT,
                         help=argparse.SUPPRESS)
     parser.add_argument("--logging-datefmt", help=argparse.SUPPRESS)
 
