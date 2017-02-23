@@ -488,11 +488,16 @@ class Project(AttributeDict):
                     continue
                 rel_vars_path = getattr(relative_vars, var)
                 if not _os.path.isabs(rel_vars_path):
+                    _LOGGER.debug("Making non-absolute path '%s' for '%s' "
+                                  "be absolute", var, rel_vars_path)
                     # Set path to an absolute path, relative to project config.
                     config_dirpath = _os.path.dirname(self.config_file)
+                    _LOGGER.debug("config_dirpath: %s", config_dirpath)
                     additional_from_base = getattr(relative_vars, var)
+                    _LOGGER.debug("additional: %s", additional_from_base)
                     abs_path = _os.path.join(config_dirpath,
                                              additional_from_base)
+                    _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
                     setattr(relative_vars, var, abs_path)
 
         print("FOURTH PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
