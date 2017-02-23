@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT, __version__
+from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT, DEV_LOGGING_FMT, __version__
 from utils import VersionInHelpParser
 
 try:
@@ -49,12 +49,14 @@ def parse_arguments():
 
     # Logging control
     parser.add_argument("--logging-level", default=LOGGING_LEVEL,
-                  choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
-                  help="Minimum level of interest w.r.t. log messages")
+                  help=argparse.SUPPRESS)
     parser.add_argument("--logfile", help="Path to central logfile location")
+    parser.add_argument("--dbg", action="store_true", help=argparse.SUPPRESS)
+    
+    # Template format for logging message
     parser.add_argument("--logging-fmt", default=DEFAULT_LOGGING_FMT,
-                        help="Logging message template")
-    parser.add_argument("--logging-datefmt", help="Time formatter for logs")
+                        help=argparse.SUPPRESS)
+    parser.add_argument("--logging-datefmt", help=argparse.SUPPRESS)
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -115,6 +117,12 @@ def parse_arguments():
 
     # To enable the loop to pass args directly on to the pipelines...
     args, remaining_args = parser.parse_known_args()
+    
+    if args.dbg:
+        args.logging_fmt = DEV_LOGGING_FMT
+        args.logging_level = "DEBUG"
+        logging.warn("Set looper to developer mode.")
+
     setup_looper_logger(
         args.logging_level, (args.logfile, ),
         fmt=args.logging_fmt, datefmt=args.logging_datefmt)
