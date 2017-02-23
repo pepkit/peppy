@@ -1,5 +1,6 @@
 """ Tests for data type and function definitions in the `models` module. """
 
+from copy import deepcopy
 import itertools
 import numpy as np
 import pytest
@@ -284,34 +285,71 @@ class AttributeDictUpdateTests:
             assert expected_value == observed_value
 
 
-    def test_setattr_raw_dict_extant(self):
-        """ Raw mapping for already-known key with mapping merges Attrdict. """
-        ad = AttributeDict()
 
 
-    def test_setattr_attrdict_novel(self):
-        """  """
+class AttributeDictMergeTests:
+    """ Tests for proper merging and type conversion of mappings. 
+     AttributeDict converts a mapping being inserted as a value to an 
+     AttributeDict. If assigning to a key that already contains a mapping, 
+     the existing value (mapping) for the key merges with the new one. """
+
+
+    CPHG_DATA = {"CPHG": 6}
+    WEST_COMPLEX_DATA = {"West Complex": CPHG_DATA}
+
+    BIG_DATA = {"BIG": 4}
+    INITIAL_MR_DATA = {"MR": BIG_DATA}
+    NEW_MR_DATA = {"MR": {"BME": 5, "Carter-Harrison": 6}}
+    NEW_LANE_DATA = {"Lane": NEW_MR_DATA}
+    PINN_DATA =  {"Pinn": ["SOM", "Jordan", 1340]}
+
+
+    @pytest.mark.parametrize(argnames="name_setter_func",
+                             argvalues=["__setattr__", "__setitem__"])
+    @pytest.mark.parametrize(argnames="name_getter_func", 
+                             argvalues=["__getattr__", "__getitem__"])
+    def test_merge_mappings(
+                self, name_setter_func, name_getter_func):
+
+        attrdict = AttributeDict()
+        raw_data = {}
+        setter = getattr(attrdict, name_setter_func)
+        getter = getattr(attrdict, name_getter_func)
+
+        setter("JPA", self.WEST_COMPLEX_DATA)
+        raw_data.update({"JPA": self.WEST_COMPLEX_DATA})
+        observed = getter("JPA")
+        assert isinstance(observed, AttributeDict)
+        assert self.WEST_COMPLEX_DATA == observed
+
+        setter("Lane", self.INITIAL_MR_DATA)
+        raw_data.update({"Lane": self.INITIAL_MR_DATA})
+        assert isinstance(getter("Lane"), AttributeDict)
+        assert raw_data == attrdict
+
+        setter("JPA", self.PINN_DATA)
+        observed = getter("JPA")
+        assert isinstance(observed, AttributeDict)
+        tempdict = deepcopy(self.WEST_COMPLEX_DATA)
+        tempdict.update(self.INITIAL_MR_DATA)
+        tempdict.update(self.PINN_DATA)
+        assert tempdict == observed
+
+        setter("Lane", self.NEW_LANE_DATA)
+        tempdict["MR"].update(self.NEW_MR_DATA["MR"])
+        assert tempdict == attrdict
+
+
+    def test_override_atomic_with_mapping(self):
+        """ When a value that's a mapping is assigned to existing key with 
+        non-mapping value, the new value overwrites the old. """
         pass
 
 
-    def test_setattr_attrdict_extant(self):
+    def test_add_entries_function(self):
+        """ add_entries() is available to augment setitem and setattr. """
         pass
 
-
-    def test_setitem_raw_dict_novel(self):
-        pass
-
-
-    def test_setitem_raw_dict_extant(self):
-        pass
-
-
-    def test_setitem_attrdict_novel(self):
-        pass
-
-
-    def test_setitem_attrdict_extant(self):
-        pass
 
 
 class AttributeDictSerializationTests:
