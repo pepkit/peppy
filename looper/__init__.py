@@ -92,7 +92,7 @@ def setup_looper_logger(level, additional_locations=None,
             handler_type = logging.StreamHandler
         else:
             # Strange supplementary destination
-            logging.warn("{} as logs destination appears to be neither "
+            logging.info("{} as logs destination appears to be neither "
                          "a filepath nor a stream.".format(loc))
             continue
         handler = handler_type(loc)
