@@ -49,7 +49,7 @@ Explore!
 
 """
 
-from collections import MutableMapping, OrderedDict as _OrderedDict
+from collections import Mapping, MutableMapping, OrderedDict as _OrderedDict
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -190,7 +190,7 @@ class AttributeDict(MutableMapping):
         """
         self._log_(0, "Executing __setitem__ for '{}', '{}'".
                    format(key, str(value)))
-        if isinstance(value, dict):
+        if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
                 self._log_(logging.DEBUG, "Updating key: '{}'".format(key))
