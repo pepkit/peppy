@@ -363,8 +363,66 @@ class AttributeDictCollisionTests:
 
 
 
+@pytest.mark.parametrize(
+        argnames="name_update_func",
+        argvalues=["add_entries", "__setattr__", "__setitem__"])
+@pytest.mark.parametrize(
+        argnames="name_fetch_func",
+        argvalues=["__getattr__", "__getitem__"])
+class AttributeDictNullTests:
+    """ AttributeDict has configurable behavior regarding null values. """
+
+
+    def test_new_null(self, name_update_func, name_fetch_func):
+        """ When a key/item, isn't known, null is allowed. """
+        ad = AttributeDict()
+        setter = getattr(ad, name_update_func)
+        args = ("new_key", None)
+        self._do_update(name_update_func, setter, args)
+        getter = getattr(ad, name_fetch_func)
+        assert getter("new_key") is None
+
+
+    @pytest.mark.parametrize(
+            argnames="force_nulls", argvalues=[None, False, True])
+    def test_force_null(self, name_update_func, name_fetch_func, force_nulls):
+        """ AttributeDict is configurable w.r.t. null value insertion. """
+
+        ctor_kwargs = {}
+        if force_nulls is not None:
+            ctor_kwargs["force_nulls"] = force_nulls
+        ad = AttributeDict({"only_attr": 1}, **ctor_kwargs)
+
+        setter = getattr(ad, name_update_func)
+        self._do_update(name_update_func, setter, ("only_attr", None))
+
+        is_now_null = getattr(ad, name_fetch_func)("only_attr") is None
+        assert is_now_null if force_nulls else not is_now_null
+
+
+    def test_replace_null(self, name_update_func, name_fetch_func):
+        """ Null can be replaced by non-null. """
+        ad = AttributeDict({"lone_attr": None})
+        assert getattr(ad, name_fetch_func)("lone_attr") is None
+        setter = getattr(ad, name_update_func)
+        non_null_value = {"was_null": "not_now"}
+        self._do_update(name_update_func, setter,
+                        ("lone_attr", non_null_value))
+        assert non_null_value == getattr(ad, name_fetch_func)("lone_attr")
+
+
+    @staticmethod
+    def _do_update(name_setter_func, setter_bound_method, args):
+        if name_setter_func == "add_entries":
+            setter_bound_method([args])
+        else:
+            setter_bound_method(*args)
+
+
+
 class AttributeDictSerializationTests:
-    """ Ensure that we can make a file roundtrip for `AttributeDict` """
+    """ Ensure that we can make a file roundtrip for AttributeDict. """
+    # TODO: implement
     pass
 
 
@@ -389,11 +447,24 @@ class AttributeDictItemAccessTests:
 
 
     def test_numeric_key(self):
-        """ AttributeDict preserves the property that attribute request must be string. """
+        """ Attribute request must be string. """
         ad = AttributeDict({1: 'a'})
         assert 'a' == ad[1]
         with pytest.raises(TypeError):
             getattr(ad, 1)
+
+
+    @pytest.mark.parametrize(
+            argnames="getter,error_type",
+            argvalues=zip(["__getattr__", "__getitem__"],
+                          [AttributeError, KeyError]))
+    def test_attribute_identity(self, getter, error_type):
+        """ AttributeDict can return requested item itself if unset. """
+        ad = AttributeDict()
+        with pytest.raises(error_type):
+            getattr(ad, getter)("unknown")
+        ad = AttributeDict(attribute_identity=True)
+        assert getattr(ad, getter)("self_reporter") == "self_reporter"
 
 
 
