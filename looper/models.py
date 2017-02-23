@@ -386,10 +386,9 @@ class Project(AttributeDict):
             self.metadata.pipelines_dir = pipe_path
         if "pipelines_dir" in self.metadata:
             return
+
         if "pipelines_dir" not in self.metadata:
             raise PipelinesException()
-
-
 
 
     def parse_config_file(self, subproject=None):
@@ -486,6 +485,7 @@ class Project(AttributeDict):
             raise KeyError("Required field not in config file: "
                            "%s" % "sample_annotation")
 
+
     def update_looperenv(self, looperenv_file):
         """
         Parse data from looper environment configuration file.
@@ -523,20 +523,19 @@ class Project(AttributeDict):
                                str(looperenv_file))
             _LOGGER.error(str(type(e).__name__) + str(e))
 
+
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
         """
-        for name, path in self.metadata.__dict__.items():
+        for name, path in self.metadata.items():
             # this is a list just to support future variables
             #if name not in ["pipelines_dir", "merge_table", "compare_table", "sample_annotation"]:
             # opt-in; which ones actually need to be created?
             if name in ["output_dir", "results_subdir", "submission_subdir"]:
                 if not _os.path.exists(path):
-                    try:
-                        _os.makedirs(path)
-                    except OSError:
-                        raise OSError("Cannot create directory %s" % path)
+                    _os.makedirs(path)
+
 
     def set_project_permissions(self):
         """
@@ -549,6 +548,7 @@ class Project(AttributeDict):
                 # This currently does not fail now
                 # ("cannot change folder's mode: %s" % d)
                 continue
+
 
     def set_compute(self, setting):
         """
@@ -813,7 +813,7 @@ class SampleSheet(object):
 
         # If "library" attribute exists, try to get a matched Sample object for it from any "pipelines" repository.
         try:
-            import pipelines  # try to use a pipelines package is installed
+            import pipelines  # Use a pipelines package if installed.
         except ImportError:
             try:
                 sys.path.append(self.prj.metadata.pipelines_dir)  # try using the pipeline package from the config file
@@ -823,12 +823,20 @@ class SampleSheet(object):
 
         # get all class objects from modules of the pipelines package that have a __library__ attribute
         sample_types = list()
-        for _, module in inspect.getmembers(sys.modules["pipelines"], lambda member: inspect.ismodule(member)):
-            st = inspect.getmembers(module, lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+        for _, module in inspect.getmembers(
+                sys.modules["pipelines"],
+                lambda member: inspect.ismodule(member)):
+            st = inspect.getmembers(
+                    module,
+                    lambda member: inspect.isclass(member) and
+                                   hasattr(member, "__library__"))
+            _LOGGER.debug("Adding %d sample type classes: %s",
+                          len(st), str(st))
             sample_types += st
 
         # get __library__ attribute from classes and make mapping of __library__: Class (a dict)
-        pairing = {sample_class.__library__: sample_class for sample_type, sample_class in sample_types}
+        pairing = {sample_class.__library__: sample_class
+                   for sample_type, sample_class in sample_types}
 
         # Match sample and sample_class
         try:
