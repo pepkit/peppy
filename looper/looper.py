@@ -120,10 +120,9 @@ def parse_arguments():
     args, remaining_args = parser.parse_known_args()
     
     if args.dbg:
-        # Set logger into development mode
-        print("Setting looper to developer mode.")
         args.logging_fmt = DEV_LOGGING_FMT
-        args.logging-level = "DEBUG"
+        args.logging_level = "DEBUG"
+        logging.warn("Set looper to developer mode.")
 
     setup_looper_logger(
         args.logging_level, (args.logfile, ),
