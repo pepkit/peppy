@@ -35,7 +35,8 @@ class MetadataOperationException(Exception):
 
 class MissingConfigEntryException(Exception):
     """ Represent case in which Project config is missing required entry. """
-    def __init__(self, entry_name, section_name="", classname=""):
+    def __init__(self, entry_name, section_name="", classname="",
+                 alleged_collection=None):
         """
         Define the exception via message, with name of the missing entry
         the only requirement. Provide section name and classname for
@@ -50,6 +51,8 @@ class MissingConfigEntryException(Exception):
             explanation += " in '{}'".format(section_name)
         if classname:
             explanation += " of {}".format(classname)
+        if alleged_collection:
+            explanation += ": {}".format(alleged_collection)
         super(MissingConfigEntryException, self).__init__(explanation)
 
 

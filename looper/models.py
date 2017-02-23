@@ -422,7 +422,7 @@ class Project(AttributeDict):
         for var in mandatory:
             if var not in self.metadata:
                 raise MissingConfigEntryException(
-                    var, "metadata", self.__class__.__name__)
+                    var, "metadata", self.__class__.__name__, self.metadata)
             setattr(self.metadata, var,
                     _os.path.expandvars(getattr(self.metadata, var)))
 
