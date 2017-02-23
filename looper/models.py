@@ -329,6 +329,8 @@ class Project(AttributeDict):
         self.config, self.paths = None, None    # Set by config parsing call.
         self.parse_config_file(subproject)
 
+        self.finalize_pipelines_directory()
+
         # Get project name
         # deduce from output_dir variable in config file:
 
@@ -368,6 +370,28 @@ class Project(AttributeDict):
         return "Project '%s'" % name + "\nConfig: " + str(self.config)
 
 
+    def finalize_pipelines_directory(self, pipe_path=""):
+        """
+        After parsing the config file, finalize the establishment of path
+        to this project's pipelines. Override anything else with the passed
+        argument. Otherwise, prefer path provided in this project's config,
+        then local pipelines folder, then a location set in looper environment.
+
+
+        :param str pipe_path: (absolute) path to pipelines
+        :raises PipelinesException: if (prioritized) search in attempt to
+            confirm or set pipelines directory failed
+        """
+        if pipe_path:
+            self.metadata.pipelines_dir = pipe_path
+        if "pipelines_dir" in self.metadata:
+            return
+        if "pipelines_dir" not in self.metadata:
+            raise PipelinesException()
+
+
+
+
     def parse_config_file(self, subproject=None):
         """
         Parse provided yaml config file and check required fields exist.
@@ -394,11 +418,12 @@ class Project(AttributeDict):
             _LOGGER.debug("Paths: %s", str(self.paths))
             self.paths = None
 
-        # These are required variables which have absolute paths
-        mandatory = ["output_dir", "pipelines_dir"]
+        # Ensure required absolute paths are present and absolute.
+        mandatory = ["output_dir"]
         for var in mandatory:
-            if not hasattr(self.metadata, var):
-                raise KeyError("Required field not in config file: %s" % var)
+            if var not in self.metadata:
+                raise MissingConfigEntryException(
+                    var, "metadata", self.__class__.__name__)
             setattr(self.metadata, var,
                     _os.path.expandvars(getattr(self.metadata, var)))
 
@@ -547,7 +572,6 @@ class Project(AttributeDict):
             _LOGGER.debug("Compute: %s", str(self.looperenv.compute))
 
             if not _os.path.isabs(self.compute.submission_template):
-                # self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
                 # Relative to looper environment config file.
                 self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
         else:
