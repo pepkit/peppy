@@ -398,6 +398,9 @@ class Project(AttributeDict):
         """
         Parse provided yaml config file and check required fields exist.
         """
+
+        _LOGGER.debug("Setting %s data from %s",
+                      self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
             self.config = _yaml.load(handle)
 
@@ -423,8 +426,8 @@ class Project(AttributeDict):
             self.paths = None
 
         # Ensure required absolute paths are present and absolute.
-        mandatory = ["output_dir"]
-        for var in mandatory:
+        required_metadata = ["output_dir"]
+        for var in required_metadata:
             if var not in self.metadata:
                 raise MissingConfigEntryException(
                     var, "metadata", self.__class__.__name__, self.metadata)
