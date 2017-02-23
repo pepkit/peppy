@@ -405,7 +405,7 @@ class Project(AttributeDict):
         with open(self.config_file, 'r') as handle:
             self.config = _yaml.load(handle)
         # DEBUG
-        print("Project config pipelines_dir: {}".format(
+        print("FIRST PIPELINES_DIR: {}".format(
             self.config.metadata.pipelines_dir))
 
         # parse yaml into the project's attributes
@@ -415,6 +415,9 @@ class Project(AttributeDict):
         self.add_entries(self.config)
         _LOGGER.debug("{} now has {} keys: {}".format(
                 self.__class__.__name__, len(self.keys()), self.keys()))
+
+        # DEBUG
+        print("SECOND PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
 
         # Overwrite any config entries with entries in the subproject
         if "subprojects" in self.config and subproject:
