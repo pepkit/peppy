@@ -420,13 +420,6 @@ class AttributeDictNullTests:
 
 
 
-class AttributeDictSerializationTests:
-    """ Ensure that we can make a file roundtrip for AttributeDict. """
-    # TODO: implement
-    pass
-
-
-
 class AttributeDictItemAccessTests:
     """ Tests for access of items (key- or attribute- style). """
 
