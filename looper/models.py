@@ -481,14 +481,18 @@ class Project(AttributeDict):
                 _LOGGER.debug("No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
-                if not hasattr(relative_vars, var):
+                if not hasattr(relative_vars, var) or \
+                                getattr(relative_vars, var) is None:
                     continue
-                # It could have been 'null' in which case, don't do this.
-                if getattr(relative_vars, var) is None:
-                    continue
+
                 rel_vars_path = getattr(relative_vars, var)
-                if not _os.path.isabs(rel_vars_path) and \
-                        not _os.path.isabs(_os.path.expandvars(rel_vars_path)):
+                if not _os.path.isabs(rel_vars_path):
+                    # Maybe we have env vars that make the path absolute?
+                    expanded = _os.path.expandvars(rel_vars_path)
+                    if _os.path.isabs(expanded):
+                        setattr(relative_vars, var, expanded)
+                        continue
+
                     _LOGGER.debug("Making non-absolute path '%s' for '%s' "
                                   "be absolute", var, rel_vars_path)
                     # Set path to an absolute path, relative to project config.
