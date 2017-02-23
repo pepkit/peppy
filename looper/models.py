@@ -427,6 +427,8 @@ class Project(AttributeDict):
         else:
             _LOGGER.debug("No subproject")
 
+        print("THIRD PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
+
         # In looper 0.4 we eliminated the paths section for simplicity.
         # For backwards compatibility, mirror the paths section into metadata
         if "paths" in self.config:
