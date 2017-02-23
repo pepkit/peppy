@@ -495,6 +495,8 @@ class Project(AttributeDict):
                                              additional_from_base)
                     setattr(relative_vars, var, abs_path)
 
+        print("FOURTH PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
+
         # compute.submission_template could have been reset by project config
         # into a relative path; make sure it stays absolute.
         if not _os.path.isabs(self.compute.submission_template):
