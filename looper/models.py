@@ -487,7 +487,8 @@ class Project(AttributeDict):
                 if getattr(relative_vars, var) is None:
                     continue
                 rel_vars_path = getattr(relative_vars, var)
-                if not _os.path.isabs(rel_vars_path):
+                if not _os.path.isabs(rel_vars_path) and \
+                        not _os.path.isabs(_os.path.expandvars(rel_vars_path)):
                     _LOGGER.debug("Making non-absolute path '%s' for '%s' "
                                   "be absolute", var, rel_vars_path)
                     # Set path to an absolute path, relative to project config.
