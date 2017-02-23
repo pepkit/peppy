@@ -692,7 +692,12 @@ def main():
     if args.command == "run":
         if args.compute:
             prj.set_compute(args.compute)
-        run(prj, args, remaining_args)
+        try:
+            run(prj, args, remaining_args)
+        except IOError:
+            _LOGGER.error("%s pipelines_dir: %s",
+                          prj.__class__.__name__, prj.metadata.pipelines_dir)
+            raise
 
     if args.command == "destroy":
         return destroy(prj, args)
