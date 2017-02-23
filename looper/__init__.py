@@ -21,11 +21,17 @@ DEFAULT_LOOPERENV_CONFIG_RELATIVE = os.path.join(SUBMISSION_TEMPLATES_FOLDER,
 
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stderr, )
-DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelname)s] > %(message)s"
+
+# Default user logging format is simple
+DEFAULT_LOGGING_FMT = "%(message)s"
+# Developer logger format is more information-rich
+#DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelname)s] > %(message)s"
+DEV_LOGGING_FMT = "%(module)s:%(lineno)d [%(levelname)s] > %(message)s "
+
 
 
 def setup_looper_logger(level, additional_locations=None,
-                        fmt=None, datefmt=None):
+                        fmt=None, datefmt=None, devmode=False):
     """
     Called by test configuration via `pytest`'s `conftest`.
     All arguments are optional and have suitable defaults.
@@ -40,7 +46,9 @@ def setup_looper_logger(level, additional_locations=None,
 
     # Establish the logger.
     LOOPER_LOGGER = logging.getLogger("looper")
+    # First remove any previously-added handlers
     LOOPER_LOGGER.handlers = []
+    LOOPER_LOGGER.propagate = False
 
     # Handle int- or text-specific logging level.
     try:
