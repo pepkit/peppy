@@ -300,7 +300,6 @@ class AttributeDictMergeTests:
     BIG_DATA = {"BIG": 4}
     INITIAL_MR_DATA = {"MR": BIG_DATA}
     NEW_MR_DATA = {"MR": {"BME": 5, "Carter-Harrison": 6}}
-    NEW_LANE_DATA = {"Lane": NEW_MR_DATA}
     PINN_DATA =  {"Pinn": ["SOM", "Jordan", 1340]}
 
 
@@ -335,9 +334,12 @@ class AttributeDictMergeTests:
         tempdict.update(self.PINN_DATA)
         assert tempdict == observed
 
-        setter("Lane", self.NEW_LANE_DATA)
-        tempdict["MR"].update(self.NEW_MR_DATA["MR"])
-        assert tempdict == attrdict
+        setter("Lane", self.NEW_MR_DATA)
+        higher_level_tempdict = {"JPA": self.WEST_COMPLEX_DATA}
+        higher_level_tempdict["JPA"].update(self.PINN_DATA)
+        higher_level_tempdict["Lane"] = {"MR": self.BIG_DATA}
+        higher_level_tempdict["Lane"]["MR"].update(self.NEW_MR_DATA["MR"])
+        assert higher_level_tempdict == attrdict
 
 
     def test_override_atomic_with_mapping(self):
