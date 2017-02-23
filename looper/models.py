@@ -402,6 +402,8 @@ class Project(AttributeDict):
             self.config = _yaml.load(handle)
 
         # parse yaml into the project's attributes
+        _LOGGER.debug("Adding {} attributes for {}: {}".format(
+            len(self.config), self.__class__.__name__, self.config.keys()))
         self.add_entries(self.config)
 
         # Overwrite any config entries with entries in the subproject
