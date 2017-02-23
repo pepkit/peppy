@@ -202,6 +202,7 @@ class AttributeDict(MutableMapping):
                        format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
+            self._LOGGER.debug("Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
             self._log_(logging.DEBUG,
@@ -407,7 +408,10 @@ class Project(AttributeDict):
         # parse yaml into the project's attributes
         _LOGGER.debug("Adding {} attributes for {}: {}".format(
             len(self.config), self.__class__.__name__, self.config.keys()))
+        _LOGGER.debug("Config metadata: {}")
         self.add_entries(self.config)
+        _LOGGER.debug("{} now has {} keys: {}".format(
+                self.__class__.__name__, len(self.keys()), self.keys()))
 
         # Overwrite any config entries with entries in the subproject
         if "subprojects" in self.config and subproject:
