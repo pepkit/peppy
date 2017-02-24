@@ -634,7 +634,7 @@ def check(prj):
         # print(f + ": " + str(counts[f]))
 
     for f, count in counts.items():
-        if count < 30 and count > 0:
+        if 0 < count < 30:
             _LOGGER.info(f + " (" + str(count) + ")")
             subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell=True)
 
@@ -668,6 +668,8 @@ def main():
                 _LOGGER.error("{} pipelines_dir: '{}'".format(
                         prj.__class__.__name__, prj.metadata.pipelines_dir))
                 raise
+        # Don't have prompt end up tabbed over when run() completes.
+        sys.stdout.write("\n")
 
     if args.command == "destroy":
         return destroy(prj, args)
