@@ -53,7 +53,8 @@ def parse_arguments():
     parser.add_argument("--logfile",
                         help=argparse.SUPPRESS)
     parser.add_argument("--verbosity", type="int",
-                        choices=range(len(_LEVEL_BY_VERBOSITY)),
+                        choices=[str(v) for v in
+                                 range(len(_LEVEL_BY_VERBOSITY))],
                         help=argparse.SUPPRESS)
     parser.add_argument("--logging-level", default=LOGGING_LEVEL,
                         help=argparse.SUPPRESS)
