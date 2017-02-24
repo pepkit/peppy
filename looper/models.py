@@ -390,21 +390,29 @@ class Project(AttributeDict):
             can't be interpreted as a single path or as a flat collection
             of path(s)
         """
-        if pipe_path:
-            if isinstance(pipe_path, str):
-                self.metadata.pipelines_dir = [pipe_path]
-            elif isinstance(pipe_path, Iterable) and \
-                    not isinstance(pipe_path, Mapping):
-                self.metadata.pipelines_dir = list(pipe_path)
+
+        # TODO: check for local pipelines or looperenv.
+
+        # Pass pipeline(s) dirpath(s) or use one already set.
+        if not pipe_path:
+            if "pipelines_dir" not in self.metadata:
+                # TODO: beware of AttributeDict with force_nulls = True here,
+                # as that may return 'pipelines_dir' name itself.
+                raise PipelinesException()
             else:
-                raise TypeError("Got {} as pipelines path(s) ({})".
-                                format(pipe_path, type(pipe_path)))
-            self.metadata.pipelines_dir = pipe_path
-        if "pipelines_dir" in self.metadata:
-            return
-        # TODO: check locally and in looperenv.
-        if "pipelines_dir" not in self.metadata:
-            raise PipelinesException()
+                pipe_path = self.metadata.pipelines_dir
+
+        # Ensure we work with text or flat iterable.
+        if isinstance(pipe_path, Iterable) and \
+                not isinstance(pipe_path, Mapping):
+            pipe_path = list(pipe_path)
+        elif not isinstance(pipe_path, str):
+            raise TypeError("Got {} as pipelines path(s) ({})".
+                            format(pipe_path, type(pipe_path)))
+        else:
+            pipe_path = [pipe_path]
+
+        self.metadata.pipelines_dir = pipe_path
 
 
     def parse_config_file(self, subproject=None):

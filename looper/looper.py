@@ -31,7 +31,7 @@ except:
 
 _LOGGER = None
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
-                       logging.INFO, logging.DEBUG, 0]
+                       logging.INFO, logging.DEBUG]
 
 
 def parse_arguments():
