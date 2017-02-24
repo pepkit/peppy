@@ -656,14 +656,14 @@ def main():
     if args.command == "run":
         if args.compute:
             prj.set_compute(args.compute)
-        try:
-            # TODO split here, spawing separate run process for each pipelines directory in project metadata pipelines directory.
-            for pipedir in prj.metadata.pipelines_dir:
+        # TODO split here, spawning separate run process for each pipelines directory in project metadata pipelines directory.
+        for pipedir in prj.metadata.pipelines_dir:
+            try:
                 run(prj, args, remaining_args, pipelines_dir=pipedir)
-        except IOError:
-            _LOGGER.error("{} pipelines_dir: {}".format(
-                    prj.__class__.__name__, prj.metadata.pipelines_dir))
-            raise
+            except IOError:
+                _LOGGER.error("{} pipelines_dir: '{}'".format(
+                        prj.__class__.__name__, prj.metadata.pipelines_dir))
+                raise
 
     if args.command == "destroy":
         return destroy(prj, args)

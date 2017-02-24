@@ -334,8 +334,6 @@ class Project(AttributeDict):
         self.config, self.paths = None, None    # Set by config parsing call.
         self.parse_config_file(subproject)
 
-        self.finalize_pipelines_directory()
-
         # Get project name
         # deduce from output_dir variable in config file:
 
@@ -364,6 +362,8 @@ class Project(AttributeDict):
         # That call also sets the samples (list) attribute for the instance.
         self.sheet = None
         self.add_sample_sheet()
+
+        self.finalize_pipelines_directory()
 
 
     def __repr__(self):
