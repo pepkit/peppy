@@ -656,7 +656,11 @@ def main():
     if args.command == "run":
         if args.compute:
             prj.set_compute(args.compute)
+
         # TODO split here, spawning separate run process for each pipelines directory in project metadata pipelines directory.
+        pipedirs = prj.metadata.pipelines_dir
+        _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
+        
         for pipedir in prj.metadata.pipelines_dir:
             try:
                 run(prj, args, remaining_args, pipelines_dir=pipedir)
