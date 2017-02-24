@@ -497,23 +497,15 @@ class Project(AttributeDict):
                                 getattr(relative_vars, var) is None:
                     continue
 
-                rel_vars_path = getattr(relative_vars, var)
-                if not _os.path.isabs(rel_vars_path):
-                    # Maybe we have env vars that make the path absolute?
-                    expanded = _os.path.expandvars(rel_vars_path)
-                    if _os.path.isabs(expanded):
-                        setattr(relative_vars, var, expanded)
-                        continue
-
-                    _LOGGER.debug("Making non-absolute path '%s' for '%s' "
-                                  "be absolute", var, rel_vars_path)
-                    # Set path to an absolute path, relative to project config.
-                    config_dirpath = _os.path.dirname(self.config_file)
-                    _LOGGER.debug("config_dirpath: %s", config_dirpath)
-                    additional_from_base = getattr(relative_vars, var)
-                    _LOGGER.debug("additional: %s", additional_from_base)
-                    abs_path = _os.path.join(config_dirpath,
-                                             additional_from_base)
+                relpath = getattr(relative_vars, var)
+                _LOGGER.debug("Ensuring absolute path(s) for '%s'", var)
+                # Parsed from YAML, so small space of possible datatypes.
+                if isinstance(relpath, list):
+                    setattr(relative_vars, var,
+                            [self._ensure_absolute(maybe_relpath)
+                             for maybe_relpath in relpath])
+                else:
+                    abs_path = self._ensure_absolute(relpath)
                     _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
                     setattr(relative_vars, var, abs_path)
 
@@ -530,6 +522,22 @@ class Project(AttributeDict):
         if not hasattr(self.metadata, "sample_annotation"):
             raise KeyError("Required field not in config file: "
                            "%s" % "sample_annotation")
+
+
+    def _ensure_absolute(self, maybe_relpath):
+        if _os.path.isabs(maybe_relpath):
+            return maybe_relpath
+        # Maybe we have env vars that make the path absolute?
+        expanded = _os.path.expandvars(maybe_relpath)
+        if _os.path.isabs(expanded):
+            return expanded
+        _LOGGER.debug("Making non-absolute path '%s' be absolute",
+                      maybe_relpath)
+        # Set path to an absolute path, relative to project config.
+        config_dirpath = _os.path.dirname(self.config_file)
+        _LOGGER.debug("config_dirpath: %s", config_dirpath)
+        abs_path = _os.path.join(config_dirpath, maybe_relpath)
+        return abs_path
 
 
     def update_looperenv(self, looperenv_file):

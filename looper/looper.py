@@ -324,7 +324,7 @@ def run(prj, args, remaining_args,
 
     msg = "\nLooper finished (" + str(submit_count) + " of " + str(job_count) + " jobs submitted)."
     if args.dry_run:
-        msg += " Dry run. No jobs were actually submitted"
+        msg += " Dry run. No jobs were actually submitted."
 
     _LOGGER.info(msg)
 
