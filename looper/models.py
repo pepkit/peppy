@@ -864,8 +864,8 @@ class SampleSheet(object):
             try:
                 pipeline_dirpaths = self.prj.metadata.pipelines_dir
                 sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
-                _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}",
-                              len(pipeline_dirpaths), pipeline_dirpaths)
+                _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
+                              format(len(pipeline_dirpaths), pipeline_dirpaths))
                 import pipelines
             except ImportError:
                 return Sample(series)  # if so, return generic Sample
