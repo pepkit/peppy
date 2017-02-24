@@ -187,7 +187,7 @@ def run(prj, args, remaining_args, pipelines_dir):
 
     for sample in prj.samples:
         sample_count += 1
-        sys.stdout.write("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\t")
+        sys.stdout.write("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\n")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         fail_message = ""

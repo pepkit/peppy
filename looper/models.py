@@ -862,9 +862,10 @@ class SampleSheet(object):
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
             try:
-                sys.path.append(self.prj.metadata.pipelines_dir)  # try using the pipeline package from the config file
-                _LOGGER.debug("Appended pipelines_dir %s to sys.path",
-                              self.prj.metadata.pipelines_dir)
+                pipeline_dirpaths = self.prj.metadata.pipelines_dir
+                sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
+                _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}",
+                              len(pipeline_dirpaths), pipeline_dirpaths)
                 import pipelines
             except ImportError:
                 return Sample(series)  # if so, return generic Sample
