@@ -145,19 +145,27 @@ def parse_arguments():
     return args, remaining_args
 
 
-def run(prj, args, remaining_args):
+def run(prj, args, remaining_args, pipelines_dir):
     """
     Main Looper function: Submit jobs for samples in project.
+
+    :param models.Project prj: configured Project instance
+    :param argparse.Namespace args: arguments parsed by this module's parser
+    :param list[str] remaining_args: arguments given to this module's parser
+        that were not defined as options it should parse, to be passed on
+        to parser(s) elsewhere
+    :param str pipelines_dir: single pipelines directory in which to look for
+        pipelines for this particular run iteration
     """
 
     # Look up the looper config files:
-    pipeline_interface_file = os.path.join(prj.metadata.pipelines_dir,
+    pipeline_interface_file = os.path.join(pipelines_dir,
                              "config/pipeline_interface.yaml")
 
     _LOGGER.info("Pipeline interface config: %s", pipeline_interface_file)
     pipeline_interface = PipelineInterface(pipeline_interface_file)
 
-    protocol_mappings_file = os.path.join(prj.metadata.pipelines_dir,
+    protocol_mappings_file = os.path.join(pipelines_dir,
                             "config/protocol_mappings.yaml")
     _LOGGER.info("Protocol mappings config: %s", protocol_mappings_file)
     protocol_mappings = ProtocolMapper(protocol_mappings_file)
@@ -182,19 +190,16 @@ def run(prj, args, remaining_args):
         sys.stdout.write("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\t")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
-        fail = False
         fail_message = ""
 
         # Don't submit samples with duplicate names
         if sample.sample_name in prj.processed_samples:
             fail_message += "Duplicate sample name. "
-            fail = True
 
         # Check if sample should be run
         if hasattr(sample, "run"):
             if not sample.run:
                 fail_message += "Run column deselected."
-                fail = True
 
         # Check if single_or_paired value is recognized
         if hasattr(sample, "read_type"):
@@ -202,7 +207,6 @@ def run(prj, args, remaining_args):
             sample.read_type = re.sub('[_\\-]?end$', '', str(sample.read_type)).lower()
             if sample.read_type not in ["single", "paired"]:
                 fail_message += "read_type must be either 'single' or 'paired'."
-                fail = True
 
         # Make sure the input data exists
         # this requires every input file (in case of merged samples) to exist.
@@ -211,7 +215,7 @@ def run(prj, args, remaining_args):
         #	fail_message += "Sample input file does not exist."
         #	fail = True
 
-        if fail:
+        if fail_message:
             _LOGGER.warn("\nNot submitted: %s", fail_message)
             failures.append([fail_message, sample.sample_name])
             continue
@@ -223,6 +227,7 @@ def run(prj, args, remaining_args):
         sample.to_yaml()
 
         # Get the base protocol-to-pipeline mappings
+        # TODO: this needs to change; it looks like Sample subclasses use __library__, not library.
         if hasattr(sample, "library"):
             pipelines = protocol_mappings.build_pipeline(sample.library.upper())
         else:
@@ -249,7 +254,8 @@ def run(prj, args, remaining_args):
 
             # Check for any required inputs before submitting
             try:
-                inputs = sample.confirm_required_inputs()
+                # TODO: we don't need return value since implicitly permissive=False?
+                sample.confirm_required_inputs()
             except IOError:
                 fail_message = "Required input files not found"
                 _LOGGER.error("\nNot submitted: %s", fail_message)
@@ -267,8 +273,7 @@ def run(prj, args, remaining_args):
             pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
             # Build basic command line string
-            base_pipeline_script = os.path.join(prj.metadata.pipelines_dir, pipelines_subdir, pipeline)
-            cmd = os.path.join(prj.metadata.pipelines_dir, pipelines_subdir, pipeline)
+            cmd = os.path.join(pipelines_dir, pipelines_subdir, pipeline)
 
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
@@ -452,9 +457,9 @@ def clean(prj, args, preview_flag=True):
             # Preview: Don't actually clean, just show what we're going to clean.
             _LOGGER.info(str(cleanup_files))
         else:
-            for file in cleanup_files:
-                _LOGGER.info(file)
-                subprocess.call(["sh", file])
+            for f in cleanup_files:
+                _LOGGER.info(f)
+                subprocess.call(["sh", f])
 
     if not preview_flag:
         _LOGGER.info("Clean complete.")
@@ -494,7 +499,7 @@ def make_sure_path_exists(path):
 def cluster_submit(
     sample, submit_template, submission_command, variables_dict,
     submission_folder, pipeline_outfolder, pipeline_name, time_delay,
-    submit=False, dry_run=False, ignore_flags=False, remaining_args=list()):
+    submit=False, dry_run=False, ignore_flags=False, remaining_args=tuple()):
     """
     Submit job to cluster manager.
     """
@@ -652,10 +657,12 @@ def main():
         if args.compute:
             prj.set_compute(args.compute)
         try:
-            run(prj, args, remaining_args)
+            # TODO split here, spawing separate run process for each pipelines directory in project metadata pipelines directory.
+            for pipedir in prj.metadata.pipelines_dir:
+                run(prj, args, remaining_args, pipelines_dir=pipedir)
         except IOError:
-            _LOGGER.error("%s pipelines_dir: %s",
-                          prj.__class__.__name__, prj.metadata.pipelines_dir)
+            _LOGGER.error("{} pipelines_dir: {}".format(
+                    prj.__class__.__name__, prj.metadata.pipelines_dir))
             raise
 
     if args.command == "destroy":

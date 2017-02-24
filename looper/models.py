@@ -49,7 +49,8 @@ Explore!
 
 """
 
-from collections import Mapping, MutableMapping, OrderedDict as _OrderedDict
+from collections import \
+    Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -385,12 +386,23 @@ class Project(AttributeDict):
         :param str pipe_path: (absolute) path to pipelines
         :raises PipelinesException: if (prioritized) search in attempt to
             confirm or set pipelines directory failed
+        :raises TypeError: if pipeline(s) path(s) argument is provided and
+            can't be interpreted as a single path or as a flat collection
+            of path(s)
         """
         if pipe_path:
+            if isinstance(pipe_path, str):
+                self.metadata.pipelines_dir = [pipe_path]
+            elif isinstance(pipe_path, Iterable) and \
+                    not isinstance(pipe_path, Mapping):
+                self.metadata.pipelines_dir = list(pipe_path)
+            else:
+                raise TypeError("Got {} as pipelines path(s) ({})".
+                                format(pipe_path, type(pipe_path)))
             self.metadata.pipelines_dir = pipe_path
         if "pipelines_dir" in self.metadata:
             return
-
+        # TODO: check locally and in looperenv.
         if "pipelines_dir" not in self.metadata:
             raise PipelinesException()
 
@@ -1213,7 +1225,7 @@ class Sample(object):
         # pipeline_name
 
 
-    def confirm_required_inputs(self, permissive = False):
+    def confirm_required_inputs(self, permissive=False):
         # set_pipeline_attributes must be run first.
 
         if not hasattr(self, "required_inputs"):
@@ -1643,9 +1655,9 @@ class ProtocolMapper(object):
         _LOGGER.info("Building pipeline for protocol '%s'", protocol)
 
         if protocol not in self.mappings:
-            _LOGGER.warn("Missing Protocol Mapping: "
-                              "'%s' is not found in '%s'",
-                              protocol, self.mappings_file)
+            _LOGGER.warn(
+                    "Missing Protocol Mapping: '%s' is not found in '%s'",
+                    protocol, self.mappings_file)
             return []
 
         # First list level
