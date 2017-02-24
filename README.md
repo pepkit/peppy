@@ -1,7 +1,7 @@
 # Looper
 
 [![Documentation Status](http://readthedocs.org/projects/looper/badge/?version=latest)](http://looper.readthedocs.io/en/latest/?badge=latest)
-[![Build Status](https://travis-ci.org/vreuter/looper.svg?branch=features_0.5)](https://travis-ci.org/vreuter/looper)
+[![Build Status](https://travis-ci.org/vreuter/looper.svg?branch=master)](https://travis-ci.org/vreuter/looper)
 
 __`Looper`__ is a pipeline submission engine that parses sample inputs and submits pipelines for each sample. Looper was conceived to use [pypiper](https://github.com/epigen/pypiper/) pipelines, but does not require this.
 

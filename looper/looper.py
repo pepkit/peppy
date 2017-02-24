@@ -359,9 +359,11 @@ def summarize(prj):
         if os.path.isfile(stats_file):
             _LOGGER.info("Found stats file: '%s'", stats_file)
         else:
-            continue  # raise Exception(stat_file_path + " : file does not exist!")
+            _LOGGER.warn("No stats file '%s'", stats_file)
+            continue
 
-        t = _pd.read_table(stats_file, header=None, names=['key', 'value', 'pl'])
+        t = _pd.read_table(
+            stats_file, header=None, names=['key', 'value', 'pl'])
 
         t.drop_duplicates(subset=['key', 'pl'], keep='last', inplace=True)
         # t.duplicated(subset= ['key'], keep = False)
@@ -393,58 +395,6 @@ def summarize(prj):
 
     _LOGGER.info("Summary (n=" + str(len(stats)) + "): " + tsv_outfile_path)
 
-    # 	# There may be multiple pipeline outputs to consider.
-    # 	globs = glob.glob(os.path.join(pipeline_outfolder, "*stats.tsv"))
-    # 	print(globs)
-
-    # 	for stats_filename in globs: # = os.path.join(pipeline_outfolder, pl_name, "_stats.tsv")
-    # 		pl_name = re.search(".*/(.*)_stats.tsv", stats_filename, re.IGNORECASE).group(1)
-    # 		print(pl_name)
-    # 		# Make sure file exists
-    # 		if os.path.isfile(stats_filename):
-    # 			stat_file = open(stats_filename, 'rb')
-    # 			print('Found: ' + stats_filename)
-    # 		else:
-    # 			pass # raise Exception(stat_file_path + " : file does not exist!")
-
-    # 		# Initialize column list for this pipeline if it hasn't been done.
-    # 		if not columns.has_key(pl_name):
-    # 			columns[pl_name] = []
-    # 		if not stats.has_key(pl_name):
-    # 			stats[pl_name] = []
-
-    # 		# add all sample attributes?
-    # 		#row.update(sample.__dict__)
-    # 		#row = sample.__dict__
-    # 		row = sample.get_sheet_dict()
-    # 		for line in stat_file:
-    # 			key, value = line.split('\t')
-    # 			row[key] = value.strip()
-
-    # 		# Add these items as column names for this pipeline
-    # 		# Use extend instead of append because we're adding a [list] and not items.
-    # 		columns[pl_name].extend(row.keys())
-    # 		#print(columns[pl_name])
-    # 		stats[pl_name].append(row)
-
-    # # For each pipeline, write a summary tsv file.
-    # for pl_name, cols in columns.items():
-    # 	tsv_outfile_path = os.path.join(prj.metadata.output_dir, prj.name)
-    # 	if prj.subproject:
-    # 		tsv_outfile_path += '_' + prj.subproject
-    # 	tsv_outfile_path += '_' + pl_name + '_stats_summary.tsv'
-
-    # 	tsv_outfile = open(tsv_outfile_path, 'w')
-
-    # 	tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(cols), delimiter='\t')
-    # 	tsv_writer.writeheader()
-
-    # 	for row in stats[pl_name]:
-    # 		tsv_writer.writerow(row)
-
-    # 	tsv_outfile.close()
-
-    # 	print("Pipeline " + pl_name + " summary (n=" + str(len(stats[pl_name])) + "): " + tsv_outfile_path)
 
 
 def destroy(prj, args, preview_flag=True):

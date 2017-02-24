@@ -47,6 +47,7 @@ class PathsTests:
         _assert_entirely_equal(getattr(paths, "example_attr"), attr)
 
 
+
 class AttributeConstructionDictTests:
     """Tests for the AttributeDict ADT.
 
@@ -293,14 +294,13 @@ class AttributeDictCollisionTests:
      AttributeDict. If assigning to a key that already contains a mapping, 
      the existing value (mapping) for the key merges with the new one. """
 
-
     CPHG_DATA = {"CPHG": 6}
     WEST_COMPLEX_DATA = {"West Complex": CPHG_DATA}
 
     BIG_DATA = {"BIG": 4}
     INITIAL_MR_DATA = {"MR": BIG_DATA}
     NEW_MR_DATA = {"MR": {"BME": 5, "Carter-Harrison": 6}}
-    PINN_DATA =  {"Pinn": ["SOM", "Jordan", 1340]}
+    PINN_DATA = {"Pinn": ["SOM", "Jordan", 1340]}
 
 
     @pytest.mark.parametrize(argnames="name_setter_func",

@@ -404,9 +404,6 @@ class Project(AttributeDict):
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
             self.config = _yaml.load(handle)
-        # DEBUG
-        print("FIRST PIPELINES_DIR: {}".format(
-            self.config.metadata.pipelines_dir))
 
         # parse yaml into the project's attributes
         _LOGGER.debug("Adding {} attributes for {}: {}".format(
@@ -416,18 +413,13 @@ class Project(AttributeDict):
         _LOGGER.debug("{} now has {} keys: {}".format(
                 self.__class__.__name__, len(self.keys()), self.keys()))
 
-        # DEBUG
-        print("SECOND PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
-
-        # Overwrite any config entries with entries in the subproject
+        # Overwrite any config entries with entries in the subproject.
         if "subprojects" in self.config and subproject:
             _LOGGER.debug("Adding entries for subproject {}".
                           format(subproject))
             self.add_entries(self.config['subprojects'][subproject])
         else:
             _LOGGER.debug("No subproject")
-
-        print("THIRD PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
 
         # In looper 0.4 we eliminated the paths section for simplicity.
         # For backwards compatibility, mirror the paths section into metadata
@@ -504,8 +496,6 @@ class Project(AttributeDict):
                                              additional_from_base)
                     _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
                     setattr(relative_vars, var, abs_path)
-
-        print("FOURTH PIPELINES_DIR: {}".format(self.metadata.pipelines_dir))
 
         # compute.submission_template could have been reset by project config
         # into a relative path; make sure it stays absolute.

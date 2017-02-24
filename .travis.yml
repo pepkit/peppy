@@ -11,4 +11,6 @@ script: pytest
 branches:
   only:
   - features_0.5
+  - dev
+  - master
 
