@@ -145,7 +145,8 @@ def parse_arguments():
     return args, remaining_args
 
 
-def run(prj, args, remaining_args, pipelines_dir):
+def run(prj, args, remaining_args,
+        pipeline_interface, protocol_mappings, pipe_group_path):
     """
     Main Looper function: Submit jobs for samples in project.
 
@@ -154,21 +155,14 @@ def run(prj, args, remaining_args, pipelines_dir):
     :param list[str] remaining_args: arguments given to this module's parser
         that were not defined as options it should parse, to be passed on
         to parser(s) elsewhere
-    :param str pipelines_dir: single pipelines directory in which to look for
-        pipelines for this particular run iteration
+    :param PipelineInterface pipeline_interface: encoding of pipeline-specific
+        parametric information
+    :param ProtocolMapper protocol_mappings: data structure indicating which
+        script (pipeline) to use for a given protocol name
+    :param str pipe_group_path: path to the folder containing the group of
+        pipelines for which the information in the given interface and
+        protocol mappings is relevant
     """
-
-    # Look up the looper config files:
-    pipeline_interface_file = os.path.join(pipelines_dir,
-                             "config/pipeline_interface.yaml")
-
-    _LOGGER.info("Pipeline interface config: %s", pipeline_interface_file)
-    pipeline_interface = PipelineInterface(pipeline_interface_file)
-
-    protocol_mappings_file = os.path.join(pipelines_dir,
-                            "config/protocol_mappings.yaml")
-    _LOGGER.info("Protocol mappings config: %s", protocol_mappings_file)
-    protocol_mappings = ProtocolMapper(protocol_mappings_file)
 
     # Update to project-specific protocol mappings
     if hasattr(prj, "protocol_mappings"):
@@ -237,10 +231,6 @@ def run(prj, args, remaining_args, pipelines_dir):
                 str(sample.name))
             continue
 
-        # We require that the pipelines and config files live in
-        # a subdirectory called 'pipelines' -- is this the best way?
-        pipelines_subdir = "pipelines"
-
         # Go through all pipelines to submit for this protocol
         for pipeline in pipelines:
             _LOGGER.info("Pipeline: '%s'", pipeline)
@@ -273,7 +263,7 @@ def run(prj, args, remaining_args, pipelines_dir):
             pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
             # Build basic command line string
-            cmd = os.path.join(pipelines_dir, pipelines_subdir, pipeline)
+            cmd = os.path.join(pipe_group_path, pipeline)
 
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
@@ -662,14 +652,23 @@ def main():
         _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
 
         for pipedir in prj.metadata.pipelines_dir:
+            grouped_pipelines_folder = os.path.join(pipedir, "pipelines")
+            config_info_folder = os.path.join(pipedir, "config")
+            pipe_iface_path = os.path.join(config_info_folder,
+                                           "pipeline_interface.yaml")
+            pipeline_interface = PipelineInterface(pipe_iface_path)
+            protocol_mappings_path = os.path.join(config_info_folder,
+                                                  "protocol_mappings.yaml")
+            protocol_mappings = ProtocolMapper(protocol_mappings_path)
             try:
-                run(prj, args, remaining_args, pipelines_dir=pipedir)
+                run(prj, args, remaining_args,
+                    pipeline_interface=pipeline_interface,
+                    protocol_mappings=protocol_mappings,
+                    pipe_group_path=grouped_pipelines_folder)
             except IOError:
                 _LOGGER.error("{} pipelines_dir: '{}'".format(
                         prj.__class__.__name__, prj.metadata.pipelines_dir))
                 raise
-        # Don't have prompt end up tabbed over when run() completes.
-        sys.stdout.write("\n")
 
     if args.command == "destroy":
         return destroy(prj, args)
