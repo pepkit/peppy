@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, DEFAULT_LOGGING_FMT, DEV_LOGGING_FMT, __version__
+from . import setup_looper_logger, LOGGING_LEVEL, __version__
 from utils import VersionInHelpParser
 
 try:
@@ -30,6 +30,8 @@ except:
 
 
 _LOGGER = None
+_LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
+                       logging.INFO, logging.DEBUG, 0]
 
 
 def parse_arguments():
@@ -48,15 +50,15 @@ def parse_arguments():
                   version="%(prog)s {v}".format(v=__version__))
 
     # Logging control
-    parser.add_argument("--logging-level", default=LOGGING_LEVEL,
-                  help=argparse.SUPPRESS)
-    parser.add_argument("--logfile", help="Path to central logfile location")
-    parser.add_argument("--dbg", action="store_true", help=argparse.SUPPRESS)
-    
-    # Template format for logging message
-    parser.add_argument("--logging-fmt", default=DEFAULT_LOGGING_FMT,
+    parser.add_argument("--logfile",
                         help=argparse.SUPPRESS)
-    parser.add_argument("--logging-datefmt", help=argparse.SUPPRESS)
+    parser.add_argument("--verbosity", type="int",
+                        choices=range(len(_LEVEL_BY_VERBOSITY)),
+                        help=argparse.SUPPRESS)
+    parser.add_argument("--logging-level", default=LOGGING_LEVEL,
+                        help=argparse.SUPPRESS)
+    parser.add_argument("--dbg", action="store_true",
+                        help=argparse.SUPPRESS)
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -117,20 +119,27 @@ def parse_arguments():
 
     # To enable the loop to pass args directly on to the pipelines...
     args, remaining_args = parser.parse_known_args()
-    
-    if args.dbg:
-        args.logging_fmt = DEV_LOGGING_FMT
-        args.logging_level = "DEBUG"
-        logging.warn("Set looper to developer mode.")
 
-    setup_looper_logger(
-        args.logging_level, (args.logfile, ),
-        fmt=args.logging_fmt, datefmt=args.logging_datefmt)
+    # Set the logging level.
+    if args.dbg:
+        # Debug mode takes precedence and will listen for all messages.
+        level = 0
+    elif args.verbosity is not None:
+        # Verbosity-framed specification trumps logging_level.
+        level = _LEVEL_BY_VERBOSITY[args.verbosity]
+    else:
+        # Normally, we're not in debug mode, and there's not verbosity.
+        level = args.logging_level
+
+    # Establish the project-root logger and attach one for this module.
+    setup_looper_logger(level=level,
+                        additional_locations=(args.logfile, ),
+                        devmode=args.dbg)
     global _LOGGER
     _LOGGER = logging.getLogger(__name__)
 
     if len(remaining_args) > 0:
-        logging.info("Remaining arguments passed to pipelines: {}".
+        _LOGGER.info("Remaining arguments passed to pipelines: {}".
                  format(" ".join([str(x) for x in remaining_args])))
 
     return args, remaining_args

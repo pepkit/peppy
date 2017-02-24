@@ -9,7 +9,7 @@ local level, but this will at least provide a foundation.
 
 import logging
 import os
-from sys import stderr
+from sys import stdout
 from _version import __version__
 
 
@@ -20,7 +20,7 @@ DEFAULT_LOOPERENV_CONFIG_RELATIVE = os.path.join(SUBMISSION_TEMPLATES_FOLDER,
                                                  DEFAULT_LOOPERENV_FILENAME)
 
 LOGGING_LEVEL = "INFO"
-LOGGING_LOCATIONS = (stderr, )
+LOGGING_LOCATIONS = (stdout, )
 
 # Default user logging format is simple
 DEFAULT_LOGGING_FMT = "%(message)s"
@@ -29,8 +29,7 @@ DEV_LOGGING_FMT = "%(module)s:%(lineno)d [%(levelname)s] > %(message)s "
 
 
 
-def setup_looper_logger(level, additional_locations=None,
-                        fmt=None, datefmt=None, devmode=False):
+def setup_looper_logger(level, additional_locations=None, devmode=False):
     """
     Called by test configuration via `pytest`'s `conftest`.
     All arguments are optional and have suitable defaults.
@@ -38,10 +37,11 @@ def setup_looper_logger(level, additional_locations=None,
     :param int | str level: logging level
     :param tuple(str | FileIO[str]) additional_locations: supplementary
         destination(s) to which to ship logs
-    :param str fmt: message format string for log message, optional
-    :param str datefmt: datetime format string for log message time, optional
+    :param bool devmode: whether to use developer logging config
     :return logging.Logger: project-root logger
     """
+
+    fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
     LOOPER_LOGGER = logging.getLogger("looper")
@@ -79,7 +79,7 @@ def setup_looper_logger(level, additional_locations=None,
                      format(additional_locations, LOGGING_LOCATIONS))
 
     # Add the handlers.
-    formatter = logging.Formatter(fmt or DEFAULT_LOGGING_FMT, datefmt)
+    formatter = logging.Formatter(fmt=(fmt or DEFAULT_LOGGING_FMT))
     for loc in where:
         if isinstance(loc, str):
             # File destination
