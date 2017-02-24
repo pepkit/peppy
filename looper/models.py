@@ -403,14 +403,14 @@ class Project(AttributeDict):
                 pipe_path = self.metadata.pipelines_dir
 
         # Ensure we work with text or flat iterable.
-        if isinstance(pipe_path, Iterable) and \
+        if isinstance(pipe_path, str):
+            pipe_path = [pipe_path]
+        elif isinstance(pipe_path, Iterable) and \
                 not isinstance(pipe_path, Mapping):
             pipe_path = list(pipe_path)
-        elif not isinstance(pipe_path, str):
+        else:
             raise TypeError("Got {} as pipelines path(s) ({})".
                             format(pipe_path, type(pipe_path)))
-        else:
-            pipe_path = [pipe_path]
 
         self.metadata.pipelines_dir = pipe_path
 
