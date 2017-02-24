@@ -123,7 +123,7 @@ def parse_arguments():
     # Set the logging level.
     if args.dbg:
         # Debug mode takes precedence and will listen for all messages.
-        level = 0
+        level = logging.DEBUG
     elif args.verbosity is not None:
         # Verbosity-framed specification trumps logging_level.
         level = _LEVEL_BY_VERBOSITY[args.verbosity]
@@ -660,7 +660,7 @@ def main():
         # TODO split here, spawning separate run process for each pipelines directory in project metadata pipelines directory.
         pipedirs = prj.metadata.pipelines_dir
         _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
-        
+
         for pipedir in prj.metadata.pipelines_dir:
             try:
                 run(prj, args, remaining_args, pipelines_dir=pipedir)
