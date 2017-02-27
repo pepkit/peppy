@@ -21,6 +21,8 @@ from looper import setup_looper_logger
 from looper.models import PipelineInterface, Project
 
 
+_LOGGER = logging.getLogger("looper")
+
 
 # {basedir} lines are formatted during file write; other braced entries remain.
 PROJECT_CONFIG_LINES = """metadata:
