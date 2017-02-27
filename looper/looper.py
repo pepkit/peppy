@@ -181,7 +181,7 @@ def run(prj, args, remaining_args,
 
     for sample in prj.samples:
         sample_count += 1
-        sys.stdout.write("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\n")
+        _LOGGER.info("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " " + sample.library + "\n")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         fail_message = ""
@@ -233,14 +233,13 @@ def run(prj, args, remaining_args,
 
         # Go through all pipelines to submit for this protocol
         for pipeline in pipelines:
-            _LOGGER.info("Pipeline: '%s'", pipeline)
             # discard any arguments to get just the (complete) script name,
             # which is the key in the pipeline interface
             pl_id = str(pipeline).split(" ")[0]
 
             # add pipeline-specific attributes (read type and length, inputs, etc)
             sample.set_pipeline_attributes(pipeline_interface, pl_id)
-            _LOGGER.info("({:.2f} Gb)".format(sample.input_file_size))
+            _LOGGER.info("Building submission for [Pipeline: '%s'] [Size: {:.2f} Gb]".format(sample.input_file_size), pipeline)
 
             # Check for any required inputs before submitting
             try:
@@ -500,7 +499,7 @@ def cluster_submit(
     variables_dict["LOGFILE"] = submit_log
 
     # Prepare and write submission script
-    sys.stdout.write("\tSUBFILE: " + submit_script + " ")
+    _LOGGER.info("  SUBFILE: " + submit_script + " ")
     make_sure_path_exists(os.path.dirname(submit_script))
 
     # read in submit_template
@@ -526,7 +525,7 @@ def cluster_submit(
     if not ignore_flags:
         flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
         if (len(flag_files) > 0):
-            _LOGGER.info("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
+            _LOGGER.info("  Not submitting, flag found: " + str([os.path.basename(i) for i in flag_files]))
             submit = False
         else:
             pass
@@ -534,7 +533,7 @@ def cluster_submit(
 
     if submit:
         if dry_run:
-            _LOGGER.info("\tDRY RUN: I would have submitted this")
+            _LOGGER.info("  DRY RUN: I would have submitted this")
             return 1
         else:
             subprocess.call(submission_command + " " + submit_script, shell=True)
