@@ -1603,7 +1603,7 @@ class PipelineInterface(object):
         :type sample: Sample
         """
 
-        _LOGGER.info("Building arguments string")
+        _LOGGER.debug("Building arguments string")
         config = self.select_pipeline(pipeline_name)
         argstring = ""
 
@@ -1674,7 +1674,7 @@ class ProtocolMapper(object):
         :param protocol: Name of protocol.
         :type protocol: str
         """
-        _LOGGER.info("Building pipeline for protocol '%s'", protocol)
+        _LOGGER.debug("Building pipeline for protocol '%s'", protocol)
 
         if protocol not in self.mappings:
             _LOGGER.warn(
