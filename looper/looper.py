@@ -634,7 +634,7 @@ def main():
     args, remaining_args = parse_arguments()
 
     
-    _LOGGER.info("Command: " + args.command + "( Looper version: " + __version__ + ")")
+    _LOGGER.info("Command: " + args.command + " (Looper version: " + __version__ + ")")
     # Initialize project
     prj = Project(
         args.config_file, args.subproject,

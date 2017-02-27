@@ -611,7 +611,7 @@ class Project(AttributeDict):
         """
 
         if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
-            _LOGGER.info("Loading compute settings %s", str(setting))
+            _LOGGER.debug("Loading compute settings: '%s'", str(setting))
             if hasattr(self, "compute"):
                 _LOGGER.debug("Adding compute entries for setting %s",
                                    setting)
