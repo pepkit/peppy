@@ -180,8 +180,8 @@ def conf_logs(request):
 
 
 
-def interactive(project_data=PROJECT_CONFIG_LINES,
-                pipe_iface_data=PIPELINE_INTERFACE_CONFIG_LINES,
+def interactive(prj_lines=PROJECT_CONFIG_LINES,
+                iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
                 project_kwargs=None):
     """
     Create Project and PipelineInterface instances from default or given data.
@@ -191,15 +191,27 @@ def interactive(project_data=PROJECT_CONFIG_LINES,
     interpreter or Notebook. Test authorship is simplified if we provide
     easy access to viable instances of these objects.
 
-    :param str | collections.Iterable[str] project_data: either path to file,
-        raw string representing delimited lines, or lines themselves
-    :param str | collections.Iterable[str] pipe_iface_data:
+    :param collections.Iterable[str] prj_lines: project config lines
+    :param collections.Iterable[str] iface_lines: pipeline interface
+        config lines
     :param dict project_kwargs: keyword arguments for Project constructor
     :return Project, PipelineInterface: one Project and one PipelineInterface,
 
     """
-    return Project(project_data, **(project_kwargs or {})), \
-           PipelineInterface(pipe_iface_data)
+    # TODO: don't work with tempfiles once ctors tolerate Iterable.
+    with tempfile.NamedTemporaryFile(delete=False) as prj_file:
+        for l in prj_lines:
+            prj_file.write(l)
+        prj_path = prj_file.name
+    with tempfile.NamedTemporaryFile(delete=False) as iface_file:
+        for l in iface_lines:
+            iface_file.write(l)
+        iface_path = iface_file.name
+    prj = Project(prj_path, **(project_kwargs or {}))
+    iface = PipelineInterface(iface_path)
+    os.unlink(prj_path)
+    os.unlink(iface_path)
+    return prj, iface
 
 
 
