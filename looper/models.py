@@ -286,7 +286,7 @@ class Project(AttributeDict):
 
         super(Project, self).__init__()
 
-        _LOGGER.info("Instantiating %s using config file %s",
+        _LOGGER.info("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
 
         # Initialize local, serial compute as default (no cluster submission)
@@ -310,18 +310,18 @@ class Project(AttributeDict):
                               "variable '{envvar}' to configure compute "
                               "settings.".format(envvar=LOOPERENV_VARNAME))
         else:
-            _LOGGER.info("Updating compute settings (looper environment) "
+            _LOGGER.debug("Updating compute settings (looper environment) "
                               "based on file '%s'", looperenv_file)
             self.update_looperenv(looperenv_file)
 
         # Here, looperenv has been loaded (either custom or default).
         # Initialize default compute settings.
-        _LOGGER.info("Establishing project compute settings")
+        _LOGGER.debug("Establishing project compute settings")
         self.set_compute("default")
         if self.compute is None:
             raise ComputeEstablishmentException()
 
-        _LOGGER.info("Compute: %s", str(self.compute))
+        _LOGGER.debug("Compute: %s", str(self.compute))
 
         # optional configs
         self.permissive = permissive
@@ -482,7 +482,7 @@ class Project(AttributeDict):
         # All variables in these sections should be relative to project config.
         relative_sections = ["metadata", "pipeline_config"]
 
-        _LOGGER.info("Parsing relative sections")
+        _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
             if not hasattr(self, sect):
                 _LOGGER.debug("%s lacks relative section '%s', skipping",
@@ -669,7 +669,7 @@ class Project(AttributeDict):
         :type file_checks: bool
         """
 
-        _LOGGER.info("Adding sample sheet")
+        _LOGGER.debug("Adding sample sheet")
 
         # If options are not passed, used what has been set for project.
         if permissive is None:
@@ -690,7 +690,7 @@ class Project(AttributeDict):
         self.sheet.prj = self
 
         # Generate sample objects from annotation sheet.
-        _LOGGER.info("Creating samples from annotation sheet")
+        _LOGGER.debug("Creating samples from annotation sheet")
         self.sheet.make_samples()
 
         # Add samples to Project
