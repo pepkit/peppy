@@ -354,7 +354,9 @@ def _create(request, wanted):
     """
     Create instance of `wanted` type, using file in `request` class.
 
-    :param pytest.fixtures
+    :param _pytest.fixtures.FixtureRequest: test case that initiated the
+        fixture request that triggered this call
+    :param type wanted: the data type to be created
     """
     data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
     _LOGGER.debug("Using %s as source of data to build %s",
