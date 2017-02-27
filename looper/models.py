@@ -1303,7 +1303,12 @@ class Sample(object):
         values = []
 
         for attr in attribute_list:
-            values.append(getattr(self, attr))
+            if hasattr(self, attr):
+                values.append(getattr(self, attr))
+            else:
+                # If this attribute is not set, return an empty string
+                # This string will later be append so it shouldn't be 'None'
+                values.append("")
 
         return values
 
