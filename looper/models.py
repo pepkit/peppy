@@ -286,7 +286,7 @@ class Project(AttributeDict):
 
         super(Project, self).__init__()
 
-        _LOGGER.info("Instantiating %s using config file %s",
+        _LOGGER.info("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
 
         # Initialize local, serial compute as default (no cluster submission)
@@ -310,18 +310,18 @@ class Project(AttributeDict):
                               "variable '{envvar}' to configure compute "
                               "settings.".format(envvar=LOOPERENV_VARNAME))
         else:
-            _LOGGER.info("Updating compute settings (looper environment) "
+            _LOGGER.debug("Updating compute settings (looper environment) "
                               "based on file '%s'", looperenv_file)
             self.update_looperenv(looperenv_file)
 
         # Here, looperenv has been loaded (either custom or default).
         # Initialize default compute settings.
-        _LOGGER.info("Establishing project compute settings")
+        _LOGGER.debug("Establishing project compute settings")
         self.set_compute("default")
         if self.compute is None:
             raise ComputeEstablishmentException()
 
-        _LOGGER.info("Compute: %s", str(self.compute))
+        _LOGGER.debug("Compute: %s", str(self.compute))
 
         # optional configs
         self.permissive = permissive
@@ -482,7 +482,7 @@ class Project(AttributeDict):
         # All variables in these sections should be relative to project config.
         relative_sections = ["metadata", "pipeline_config"]
 
-        _LOGGER.info("Parsing relative sections")
+        _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
             if not hasattr(self, sect):
                 _LOGGER.debug("%s lacks relative section '%s', skipping",
@@ -611,7 +611,7 @@ class Project(AttributeDict):
         """
 
         if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
-            _LOGGER.info("Loading compute settings %s", str(setting))
+            _LOGGER.debug("Loading compute settings: '%s'", str(setting))
             if hasattr(self, "compute"):
                 _LOGGER.debug("Adding compute entries for setting %s",
                                    setting)
@@ -669,7 +669,7 @@ class Project(AttributeDict):
         :type file_checks: bool
         """
 
-        _LOGGER.info("Adding sample sheet")
+        _LOGGER.debug("Adding sample sheet")
 
         # If options are not passed, used what has been set for project.
         if permissive is None:
@@ -690,7 +690,7 @@ class Project(AttributeDict):
         self.sheet.prj = self
 
         # Generate sample objects from annotation sheet.
-        _LOGGER.info("Creating samples from annotation sheet")
+        _LOGGER.debug("Creating samples from annotation sheet")
         self.sheet.make_samples()
 
         # Add samples to Project
@@ -1303,7 +1303,11 @@ class Sample(object):
         values = []
 
         for attr in attribute_list:
-            values.append(getattr(self, attr))
+            if hasattr(self, attr):
+                values.append(getattr(self, attr))
+            else:
+                # This string will later be append so it shouldn't be 'None'
+                values.append("")
 
         return values
 
@@ -1598,7 +1602,7 @@ class PipelineInterface(object):
         :type sample: Sample
         """
 
-        _LOGGER.info("Building arguments string")
+        _LOGGER.debug("Building arguments string")
         config = self.select_pipeline(pipeline_name)
         argstring = ""
 
@@ -1669,7 +1673,7 @@ class ProtocolMapper(object):
         :param protocol: Name of protocol.
         :type protocol: str
         """
-        _LOGGER.info("Building pipeline for protocol '%s'", protocol)
+        _LOGGER.debug("Building pipeline for protocol '%s'", protocol)
 
         if protocol not in self.mappings:
             _LOGGER.warn(

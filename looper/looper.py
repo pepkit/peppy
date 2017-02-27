@@ -139,7 +139,7 @@ def parse_arguments():
     _LOGGER = logging.getLogger(__name__)
 
     if len(remaining_args) > 0:
-        _LOGGER.info("Remaining arguments passed to pipelines: {}".
+        _LOGGER.debug("Remaining arguments passed to pipelines: {}".
                  format(" ".join([str(x) for x in remaining_args])))
 
     return args, remaining_args
@@ -181,7 +181,7 @@ def run(prj, args, remaining_args,
 
     for sample in prj.samples:
         sample_count += 1
-        sys.stdout.write("### [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + "\n")
+        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         fail_message = ""
@@ -210,7 +210,7 @@ def run(prj, args, remaining_args,
         #	fail = True
 
         if fail_message:
-            _LOGGER.warn("\nNot submitted: %s", fail_message)
+            _LOGGER.warn("> Not submitted: %s", fail_message)
             failures.append([fail_message, sample.sample_name])
             continue
 
@@ -233,14 +233,13 @@ def run(prj, args, remaining_args,
 
         # Go through all pipelines to submit for this protocol
         for pipeline in pipelines:
-            _LOGGER.info("Pipeline: '%s'", pipeline)
             # discard any arguments to get just the (complete) script name,
             # which is the key in the pipeline interface
             pl_id = str(pipeline).split(" ")[0]
 
             # add pipeline-specific attributes (read type and length, inputs, etc)
             sample.set_pipeline_attributes(pipeline_interface, pl_id)
-            _LOGGER.info("({:.2f} Gb)".format(sample.input_file_size))
+            _LOGGER.info("> Building submission for Pipeline: '%s' (input: {:.2f} Gb)".format(sample.input_file_size), pipeline)
 
             # Check for any required inputs before submitting
             try:
@@ -248,7 +247,7 @@ def run(prj, args, remaining_args,
                 sample.confirm_required_inputs()
             except IOError:
                 fail_message = "Required input files not found"
-                _LOGGER.error("\nNot submitted: %s", fail_message)
+                _LOGGER.error("> Not submitted: %s", fail_message)
                 failures.append([fail_message, sample.sample_name])
                 continue
 
@@ -338,7 +337,7 @@ def run(prj, args, remaining_args,
             groups[msg] += sample_name + "; "
 
         for name, values in groups.iteritems():
-            _LOGGER.info("  " + str(name) + ":" + str(values))
+            _LOGGER.info("> " + str(name) + ":" + str(values))
 
 
 def summarize(prj):
@@ -351,7 +350,8 @@ def summarize(prj):
     stats = []
 
     for sample in prj.samples:
-        sys.stdout.write("### " + sample.sample_name + "\t")
+        sample_count += 1
+        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         # Grab the basic info from the annotation sheet for this sample.
@@ -408,7 +408,8 @@ def destroy(prj, args, preview_flag=True):
     _LOGGER.info("Results to destroy:")
 
     for sample in prj.samples:
-        sys.stdout.write("### " + sample.sample_name + "\t")
+        sample_count += 1
+        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
             # Preview: Don't actually delete, just show files.
@@ -440,7 +441,8 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
     for sample in prj.samples:
-        sys.stdout.write("### " + sample.sample_name + "\t")
+        sample_count += 1
+        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
         if preview_flag:
@@ -500,7 +502,7 @@ def cluster_submit(
     variables_dict["LOGFILE"] = submit_log
 
     # Prepare and write submission script
-    sys.stdout.write("\tSUBFILE: " + submit_script + " ")
+    _LOGGER.info("> script: " + submit_script + " ")
     make_sure_path_exists(os.path.dirname(submit_script))
 
     # read in submit_template
@@ -526,7 +528,7 @@ def cluster_submit(
     if not ignore_flags:
         flag_files = glob.glob(os.path.join(pipeline_outfolder, pipeline_name + "*.flag"))
         if (len(flag_files) > 0):
-            _LOGGER.info("Flag file found. Not submitting: " + str([os.path.basename(i) for i in flag_files]))
+            _LOGGER.info("> Not submitting, flag found: " + str([os.path.basename(i) for i in flag_files]))
             submit = False
         else:
             pass
@@ -534,7 +536,7 @@ def cluster_submit(
 
     if submit:
         if dry_run:
-            _LOGGER.info("\tDRY RUN: I would have submitted this")
+            _LOGGER.info("> DRY RUN: I would have submitted this")
             return 1
         else:
             subprocess.call(submission_command + " " + submit_script, shell=True)
@@ -630,18 +632,19 @@ def check(prj):
 
 
 def main():
-
     # Parse command-line arguments and establish logger.
     args, remaining_args = parse_arguments()
 
+    
+    _LOGGER.info("Command: " + args.command + " (Looper version: " + __version__ + ")")
     # Initialize project
     prj = Project(
         args.config_file, args.subproject,
         file_checks=args.file_checks,
         looperenv_file=getattr(args, 'env', None))
 
+
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
-    _LOGGER.info("Command: " + args.command)
 
     if args.command == "run":
         if args.compute:

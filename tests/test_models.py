@@ -471,3 +471,9 @@ def _assert_entirely_equal(observed, expected):
         assert (observed == expected).all()
 
 
+@pytest.mark.usefixtures("write_project_files", "pipe_iface_config_file")
+class PipelineInterfaceTests:
+
+    def test_missing_input_files(self, pipe_iface):
+        pi = pipe_iface
+        assert True
