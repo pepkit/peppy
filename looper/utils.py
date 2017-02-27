@@ -1,7 +1,7 @@
 """ Helpers without an obvious logical home. """
 
 from argparse import ArgumentParser
-from collections import defaultdict
+from collections import defaultdict, Iterable
 import logging
 import os
 import yaml
@@ -17,6 +17,34 @@ class VersionInHelpParser(ArgumentParser):
         """ Add version information to help text. """
         return "version: {}\n".format(__version__) + \
                super(VersionInHelpParser, self).format_help()
+
+
+def parse_text_data(lines_or_path, delimiter=os.linesep):
+    """
+    Interpret input argument as lines of data. This is intended to support
+    multiple input argument types to core model constructors.
+
+    :param str | collections.Iterable lines_or_path:
+    :param str delimiter: line separator used when parsing a raw string that's
+        not a file
+    :return collections.Iterable: lines of text data
+    :raises ValueError: if primary data argument is neither a string nor
+        another iterable
+    """
+
+    if os.path.isfile(lines_or_path):
+        with open(lines_or_path, 'r') as f:
+            return f.readlines()
+    else:
+        _LOGGER.debug("Not a file: '{}'".format(lines_or_path))
+
+    if isinstance(lines_or_path, str):
+        return lines_or_path.split(delimiter)
+    elif isinstance(lines_or_path, Iterable):
+        return lines_or_path
+    else:
+        raise ValueError("Unable to parse as data lines {} ({})".
+                         format(lines_or_path, type(lines_or_path)))
 
 
 

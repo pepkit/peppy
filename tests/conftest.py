@@ -180,6 +180,29 @@ def conf_logs(request):
 
 
 
+def interactive(project_data=PROJECT_CONFIG_LINES,
+                pipe_iface_data=PIPELINE_INTERFACE_CONFIG_LINES,
+                project_kwargs=None):
+    """
+    Create Project and PipelineInterface instances from default or given data.
+
+    This is intended to provide easy access to instances of fundamental looper
+    object for interactive test-authorship-motivated work in an iPython
+    interpreter or Notebook. Test authorship is simplified if we provide
+    easy access to viable instances of these objects.
+
+    :param str | collections.Iterable[str] project_data: either path to file,
+        raw string representing delimited lines, or lines themselves
+    :param str | collections.Iterable[str] pipe_iface_data:
+    :param dict project_kwargs: keyword arguments for Project constructor
+    :return Project, PipelineInterface: one Project and one PipelineInterface,
+
+    """
+    return Project(project_data, **(project_kwargs or {})), \
+           PipelineInterface(pipe_iface_data)
+
+
+
 class _DataSourceFormatMapping(dict):
     """
     Partially format text with braces. This helps since bracing is the
@@ -305,7 +328,11 @@ def _req_cls_att(req, attr):
 
 
 def _create(request, wanted):
-    """ Create instance of `wanted` type, using file in `request` class. """
+    """
+    Create instance of `wanted` type, using file in `request` class.
+
+    :param pytest.fixtures
+    """
     data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
     _LOGGER.debug("Using %s as source of data to build %s",
                   data_source, wanted.__class__.__name__)

@@ -5,8 +5,8 @@ before_install:
   - pip install -U pip
 install:
   - pip install -U -r requirements.txt
-  - pip install -U -r dev-requirements.txt
-  - pip install -U -r addl-test-reqs.txt
+  - pip install -U -r requirements-dev.txt
+  - pip install -U -r requirements-test.txt
 script: pytest
 branches:
   only:
