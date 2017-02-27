@@ -182,6 +182,8 @@ def conf_logs(request):
 
 def interactive(prj_lines=PROJECT_CONFIG_LINES,
                 iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
+                merge_table_lines = MERGE_TABLE_LINES,
+                sample_annotation_lines=SAMPLE_ANNOTATION_LINES,
                 project_kwargs=None):
     """
     Create Project and PipelineInterface instances from default or given data.
@@ -199,18 +201,27 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
 
     """
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
-    with tempfile.NamedTemporaryFile(delete=False) as prj_file:
-        for l in prj_lines:
-            prj_file.write(l)
-        prj_path = prj_file.name
-    with tempfile.NamedTemporaryFile(delete=False) as iface_file:
-        for l in iface_lines:
-            iface_file.write(l)
-        iface_path = iface_file.name
+    dirpath = tempfile.mkdtemp()
+    path_conf_file = _write_temp(
+        prj_lines,
+        dirpath=dirpath, fname="project_config.yaml")
+    path_iface_file = _write_temp(
+        iface_lines,
+        dirpath=dirpath, fname="pipeline_interface.yaml")
+    path_merge_table_file = _write_temp(
+        merge_table_lines,
+        dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+    )
+    path_sample_annotation_file = _write_temp(
+        sample_annotation_lines,
+        dirpath=dirpath, fname=ANNOTATIONS_FILENAME
+    )
+
     prj = Project(prj_path, **(project_kwargs or {}))
-    iface = PipelineInterface(iface_path)
-    os.unlink(prj_path)
-    os.unlink(iface_path)
+    iface = PipelineInterface(path_iface_file)
+    for path in [path_conf_file, path_iface_file,
+                 path_merge_table_file, path_sample_annotation_file]:
+        os.unlink(path)
     return prj, iface
 
 
