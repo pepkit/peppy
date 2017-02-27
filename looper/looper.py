@@ -139,7 +139,7 @@ def parse_arguments():
     _LOGGER = logging.getLogger(__name__)
 
     if len(remaining_args) > 0:
-        _LOGGER.info("Remaining arguments passed to pipelines: {}".
+        _LOGGER.debug("Remaining arguments passed to pipelines: {}".
                  format(" ".join([str(x) for x in remaining_args])))
 
     return args, remaining_args
@@ -633,16 +633,16 @@ def main():
     # Parse command-line arguments and establish logger.
     args, remaining_args = parse_arguments()
 
-    _LOGGER.info("Looper version: " + __version__)
-
+    
+    _LOGGER.info("Command: " + args.command + "( Looper version: " + __version__ + ")")
     # Initialize project
     prj = Project(
         args.config_file, args.subproject,
         file_checks=args.file_checks,
         looperenv_file=getattr(args, 'env', None))
 
+
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
-    _LOGGER.info("Command: " + args.command)
 
     if args.command == "run":
         if args.compute:

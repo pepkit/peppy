@@ -77,6 +77,7 @@ testngs.sh:
     "--single-or-paired": read_type
     "--dcol1": dcol1
   required_input_files: [file]
+  all_input_files: [file, read1]
   ngs_input_files: [file]
   resources:
     default:
