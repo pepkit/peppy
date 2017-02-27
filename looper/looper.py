@@ -630,9 +630,10 @@ def check(prj):
 
 
 def main():
-
     # Parse command-line arguments and establish logger.
     args, remaining_args = parse_arguments()
+
+    _LOGGER.info("Looper version: " + __version__)
 
     # Initialize project
     prj = Project(
