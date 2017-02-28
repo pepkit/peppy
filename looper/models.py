@@ -1737,10 +1737,9 @@ class InterfaceManager(object):
                 script_names_used |= set(script_names)
 
                 if len(script_names) != (len(already_mapped) + len(new_scripts)):
-                    _LOGGER.error("%s --> %s; %s",
-                                  ", ".join(["'{}'".format(script) for script in script_names]),
-                                  ", ".join(["'{}'".format(script) for script in already_mapped]),
-                                  ", ".join(["'{}'".format(script) for script in new_scripts]))
+                    _LOGGER.error("{} --> {} + {}".format(
+                            script_names, already_mapped, new_scripts))
+
                     raise RuntimeError(
                             "Partitioned {} script names into allegedly "
                             "disjoint sets of {} and {} elements.".

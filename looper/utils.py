@@ -67,6 +67,7 @@ def partition(items, test):
     """
     passes, fails = [], []
     for item in items:
+        _LOGGER.debug("Testing item {}".format(item))
         group = passes if test(item) else fails
         group.append(item)
         return passes, fails
