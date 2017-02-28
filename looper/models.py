@@ -1768,7 +1768,7 @@ class InterfaceManager(object):
 
 
 def _is_member(item, items):
-    return item in items
+    return items.__contains__(item)
 
 
 
