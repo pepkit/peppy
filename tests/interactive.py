@@ -1,7 +1,9 @@
-cd code/looper
-ipython
+# This is just a little helper script to set up an interactive session
+# to help writing test cases.
+# You must be in the looper tests dir:
+# cd $CODEBASE/looper/tests
+# ipython
 
 import looper
-import tests.conftest
-(proj, pi) = tests.conftest.interactive()
-
+import conftest
+proj, pi = conftest.interactive()
