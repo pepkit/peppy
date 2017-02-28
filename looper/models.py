@@ -1434,7 +1434,8 @@ class Sample(object):
                          "these attributes were not populated."
                 raise OSError(reason)
 
-            _LOGGER.debug(read_length, paired)
+            _LOGGER.debug("Read lengths: {}".format(read_length))
+            _LOGGER.debug("paired: {}".format(paired))
             return read_length, paired
 
         def check_fastq(fastq, o):
