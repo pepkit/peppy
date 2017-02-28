@@ -1630,7 +1630,8 @@ class PipelineInterface(object):
             except AttributeError:
                 _LOGGER.error(
                     "Error (missing attribute): '%s' "
-                    "requires sample attribute '%s' for argument '%s' "
+                    "requires sample attribute '%s' "
+                    "for argument '%s' [sample '%s']",
                     pipeline_name, value, key, sample.sample_name)
                 raise
 
