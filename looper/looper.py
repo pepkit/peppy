@@ -22,11 +22,13 @@ from utils import VersionInHelpParser
 
 try:
     from .models import \
-        Project, PipelineInterface, ProtocolMapper, LOOPERENV_VARNAME
+        InterfaceManager, Project, PipelineInterface, \
+        ProtocolMapper, LOOPERENV_VARNAME
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from looper.models import \
-        Project, PipelineInterface, ProtocolMapper, LOOPERENV_VARNAME
+        InterfaceManager, Project, PipelineInterface, \
+        ProtocolMapper, LOOPERENV_VARNAME
 
 
 _LOGGER = None
@@ -145,8 +147,7 @@ def parse_arguments():
     return args, remaining_args
 
 
-def run(prj, args, remaining_args,
-        pipeline_interface, protocol_mappings, pipe_group_path):
+def run(prj, args, remaining_args, interface_manager):
     """
     Main Looper function: Submit jobs for samples in project.
 
@@ -155,18 +156,9 @@ def run(prj, args, remaining_args,
     :param list[str] remaining_args: arguments given to this module's parser
         that were not defined as options it should parse, to be passed on
         to parser(s) elsewhere
-    :param PipelineInterface pipeline_interface: encoding of pipeline-specific
-        parametric information
-    :param ProtocolMapper protocol_mappings: data structure indicating which
-        script (pipeline) to use for a given protocol name
-    :param str pipe_group_path: path to the folder containing the group of
-        pipelines for which the information in the given interface and
-        protocol mappings is relevant
+    :param InterfaceManager interface_manager: aggregator and manager of
+        pipeline interfaces and protocol mappings
     """
-
-    # Update to project-specific protocol mappings
-    if hasattr(prj, "protocol_mappings"):
-        protocol_mappings.mappings.update(prj.protocol_mappings.__dict__)
 
     # Keep track of how many jobs have been submitted.
     submit_count = 0
@@ -214,6 +206,7 @@ def run(prj, args, remaining_args,
             failures.append([fail_message, sample.sample_name])
             continue
 
+        # TODO: there's one more continue-inducing condition below: move this?
         # Otherwise, process the sample:
         prj.processed_samples.append(sample.sample_name)
 
@@ -221,9 +214,8 @@ def run(prj, args, remaining_args,
         sample.to_yaml()
 
         # Get the base protocol-to-pipeline mappings
-        # TODO: this needs to change; it looks like Sample subclasses use __library__, not library.
         if hasattr(sample, "library"):
-            pipelines = protocol_mappings.build_pipeline(sample.library.upper())
+            pipelines = interface_manager.build_pipeline(sample.library.upper())
         else:
             _LOGGER.warn(
                 "Sample '%s' does not have a 'library' attribute and "
@@ -232,14 +224,16 @@ def run(prj, args, remaining_args,
             continue
 
         # Go through all pipelines to submit for this protocol
-        for pipeline in pipelines:
+        for pipeline_interface, pipeline_job in pipelines:
             # discard any arguments to get just the (complete) script name,
             # which is the key in the pipeline interface
-            pl_id = str(pipeline).split(" ")[0]
+            pl_id = str(pipeline_job).split(" ")[0]
 
             # add pipeline-specific attributes (read type and length, inputs, etc)
             sample.set_pipeline_attributes(pipeline_interface, pl_id)
-            _LOGGER.info("> Building submission for Pipeline: '%s' (input: {:.2f} Gb)".format(sample.input_file_size), pipeline)
+            _LOGGER.info("> Building submission for Pipeline: '{}' "
+                         "(input: {:.2f} Gb)".format(pipeline_job,
+                                                     sample.input_file_size))
 
             # Check for any required inputs before submitting
             try:
@@ -262,7 +256,7 @@ def run(prj, args, remaining_args,
             pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
             # Build basic command line string
-            cmd = os.path.join(pipe_group_path, pipeline)
+            cmd = pipeline_job
 
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
@@ -309,7 +303,7 @@ def run(prj, args, remaining_args,
                     cmd += " -M " + submit_settings["mem"]
 
             # Add the command string and job name to the submit_settings object
-            submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline
+            submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline_job
             submit_settings["CODE"] = cmd
 
             # Submit job!
@@ -665,24 +659,13 @@ def main():
         pipedirs = prj.metadata.pipelines_dir
         _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
 
-        for pipedir in prj.metadata.pipelines_dir:
-            grouped_pipelines_folder = os.path.join(pipedir, "pipelines")
-            config_info_folder = os.path.join(pipedir, "config")
-            pipe_iface_path = os.path.join(config_info_folder,
-                                           "pipeline_interface.yaml")
-            pipeline_interface = PipelineInterface(pipe_iface_path)
-            protocol_mappings_path = os.path.join(config_info_folder,
-                                                  "protocol_mappings.yaml")
-            protocol_mappings = ProtocolMapper(protocol_mappings_path)
-            try:
-                run(prj, args, remaining_args,
-                    pipeline_interface=pipeline_interface,
-                    protocol_mappings=protocol_mappings,
-                    pipe_group_path=grouped_pipelines_folder)
-            except IOError:
-                _LOGGER.error("{} pipelines_dir: '{}'".format(
-                        prj.__class__.__name__, prj.metadata.pipelines_dir))
-                raise
+        interface_manager = InterfaceManager(prj.metdata.pipelines_dir)
+        try:
+            run(prj, args, remaining_args, interface_manager=interface_manager)
+        except IOError:
+            _LOGGER.error("{} pipelines_dir: '{}'".format(
+                    prj.__class__.__name__, prj.metadata.pipelines_dir))
+            raise
 
     if args.command == "destroy":
         return destroy(prj, args)

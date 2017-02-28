@@ -1734,8 +1734,10 @@ class InterfaceManager(object):
                               format(len(new_scripts), protocol_name,
                                      ifproto.pipedir, ", ".join(new_scripts)))
 
-                jobs.extend([_os.path.join(ifproto.pipelines_path, script)
-                             for script in script_names])
+                script_paths = [_os.path.join(ifproto.pipelines_path, script)
+                                for script in script_names]
+                jobs.extend([(ifproto.interface, path)
+                             for path in script_paths])
         return jobs
 
 
