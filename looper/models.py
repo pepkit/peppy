@@ -1798,6 +1798,7 @@ class ProtocolMapper(object):
         self.mappings = {k.upper(): v for k, v in mappings.items()}
 
 
+    # TODO: remove once comfortable that the aggregate InterfaceManager version is stable.
     def build_pipeline(self, protocol):
         """
         :param str protocol: Name of protocol.
@@ -1824,6 +1825,7 @@ class ProtocolMapper(object):
                 self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
         """
 
+    # TODO: incorporate into the InterfaceManager?
     def parse_parallel_jobs(self, job, dep):
         # Eliminate any parenthesis
         job = job.replace("(", "")
@@ -1836,6 +1838,7 @@ class ProtocolMapper(object):
         else:
             self.register_job(job, dep)
 
+    # TODO: incorporate into InterfaceManager?
     def register_job(self, job, dep):
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
 
