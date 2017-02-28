@@ -66,6 +66,7 @@ def partition(items, test):
     :return: list[object], list[object]: partitioned items sequences
     """
     passes, fails = [], []
+    _LOGGER.debug("Testing items: {}".format(items))
     for item in items:
         _LOGGER.debug("Testing item {}".format(item))
         group = passes if test(item) else fails
