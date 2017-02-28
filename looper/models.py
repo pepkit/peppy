@@ -378,6 +378,7 @@ class Project(AttributeDict):
         return "Project '%s'" % name + "\nConfig: " + str(self.config)
 
 
+
     def finalize_pipelines_directory(self, pipe_path=""):
         """
         After parsing the config file, finalize the establishment of path
@@ -416,6 +417,7 @@ class Project(AttributeDict):
                             format(pipe_path, type(pipe_path)))
 
         self.metadata.pipelines_dir = pipe_path
+
 
 
     def parse_config_file(self, subproject=None):
