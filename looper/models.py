@@ -1697,12 +1697,14 @@ class InterfaceManager(object):
                 self.ifproto_by_proto_name[proto_name].append(ifproto)
 
 
-    def build_pipelines(self, protocol_name):
+    def build_pipelines(self, protocol_name, priority=True):
         """
         Build up a sequence of scripts to execute for this protocol.
 
         :param str protocol_name: name for the protocol for which to build
             pipelines
+        :param bool priority: should only the top priority mapping be
+            used?
         :return list[str]: sequence of jobs (script paths) to execute for
             the given protocol
         """
@@ -1744,6 +1746,10 @@ class InterfaceManager(object):
                                 for script in script_names]
                 jobs.extend([(ifproto.interface, path)
                              for path in script_paths])
+
+        if priority and len(jobs) > 1:
+            return [jobs[0]]
+
         return jobs
 
 
