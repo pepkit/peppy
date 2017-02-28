@@ -61,6 +61,7 @@ import yaml as _yaml
 from . import LOOPERENV_VARNAME
 from exceptions import *
 
+import glob
 
 COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
@@ -1093,7 +1094,7 @@ class Sample(object):
     def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
         """
         Uses the template path provided in the project config section "data_sources" to
-        pieces together an actual path, by substituting varibles (encoded by "{variable}"") with
+        pieces together an actual path, by substituting variables (encoded by "{variable}"") with
         sample attributes.
 
         :param column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
@@ -1125,7 +1126,7 @@ class Sample(object):
                                                               column_name))
             return ""
 
-        # This will populate any environment variables like $VAR with os.environ["VAR"]
+        # Populate any environment variables like $VAR with os.environ["VAR"]
         regex = _os.path.expandvars(regex)
 
         try:
@@ -1137,6 +1138,9 @@ class Sample(object):
             if extra_vars:
                 temp_dict.update(extra_vars)
             val = regex.format(**temp_dict)
+            if '*' in val:
+                val_globbed = glob.glob(val)
+                val = " ".join(val_globbed)
 
         except Exception as e:
             _LOGGER.error("Can't format data source correctly: %s", regex)
