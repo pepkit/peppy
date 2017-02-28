@@ -9,7 +9,8 @@ local level, but this will at least provide a foundation.
 
 import logging
 import os
-from sys import stderr
+from sys import stdout
+from _version import __version__
 
 
 LOOPERENV_VARNAME = "LOOPERENV"
@@ -18,13 +19,17 @@ DEFAULT_LOOPERENV_FILENAME = "default_looperenv.yaml"
 DEFAULT_LOOPERENV_CONFIG_RELATIVE = os.path.join(SUBMISSION_TEMPLATES_FOLDER,
                                                  DEFAULT_LOOPERENV_FILENAME)
 
-LOGGING_LEVEL = logging.INFO
-LOGGING_LOCATIONS = (stderr, )
-DEFAULT_LOGGING_FMT = "%(asctime)s %(name)s %(module)s : %(lineno)d - [%(levelname)s] > %(message)s"
+LOGGING_LEVEL = "INFO"
+LOGGING_LOCATIONS = (stdout, )
+
+# Default user logging format is simple
+DEFAULT_LOGGING_FMT = "%(message)s"
+# Developer logger format is more information-rich
+DEV_LOGGING_FMT = "%(module)s:%(lineno)d [%(levelname)s] > %(message)s "
 
 
-def setup_looper_logger(level, additional_locations=None,
-                        fmt=None, datefmt=None):
+
+def setup_looper_logger(level, additional_locations=None, devmode=False):
     """
     Called by test configuration via `pytest`'s `conftest`.
     All arguments are optional and have suitable defaults.
@@ -32,14 +37,24 @@ def setup_looper_logger(level, additional_locations=None,
     :param int | str level: logging level
     :param tuple(str | FileIO[str]) additional_locations: supplementary
         destination(s) to which to ship logs
-    :param str fmt: message format string for log message, optional
-    :param str datefmt: datetime format string for log message time, optional
+    :param bool devmode: whether to use developer logging config
     :return logging.Logger: project-root logger
     """
 
+    fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
+
     # Establish the logger.
     LOOPER_LOGGER = logging.getLogger("looper")
+    # First remove any previously-added handlers
     LOOPER_LOGGER.handlers = []
+    LOOPER_LOGGER.propagate = False
+
+    # Handle int- or text-specific logging level.
+    try:
+        level = int(level)
+    except ValueError:
+        level = level.upper()
+
     try:
         LOOPER_LOGGER.setLevel(level)
     except Exception:
@@ -64,7 +79,7 @@ def setup_looper_logger(level, additional_locations=None,
                      format(additional_locations, LOGGING_LOCATIONS))
 
     # Add the handlers.
-    formatter = logging.Formatter(fmt or DEFAULT_LOGGING_FMT, datefmt)
+    formatter = logging.Formatter(fmt=(fmt or DEFAULT_LOGGING_FMT))
     for loc in where:
         if isinstance(loc, str):
             # File destination
@@ -77,7 +92,7 @@ def setup_looper_logger(level, additional_locations=None,
             handler_type = logging.StreamHandler
         else:
             # Strange supplementary destination
-            logging.warn("{} as logs destination appears to be neither "
+            logging.info("{} as logs destination appears to be neither "
                          "a filepath nor a stream.".format(loc))
             continue
         handler = handler_type(loc)

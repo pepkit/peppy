@@ -11,7 +11,7 @@ Workflow explained:
 
 In the process, stuff is checked:
     - project structure (created if not existing)
-    - existance of csv sample sheet with minimal fields
+    - existence of csv sample sheet with minimal fields
     - Constructing a path to a sample's input file and checking for its existance
     - read type/length of samples (optionally)
 
@@ -49,7 +49,11 @@ Explore!
 
 """
 
-from collections import OrderedDict as _OrderedDict
+from collections import \
+    defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
+from functools import partial
+import glob
+import itertools
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -59,9 +63,11 @@ import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
 from exceptions import *
-
+from utils import partition
 
 COL_KEY_SUFFIX = "_key"
+ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
+_LOGGER = logging.getLogger(__name__)
 
 
 def copy(obj):
@@ -92,7 +98,7 @@ class Paths(object):
 
 
 @copy
-class AttributeDict(object):
+class AttributeDict(MutableMapping):
     """
     A class to convert a nested Dictionary into an object with key-values
     accessibly using attribute notation (AttributeDict.attribute) instead of
@@ -100,40 +106,158 @@ class AttributeDict(object):
     allowing you to recurse down nested dicts (like: AttributeDict.attr.attr)
     """
 
-    _LOGGER = logging.getLogger("AttributeDict")
+    def __init__(self, entries=None,
+                 force_nulls=False, attribute_identity=False):
+        """
+        Establish a logger for this instance, set initial entries,
+        and determine behavior with regard to null values and behavior
+        for attribute requests.
 
-    def __init__(self, entries=None):
+        :param collections.Iterable | collections.Mapping entries: collection
+            of key-value pairs, initial data for this mapping
+        :param bool force_nulls: whether to allow a null value to overwrite
+            an existing non-null value
+        :param bool attribute_identity: whether to return attribute name
+            requested rather than exception when unset attribute/key is queried
+        """
+        # Null value can squash non-null?
+        self.__dict__["_force_nulls"] = force_nulls
+        # Return requested attribute name if not set?
+        self.__dict__["_attribute_identity"] = attribute_identity
         if entries:
             self.add_entries(entries)
 
-    def add_entries(self, entries):
-        for key, value in entries.items():
-            if type(value) is dict:
-                # key exists
-                if hasattr(self, key):
-                    if type(self[key]) is AttributeDict:
-                        self._LOGGER.debug("Updating key: {}".format(key))
-                        # Combine them
-                        self.__dict__[key].add_entries(value)
-                    else:
-                        # Create new AttributeDict, replace previous value
-                        self.__dict__[key] = AttributeDict(value)
-                else:
-                    # Create new AttributeDict
-                    self.__dict__[key] = AttributeDict(value)
-            else:
-                if value is not None:
-                    # Overwrite even if it's a dict; only if it's not None
-                    self.__dict__[key] = value
 
-    def __getitem__(self, key):
+    def add_entries(self, entries):
         """
-        Provides dict-style access to attributes
+        Update this `AttributeDict` with provided key-value pairs.
+
+        :param collections.Iterable | collections.Mapping entries: collection
+            of pairs of keys and values
         """
-        return getattr(self, key)
+        # Permit mapping-likes and iterables/generators of pairs.
+        if callable(entries):
+            entries = entries()
+        try:
+            entries_iter = entries.items()
+        except AttributeError:
+            entries_iter = entries
+        # Assume we now have pairs; allow corner cases to fail hard here.
+        for key, value in entries_iter:
+            if key in ATTRDICT_METADATA:
+                _LOGGER.debug("Not adding {}".format(key))
+                continue
+            self.__setitem__(key, value)
+
+
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)
+
+
+    def __getattr__(self, item):
+        """
+        Fetch the value associated with the provided identifier. Unlike an
+        ordinary object, `AttributeDict` supports fetching
+
+        :param int | str item: identifier for value to fetch
+        :return object: whatever value corresponds to the requested key/item
+        :raises MetadataOperationException: if the attribute
+            for which access was attempted is a special metadata item
+        :raises AttributeError: if the requested item has not been set and
+            this `AttributeDict` instance is not configured to return the
+            requested key/item itself when it's missing
+        """
+        if item in ATTRDICT_METADATA:
+            raise MetadataOperationException(self, item)
+        try:
+            return self.__dict__[item]
+        except KeyError:
+            if self.__dict__["_attribute_identity"]:
+                return item
+            raise AttributeError(item)
+
+
+    def __setitem__(self, key, value):
+        """
+        This is the key to making this a unique data type. Flag set at
+        time of construction determines whether it's possible for a null
+        value to squash a non-null value. The combination of that flag and
+        one indicating whether request for value for unset attribute should
+        return the attribute name itself determines if any attribute/key
+        may be set to a null value.
+
+        :param str key: name of the key/attribute for which to establish value
+        :param object value: value to which set the given key; if the value is
+            a mapping-like object, other keys' values may be combined.
+        :raises AttributeDict.MetadataOperationException: if attempt is made
+            to set value for privileged metadata key
+        """
+        self._log_(0, "Executing __setitem__ for '{}', '{}'".
+                   format(key, str(value)))
+        if isinstance(value, Mapping):
+            try:
+                # Combine AttributeDict instances.
+                self._log_(logging.DEBUG, "Updating key: '{}'".format(key))
+                self.__dict__[key].add_entries(value)
+            except (AttributeError, KeyError):
+                # Create new AttributeDict, replacing previous value.
+                self.__dict__[key] = AttributeDict(value)
+            self._log_(logging.DEBUG, "'{}' now has keys {}".
+                       format(key, self.__dict__[key].keys()))
+        elif value is not None or \
+                key not in self.__dict__ or self.__dict__["_force_nulls"]:
+            _LOGGER.debug("Setting '{}' to {}".format(key, value))
+            self.__dict__[key] = value
+        else:
+            self._log_(logging.DEBUG,
+                       "Not setting {k} to {v}; force_nulls: {nulls}".
+                       format(k=key, v=value,
+                              nulls=self.__dict__["_force_nulls"]))
+
+
+    def __getitem__(self, item):
+        try:
+            # Ability to handle returning requested item itself is delegated.
+            return self.__getattr__(item)
+        except AttributeError:
+            # Requested item is unknown, but request was made via
+            # __getitem__ syntax, not attribute-access syntax.
+            raise KeyError(item)
+
+    def __delitem__(self, item):
+        if item in ATTRDICT_METADATA:
+            raise MetadataOperationException(self, item)
+        try:
+            del self.__dict__[item]
+        except KeyError:
+            self._log_(logging.DEBUG, "No item {} to delete".format(item))
+
+    def __eq__(self, other):
+        for k in iter(self):
+            if k in other and self.__dict__[k] == other[k]:
+                continue
+            return False
+        return True
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __iter__(self):
+        return iter([k for k in self.__dict__.keys()
+                     if k not in ATTRDICT_METADATA])
+
+    def __len__(self):
+        return sum(1 for _ in iter(self))
+
+    def __str__(self):
+        return str({k: self.__dict__[k] for k in self.__iter__()})
 
     def __repr__(self):
-        return str(self.__dict__)
+        return repr(self.__dict__)
+
+    def _log_(self, level, message):
+        _LOGGER.log(level, message)
+
 
 
 @copy
@@ -164,17 +288,13 @@ class Project(AttributeDict):
                  permissive=True, file_checks=False, looperenv_file=None):
 
         super(Project, self).__init__()
-        self._logger = logging.getLogger(
-            "{}.{}".format(__name__, self.__class__.__name__)
-        )
-        self.DEBUG = False
 
-        self._logger.info("Instantiating %s using config file %s",
+        _LOGGER.info("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
 
         # Initialize local, serial compute as default (no cluster submission)
         # Start with default looperenv
-        self._logger.debug("Establishing default looperenv compute settings")
+        _LOGGER.debug("Establishing default looperenv compute settings")
         default_looperenv = \
             resource_filename("looper",
                               "submit_templates/default_looperenv.yaml")
@@ -189,22 +309,22 @@ class Project(AttributeDict):
         # Load settings from looper environment yaml
         # for local compute infrastructure.
         if not looperenv_file:
-            self._logger.info("Using default {envvar}. You may set environment "
+            _LOGGER.info("Using default {envvar}. You may set environment "
                               "variable '{envvar}' to configure compute "
                               "settings.".format(envvar=LOOPERENV_VARNAME))
         else:
-            self._logger.info("Updating compute settings (looper environment) "
+            _LOGGER.debug("Updating compute settings (looper environment) "
                               "based on file '%s'", looperenv_file)
             self.update_looperenv(looperenv_file)
 
         # Here, looperenv has been loaded (either custom or default).
         # Initialize default compute settings.
-        self._logger.info("Establishing project compute settings")
+        _LOGGER.debug("Establishing project compute settings")
         self.set_compute("default")
         if self.compute is None:
             raise ComputeEstablishmentException()
 
-        self._logger.info("Compute: %s", str(self.compute))
+        _LOGGER.debug("Compute: %s", str(self.compute))
 
         # optional configs
         self.permissive = permissive
@@ -246,6 +366,8 @@ class Project(AttributeDict):
         self.sheet = None
         self.add_sample_sheet()
 
+        self.finalize_pipelines_directory()
+
 
     def __repr__(self):
         if hasattr(self, "name"):
@@ -256,37 +378,92 @@ class Project(AttributeDict):
         return "Project '%s'" % name + "\nConfig: " + str(self.config)
 
 
+
+    def finalize_pipelines_directory(self, pipe_path=""):
+        """
+        After parsing the config file, finalize the establishment of path
+        to this project's pipelines. Override anything else with the passed
+        argument. Otherwise, prefer path provided in this project's config,
+        then local pipelines folder, then a location set in looper environment.
+
+
+        :param str pipe_path: (absolute) path to pipelines
+        :raises PipelinesException: if (prioritized) search in attempt to
+            confirm or set pipelines directory failed
+        :raises TypeError: if pipeline(s) path(s) argument is provided and
+            can't be interpreted as a single path or as a flat collection
+            of path(s)
+        """
+
+        # TODO: check for local pipelines or looperenv.
+
+        # Pass pipeline(s) dirpath(s) or use one already set.
+        if not pipe_path:
+            if "pipelines_dir" not in self.metadata:
+                # TODO: beware of AttributeDict with force_nulls = True here,
+                # as that may return 'pipelines_dir' name itself.
+                raise PipelinesException()
+            else:
+                pipe_path = self.metadata.pipelines_dir
+
+        # Ensure we work with text or flat iterable.
+        if isinstance(pipe_path, str):
+            pipe_path = [pipe_path]
+        elif isinstance(pipe_path, Iterable) and \
+                not isinstance(pipe_path, Mapping):
+            pipe_path = list(pipe_path)
+        else:
+            raise TypeError("Got {} as pipelines path(s) ({})".
+                            format(pipe_path, type(pipe_path)))
+
+        self.metadata.pipelines_dir = pipe_path
+
+
+
     def parse_config_file(self, subproject=None):
         """
         Parse provided yaml config file and check required fields exist.
         """
+
+        _LOGGER.debug("Setting %s data from '%s'",
+                      self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
             self.config = _yaml.load(handle)
 
         # parse yaml into the project's attributes
+        _LOGGER.debug("Adding {} attributes for {}: {}".format(
+            len(self.config), self.__class__.__name__, self.config.keys()))
+        _LOGGER.debug("Config metadata: {}")
         self.add_entries(self.config)
+        _LOGGER.debug("{} now has {} keys: {}".format(
+                self.__class__.__name__, len(self.keys()), self.keys()))
 
-        # Overwrite any config entries with entries in the subproject
+        # Overwrite any config entries with entries in the subproject.
         if "subprojects" in self.config and subproject:
+            _LOGGER.debug("Adding entries for subproject {}".
+                          format(subproject))
             self.add_entries(self.config['subprojects'][subproject])
+        else:
+            _LOGGER.debug("No subproject")
 
         # In looper 0.4 we eliminated the paths section for simplicity.
         # For backwards compatibility, mirror the paths section into metadata
         if "paths" in self.config:
-            self._logger.warn(
+            _LOGGER.warn(
                 "Paths section in project config is deprecated. "
                 "Please move all paths attributes to metadata section. "
                 "This option will be removed in future versions.")
             self.metadata.add_entries(self.paths.__dict__)
-            self._logger.debug("Metadata: %s", str(self.metadata))
-            self._logger.debug("Paths: %s", str(self.paths))
+            _LOGGER.debug("Metadata: %s", str(self.metadata))
+            _LOGGER.debug("Paths: %s", str(self.paths))
             self.paths = None
 
-        # These are required variables which have absolute paths
-        mandatory = ["output_dir", "pipelines_dir"]
-        for var in mandatory:
-            if not hasattr(self.metadata, var):
-                raise KeyError("Required field not in config file: %s" % var)
+        # Ensure required absolute paths are present and absolute.
+        required_metadata = ["output_dir"]
+        for var in required_metadata:
+            if var not in self.metadata:
+                raise MissingConfigEntryException(
+                    var, "metadata", self.__class__.__name__, self.metadata)
             setattr(self.metadata, var,
                     _os.path.expandvars(getattr(self.metadata, var)))
 
@@ -298,36 +475,43 @@ class Project(AttributeDict):
         for key, value in config_vars.items():
             if hasattr(self.metadata, key):
                 if not _os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, getattr(self.metadata, key)))
+                    setattr(self.metadata, key,
+                            _os.path.join(self.metadata.output_dir,
+                                          getattr(self.metadata, key)))
             else:
-                setattr(self.metadata, key, _os.path.join(self.metadata.output_dir, value))
+                outdir = self.metadata.output_dir
+                outpath = _os.path.join(outdir, value)
+                setattr(self.metadata, key, _os.path.join(outpath, value))
 
         # Variables which are relative to the config file
-        # All variables in these sections should be relative to the project config
+        # All variables in these sections should be relative to project config.
         relative_sections = ["metadata", "pipeline_config"]
 
-        self._logger.info("Parsing relative sections")
+        _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
             if not hasattr(self, sect):
-                self._logger.debug("%s lacks relative section '%s', skipping",
+                _LOGGER.debug("%s lacks relative section '%s', skipping",
                                    self.__class__.__name__, sect)
                 continue
             relative_vars = getattr(self, sect)
             if not relative_vars:
-                self._logger.debug("No relative variables, continuing")
+                _LOGGER.debug("No relative variables, continuing")
                 continue
-            for var in relative_vars.__dict__:
-                if not hasattr(relative_vars, var):
+            for var in relative_vars.keys():
+                if not hasattr(relative_vars, var) or \
+                                getattr(relative_vars, var) is None:
                     continue
-                # It could have been 'null' in which case, don't do this.
-                if getattr(relative_vars, var) is None:
-                    continue
-                if not _os.path.isabs(getattr(relative_vars, var)):
-                    # Set path to an absolute path, relative to project config.
-                    config_dirpath = _os.path.dirname(self.config_file)
-                    additional_from_base = getattr(relative_vars, var)
-                    abs_path = _os.path.join(config_dirpath,
-                                             additional_from_base)
+
+                relpath = getattr(relative_vars, var)
+                _LOGGER.debug("Ensuring absolute path(s) for '%s'", var)
+                # Parsed from YAML, so small space of possible datatypes.
+                if isinstance(relpath, list):
+                    setattr(relative_vars, var,
+                            [self._ensure_absolute(maybe_relpath)
+                             for maybe_relpath in relpath])
+                else:
+                    abs_path = self._ensure_absolute(relpath)
+                    _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
                     setattr(relative_vars, var, abs_path)
 
         # compute.submission_template could have been reset by project config
@@ -344,6 +528,23 @@ class Project(AttributeDict):
             raise KeyError("Required field not in config file: "
                            "%s" % "sample_annotation")
 
+
+    def _ensure_absolute(self, maybe_relpath):
+        if _os.path.isabs(maybe_relpath):
+            return maybe_relpath
+        # Maybe we have env vars that make the path absolute?
+        expanded = _os.path.expandvars(maybe_relpath)
+        if _os.path.isabs(expanded):
+            return expanded
+        _LOGGER.debug("Making non-absolute path '%s' be absolute",
+                      maybe_relpath)
+        # Set path to an absolute path, relative to project config.
+        config_dirpath = _os.path.dirname(self.config_file)
+        _LOGGER.debug("config_dirpath: %s", config_dirpath)
+        abs_path = _os.path.join(config_dirpath, maybe_relpath)
+        return abs_path
+
+
     def update_looperenv(self, looperenv_file):
         """
         Parse data from looper environment configuration file.
@@ -353,13 +554,13 @@ class Project(AttributeDict):
         """
         try:
             with open(looperenv_file, 'r') as handle:
-                self._logger.info("Loading %s: %s",
+                _LOGGER.info("Loading %s: %s",
                                   LOOPERENV_VARNAME, looperenv_file)
                 looperenv = _yaml.load(handle)
-                self._logger.debug("Looperenv: %s", str(looperenv))
+                _LOGGER.debug("Looperenv: %s", str(looperenv))
 
-                # Any compute.submission_template variables should be made absolute; relative
-                # to current looperenv yaml file
+                # Any compute.submission_template variables should be made
+                # absolute, relative to current looperenv yaml file
                 y = looperenv['compute']
                 for key, value in y.items():
                     if type(y[key]) is dict:
@@ -377,24 +578,23 @@ class Project(AttributeDict):
             self.looperenv_file = looperenv_file
 
         except Exception as e:
-            self._logger.error("Can't load looperenv config file '%s'",
+            _LOGGER.error("Can't load looperenv config file '%s'",
                                str(looperenv_file))
-            self._logger.error(str(type(e).__name__) + str(e))
+            _LOGGER.error(str(type(e).__name__) + str(e))
+
 
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
         """
-        for name, path in self.metadata.__dict__.items():
+        for name, path in self.metadata.items():
             # this is a list just to support future variables
             #if name not in ["pipelines_dir", "merge_table", "compare_table", "sample_annotation"]:
             # opt-in; which ones actually need to be created?
             if name in ["output_dir", "results_subdir", "submission_subdir"]:
                 if not _os.path.exists(path):
-                    try:
-                        _os.makedirs(path)
-                    except OSError:
-                        raise OSError("Cannot create directory %s" % path)
+                    _os.makedirs(path)
+
 
     def set_project_permissions(self):
         """
@@ -408,6 +608,7 @@ class Project(AttributeDict):
                 # ("cannot change folder's mode: %s" % d)
                 continue
 
+
     def set_compute(self, setting):
         """
         Sets the compute attributes according to the specified settings in the environment file
@@ -415,22 +616,25 @@ class Project(AttributeDict):
         """
 
         if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
-            self._logger.info("Loading compute settings %s", str(setting))
+            _LOGGER.debug("Loading compute settings: '%s'", str(setting))
             if hasattr(self, "compute"):
+                _LOGGER.debug("Adding compute entries for setting %s",
+                                   setting)
                 self.compute.add_entries(self.looperenv.compute[setting].__dict__)
             else:
+                _LOGGER.debug("Creating compute entries for setting '%s'",
+                                   setting)
                 self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
 
-            self._logger.debug("%s: %s", str(setting),
+            _LOGGER.debug("%s: %s", str(setting),
                                self.looperenv.compute[setting])
-            self._logger.debug("Compute: %s", str(self.looperenv.compute))
+            _LOGGER.debug("Compute: %s", str(self.looperenv.compute))
 
             if not _os.path.isabs(self.compute.submission_template):
-                # self.compute.submission_template = _os.path.join(self.metadata.pipelines_dir, self.compute.submission_template)
                 # Relative to looper environment config file.
                 self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
         else:
-            self._logger.warn("Cannot load compute settings: %s (%s)",
+            _LOGGER.warn("Cannot load compute settings: %s (%s)",
                               setting, str(type(setting)))
 
     def get_arg_string(self, pipeline_name):
@@ -438,22 +642,31 @@ class Project(AttributeDict):
         For this project, given a pipeline, return an argument string
         specified in the project config file.
         """
-        argstring = ""  # Initialize to empty
-        if hasattr(self, "pipeline_args"):
-            # Add default args to every pipeline
-            if hasattr(self.pipeline_args, "default"):
-                for key, value in getattr(self.pipeline_args, "default").__dict__.items():
-                    argstring += " " + key
-                    # Arguments can have null values; then print nothing
-                    if value:
-                        argstring += " " + value
-            # Now add pipeline-specific args
-            if hasattr(self.pipeline_args, pipeline_name):
-                for key, value in getattr(self.pipeline_args, pipeline_name).__dict__.items():
-                    argstring += " " + key
-                    # Arguments can have null values; then print nothing
-                    if value:
-                        argstring += " " + value
+
+        argstring = ""
+        if not hasattr(self, "pipeline_args"):
+            return argstring
+
+        pipeline_args = self.pipeline_args
+
+        # Add default args to every pipeline
+        if hasattr(pipeline_args, "default"):
+            for key, value in getattr(pipeline_args, "default").__dict__.items():
+                if key in ATTRDICT_METADATA:
+                    continue
+                argstring += " " + key
+                # Arguments can have null values; then print nothing
+                if value:
+                    argstring += " " + value
+        # Now add pipeline-specific args
+        if hasattr(pipeline_args, pipeline_name):
+            for key, value in getattr(pipeline_args, pipeline_name).__dict__.items():
+                if key in ATTRDICT_METADATA:
+                    continue
+                argstring += " " + key
+                # Arguments can have null values; then print nothing
+                if value:
+                    argstring += " " + value
 
         return argstring
 
@@ -470,7 +683,7 @@ class Project(AttributeDict):
         :type file_checks: bool
         """
 
-        self._logger.info("Adding sample sheet")
+        _LOGGER.debug("Adding sample sheet")
 
         # If options are not passed, used what has been set for project.
         if permissive is None:
@@ -491,7 +704,7 @@ class Project(AttributeDict):
         self.sheet.prj = self
 
         # Generate sample objects from annotation sheet.
-        self._logger.info("Creating samples from annotation sheet")
+        _LOGGER.debug("Creating samples from annotation sheet")
         self.sheet.make_samples()
 
         # Add samples to Project
@@ -523,7 +736,7 @@ class Project(AttributeDict):
                             # keep track of merged cols, so we don't re-derive them later.
                             merged_cols = {key: "" for key in merge_rows.columns}
                             for row in merge_rows.index:
-                                self._logger.debug(
+                                _LOGGER.debug(
                                     "New row: {}, {}".format(row, merge_rows))
                                 # Update with derived columns
                                 row_dict = merge_rows.ix[row].to_dict()
@@ -540,13 +753,13 @@ class Project(AttributeDict):
                                 # Also add in any derived cols present
                                 for col in self["derived_columns"]:
                                     if hasattr(sample, col) and not col in row_dict:
-                                        self._logger.debug(
+                                        _LOGGER.debug(
                                             "PROBLEM adding derived column: '%s'",
                                             str(col))
                                         row_dict[col + "_key"] = getattr(sample, col)
                                         row_dict[col] = sample.locate_data_source(
                                             col, getattr(sample,col), row_dict)
-                                        self._logger.debug(
+                                        _LOGGER.debug(
                                             "/PROBLEM adding derived column: "
                                             "'%s', %s, %s",
                                             str(col), str(row_dict[col]),
@@ -558,7 +771,7 @@ class Project(AttributeDict):
                                     if key == "sample_name":
                                         continue
                                     if val:  # this purges out any None entries
-                                        self._logger.debug("merge: sample '%s'; %s=%s",
+                                        _LOGGER.debug("merge: sample '%s'; %s=%s",
                                                            str(sample.name), str(key), str(val))
                                         if not merged_cols.has_key(key):
                                             merged_cols[key] = str(val).rstrip()
@@ -627,8 +840,6 @@ class SampleSheet(object):
         self.csv = csv
         self.samples = list()
         self.check_sheet(dtype)
-        self._logger = logging.getLogger(
-            "{}.{}".format(__name__, self.__class__.__name__))
 
     def __repr__(self):
         if hasattr(self, "prj"):
@@ -670,22 +881,33 @@ class SampleSheet(object):
 
         # If "library" attribute exists, try to get a matched Sample object for it from any "pipelines" repository.
         try:
-            import pipelines  # try to use a pipelines package is installed
+            import pipelines  # Use a pipelines package if installed.
         except ImportError:
             try:
-                sys.path.append(self.prj.metadata.pipelines_dir)  # try using the pipeline package from the config file
+                pipeline_dirpaths = self.prj.metadata.pipelines_dir
+                sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
+                _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
+                              format(len(pipeline_dirpaths), pipeline_dirpaths))
                 import pipelines
             except ImportError:
                 return Sample(series)  # if so, return generic Sample
 
         # get all class objects from modules of the pipelines package that have a __library__ attribute
         sample_types = list()
-        for _, module in inspect.getmembers(sys.modules["pipelines"], lambda member: inspect.ismodule(member)):
-            st = inspect.getmembers(module, lambda member: inspect.isclass(member) and hasattr(member, "__library__"))
+        for _, module in inspect.getmembers(
+                sys.modules["pipelines"],
+                lambda member: inspect.ismodule(member)):
+            st = inspect.getmembers(
+                    module,
+                    lambda member: inspect.isclass(member) and
+                                   hasattr(member, "__library__"))
+            _LOGGER.debug("Adding %d sample type classes: %s",
+                          len(st), str(st))
             sample_types += st
 
         # get __library__ attribute from classes and make mapping of __library__: Class (a dict)
-        pairing = {sample_class.__library__: sample_class for sample_type, sample_class in sample_types}
+        pairing = {sample_class.__library__: sample_class
+                   for sample_type, sample_class in sample_types}
 
         # Match sample and sample_class
         try:
@@ -747,7 +969,6 @@ class Sample(object):
     """
 
     _FEATURE_ATTR_NAMES = ["read_length", "read_type", "paired"]
-    _LOGGER = logging.getLogger("{}.{}".format(__name__, "Sample"))
 
     # Originally, this object was inheriting from _pd.Series,
     # but complications with serializing and code maintenance
@@ -859,9 +1080,9 @@ class Sample(object):
             if type(obj) is list:  # recursive serialization (lists)
                 return [obj2dict(i) for i in obj]
             elif type(obj) is dict:  # recursive serialization (dict)
-                return {k: obj2dict(v) for k, v in obj.items() if (k not in to_skip and not isinstance(v, logging.Logger))}
+                return {k: obj2dict(v) for k, v in obj.items() if k not in to_skip}
             elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if (k not in to_skip and not isinstance(v, logging.Logger))}
+                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip}
             elif hasattr(obj, 'dtype'):  # numpy data types
                 return obj.item()
             elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
@@ -886,7 +1107,7 @@ class Sample(object):
     def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
         """
         Uses the template path provided in the project config section "data_sources" to
-        pieces together an actual path, by substituting varibles (encoded by "{variable}"") with
+        pieces together an actual path, by substituting variables (encoded by "{variable}"") with
         sample attributes.
 
         :param column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
@@ -913,12 +1134,12 @@ class Sample(object):
         try:
             regex = self.prj["data_sources"][source_key]
         except:
-            self._LOGGER.warn("Config lacks entry for data_source key: "
+            _LOGGER.warn("Config lacks entry for data_source key: "
                               "'{}' (in column: '{}')".format(source_key,
                                                               column_name))
             return ""
 
-        # This will populate any environment variables like $VAR with os.environ["VAR"]
+        # Populate any environment variables like $VAR with os.environ["VAR"]
         regex = _os.path.expandvars(regex)
 
         try:
@@ -930,10 +1151,15 @@ class Sample(object):
             if extra_vars:
                 temp_dict.update(extra_vars)
             val = regex.format(**temp_dict)
+            if '*' in val or '[' in val:
+                _LOGGER.debug("Pre-glob: %s", val)
+                val_globbed = sorted(glob.glob(val))
+                val = " ".join(val_globbed)
+                _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
-            self._LOGGER.error("Can't format data source correctly: %s", regex)
-            self._LOGGER.error(str(type(e).__name__) + str(e))
+            _LOGGER.error("Can't format data source correctly: %s", regex)
+            _LOGGER.error(str(type(e).__name__) + str(e))
             return regex
 
         return val
@@ -946,13 +1172,13 @@ class Sample(object):
         try:
             self.genome = getattr(self.prj.genomes, self.organism)
         except AttributeError:
-            self._LOGGER.warn("Project config lacks genome mapping for "
+            _LOGGER.warn("Project config lacks genome mapping for "
                               "organism '%s'", str(self.organism))
         # get transcriptome
         try:
             self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
         except AttributeError:
-            self._LOGGER.warn("Project config lacks transcriptome mapping for "
+            _LOGGER.warn("Project config lacks transcriptome mapping for "
                               "organism '%s'", str(self.organism))
 
     def set_file_paths(self, override=False):
@@ -1035,11 +1261,11 @@ class Sample(object):
         # pipeline_name
 
 
-    def confirm_required_inputs(self, permissive = False):
+    def confirm_required_inputs(self, permissive=False):
         # set_pipeline_attributes must be run first.
 
         if not hasattr(self, "required_inputs"):
-            self._LOGGER.warn("You must run set_pipeline_attributes before confirm_required_inputs")
+            _LOGGER.warn("You must run set_pipeline_attributes before confirm_required_inputs")
             return True
 
         if not self.required_inputs:
@@ -1050,7 +1276,7 @@ class Sample(object):
             if not hasattr(self, file_attribute):
                 message = "Sample missing required input attribute '{}'".\
                     format(file_attribute)
-                self._LOGGER.warn(message)
+                _LOGGER.warn(message)
                 if not permissive:
                     raise IOError(message)
                 else:
@@ -1071,7 +1297,7 @@ class Sample(object):
             if not permissive:
                 raise IOError(message)
             else:
-                self._LOGGER.error(message)
+                _LOGGER.error(message)
                 return False
 
         return True
@@ -1079,8 +1305,10 @@ class Sample(object):
 
     def get_attr_values(self, attrlist):
         """
-        Given an attribute that contains a list of attribute keys, returns the corresponding list of attribute values.
-        :param attrlist: An attribute (of self) that holds a list of attribute keys.
+        Get value corresponding to each given attribute.
+
+        :param str attrlist: name of an attribute storing a list of attr names
+        :return list: value (or empty string) corresponding to each named attr
         """
         if not hasattr(self, attrlist):
             return None
@@ -1093,32 +1321,30 @@ class Sample(object):
         if type(attribute_list) is not list:
             attribute_list = [attribute_list]
 
-        values = []
+        # Strings contained here are appended later so shouldn't be null.
+        return [getattr(self, attr) if hasattr(self, attr) else ""
+                for attr in attribute_list]
 
-        for attr in attribute_list:
-            values.append(getattr(self, attr))
-
-        return values
 
     def get_file_size(self, filename):
         """
-        Get size of all files in string (space-separated) in gigabytes (Gb). Filename can also be
-        a list of space-separated stings.
-        :param filename: A space-separated string or list of space-separated strings of absolute file paths.
+        Get size of all files in gigabytes (Gb).
+
+        :param str | collections.Iterable[str] filename: A space-separated
+            string or list of space-separated strings of absolute file paths.
         """
-
-        if type(filename) is list:
-            # Recurse
-            return sum([self.get_file_size(x) for x in filename])
-
         if filename is None:
             return 0
-
+        if type(filename) is list:
+            return sum([self.get_file_size(x) for x in filename])
         try:
-            return sum([float(_os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
+            total_bytes = sum([float(_os.stat(f).st_size)
+                               for f in filename.split(" ") if f is not ''])
         except OSError:
             # File not found
             return 0
+        else:
+            return total_bytes / (1024 ** 3)
 
     def set_read_type(self, n = 10, permissive=True):
         """
@@ -1161,15 +1387,21 @@ class Sample(object):
             Checks if string endswith `bam` or `fastq`.
             Returns string. Raises TypeError if neither.
 
-            :param input_file: String to check.
-            :type input_file: str
+            :param str input_file: String to check.
+            :return str: filetype (extension without dot prefix)
+            :raises TypeError: if file does not appear of a supported type,
+                based on extension
             """
             if input_file.endswith(".bam"):
                 return "bam"
-            elif input_file.endswith(".fastq") or input_file.endswith(".fq") or input_file.endswith(".fq.gz") or input_file.endswith(".fastq.gz"):
+            elif input_file.endswith(".fastq") or \
+                    input_file.endswith(".fq") or \
+                    input_file.endswith(".fq.gz") or \
+                    input_file.endswith(".fastq.gz"):
                 return "fastq"
             else:
-                raise TypeError("Type of input file does not end in either '.bam' or '.fastq' [file: '" + input_file +"']")
+                raise TypeError("Type of input file ends in neither '.bam' "
+                                "nor '.fastq' [file: '" + input_file +"']")
 
         def check_bam(bam, o):
             """
@@ -1187,7 +1419,7 @@ class Sample(object):
                 # Count paired alignments
                 paired = 0
                 read_length = Counter()
-                while o > 0:
+                while o > 0:  # Count down number of lines
                     line = p.stdout.next().split("\t")
                     flag = int(line[1])
                     read_length[len(line[9])] += 1
@@ -1200,15 +1432,17 @@ class Sample(object):
                          "looper needs samtools to auto-populate " \
                          "'read_length' and 'read_type' attributes; " \
                          "these attributes were not populated."
-                self._LOGGER.error(reason)
                 raise OSError(reason)
 
+            _LOGGER.debug("Read lengths: {}".format(read_length))
+            _LOGGER.debug("paired: {}".format(paired))
             return read_length, paired
 
         def check_fastq(fastq, o):
             """
             """
-            raise NotImplementedError("Detection of read type/length for fastq input is not yet implemented.")
+            raise NotImplementedError("Detection of read type/length for "
+                                      "fastq input is not yet implemented.")
 
         # for samples with multiple original bams, check all
         files = list()
@@ -1225,26 +1459,26 @@ class Sample(object):
                     if not permissive:
                         raise TypeError(message)
                     else:
-                        self._LOGGER.error(message)
+                        _LOGGER.error(message)
                     return
             except NotImplementedError as e:
                 if not permissive:
                     raise
                 else:
-                    self._LOGGER.error(e.message)
+                    _LOGGER.warn(e.message)
                     return
             except IOError:
                 if not permissive:
                     raise
                 else:
-                    self._LOGGER.error("Input file does not exist or "
+                    _LOGGER.error("Input file does not exist or "
                                        "cannot be read: %s", str(input_file))
                     for feat_name in self._FEATURE_ATTR_NAMES:
                         if not hasattr(self, feat_name):
                             setattr(self, feat_name, None)
                     return
             except OSError as e:
-                self._LOGGER.error(str(e) + " [file: {}]".format(input_file))
+                _LOGGER.error(str(e) + " [file: {}]".format(input_file))
                 for feat_name in self._FEATURE_ATTR_NAMES:
                     if not hasattr(self, feat_name):
                         setattr(self, feat_name, None)
@@ -1271,7 +1505,7 @@ class Sample(object):
                     files[0][i] if len(set(f[i] for f in files)) == 1 else None)
 
             if getattr(self, feature) is None:
-                self._LOGGER.warn("Not all input files agree on "
+                _LOGGER.warn("Not all input files agree on "
                                   "%s for sample '%s'", feature, self.name)
 
 
@@ -1286,33 +1520,15 @@ class PipelineInterface(object):
 
     def __init__(self, yaml_config_file):
         import yaml
-        self._logger = logging.getLogger(
-            "{}.{}".format(__name__, self.__class__.__name__))
-        self._logger.info("Creating %s from file '%s'",
+        _LOGGER.info("Creating %s from file '%s'",
                           self.__class__.__name__, yaml_config_file)
         self.looper_config_file = yaml_config_file
         with open(yaml_config_file, 'r') as f:
             self.looper_config = yaml.load(f)
 
 
-    def select_pipeline(self, pipeline_name):
-        """
-        Check to make sure that pipeline has an entry and if so, return it.
-
-        :param pipeline_name: Name of pipeline.
-        :type pipeline_name: str
-        """
-        if pipeline_name not in self.looper_config:
-            self._logger.error(
-                "Missing pipeline description: '%s' not found in '%s'",
-                pipeline_name, self.looper_config_file)
-            # Should I just use defaults or force you to define this?
-            raise Exception("You need to teach the looper about that pipeline")
-
-        return self.looper_config[pipeline_name]
-
     def uses_looper_args(self, pipeline_name):
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if "looper_args" in config and config["looper_args"]:
             return True
@@ -1324,7 +1540,7 @@ class PipelineInterface(object):
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
         """
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if "name" not in config:
             # Discard extensions for the name
@@ -1344,7 +1560,7 @@ class PipelineInterface(object):
         :param file_size: Size of input data.
         :type file_size: float
         """
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if "resources" not in config:
             msg = "No resources found for '" + pipeline_name + "' in '" + self.looper_config_file + "'"
@@ -1369,7 +1585,7 @@ class PipelineInterface(object):
         """
         Given a pipeline name and an attribute key, returns the value of that attribute.
         """
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if config.has_key(attribute_key):
             value = config[attribute_key]
@@ -1393,31 +1609,31 @@ class PipelineInterface(object):
         :type sample: Sample
         """
 
-        self._logger.info("Building arguments string")
-        config = self.select_pipeline(pipeline_name)
+        _LOGGER.debug("Building arguments string")
+        config = self._select_pipeline(pipeline_name)
         argstring = ""
 
         if "arguments" not in config:
-            self._logger.info("No arguments found for '%s' in '%s'",
+            _LOGGER.info("No arguments found for '%s' in '%s'",
                               pipeline_name, self.looper_config_file)
             return argstring
 
         args = config['arguments']
 
         for key, value in args.iteritems():
-            self._logger.debug("%s, %s", key, value)
+            _LOGGER.debug("%s, %s", key, value)
             if value is None:
-                self._logger.debug("Null value for opt arg key '%s'",
+                _LOGGER.debug("Null value for opt arg key '%s'",
                                    str(key))
                 continue
             try:
-                arg = getattr(sample, value)
+               arg = getattr(sample, value)
             except AttributeError:
-                self._logger.error(
-                    "Error (missing attribute): '%s' requires "
-                    "sample attribute '%s' for "
-                    "argument '%s' [sample '%s']",
-                    pipeline_name, value, key, sample.sample_name)
+                _LOGGER.error(
+                    "Error (missing attribute): '%s' "
+                    "requires sample attribute '%s' "
+                    "for argument '%s'",
+                    pipeline_name, value, key)
                 raise
 
             argstring += " " + str(key) + " " + str(arg)
@@ -1426,24 +1642,187 @@ class PipelineInterface(object):
         if 'optional_arguments' in config:
             args = config['optional_arguments']
             for key, value in args.iteritems():
-                self._logger.debug("%s, %s (optional)", key, value)
+                _LOGGER.debug("%s, %s (optional)", key, value)
                 if value is None:
-                    self._logger.debug("Null value for opt arg key '%s'",
+                    _LOGGER.debug("Null value for opt arg key '%s'",
                                        str(key))
                     continue
                 try:
                     arg = getattr(sample, value)
                 except AttributeError as e:
-                    self._logger.warn(
-                        "NOTE (missing attribute): '%s' requests "
+                    _LOGGER.warn(
+                        "> Note (missing attribute): '%s' requests "
                         "sample attribute '%s' for "
-                        "OPTIONAL argument '%s' [sample '%s']",
-                        pipeline_name, value, key, sample.sample_name)
+                        "OPTIONAL argument '%s'",
+                        pipeline_name, value, key)
                     continue
 
                 argstring += " " + str(key) + " " + str(arg)
 
         return argstring
+
+    def _select_pipeline(self, pipeline_name):
+        """
+        Check to make sure that pipeline has an entry and if so, return it.
+
+        :param pipeline_name: Name of pipeline.
+        :type pipeline_name: str
+        """
+        if pipeline_name not in self.looper_config:
+            _LOGGER.error(
+                "Missing pipeline description: '%s' not found in '%s'",
+                pipeline_name, self.looper_config_file)
+            # Should I just use defaults or force you to define this?
+            raise Exception("You need to teach the looper about that pipeline")
+
+        return self.looper_config[pipeline_name]
+
+
+
+
+@copy
+class InterfaceManager(object):
+    """ Aggregate PipelineInterface and ProtocolMapper objects so that a
+     Project can use pipelines distributed across multiple locations. """
+
+    # TODO: note that this permits submission of jobs for same sample for
+    # same script/pipeline name if a protocol maps to that script name in
+    # multiple pipelines_dir locations. This is intentional, but it's a
+    # design decision that can be discussed. Perhaps a boolean
+    # parameter governing this behavior could be provided.
+
+
+    def __init__(self, pipeline_dirs):
+        """
+        Map protocol name to location to use for its pipeline(s).
+
+        :param collections.Iterable[str] pipeline_dirs: locations containing
+            pipelines and configuration information; specifically, a directory
+            with a 'pipelines' folder and a 'config' folder, within which
+            there is a pipeline interface file and a protocol mappings file
+        """
+        # Collect interface/mappings pairs by protocol name.
+        interfaces_and_protocols = [ProtocolInterfaces(pipedir)
+                                    for pipedir in pipeline_dirs]
+        self.ifproto_by_proto_name = defaultdict(list)
+        for ifproto in interfaces_and_protocols:
+            for proto_name in ifproto.protocols:
+                self.ifproto_by_proto_name[proto_name].append(ifproto)
+
+
+    def build_pipelines(self, protocol_name, priority=True):
+        """
+        Build up a sequence of scripts to execute for this protocol.
+
+        :param str protocol_name: name for the protocol for which to build
+            pipelines
+        :param bool priority: should only the top priority mapping be
+            used?
+        :return list[str]: sequence of jobs (script paths) to execute for
+            the given protocol
+        """
+
+        try:
+            ifprotos = self.ifproto_by_proto_name[protocol_name]
+        except KeyError:
+            _LOGGER.warn("Unknown protocol: '{}'".format(protocol_name))
+            return []
+
+        jobs = []
+        script_names_used = set()
+        for ifproto in ifprotos:
+            try:
+                this_protocol_pipelines = \
+                        ifproto.protomap.mappings[protocol_name]
+            except KeyError:
+                _LOGGER.debug("Protocol {} not in mappings file '{}'".
+                              format(protocol_name, ifproto.protomaps_path))
+            else:
+                # TODO: update once dependency-encoding logic is in place.
+                script_names = this_protocol_pipelines.replace(";", ",")\
+                                                      .strip(" ()\n")\
+                                                      .split(",")
+                script_names = [sn.strip() for sn in script_names]
+                already_mapped, new_scripts = \
+                        partition(script_names,
+                                  partial(_is_member, items=script_names_used))
+                script_names_used |= set(script_names)
+
+                if len(script_names) != (len(already_mapped) + len(new_scripts)):
+                    _LOGGER.error("{} --> {} + {}".format(
+                            script_names, already_mapped, new_scripts))
+
+                    raise RuntimeError(
+                            "Partitioned {} script names into allegedly "
+                            "disjoint sets of {} and {} elements.".
+                            format(len(script_names),
+                                   len(already_mapped),
+                                   len(new_scripts)))
+
+                _LOGGER.debug("Skipping {} already-mapped script names: {}".
+                              format(len(already_mapped),
+                                     ", ".join(already_mapped)))
+                _LOGGER.debug("{} new scripts for protocol {} from "
+                              "pipelines warehouse '{}': {}".
+                              format(len(new_scripts), protocol_name,
+                                     ifproto.pipedir, ", ".join(new_scripts)))
+
+                script_paths = [_os.path.join(ifproto.pipelines_path, script)
+                                for script in script_names]
+                jobs.append([(ifproto.interface, path)
+                             for path in script_paths])
+
+        if priority and len(jobs) > 1:
+            return jobs[0]
+
+        return list(itertools.chain(*jobs))
+
+
+
+def _is_member(item, items):
+    return item in items
+
+
+
+# TODO: rename.
+class ProtocolInterfaces:
+    """ Pair of PipelineInterface and ProtocolMapper instances
+    based on a single pipelines_dir location. Also stores path
+    attributes to retain information about the location
+    from which the interface and mapper came. """
+
+
+    def __init__(self, pipedir):
+        """
+        The location at which to find pipeline interface and protocol
+        mapping information defines the instance.
+
+        :param str pipedir: path to location at which to find pipeline,
+            pipeline interface, and protocol mapping information,
+            nested within subfolders as required
+        """
+        self.pipedir = pipedir
+        self.config_path = _os.path.join(pipedir, "config")
+        self.interface_path = _os.path.join(self.config_path,
+                                            "pipeline_interface.yaml")
+        self.protomaps_path = _os.path.join(self.config_path,
+                                            "protocol_mappings.yaml")
+        self.interface = PipelineInterface(self.interface_path)
+        self.protomap = ProtocolMapper(self.protomaps_path)
+        self.pipelines_path = _os.path.join(pipedir, "pipelines")
+
+
+    @property
+    def protocols(self):
+        """
+        Syntactic sugar for iteration over the
+        known protocol names for this instance.
+
+        :return generator[str]: names of protocols known by this instance
+        """
+        for protocol in self.protomap.mappings:
+            yield protocol
+
 
 
 @copy
@@ -1452,26 +1831,28 @@ class ProtocolMapper(object):
     This class maps protocols (the library column) to pipelines. For example,
     WGBS is mapped to wgbs.py
     """
+
     def __init__(self, mappings_file):
         import yaml
         # mapping libraries to pipelines
         self.mappings_file = mappings_file
-        self.mappings = yaml.load(open(mappings_file, 'r'))
-        self.mappings = {k.upper(): v for k, v in self.mappings.items()}
-        self._logger = logging.getLogger(
-            "{}.{}".format(__name__, self.__class__.__name__))
+        with open(mappings_file, 'r') as mapfile:
+            mappings = yaml.load(mapfile)
+        self.mappings = {k.upper(): v for k, v in mappings.items()}
 
+
+    # TODO: remove once comfortable that the aggregate InterfaceManager version is stable.
     def build_pipeline(self, protocol):
         """
-        :param protocol: Name of protocol.
+        :param str protocol: Name of protocol.
         :type protocol: str
         """
-        self._logger.info("Building pipeline for protocol '%s'", protocol)
+        _LOGGER.debug("Building pipeline for protocol '%s'", protocol)
 
         if protocol not in self.mappings:
-            self._logger.warn("Missing Protocol Mapping: "
-                              "'%s' is not found in '%s'",
-                              protocol, self.mappings_file)
+            _LOGGER.warn(
+                    "Missing Protocol Mapping: '%s' is not found in '%s'",
+                    protocol, self.mappings_file)
             return []
 
         # First list level
@@ -1487,6 +1868,7 @@ class ProtocolMapper(object):
                 self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
         """
 
+    # TODO: incorporate into the InterfaceManager?
     def parse_parallel_jobs(self, job, dep):
         # Eliminate any parenthesis
         job = job.replace("(", "")
@@ -1499,8 +1881,9 @@ class ProtocolMapper(object):
         else:
             self.register_job(job, dep)
 
+    # TODO: incorporate into InterfaceManager?
     def register_job(self, job, dep):
-        self._logger.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
+        _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
 
     def __repr__(self):
         return str(self.__dict__)
@@ -1519,4 +1902,3 @@ class CommandChecker(object):
         # Check if ALL returned elements are True
         if not all(map(self.check_command, self.config["tools"].items())):
             raise BaseException("Config file contains non-callable tools.")
-
