@@ -173,7 +173,8 @@ def run(prj, args, remaining_args, interface_manager):
 
     for sample in prj.samples:
         sample_count += 1
-        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
+        _LOGGER.info("## [{} of {}] {} ({})".format(
+            sample_count, sample_total, sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         fail_message = ""
@@ -348,7 +349,8 @@ def summarize(prj):
     sample_total = 0
     for sample in prj.samples:
         sample_count += 1
-        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
+        _LOGGER.info(_submission_status_text(
+            sample_count, sample_total, sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         # Grab the basic info from the annotation sheet for this sample.
@@ -410,7 +412,8 @@ def destroy(prj, args, preview_flag=True):
 
     for sample in prj.samples:
         sample_count += 1
-        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
+        _LOGGER.info(_submission_status_text(
+            sample_count, sample_total, sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
             # Preview: Don't actually delete, just show files.
@@ -447,7 +450,8 @@ def clean(prj, args, preview_flag=True):
 
     for sample in prj.samples:
         sample_count += 1
-        _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
+        _LOGGER.info(_submission_status_text(
+            sample_count, sample_total, sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
         if preview_flag:
@@ -473,6 +477,22 @@ def clean(prj, args, preview_flag=True):
     # Finally, run the true clean:
 
     return clean(prj, args, preview_flag=False)
+
+
+
+def _submission_status_text(curr, total, sample_name, sample_library):
+    """
+    Create text for one of the subcommand logging status messages.
+
+    :param int curr: number of jobs processed at time of message
+    :param int total: number of jobs to process, done and yet-to-go
+    :param str sample_name: name of the sample
+    :param str sample_library: name of the library
+    :return str: message suitable for logging a status update
+    """
+    return "## [{n} of {N}] {sample} ({library})".format(
+            n=curr, N=total, sample=sample_name, library=sample_library)
+
 
 
 def get_file_size(filename):
