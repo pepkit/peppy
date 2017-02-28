@@ -168,7 +168,7 @@ def run(prj, args, remaining_args, interface_manager):
     sample_total = len(prj.samples)
     prj.processed_samples = list()
 
-    # Create a few problem lists so we can keep track and show them at the end
+    # Create a problem list so we can keep track and show them at the end
     failures = []
 
     for sample in prj.samples:
@@ -197,15 +197,11 @@ def run(prj, args, remaining_args, interface_manager):
         # Get the base protocol-to-pipeline mappings
         if hasattr(sample, "library"):
             pipelines = interface_manager.build_pipelines(sample.library.upper())
+            if len(pipelines) == 0:
+                fail_message += "Protocol not found."
         else:
-            _LOGGER.warn(
-                "Sample '%s' does not have a 'library' attribute and "
-                "therefore cannot be mapped to any pipeline, skipping",
-                str(sample.name))
-            continue
+            fail_message += "Missing 'library' attribute."
 
-        if len(pipelines) == 0:
-            fail_message += "Protocol not found."
 
         if fail_message:
             _LOGGER.warn("> Not submitted: %s", fail_message)
@@ -235,7 +231,7 @@ def run(prj, args, remaining_args, interface_manager):
                 sample.confirm_required_inputs()
             except IOError:
                 fail_message = "Required input files not found"
-                _LOGGER.error("> Not submitted: %s", fail_message)
+                _LOGGER.warn("> Not submitted: %s", fail_message)
                 failures.append([fail_message, sample.sample_name])
                 continue
 
