@@ -345,10 +345,13 @@ def summarize(prj):
     Grabs the report_results stats files from each sample,
     and collates them into a single matrix (as a csv file)
     """
+
     import csv
     columns = []
     stats = []
 
+    sample_count = 0
+    sample_total = 0
     for sample in prj.samples:
         sample_count += 1
         _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")
@@ -405,7 +408,11 @@ def destroy(prj, args, preview_flag=True):
     """
     Completely removes all output files and folders produced by any pipelines.
     """
+
     _LOGGER.info("Results to destroy:")
+
+    sample_count = 0
+    sample_total = 0
 
     for sample in prj.samples:
         sample_count += 1
@@ -440,6 +447,10 @@ def clean(prj, args, preview_flag=True):
     """
 
     _LOGGER.info("Files to clean:")
+
+    sample_count = 0
+    sample_total = 0
+
     for sample in prj.samples:
         sample_count += 1
         _LOGGER.info("## [" + str(sample_count) + " of " + str(sample_total) + "] " + sample.sample_name + " (" + sample.library +")")

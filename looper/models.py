@@ -50,7 +50,7 @@ Explore!
 """
 
 from collections import \
-    Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
+    defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -60,6 +60,7 @@ import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
 from exceptions import *
+from utils import partition
 
 
 COL_KEY_SUFFIX = "_key"
@@ -1286,8 +1287,10 @@ class Sample(object):
 
     def get_attr_values(self, attrlist):
         """
-        Given an attribute that contains a list of attribute keys, returns the corresponding list of attribute values.
-        :param attrlist: An attribute (of self) that holds a list of attribute keys.
+        Get value corresponding to each given attribute.
+
+        :param str attrlist: name of an attribute storing a list of attr names
+        :return list: value (or empty string) corresponding to each named attr
         """
         if not hasattr(self, attrlist):
             return None
@@ -1300,36 +1303,30 @@ class Sample(object):
         if type(attribute_list) is not list:
             attribute_list = [attribute_list]
 
-        values = []
+        # Strings contained here are appended later so shouldn't be null.
+        return [getattr(self, attr) if hasattr(self, attr) else ""
+                for attr in attribute_list]
 
-        for attr in attribute_list:
-            if hasattr(self, attr):
-                values.append(getattr(self, attr))
-            else:
-                # This string will later be append so it shouldn't be 'None'
-                values.append("")
-
-        return values
 
     def get_file_size(self, filename):
         """
-        Get size of all files in string (space-separated) in gigabytes (Gb). Filename can also be
-        a list of space-separated stings.
-        :param filename: A space-separated string or list of space-separated strings of absolute file paths.
+        Get size of all files in gigabytes (Gb).
+
+        :param str | collections.Iterable[str] filename: A space-separated
+            string or list of space-separated strings of absolute file paths.
         """
-
-        if type(filename) is list:
-            # Recurse
-            return sum([self.get_file_size(x) for x in filename])
-
         if filename is None:
             return 0
-
+        if type(filename) is list:
+            return sum([self.get_file_size(x) for x in filename])
         try:
-            return sum([float(_os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
+            total_bytes = sum([float(_os.stat(f).st_size)
+                               for f in filename.split(" ") if f is not ''])
         except OSError:
             # File not found
             return 0
+        else:
+            return total_bytes / (1024 ** 3)
 
     def set_read_type(self, n = 10, permissive=True):
         """
@@ -1372,15 +1369,21 @@ class Sample(object):
             Checks if string endswith `bam` or `fastq`.
             Returns string. Raises TypeError if neither.
 
-            :param input_file: String to check.
-            :type input_file: str
+            :param str input_file: String to check.
+            :return str: filetype (extension without dot prefix)
+            :raises TypeError: if file does not appear of a supported type,
+                based on extension
             """
             if input_file.endswith(".bam"):
                 return "bam"
-            elif input_file.endswith(".fastq") or input_file.endswith(".fq") or input_file.endswith(".fq.gz") or input_file.endswith(".fastq.gz"):
+            elif input_file.endswith(".fastq") or \
+                    input_file.endswith(".fq") or \
+                    input_file.endswith(".fq.gz") or \
+                    input_file.endswith(".fastq.gz"):
                 return "fastq"
             else:
-                raise TypeError("Type of input file does not end in either '.bam' or '.fastq' [file: '" + input_file +"']")
+                raise TypeError("Type of input file ends in neither '.bam' "
+                                "nor '.fastq' [file: '" + input_file +"']")
 
         def check_bam(bam, o):
             """
@@ -1419,7 +1422,8 @@ class Sample(object):
         def check_fastq(fastq, o):
             """
             """
-            raise NotImplementedError("Detection of read type/length for fastq input is not yet implemented.")
+            raise NotImplementedError("Detection of read type/length for "
+                                      "fastq input is not yet implemented.")
 
         # for samples with multiple original bams, check all
         files = list()
@@ -1504,24 +1508,8 @@ class PipelineInterface(object):
             self.looper_config = yaml.load(f)
 
 
-    def select_pipeline(self, pipeline_name):
-        """
-        Check to make sure that pipeline has an entry and if so, return it.
-
-        :param pipeline_name: Name of pipeline.
-        :type pipeline_name: str
-        """
-        if pipeline_name not in self.looper_config:
-            _LOGGER.error(
-                "Missing pipeline description: '%s' not found in '%s'",
-                pipeline_name, self.looper_config_file)
-            # Should I just use defaults or force you to define this?
-            raise Exception("You need to teach the looper about that pipeline")
-
-        return self.looper_config[pipeline_name]
-
     def uses_looper_args(self, pipeline_name):
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if "looper_args" in config and config["looper_args"]:
             return True
@@ -1533,7 +1521,7 @@ class PipelineInterface(object):
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
         """
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if "name" not in config:
             # Discard extensions for the name
@@ -1553,7 +1541,7 @@ class PipelineInterface(object):
         :param file_size: Size of input data.
         :type file_size: float
         """
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if "resources" not in config:
             msg = "No resources found for '" + pipeline_name + "' in '" + self.looper_config_file + "'"
@@ -1578,7 +1566,7 @@ class PipelineInterface(object):
         """
         Given a pipeline name and an attribute key, returns the value of that attribute.
         """
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
 
         if config.has_key(attribute_key):
             value = config[attribute_key]
@@ -1603,7 +1591,7 @@ class PipelineInterface(object):
         """
 
         _LOGGER.debug("Building arguments string")
-        config = self.select_pipeline(pipeline_name)
+        config = self._select_pipeline(pipeline_name)
         argstring = ""
 
         if "arguments" not in config:
@@ -1654,6 +1642,143 @@ class PipelineInterface(object):
 
         return argstring
 
+    def _select_pipeline(self, pipeline_name):
+        """
+        Check to make sure that pipeline has an entry and if so, return it.
+
+        :param pipeline_name: Name of pipeline.
+        :type pipeline_name: str
+        """
+        if pipeline_name not in self.looper_config:
+            _LOGGER.error(
+                "Missing pipeline description: '%s' not found in '%s'",
+                pipeline_name, self.looper_config_file)
+            # Should I just use defaults or force you to define this?
+            raise Exception("You need to teach the looper about that pipeline")
+
+        return self.looper_config[pipeline_name]
+
+
+
+
+@copy
+class InterfaceManager(object):
+    """ Aggregate PipelineInterface and ProtocolMapper objects so that a
+     Project can use pipelines distributed across multiple locations. """
+
+    # TODO: note that this permits submission of jobs for same sample for
+    # same script/pipeline name if a protocol maps to that script name in
+    # multiple pipelines_dir locations. This is intentional, but it's a
+    # design decision that can be discussed. Perhaps a boolean
+    # parameter governing this behavior could be provided.
+
+
+    def __init__(self, pipeline_dirs):
+        """
+        Map protocol name to location to use for its pipeline(s).
+
+        :param collections.Iterable[str] pipeline_dirs: locations containing
+            pipelines and configuration information; specifically, a directory
+            with a 'pipelines' folder and a 'config' folder, within which
+            there is a pipeline interface file and a protocol mappings file
+        """
+        # Collect interface/mappings pairs by protocol name.
+        interfaces_and_protocols = [ProtocolInterfaces(pipedir)
+                                    for pipedir in pipeline_dirs]
+        self.ifproto_by_proto_name = defaultdict(list)
+        for ifproto in interfaces_and_protocols:
+            for proto_name in ifproto.protocols:
+                self.ifproto_by_proto_name[proto_name].append(ifproto)
+
+
+    def build_pipelines(self, protocol_name):
+        """
+        Build up a sequence of scripts to execute for this protocol.
+
+        :param str protocol_name: name for the protocol for which to build
+            pipelines
+        :return list[str]: sequence of jobs (script paths) to execute for
+            the given protocol
+        """
+
+        try:
+            ifprotos = self.ifproto_by_proto_name[protocol_name]
+        except KeyError:
+            _LOGGER.warn("Unknown protocol: '{}'".format(protocol_name))
+            return []
+
+        jobs = []
+        script_names_used = {}
+        for ifproto in ifprotos:
+            try:
+                this_protocol_pipelines = \
+                        ifproto.protomap.mappings[protocol_name]
+            except KeyError:
+                _LOGGER.debug("Protocol {} not in mappings file '{}'".
+                              format(protocol_name, ifproto.protomaps_path))
+            else:
+
+                script_names = this_protocol_pipelines.split(";")
+                script_names_used |= set(script_names)
+                already_mapped, new_scripts = \
+                        partition(script_names,
+                                  lambda s_name: s_name in script_names_used)
+
+                assert len(script_names) == \
+                       (len(already_mapped) + len(new_scripts))
+                _LOGGER.debug("Skipping {} already-mapped script names: {}".
+                              format(len(already_mapped),
+                                     ", ".join(already_mapped)))
+                _LOGGER.debug("{} new scripts for protocol {} from "
+                              "pipelines warehouse '{}': {}".
+                              format(len(new_scripts), protocol_name,
+                                     ifproto.pipedir, ", ".join(new_scripts)))
+
+                jobs.extend([_os.path.join(ifproto.pipelines_path, script)
+                             for script in script_names])
+        return jobs
+
+
+# TODO: rename.
+class ProtocolInterfaces:
+    """ Pair of PipelineInterface and ProtocolMapper instances
+    based on a single pipelines_dir location. Also stores path
+    attributes to retain information about the location
+    from which the interface and mapper came. """
+
+
+    def __init__(self, pipedir):
+        """
+        The location at which to find pipeline interface and protocol
+        mapping information defines the instance.
+
+        :param str pipedir: path to location at which to find pipeline,
+            pipeline interface, and protocol mapping information,
+            nested within subfolders as required
+        """
+        self.pipedir = pipedir
+        self.config_path = _os.path.join(pipedir, "config")
+        self.interface_path = _os.path.join(self.config_path,
+                                            "pipeline_interface.yaml")
+        self.protomaps_path = _os.path.join(self.config_path,
+                                            "protocol_mappings.yaml")
+        self.interface = PipelineInterface(self.interface_path)
+        self.protomap = ProtocolMapper(self.protomaps_path)
+        self.pipelines_path = _os.path.join(pipedir, "pipelines")
+
+
+    @property
+    def protocols(self):
+        """
+        Syntactic sugar for iteration over the
+        known protocol names for this instance.
+
+        :return generator[str]: names of protocols known by this instance
+        """
+        for protocol in self.protomap.mappings:
+            yield protocol
+
+
 
 @copy
 class ProtocolMapper(object):
@@ -1661,16 +1786,19 @@ class ProtocolMapper(object):
     This class maps protocols (the library column) to pipelines. For example,
     WGBS is mapped to wgbs.py
     """
+
     def __init__(self, mappings_file):
         import yaml
         # mapping libraries to pipelines
         self.mappings_file = mappings_file
-        self.mappings = yaml.load(open(mappings_file, 'r'))
-        self.mappings = {k.upper(): v for k, v in self.mappings.items()}
+        with open(mappings_file, 'r') as mapfile:
+            mappings = yaml.load(mapfile)
+        self.mappings = {k.upper(): v for k, v in mappings.items()}
+
 
     def build_pipeline(self, protocol):
         """
-        :param protocol: Name of protocol.
+        :param str protocol: Name of protocol.
         :type protocol: str
         """
         _LOGGER.debug("Building pipeline for protocol '%s'", protocol)
@@ -1726,4 +1854,3 @@ class CommandChecker(object):
         # Check if ALL returned elements are True
         if not all(map(self.check_command, self.config["tools"].items())):
             raise BaseException("Config file contains non-callable tools.")
-
