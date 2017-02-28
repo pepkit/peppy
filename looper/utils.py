@@ -1,7 +1,7 @@
 """ Helpers without an obvious logical home. """
 
 from argparse import ArgumentParser
-from collections import defaultdict
+from collections import defaultdict, Iterable
 import logging
 import os
 import yaml
@@ -17,6 +17,61 @@ class VersionInHelpParser(ArgumentParser):
         """ Add version information to help text. """
         return "version: {}\n".format(__version__) + \
                super(VersionInHelpParser, self).format_help()
+
+
+def parse_text_data(lines_or_path, delimiter=os.linesep):
+    """
+    Interpret input argument as lines of data. This is intended to support
+    multiple input argument types to core model constructors.
+
+    :param str | collections.Iterable lines_or_path:
+    :param str delimiter: line separator used when parsing a raw string that's
+        not a file
+    :return collections.Iterable: lines of text data
+    :raises ValueError: if primary data argument is neither a string nor
+        another iterable
+    """
+
+    if os.path.isfile(lines_or_path):
+        with open(lines_or_path, 'r') as f:
+            return f.readlines()
+    else:
+        _LOGGER.debug("Not a file: '{}'".format(lines_or_path))
+
+    if isinstance(lines_or_path, str):
+        return lines_or_path.split(delimiter)
+    elif isinstance(lines_or_path, Iterable):
+        return lines_or_path
+    else:
+        raise ValueError("Unable to parse as data lines {} ({})".
+                         format(lines_or_path, type(lines_or_path)))
+
+
+def partition(items, test):
+    """
+    Partition items into a pair of disjoint multisets,
+    based on the evaluation of each item as input to boolean test function.
+    There are a couple of evaluation options here. One builds a mapping
+    (assuming each item is hashable) from item to boolean test result, then
+    uses that mapping to partition the elements on a second pass.
+    The other simply is single-pass, evaluating the function on each item.
+    A time-costly function suggests the two-pass, mapping-based approach while
+    a large input suggests a single-pass approach to conserve memory. We'll
+    assume that the argument is not terribly large and that the function is
+    cheap to compute and use a simpler single-pass approach.
+
+    :param collections.Iterable[object] items: items to partition
+    :param function(object) -> bool test: test to apply to each item to
+        perform the partitioning procedure
+    :return: list[object], list[object]: partitioned items sequences
+    """
+    passes, fails = [], []
+    _LOGGER.debug("Testing {} items: {}".format(len(items), items))
+    for item in items:
+        _LOGGER.debug("Testing item {}".format(item))
+        group = passes if test(item) else fails
+        group.append(item)
+    return passes, fails
 
 
 

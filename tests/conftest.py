@@ -21,7 +21,8 @@ from looper import setup_looper_logger
 from looper.models import PipelineInterface, Project
 
 
-_LOGGER = None
+# TODO: needed for interactive mode, but may crush cmdl option for setup.
+_LOGGER = logging.getLogger("looper")
 
 
 # {basedir} lines are formatted during file write; other braced entries remain.
@@ -77,6 +78,7 @@ testngs.sh:
     "--single-or-paired": read_type
     "--dcol1": dcol1
   required_input_files: [file]
+  all_input_files: [file, read1]
   ngs_input_files: [file]
   resources:
     default:
@@ -147,19 +149,85 @@ _ATTR_BY_TYPE = {
 }
 
 
+# TODO: split models conftest stuff into its own subdirectory.
+# Provide some basic atomic-type data for models tests.
+_BASE_KEYS = ("epigenomics", "H3K", "ac", "EWS", "FLI1")
+_BASE_VALUES = \
+    ("topic", "marker", "acetylation", "RNA binding protein", "FLI1")
+_SEASON_HIERARCHY = {
+    "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
+    "summer": {"June": 30, "July": 31, "August": 31},
+    "fall": {"September": 30, "October": 31, "November": 30},
+    "winter": {"December": 31, "January": 31}
+}
+COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
+                        "keys", "values", "items"]
+
 
 def pytest_addoption(parser):
     parser.addoption("--logging-level",
                      default="WARN",
-                     choices=["DEBUG", "INFO", "WARN", "WARNING", "ERROR"],
                      help="Project root logger level to use for tests")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
-    setup_looper_logger(request.config.getoption("--logging-level"))
+    level = request.config.getoption("--logging-level")
+    setup_looper_logger(level=level, devmode=True)
+    logging.getLogger("looper").info(
+        "Configured looper logger at level %s; attaching tests' logger %s",
+        str(level), __name__)
     global _LOGGER
     _LOGGER = logging.getLogger(__name__)
+
+
+
+def interactive(prj_lines=PROJECT_CONFIG_LINES,
+                iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
+                merge_table_lines = MERGE_TABLE_LINES,
+                sample_annotation_lines=SAMPLE_ANNOTATION_LINES,
+                project_kwargs=None):
+    """
+    Create Project and PipelineInterface instances from default or given data.
+
+    This is intended to provide easy access to instances of fundamental looper
+    object for interactive test-authorship-motivated work in an iPython
+    interpreter or Notebook. Test authorship is simplified if we provide
+    easy access to viable instances of these objects.
+
+    :param collections.Iterable[str] prj_lines: project config lines
+    :param collections.Iterable[str] iface_lines: pipeline interface
+        config lines
+    :param collections.Iterable[str] merge_table_lines: lines for a merge
+        table file
+    :param collections.Iterable[str] sample_annotation_lines: lines for a
+        sample annotations file
+    :param dict project_kwargs: keyword arguments for Project constructor
+    :return Project, PipelineInterface: one Project and one PipelineInterface,
+    """
+    # TODO: don't work with tempfiles once ctors tolerate Iterable.
+    dirpath = tempfile.mkdtemp()
+    path_conf_file = _write_temp(
+        prj_lines,
+        dirpath=dirpath, fname="project_config.yaml")
+    path_iface_file = _write_temp(
+        iface_lines,
+        dirpath=dirpath, fname="pipeline_interface.yaml")
+    path_merge_table_file = _write_temp(
+        merge_table_lines,
+        dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+    )
+    path_sample_annotation_file = _write_temp(
+        sample_annotation_lines,
+        dirpath=dirpath, fname=ANNOTATIONS_FILENAME
+    )
+
+    prj = Project(path_conf_file, **(project_kwargs or {}))
+    iface = PipelineInterface(path_iface_file)
+    for path in [path_conf_file, path_iface_file,
+                 path_merge_table_file, path_sample_annotation_file]:
+        os.unlink(path)
+    return prj, iface
 
 
 
@@ -288,7 +356,13 @@ def _req_cls_att(req, attr):
 
 
 def _create(request, wanted):
-    """ Create instance of `wanted` type, using file in `request` class. """
+    """
+    Create instance of `wanted` type, using file in `request` class.
+
+    :param _pytest.fixtures.FixtureRequest: test case that initiated the
+        fixture request that triggered this call
+    :param type wanted: the data type to be created
+    """
     data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
     _LOGGER.debug("Using %s as source of data to build %s",
                   data_source, wanted.__class__.__name__)
@@ -326,3 +400,26 @@ def pipe_iface(request):
         data in file pointed to by `request` class
     """
     return _create(request, PipelineInterface)
+
+
+
+def basic_entries():
+    for k, v in zip(_BASE_KEYS, _BASE_VALUES):
+        yield k, v
+
+
+def nested_entries():
+    for k, v in _SEASON_HIERARCHY.items():
+        yield k, v
+
+
+
+def pytest_generate_tests(metafunc):
+    """ Centralize dynamic test case parameterization. """
+    if "empty_collection" in metafunc.fixturenames:
+        # Test case strives to validate expected behavior on empty container.
+        collection_types = [tuple, list, set, dict]
+        metafunc.parametrize(
+                "empty_collection",
+                argvalues=[ctype() for ctype in collection_types],
+                ids=[ctype.__name__ for ctype in collection_types])
