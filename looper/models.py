@@ -1733,7 +1733,7 @@ class InterfaceManager(object):
                 script_names_used |= set(script_names)
                 already_mapped, new_scripts = \
                         partition(script_names,
-                                  partial(_is_member, script_names_used))
+                                  partial(_is_member, items=script_names_used))
 
                 if len(script_names) != (len(already_mapped) + len(new_scripts)):
                     _LOGGER.error("%s --> %s; %s",
@@ -1768,7 +1768,7 @@ class InterfaceManager(object):
 
 
 def _is_member(item, items):
-    return items.__contains__(item)
+    return item in items
 
 
 
