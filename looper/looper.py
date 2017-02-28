@@ -34,15 +34,21 @@ from colorama import init
 init()
 from colorama import Fore, Back, Style
 
-_LOGGER = None
+
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
                        logging.INFO, logging.DEBUG]
 
+
+_LOGGER = logging.getLogger()
 _COUNTER = None
+
 
 def parse_arguments():
     """
     Argument Parsing.
+
+    :return argparse.Namespace, list[str]: namespace parsed according to
+        arguments defined here, them undefined arguments
     """
 
     description = "%(prog)s - Loop through samples and submit pipelines for them."
