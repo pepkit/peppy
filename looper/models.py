@@ -1773,7 +1773,7 @@ class InterfaceManager(object):
                              for path in script_paths])
 
         if priority and len(jobs) > 1:
-            return [jobs[0]]
+            return jobs[0]
 
         return jobs
 
