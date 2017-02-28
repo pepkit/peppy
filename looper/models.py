@@ -1728,7 +1728,7 @@ class InterfaceManager(object):
             else:
                 # TODO: update once dependency-encoding logic is in place.
                 script_names = this_protocol_pipelines.replace(";", ",")\
-                                                      .strip("()\n")\
+                                                      .strip(" ()\n")\
                                                       .split(",")
                 already_mapped, new_scripts = \
                         partition(script_names,
@@ -1737,9 +1737,9 @@ class InterfaceManager(object):
 
                 if len(script_names) != (len(already_mapped) + len(new_scripts)):
                     _LOGGER.error("%s --> %s; %s",
-                                  ", ".join(script_names),
-                                  ", ".join(already_mapped),
-                                  ", ".join(new_scripts))
+                                  ", ".join(["'{}'".format(script) for script in script_names]),
+                                  ", ".join(["'{}'".format(script) for script in already_mapped]),
+                                  ", ".join(["'{}'".format(script) for script in new_scripts]))
                     raise RuntimeError(
                             "Partitioned {} script names into allegedly "
                             "disjoint sets of {} and {} elements.".
