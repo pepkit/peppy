@@ -659,7 +659,7 @@ def main():
         pipedirs = prj.metadata.pipelines_dir
         _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
 
-        interface_manager = InterfaceManager(prj.metdata.pipelines_dir)
+        interface_manager = InterfaceManager(prj.metadata.pipelines_dir)
         try:
             run(prj, args, remaining_args, interface_manager=interface_manager)
         except IOError:
