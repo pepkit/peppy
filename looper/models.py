@@ -1139,11 +1139,11 @@ class Sample(object):
             if extra_vars:
                 temp_dict.update(extra_vars)
             val = regex.format(**temp_dict)
-            if '*' in val:
-                _LOGGER.debug("Pre-glob:", val)
-                val_globbed = glob.glob(val)
+            if '*' in val or '[' in val:
+                _LOGGER.debug("Pre-glob: %s", val)
+                val_globbed = sorted(glob.glob(val))
                 val = " ".join(val_globbed)
-                _LOGGER.debug("Post-glob:", val)
+                _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
             _LOGGER.error("Can't format data source correctly: %s", regex)
@@ -1452,7 +1452,7 @@ class Sample(object):
                 if not permissive:
                     raise
                 else:
-                    _LOGGER.error(e.message)
+                    _LOGGER.warn(e.message)
                     return
             except IOError:
                 if not permissive:
