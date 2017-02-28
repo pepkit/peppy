@@ -194,25 +194,6 @@ def run(prj, args, remaining_args, interface_manager):
             if sample.read_type not in ["single", "paired"]:
                 fail_message += "read_type must be either 'single' or 'paired'."
 
-        # Make sure the input data exists
-        # this requires every input file (in case of merged samples) to exist.
-        # NS: Move this check to within pipeline loop, since it's pipeline dependent.
-        #if not all(os.path.isfile(f) for f in sample.data_path.split(" ")):
-        #	fail_message += "Sample input file does not exist."
-        #	fail = True
-
-        if fail_message:
-            _LOGGER.warn("> Not submitted: %s", fail_message)
-            failures.append([fail_message, sample.sample_name])
-            continue
-
-        # TODO: there's one more continue-inducing condition below: move this?
-        # Otherwise, process the sample:
-        prj.processed_samples.append(sample.sample_name)
-
-        # serialize sample
-        sample.to_yaml()
-
         # Get the base protocol-to-pipeline mappings
         if hasattr(sample, "library"):
             pipelines = interface_manager.build_pipelines(sample.library.upper())
@@ -223,6 +204,21 @@ def run(prj, args, remaining_args, interface_manager):
                 str(sample.name))
             continue
 
+        if len(pipelines) == 0:
+            fail_message += "Protocol not found."
+            _LOGGER.warn("> Not submitted: %s", fail_message)
+            failures.append([fail_message, sample.sample_name])
+
+        if fail_message:
+            _LOGGER.warn("> Not submitted: %s", fail_message)
+            failures.append([fail_message, sample.sample_name])
+            continue
+
+        # Otherwise, process the sample:
+        prj.processed_samples.append(sample.sample_name)
+
+        # serialize sample
+        sample.to_yaml()
         # Go through all pipelines to submit for this protocol
         for pipeline_interface, pipeline_job in pipelines:
             # discard any arguments to get just the (complete) script name,
