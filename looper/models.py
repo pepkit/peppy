@@ -1725,8 +1725,10 @@ class InterfaceManager(object):
                 _LOGGER.debug("Protocol {} not in mappings file '{}'".
                               format(protocol_name, ifproto.protomaps_path))
             else:
-
-                script_names = this_protocol_pipelines.split(";")
+                # TODO: update once dependency-encoding logic is in place.
+                script_names = this_protocol_pipelines.replace(";", ",")\
+                                                      .strip("()")\
+                                                      .split(",")
                 script_names_used |= set(script_names)
                 already_mapped, new_scripts = \
                         partition(script_names,
@@ -1739,7 +1741,7 @@ class InterfaceManager(object):
                                   ", ".join(new_scripts))
                     raise RuntimeError(
                             "Partitioned {} script names into allegedly "
-                            "disjoint sets of {} and {} elements".
+                            "disjoint sets of {} and {} elements.".
                             format(len(script_names),
                                    len(already_mapped),
                                    len(new_scripts)))
