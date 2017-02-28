@@ -51,6 +51,7 @@ Explore!
 
 from collections import \
     defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
+from functools import partial
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -1727,12 +1728,12 @@ class InterfaceManager(object):
             else:
                 # TODO: update once dependency-encoding logic is in place.
                 script_names = this_protocol_pipelines.replace(";", ",")\
-                                                      .strip("()")\
+                                                      .strip("()\n")\
                                                       .split(",")
                 script_names_used |= set(script_names)
                 already_mapped, new_scripts = \
                         partition(script_names,
-                                  lambda s_name: s_name in script_names_used)
+                                  partial(_is_member, script_names_used))
 
                 if len(script_names) != (len(already_mapped) + len(new_scripts)):
                     _LOGGER.error("%s --> %s; %s",
@@ -1763,6 +1764,12 @@ class InterfaceManager(object):
             return [jobs[0]]
 
         return jobs
+
+
+
+def _is_member(item, items):
+    return item in items
+
 
 
 # TODO: rename.

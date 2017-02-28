@@ -248,7 +248,7 @@ def run(prj, args, remaining_args, interface_manager):
             # which is the key in the pipeline interface.
             pl_id = os.path.basename(str(pipeline_job).split(" ")[0])
 
-            _LOGGER.debug("Setting pipeline attributes for job {} (ID: {})".
+            _LOGGER.debug("Setting pipeline attributes for job '{}' (ID: '{}')".
                           format(pipeline_job, pl_id))
 
             # add pipeline-specific attributes (read type and length, inputs, etc)
