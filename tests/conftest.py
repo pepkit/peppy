@@ -21,7 +21,8 @@ from looper import setup_looper_logger
 from looper.models import PipelineInterface, Project
 
 
-_LOGGER = None
+# TODO: needed for interactive mode, but may crush cmdl option for setup.
+_LOGGER = logging.getLogger("looper")
 
 
 # {basedir} lines are formatted during file write; other braced entries remain.
@@ -181,8 +182,10 @@ def conf_logs(request):
 
 
 
-def interactive(project_data=PROJECT_CONFIG_LINES,
-                pipe_iface_data=PIPELINE_INTERFACE_CONFIG_LINES,
+def interactive(prj_lines=PROJECT_CONFIG_LINES,
+                iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
+                merge_table_lines = MERGE_TABLE_LINES,
+                sample_annotation_lines=SAMPLE_ANNOTATION_LINES,
                 project_kwargs=None):
     """
     Create Project and PipelineInterface instances from default or given data.
@@ -192,15 +195,39 @@ def interactive(project_data=PROJECT_CONFIG_LINES,
     interpreter or Notebook. Test authorship is simplified if we provide
     easy access to viable instances of these objects.
 
-    :param str | collections.Iterable[str] project_data: either path to file,
-        raw string representing delimited lines, or lines themselves
-    :param str | collections.Iterable[str] pipe_iface_data:
+    :param collections.Iterable[str] prj_lines: project config lines
+    :param collections.Iterable[str] iface_lines: pipeline interface
+        config lines
+    :param collections.Iterable[str] merge_table_lines: lines for a merge
+        table file
+    :param collections.Iterable[str] sample_annotation_lines: lines for a
+        sample annotations file
     :param dict project_kwargs: keyword arguments for Project constructor
     :return Project, PipelineInterface: one Project and one PipelineInterface,
-
     """
-    return Project(project_data, **(project_kwargs or {})), \
-           PipelineInterface(pipe_iface_data)
+    # TODO: don't work with tempfiles once ctors tolerate Iterable.
+    dirpath = tempfile.mkdtemp()
+    path_conf_file = _write_temp(
+        prj_lines,
+        dirpath=dirpath, fname="project_config.yaml")
+    path_iface_file = _write_temp(
+        iface_lines,
+        dirpath=dirpath, fname="pipeline_interface.yaml")
+    path_merge_table_file = _write_temp(
+        merge_table_lines,
+        dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+    )
+    path_sample_annotation_file = _write_temp(
+        sample_annotation_lines,
+        dirpath=dirpath, fname=ANNOTATIONS_FILENAME
+    )
+
+    prj = Project(path_conf_file, **(project_kwargs or {}))
+    iface = PipelineInterface(path_iface_file)
+    for path in [path_conf_file, path_iface_file,
+                 path_merge_table_file, path_sample_annotation_file]:
+        os.unlink(path)
+    return prj, iface
 
 
 
