@@ -189,11 +189,12 @@ def run(prj, args, remaining_args, interface_manager):
         pipeline interfaces and protocol mappings
     """
 
+    _start_counter(len(prj.samples))
+
     # Keep track of how many jobs have been submitted.
     submit_count = 0
     job_count = 0
-    # keep track of submitted samples
-    sample_total = len(prj.samples)
+
     prj.processed_samples = list()
 
     # Create a problem list so we can keep track and show them at the end
@@ -361,6 +362,8 @@ def summarize(prj):
     columns = []
     stats = []
 
+    _start_counter(len(prj.samples))
+
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
@@ -419,6 +422,8 @@ def destroy(prj, args, preview_flag=True):
 
     _LOGGER.info("Results to destroy:")
 
+    _start_counter(len(prj.samples))
+
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
@@ -452,10 +457,14 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
 
+    _start_counter(len(prj.samples))
+
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
-        cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
+        pipeline_outfolder = os.path.join(prj.metadata.results_subdir,
+                                          sample.sample_name)
+        cleanup_files = glob.glob(os.path.join(pipeline_outfolder,
+                                               "*_cleanup.sh"))
         if preview_flag:
             # Preview: Don't actually clean, just show what we're going to clean.
             _LOGGER.info(str(cleanup_files))
@@ -472,44 +481,49 @@ def clean(prj, args, preview_flag=True):
         _LOGGER.info("Dry run. No files cleaned.")
         return 0
 
-    if not query_yes_no("Are you sure you want to permanently delete all intermediate pipeline results for this project?"):
+    if not query_yes_no("Are you sure you want to permanently delete all "
+                        "intermediate pipeline results for this project?"):
         _LOGGER.info("Clean action aborted by user.")
         return 1
 
-    # Finally, run the true clean:
-
     return clean(prj, args, preview_flag=False)
+
 
 
 class LooperCounter(object):
     """
     Count samples as you loop through them, and create text for the
     subcommand logging status messages.
-
-    :param int total: number of jobs to process
     """
+
     def __init__(self, total):
+        """
+        Initialize the counter by telling it how many jobs may be processed.
+
+        :param int total: number of jobs to process
+        """
         self.count = 0
         self.total = total
 
     def show(self, name, library):
         """
-        :param str sample_name: name of the sample
-        :param str sample_library: name of the library
+        :param str name: name of the sample
+        :param str library: name of the library
         :return str: message suitable for logging a status update
         """
-        self.count = self.count + 1
+        self.count += 1
         return Fore.CYAN + "## [{n} of {N}] {sample} ({library})".format(
                 n=self.count, N=self.total, sample=name, library=library) + Style.RESET_ALL 
 
-    def __repr__(self):
-        return("LooperCounter of size " + str(self.total))
+    def __str__(self):
+        return "LooperCounter of size {}".format(self.total)
 
 
 def _submission_status_text(curr, total, sample_name, sample_library):
-
-    return Fore.BLUE + "## [{n} of {N}] {sample} ({library})".format(
-            n=curr, N=total, sample=sample_name, library=sample_library) + Style.RESET_ALL
+    return Fore.BLUE + \
+           "## [{n} of {N}] {sample} ({library})".format(
+                n=curr, N=total, sample=sample_name, library=sample_library) + \
+           Style.RESET_ALL
 
 
 
@@ -674,6 +688,17 @@ def check(prj):
             subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell=True)
 
 
+def _start_counter(total):
+    """
+    Start counting processed jobs/samples;
+    called by each subcommand program that counts.
+
+    :param int total: upper bound on processing count
+    """
+    global _COUNTER
+    _COUNTER = LooperCounter(total)
+
+
 def main():
     # Parse command-line arguments and establish logger.
     args, remaining_args = parse_arguments()
@@ -686,11 +711,7 @@ def main():
         file_checks=args.file_checks,
         looperenv_file=getattr(args, 'env', None))
 
-
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
-
-    global _COUNTER
-    _COUNTER = LooperCounter(len(prj.samples))
 
     if args.command == "run":
         if args.compute:
