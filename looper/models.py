@@ -62,6 +62,7 @@ from . import LOOPERENV_VARNAME
 from exceptions import *
 from utils import partition
 
+import glob
 
 COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
@@ -1094,7 +1095,7 @@ class Sample(object):
     def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
         """
         Uses the template path provided in the project config section "data_sources" to
-        pieces together an actual path, by substituting varibles (encoded by "{variable}"") with
+        pieces together an actual path, by substituting variables (encoded by "{variable}"") with
         sample attributes.
 
         :param column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
@@ -1126,7 +1127,7 @@ class Sample(object):
                                                               column_name))
             return ""
 
-        # This will populate any environment variables like $VAR with os.environ["VAR"]
+        # Populate any environment variables like $VAR with os.environ["VAR"]
         regex = _os.path.expandvars(regex)
 
         try:
@@ -1138,6 +1139,11 @@ class Sample(object):
             if extra_vars:
                 temp_dict.update(extra_vars)
             val = regex.format(**temp_dict)
+            if '*' in val or '[' in val:
+                _LOGGER.debug("Pre-glob: %s", val)
+                val_globbed = sorted(glob.glob(val))
+                val = " ".join(val_globbed)
+                _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
             _LOGGER.error("Can't format data source correctly: %s", regex)
@@ -1446,7 +1452,7 @@ class Sample(object):
                 if not permissive:
                     raise
                 else:
-                    _LOGGER.error(e.message)
+                    _LOGGER.warn(e.message)
                     return
             except IOError:
                 if not permissive:
@@ -1632,10 +1638,10 @@ class PipelineInterface(object):
                     arg = getattr(sample, value)
                 except AttributeError as e:
                     _LOGGER.warn(
-                        "NOTE (missing attribute): '%s' requests "
+                        "> Note (missing attribute): '%s' requests "
                         "sample attribute '%s' for "
-                        "OPTIONAL argument '%s' [sample '%s']",
-                        pipeline_name, value, key, sample.sample_name)
+                        "OPTIONAL argument '%s'",
+                        pipeline_name, value, key)
                     continue
 
                 argstring += " " + str(key) + " " + str(arg)
@@ -1691,12 +1697,14 @@ class InterfaceManager(object):
                 self.ifproto_by_proto_name[proto_name].append(ifproto)
 
 
-    def build_pipelines(self, protocol_name):
+    def build_pipelines(self, protocol_name, priority=True):
         """
         Build up a sequence of scripts to execute for this protocol.
 
         :param str protocol_name: name for the protocol for which to build
             pipelines
+        :param bool priority: should only the top priority mapping be
+            used?
         :return list[str]: sequence of jobs (script paths) to execute for
             the given protocol
         """
@@ -1748,6 +1756,10 @@ class InterfaceManager(object):
                                 for script in script_names]
                 jobs.extend([(ifproto.interface, path)
                              for path in script_paths])
+
+        if priority and len(jobs) > 1:
+            return [jobs[0]]
+
         return jobs
 
 

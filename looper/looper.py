@@ -30,11 +30,15 @@ except:
         InterfaceManager, Project, PipelineInterface, \
         ProtocolMapper, LOOPERENV_VARNAME
 
+from colorama import init
+init()
+from colorama import Fore, Back, Style
 
 _LOGGER = None
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
                        logging.INFO, logging.DEBUG]
 
+_COUNTER = None
 
 def parse_arguments():
     """
@@ -182,20 +186,17 @@ def run(prj, args, remaining_args, interface_manager):
     # Keep track of how many jobs have been submitted.
     submit_count = 0
     job_count = 0
-    sample_count = 0
     # keep track of submitted samples
     sample_total = len(prj.samples)
     prj.processed_samples = list()
 
-    # Create a few problem lists so we can keep track and show them at the end
+    # Create a problem list so we can keep track and show them at the end
     failures = []
 
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info("## [{} of {}] {} ({})".format(
-            sample_count, sample_total, sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
+        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         fail_message = ""
 
         # Don't submit samples with duplicate names
@@ -214,35 +215,25 @@ def run(prj, args, remaining_args, interface_manager):
             if sample.read_type not in ["single", "paired"]:
                 fail_message += "read_type must be either 'single' or 'paired'."
 
-        # Make sure the input data exists
-        # this requires every input file (in case of merged samples) to exist.
-        # NS: Move this check to within pipeline loop, since it's pipeline dependent.
-        #if not all(os.path.isfile(f) for f in sample.data_path.split(" ")):
-        #	fail_message += "Sample input file does not exist."
-        #	fail = True
+        # Get the base protocol-to-pipeline mappings
+        if hasattr(sample, "library"):
+            pipelines = interface_manager.build_pipelines(sample.library.upper())
+            if len(pipelines) == 0:
+                fail_message += "Protocol not found."
+        else:
+            fail_message += "Missing 'library' attribute."
+
 
         if fail_message:
             _LOGGER.warn("> Not submitted: %s", fail_message)
             failures.append([fail_message, sample.sample_name])
             continue
 
-        # TODO: there's one more continue-inducing condition below: move this?
         # Otherwise, process the sample:
         prj.processed_samples.append(sample.sample_name)
 
         # serialize sample
         sample.to_yaml()
-
-        # Get the base protocol-to-pipeline mappings
-        if hasattr(sample, "library"):
-            pipelines = interface_manager.build_pipelines(sample.library.upper())
-        else:
-            _LOGGER.warn(
-                "Sample '%s' does not have a 'library' attribute and "
-                "therefore cannot be mapped to any pipeline, skipping",
-                str(sample.name))
-            continue
-
         # Go through all pipelines to submit for this protocol
         for pipeline_interface, pipeline_job in pipelines:
             # discard any arguments to get just the (complete) script name,
@@ -261,7 +252,7 @@ def run(prj, args, remaining_args, interface_manager):
                 sample.confirm_required_inputs()
             except IOError:
                 fail_message = "Required input files not found"
-                _LOGGER.error("> Not submitted: %s", fail_message)
+                _LOGGER.warn("> Not submitted: %s", fail_message)
                 failures.append([fail_message, sample.sample_name])
                 continue
 
@@ -364,12 +355,8 @@ def summarize(prj):
     columns = []
     stats = []
 
-    sample_count = 0
-    sample_total = 0
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info(_submission_status_text(
-            sample_count, sample_total, sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         # Grab the basic info from the annotation sheet for this sample.
@@ -426,13 +413,8 @@ def destroy(prj, args, preview_flag=True):
 
     _LOGGER.info("Results to destroy:")
 
-    sample_count = 0
-    sample_total = 0
-
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info(_submission_status_text(
-            sample_count, sample_total, sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
             # Preview: Don't actually delete, just show files.
@@ -464,13 +446,8 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
 
-    sample_count = 0
-    sample_total = 0
-
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info(_submission_status_text(
-            sample_count, sample_total, sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
         if preview_flag:
@@ -498,19 +475,35 @@ def clean(prj, args, preview_flag=True):
     return clean(prj, args, preview_flag=False)
 
 
+class LooperCounter(object):
+    """
+    Count samples as you loop through them, and create text for the
+    subcommand logging status messages.
+
+    :param int total: number of jobs to process
+    """
+    def __init__(self, total):
+        self.count = 0
+        self.total = total
+
+    def show(self, name, library):
+        """
+        :param str sample_name: name of the sample
+        :param str sample_library: name of the library
+        :return str: message suitable for logging a status update
+        """
+        self.count = self.count + 1
+        return Fore.CYAN + "## [{n} of {N}] {sample} ({library})".format(
+                n=self.count, N=self.total, sample=name, library=library) + Style.RESET_ALL 
+
+    def __repr__(self):
+        return("LooperCounter of size " + str(self.total))
+
 
 def _submission_status_text(curr, total, sample_name, sample_library):
-    """
-    Create text for one of the subcommand logging status messages.
 
-    :param int curr: number of jobs processed at time of message
-    :param int total: number of jobs to process, done and yet-to-go
-    :param str sample_name: name of the sample
-    :param str sample_library: name of the library
-    :return str: message suitable for logging a status update
-    """
-    return "## [{n} of {N}] {sample} ({library})".format(
-            n=curr, N=total, sample=sample_name, library=sample_library)
+    return Fore.BLUE + "## [{n} of {N}] {sample} ({library})".format(
+            n=curr, N=total, sample=sample_name, library=sample_library) + Style.RESET_ALL
 
 
 
@@ -689,6 +682,9 @@ def main():
 
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
+
+    global _COUNTER
+    _COUNTER = LooperCounter(len(prj.samples))
 
     if args.command == "run":
         if args.compute:
