@@ -1730,10 +1730,10 @@ class InterfaceManager(object):
                 script_names = this_protocol_pipelines.replace(";", ",")\
                                                       .strip("()\n")\
                                                       .split(",")
-                script_names_used |= set(script_names)
                 already_mapped, new_scripts = \
                         partition(script_names,
                                   partial(_is_member, items=script_names_used))
+                script_names_used |= set(script_names)
 
                 if len(script_names) != (len(already_mapped) + len(new_scripts)):
                     _LOGGER.error("%s --> %s; %s",
