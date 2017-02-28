@@ -1724,8 +1724,18 @@ class InterfaceManager(object):
                         partition(script_names,
                                   lambda s_name: s_name in script_names_used)
 
-                assert len(script_names) == \
-                       (len(already_mapped) + len(new_scripts))
+                if len(script_names) != (len(already_mapped) + len(new_scripts)):
+                    _LOGGER.error("%s --> %s; %s",
+                                  ", ".join(script_names),
+                                  ", ".join(already_mapped),
+                                  ", ".join(new_scripts))
+                    raise RuntimeError(
+                            "Partitioned {} script names into allegedly "
+                            "disjoint sets of {} and {} elements".
+                            format(len(script_names),
+                                   len(already_mapped),
+                                   len(new_scripts)))
+
                 _LOGGER.debug("Skipping {} already-mapped script names: {}".
                               format(len(already_mapped),
                                      ", ".join(already_mapped)))

@@ -54,70 +54,88 @@ def parse_arguments():
     # Logging control
     parser.add_argument("--logfile",
                         help=argparse.SUPPRESS)
-    parser.add_argument("--verbosity", type=int,
+    parser.add_argument("--verbosity",
+                        type=int,
                         choices=range(len(_LEVEL_BY_VERBOSITY)),
                         help=argparse.SUPPRESS)
-    parser.add_argument("--logging-level", default=LOGGING_LEVEL,
+    parser.add_argument("--logging-level",
+                        default=LOGGING_LEVEL,
                         help=argparse.SUPPRESS)
-    parser.add_argument("--dbg", action="store_true",
+    parser.add_argument("--dbg",
+                        action="store_true",
                         help=argparse.SUPPRESS)
 
-    subparsers = parser.add_subparsers(dest='command')
+    subparsers = parser.add_subparsers(dest="command")
 
     # Run command
     run_subparser = subparsers.add_parser(
-        "run", help="Main Looper function: Submit jobs for samples.")
+            "run",
+            help="Main Looper function: Submit jobs for samples.")
     run_subparser.add_argument(
-        '-t', '--time-delay', dest='time_delay', type=int, default=0,
-        help="Time delay in seconds between job submissions.")
+            "-t",
+            "--time-delay",
+            type=int,
+            default=0,
+            help="Time delay in seconds between job submissions.")
     run_subparser.add_argument(
-        '--ignore-flags', action="store_true", default=False,
-        help=("Ignore run status flags? Default: False. "
-            "By default, pipelines will not be submitted if a pypiper "
-            "flag file exists marking the run "
-            "(e.g. as 'running' or 'failed'). Set this option "
-            "to ignore flags and submit the runs anyway."))
+            "--ignore-flags",
+            action="store_true",
+            help="Ignore run status flags? Default: False. "
+                 "By default, pipelines will not be submitted if a pypiper "
+                 "flag file exists marking the run (e.g. as "
+                 "'running' or 'failed'). Set this option to ignore flags "
+                 "and submit the runs anyway.")
     run_subparser.add_argument(
-        '--compute', dest='compute',
-        help="YAML file with looper environment compute settings.")
+            "--compute",
+            help="YAML file with looper environment compute settings.")
     run_subparser.add_argument(
-        '--env',
-        default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
-        help="Employ looper environment compute settings.")
+            "--env",
+            default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
+            help="Employ looper environment compute settings.")
     run_subparser.add_argument(
-        '--limit', type=int, help="Limit to n samples.")
+            "--limit",
+            type=int,
+            help="Limit to n samples.")
 
     # Summarize command
     summarize_subparser = subparsers.add_parser(
-        "summarize", help="Summarize statistics of project samples.")
+            "summarize",
+            help="Summarize statistics of project samples.")
 
     # Destroy command
     destroy_subparser = subparsers.add_parser(
-        "destroy", help="Remove all files of the project.")
+            "destroy",
+            help="Remove all files of the project.")
 
     # Check command
     check_subparser = subparsers.add_parser(
-        "check", help="Checks flag status of current runs.")
+            "check",
+            help="Checks flag status of current runs.")
 
     clean_subparser = subparsers.add_parser(
-        "clean", help="Runs clean scripts to remove intermediate "
-                "files of already processed jobs.")
+            "clean",
+            help="Runs clean scripts to remove intermediate "
+                 "files of already processed jobs.")
 
     # Common arguments
     for subparser in [run_subparser, summarize_subparser,
                 destroy_subparser, check_subparser, clean_subparser]:
         subparser.add_argument(
-            '--file-checks', dest='file_checks',
-        action='store_false', default=True,
-            help="Perform input file checks. Default=True.")
+                "config_file",
+                help="Project YAML config file.")
         subparser.add_argument(
-            '-d', '--dry-run', dest='dry_run', action='store_true',
-            help="Don't actually submit.", default=False)
+                "--file-checks",
+                action="store_false",
+                help="Perform input file checks. Default=True.")
         subparser.add_argument(
-            '--sp', dest='subproject', help="Supply subproject")
+                "-d",
+                "--dry-run",
+                action="store_true",
+                help="Don't actually submit.")
         subparser.add_argument(
-            dest='config_file',
-            help="Project YAML config file.")
+                "--sp",
+                dest="subproject",
+                help="Supply subproject")
 
     # To enable the loop to pass args directly on to the pipelines...
     args, remaining_args = parser.parse_known_args()
@@ -145,6 +163,7 @@ def parse_arguments():
                  format(" ".join([str(x) for x in remaining_args])))
 
     return args, remaining_args
+
 
 
 def run(prj, args, remaining_args, interface_manager):
