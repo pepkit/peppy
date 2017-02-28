@@ -239,13 +239,17 @@ def run(prj, args, remaining_args, interface_manager):
         # Otherwise, process the sample:
         prj.processed_samples.append(sample.sample_name)
 
-        # serialize sample
+        # Serialize sample.
         sample.to_yaml()
-        # Go through all pipelines to submit for this protocol
+
+        # Go through all pipelines to submit for this protocol.
         for pipeline_interface, pipeline_job in pipelines:
-            # discard any arguments to get just the (complete) script name,
-            # which is the key in the pipeline interface
+            # Discard any arguments to get just the (complete) script name,
+            # which is the key in the pipeline interface.
             pl_id = os.path.basename(str(pipeline_job).split(" ")[0])
+
+            _LOGGER.debug("Setting pipeline attributes for job {} (ID: {})".
+                          format(pipeline_job, pl_id))
 
             # add pipeline-specific attributes (read type and length, inputs, etc)
             sample.set_pipeline_attributes(pipeline_interface, pl_id)
