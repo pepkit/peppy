@@ -206,8 +206,6 @@ def run(prj, args, remaining_args, interface_manager):
 
         if len(pipelines) == 0:
             fail_message += "Protocol not found."
-            _LOGGER.warn("> Not submitted: %s", fail_message)
-            failures.append([fail_message, sample.sample_name])
 
         if fail_message:
             _LOGGER.warn("> Not submitted: %s", fail_message)
