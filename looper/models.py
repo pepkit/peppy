@@ -1730,6 +1730,7 @@ class InterfaceManager(object):
                 script_names = this_protocol_pipelines.replace(";", ",")\
                                                       .strip(" ()\n")\
                                                       .split(",")
+                script_names = [sn.strip() for sn in script_names]
                 already_mapped, new_scripts = \
                         partition(script_names,
                                   partial(_is_member, items=script_names_used))
