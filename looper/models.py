@@ -1140,8 +1140,10 @@ class Sample(object):
                 temp_dict.update(extra_vars)
             val = regex.format(**temp_dict)
             if '*' in val:
+                _LOGGER.debug("Pre-glob:", val)
                 val_globbed = glob.glob(val)
                 val = " ".join(val_globbed)
+                _LOGGER.debug("Post-glob:", val)
 
         except Exception as e:
             _LOGGER.error("Can't format data source correctly: %s", regex)
@@ -1636,10 +1638,10 @@ class PipelineInterface(object):
                     arg = getattr(sample, value)
                 except AttributeError as e:
                     _LOGGER.warn(
-                        "NOTE (missing attribute): '%s' requests "
+                        "> Note (missing attribute): '%s' requests "
                         "sample attribute '%s' for "
-                        "OPTIONAL argument '%s' [sample '%s']",
-                        pipeline_name, value, key, sample.sample_name)
+                        "OPTIONAL argument '%s'",
+                        pipeline_name, value, key)
                     continue
 
                 argstring += " " + str(key) + " " + str(arg)
