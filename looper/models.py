@@ -1708,7 +1708,7 @@ class InterfaceManager(object):
             return []
 
         jobs = []
-        script_names_used = {}
+        script_names_used = set()
         for ifproto in ifprotos:
             try:
                 this_protocol_pipelines = \
