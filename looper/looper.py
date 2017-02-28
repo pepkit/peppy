@@ -251,11 +251,17 @@ def run(prj, args, remaining_args, interface_manager):
             _LOGGER.debug("Setting pipeline attributes for job '{}' (ID: '{}')".
                           format(pipeline_job, pl_id))
 
-            # add pipeline-specific attributes (read type and length, inputs, etc)
-            sample.set_pipeline_attributes(pipeline_interface, pl_id)
-            _LOGGER.info("> Building submission for Pipeline: '{}' "
-                         "(input: {:.2f} Gb)".format(pipeline_job,
-                                                     sample.input_file_size))
+            try:
+                # add pipeline-specific attributes (read type and length, inputs, etc)
+                sample.set_pipeline_attributes(pipeline_interface, pl_id)
+                _LOGGER.info("> Building submission for Pipeline: '{}' "
+                             "(input: {:.2f} Gb)".format(pipeline_job,
+                                                         sample.input_file_size))
+            except AttributeError:
+                fail_message = "Required attributes missing."
+                _LOGGER.warn("> Not submitted: %s", fail_message)
+                failures.append([fail_message, sample.sample_name])
+                continue
 
             # Check for any required inputs before submitting
             try:
@@ -282,9 +288,15 @@ def run(prj, args, remaining_args, interface_manager):
 
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
-            argstring = pipeline_interface.get_arg_string(pl_id, sample)
-            argstring += " "  # space
-
+            try: 
+                argstring = pipeline_interface.get_arg_string(pl_id, sample)
+                argstring += " "  # space
+            except AttributeError:
+                fail_message = "Required attributes missing."
+                _LOGGER.warn("> Not submitted: %s", fail_message)
+                failures.append([fail_message, sample.sample_name])
+                continue
+                
             # Project-level arguments are handled by the project.
             argstring += prj.get_arg_string(pl_id)
 

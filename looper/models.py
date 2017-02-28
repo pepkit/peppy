@@ -1419,7 +1419,7 @@ class Sample(object):
                 # Count paired alignments
                 paired = 0
                 read_length = Counter()
-                while o > 0:
+                while o > 0:  # Count down number of lines
                     line = p.stdout.next().split("\t")
                     flag = int(line[1])
                     read_length[len(line[9])] += 1
@@ -1432,9 +1432,9 @@ class Sample(object):
                          "looper needs samtools to auto-populate " \
                          "'read_length' and 'read_type' attributes; " \
                          "these attributes were not populated."
-                _LOGGER.error(reason)
                 raise OSError(reason)
 
+            _LOGGER.debug(read_length, paired)
             return read_length, paired
 
         def check_fastq(fastq, o):
@@ -1626,12 +1626,11 @@ class PipelineInterface(object):
                                    str(key))
                 continue
             try:
-                arg = getattr(sample, value)
+               arg = getattr(sample, value)
             except AttributeError:
                 _LOGGER.error(
                     "Error (missing attribute): '%s' "
                     "requires sample attribute '%s' for argument '%s' "
-                    "[sample '%s']",
                     pipeline_name, value, key, sample.sample_name)
                 raise
 
