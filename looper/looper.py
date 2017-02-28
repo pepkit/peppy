@@ -215,7 +215,7 @@ def run(prj, args, remaining_args, interface_manager):
 
         # Get the base protocol-to-pipeline mappings
         if hasattr(sample, "library"):
-            pipelines = interface_manager.build_pipeline(sample.library.upper())
+            pipelines = interface_manager.build_pipelines(sample.library.upper())
         else:
             _LOGGER.warn(
                 "Sample '%s' does not have a 'library' attribute and "
