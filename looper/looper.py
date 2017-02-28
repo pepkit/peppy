@@ -32,7 +32,7 @@ except:
 
 from colorama import init
 init()
-from colorama import Fore, Back, Style
+from colorama import Fore, Style
 
 
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,

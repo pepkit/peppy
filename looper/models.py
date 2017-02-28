@@ -640,22 +640,31 @@ class Project(AttributeDict):
         For this project, given a pipeline, return an argument string
         specified in the project config file.
         """
-        argstring = ""  # Initialize to empty
-        if hasattr(self, "pipeline_args"):
-            # Add default args to every pipeline
-            if hasattr(self.pipeline_args, "default"):
-                for key, value in getattr(self.pipeline_args, "default").__dict__.items():
-                    argstring += " " + key
-                    # Arguments can have null values; then print nothing
-                    if value:
-                        argstring += " " + value
-            # Now add pipeline-specific args
-            if hasattr(self.pipeline_args, pipeline_name):
-                for key, value in getattr(self.pipeline_args, pipeline_name).__dict__.items():
-                    argstring += " " + key
-                    # Arguments can have null values; then print nothing
-                    if value:
-                        argstring += " " + value
+
+        argstring = ""
+        if not hasattr(self, "pipeline_args"):
+            return argstring
+
+        pipeline_args = self.pipeline_args
+
+        # Add default args to every pipeline
+        if hasattr(pipeline_args, "default"):
+            for key, value in getattr(pipeline_args, "default").__dict__.items():
+                if key in ATTRDICT_METADATA:
+                    continue
+                argstring += " " + key
+                # Arguments can have null values; then print nothing
+                if value:
+                    argstring += " " + value
+        # Now add pipeline-specific args
+        if hasattr(pipeline_args, pipeline_name):
+            for key, value in getattr(pipeline_args, pipeline_name).__dict__.items():
+                if key in ATTRDICT_METADATA:
+                    continue
+                argstring += " " + key
+                # Arguments can have null values; then print nothing
+                if value:
+                    argstring += " " + value
 
         return argstring
 
@@ -1618,9 +1627,9 @@ class PipelineInterface(object):
                 arg = getattr(sample, value)
             except AttributeError:
                 _LOGGER.error(
-                    "Error (missing attribute): '%s' requires "
-                    "sample attribute '%s' for "
-                    "argument '%s' [sample '%s']",
+                    "Error (missing attribute): '%s' "
+                    "requires sample attribute '%s' for argument '%s' "
+                    "[sample '%s']",
                     pipeline_name, value, key, sample.sample_name)
                 raise
 
