@@ -30,11 +30,15 @@ except:
         InterfaceManager, Project, PipelineInterface, \
         ProtocolMapper, LOOPERENV_VARNAME
 
+from colorama import init
+init()
+from colorama import Fore, Back, Style
 
 _LOGGER = None
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
                        logging.INFO, logging.DEBUG]
 
+_COUNTER = None
 
 def parse_arguments():
     """
@@ -163,7 +167,6 @@ def run(prj, args, remaining_args, interface_manager):
     # Keep track of how many jobs have been submitted.
     submit_count = 0
     job_count = 0
-    sample_count = 0
     # keep track of submitted samples
     sample_total = len(prj.samples)
     prj.processed_samples = list()
@@ -172,11 +175,9 @@ def run(prj, args, remaining_args, interface_manager):
     failures = []
 
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info("## [{} of {}] {} ({})".format(
-            sample_count, sample_total, sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
+        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         fail_message = ""
 
         # Don't submit samples with duplicate names
@@ -335,12 +336,8 @@ def summarize(prj):
     columns = []
     stats = []
 
-    sample_count = 0
-    sample_total = 0
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info(_submission_status_text(
-            sample_count, sample_total, sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
 
         # Grab the basic info from the annotation sheet for this sample.
@@ -397,13 +394,8 @@ def destroy(prj, args, preview_flag=True):
 
     _LOGGER.info("Results to destroy:")
 
-    sample_count = 0
-    sample_total = 0
-
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info(_submission_status_text(
-            sample_count, sample_total, sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
             # Preview: Don't actually delete, just show files.
@@ -435,13 +427,8 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
 
-    sample_count = 0
-    sample_total = 0
-
     for sample in prj.samples:
-        sample_count += 1
-        _LOGGER.info(_submission_status_text(
-            sample_count, sample_total, sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
         cleanup_files = glob.glob(os.path.join(pipeline_outfolder, "*_cleanup.sh"))
         if preview_flag:
@@ -469,19 +456,35 @@ def clean(prj, args, preview_flag=True):
     return clean(prj, args, preview_flag=False)
 
 
+class LooperCounter(object):
+    """
+    Count samples as you loop through them, and create text for the
+    subcommand logging status messages.
+
+    :param int total: number of jobs to process
+    """
+    def __init__(self, total):
+        self.count = 0
+        self.total = total
+
+    def show(self, name, library):
+        """
+        :param str sample_name: name of the sample
+        :param str sample_library: name of the library
+        :return str: message suitable for logging a status update
+        """
+        self.count = self.count + 1
+        return Fore.CYAN + "## [{n} of {N}] {sample} ({library})".format(
+                n=self.count, N=self.total, sample=name, library=library) + Style.RESET_ALL 
+
+    def __repr__(self):
+        return("LooperCounter of size " + str(self.total))
+
 
 def _submission_status_text(curr, total, sample_name, sample_library):
-    """
-    Create text for one of the subcommand logging status messages.
 
-    :param int curr: number of jobs processed at time of message
-    :param int total: number of jobs to process, done and yet-to-go
-    :param str sample_name: name of the sample
-    :param str sample_library: name of the library
-    :return str: message suitable for logging a status update
-    """
-    return "## [{n} of {N}] {sample} ({library})".format(
-            n=curr, N=total, sample=sample_name, library=sample_library)
+    return Fore.BLUE + "## [{n} of {N}] {sample} ({library})".format(
+            n=curr, N=total, sample=sample_name, library=sample_library) + Style.RESET_ALL
 
 
 
@@ -660,6 +663,9 @@ def main():
 
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
+
+    global _COUNTER
+    _COUNTER = LooperCounter(len(prj.samples))
 
     if args.command == "run":
         if args.compute:
