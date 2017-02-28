@@ -227,7 +227,7 @@ def run(prj, args, remaining_args, interface_manager):
         for pipeline_interface, pipeline_job in pipelines:
             # discard any arguments to get just the (complete) script name,
             # which is the key in the pipeline interface
-            pl_id = str(pipeline_job).split(" ")[0]
+            pl_id = os.path.basename(str(pipeline_job).split(" ")[0])
 
             # add pipeline-specific attributes (read type and length, inputs, etc)
             sample.set_pipeline_attributes(pipeline_interface, pl_id)
