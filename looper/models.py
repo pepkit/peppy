@@ -52,6 +52,8 @@ Explore!
 from collections import \
     defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
 from functools import partial
+import glob
+import itertools
 import logging
 import os as _os
 from pkg_resources import resource_filename
@@ -62,8 +64,6 @@ import yaml as _yaml
 from . import LOOPERENV_VARNAME
 from exceptions import *
 from utils import partition
-
-import glob
 
 COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
@@ -1632,8 +1632,8 @@ class PipelineInterface(object):
                 _LOGGER.error(
                     "Error (missing attribute): '%s' "
                     "requires sample attribute '%s' "
-                    "for argument '%s' [sample '%s']",
-                    pipeline_name, value, key, sample.sample_name)
+                    "for argument '%s'",
+                    pipeline_name, value, key)
                 raise
 
             argstring += " " + str(key) + " " + str(arg)
@@ -1769,13 +1769,13 @@ class InterfaceManager(object):
 
                 script_paths = [_os.path.join(ifproto.pipelines_path, script)
                                 for script in script_names]
-                jobs.extend([(ifproto.interface, path)
+                jobs.append([(ifproto.interface, path)
                              for path in script_paths])
 
         if priority and len(jobs) > 1:
             return jobs[0]
 
-        return jobs
+        return list(itertools.chain(*jobs))
 
 
 
