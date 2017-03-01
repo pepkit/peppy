@@ -879,6 +879,8 @@ class SampleSheet(object):
             if hasattr(self.prj.metadata, "pipelines_dir") and self.prj.metadata.pipelines_dir:  # pipelines_dir is optional
                 try:
                     pipeline_dirpaths = self.prj.metadata.pipelines_dir
+                    if isinstance(pipeline_dirpaths, str):
+                        pipeline_dirpaths = [pipeline_dirpaths]
                     sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
                     _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
                                   format(len(pipeline_dirpaths), pipeline_dirpaths))

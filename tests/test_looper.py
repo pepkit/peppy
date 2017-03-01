@@ -220,7 +220,6 @@ class SampleRoundtripTests:
         assert sample_1_restored_attrdict.prj.does_not_exist == "does_not_exist"
 
 
-
     def _check_nested_metadata(self, original, restored):
         """
         Check equality for metadata items, accounting for nesting within
