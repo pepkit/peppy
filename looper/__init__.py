@@ -41,8 +41,6 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     :return logging.Logger: project-root logger
     """
 
-    logging.addLevelName(0, "ALL")
-
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
