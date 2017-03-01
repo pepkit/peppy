@@ -402,19 +402,21 @@ class Project(AttributeDict):
             if "pipelines_dir" not in self.metadata:
                 # TODO: beware of AttributeDict with force_nulls = True here,
                 # as that may return 'pipelines_dir' name itself.
-                raise PipelinesException()
+                pipe_path = []
+                #raise PipelinesException()
             else:
                 pipe_path = self.metadata.pipelines_dir
 
-        # Ensure we work with text or flat iterable.
+        # Ensure we work with text or flat iterable or empty list.
         if isinstance(pipe_path, str):
             pipe_path = [pipe_path]
         elif isinstance(pipe_path, Iterable) and \
                 not isinstance(pipe_path, Mapping):
             pipe_path = list(pipe_path)
         else:
-            raise TypeError("Got {} as pipelines path(s) ({})".
+            _LOGGER.debug("Got {} as pipelines path(s) ({})".
                             format(pipe_path, type(pipe_path)))
+            pipe_path = []
 
         self.metadata.pipelines_dir = pipe_path
 
@@ -883,14 +885,17 @@ class SampleSheet(object):
         try:
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
-            try:
-                pipeline_dirpaths = self.prj.metadata.pipelines_dir
-                sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
-                _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
-                              format(len(pipeline_dirpaths), pipeline_dirpaths))
-                import pipelines
-            except ImportError:
-                return Sample(series)  # if so, return generic Sample
+            if hasattr(self.prj.metadata, "pipelines_dir") and self.prj.metadata.pipelines_dir:  # pipelines_dir is optional
+                try:
+                    pipeline_dirpaths = self.prj.metadata.pipelines_dir
+                    sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
+                    _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
+                                  format(len(pipeline_dirpaths), pipeline_dirpaths))
+                    import pipelines
+                except ImportError:
+                    return Sample(series)  # if so, return generic Sample
+            else:
+                return Sample(series)
 
         # get all class objects from modules of the pipelines package that have a __library__ attribute
         sample_types = list()

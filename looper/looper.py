@@ -734,8 +734,16 @@ def main():
             prj.set_compute(args.compute)
 
         # TODO split here, spawning separate run process for each pipelines directory in project metadata pipelines directory.
-        pipedirs = prj.metadata.pipelines_dir
-        _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
+        try:
+            pipedirs = prj.metadata.pipelines_dir
+            _LOGGER.info("Pipelines path(s): {}".format(pipedirs))
+        except AttributeError:
+            _LOGGER.error("Looper requires a metadata.pipelines_dir")
+            raise
+
+        if len(pipedirs) == 0:
+            _LOGGER.error("Looper requires a metadata.pipelines_dir")   
+            raise AttributeError         
 
         interface_manager = InterfaceManager(prj.metadata.pipelines_dir)
         try:
