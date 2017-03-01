@@ -178,7 +178,7 @@ def conf_logs(request):
         "Configured looper logger at level %s; attaching tests' logger %s",
         str(level), __name__)
     global _LOGGER
-    _LOGGER = logging.getLogger(__name__)
+    _LOGGER = logging.getLogger("looper.{}".format(__name__))
 
 
 

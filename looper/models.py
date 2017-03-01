@@ -108,7 +108,7 @@ class AttributeDict(MutableMapping):
     """
 
     def __init__(self, entries=None,
-                 force_nulls=False, attribute_identity=False):
+                 _force_nulls=False, _attribute_identity=False):
         """
         Establish a logger for this instance, set initial entries,
         and determine behavior with regard to null values and behavior
@@ -116,15 +116,15 @@ class AttributeDict(MutableMapping):
 
         :param collections.Iterable | collections.Mapping entries: collection
             of key-value pairs, initial data for this mapping
-        :param bool force_nulls: whether to allow a null value to overwrite
+        :param bool _force_nulls: whether to allow a null value to overwrite
             an existing non-null value
-        :param bool attribute_identity: whether to return attribute name
+        :param bool _attribute_identity: whether to return attribute name
             requested rather than exception when unset attribute/key is queried
         """
         # Null value can squash non-null?
-        self.__dict__["_force_nulls"] = force_nulls
+        self.__dict__["_force_nulls"] = _force_nulls
         # Return requested attribute name if not set?
-        self.__dict__["_attribute_identity"] = attribute_identity
+        self.__dict__["_attribute_identity"] = _attribute_identity
         if entries:
             self.add_entries(entries)
 
@@ -145,9 +145,6 @@ class AttributeDict(MutableMapping):
             entries_iter = entries
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
-            if key in ATTRDICT_METADATA:
-                _LOGGER.debug("Not adding {}".format(key))
-                continue
             self.__setitem__(key, value)
 
 
@@ -207,7 +204,7 @@ class AttributeDict(MutableMapping):
             self.__dict__[key] = value
         else:
             self._log_(logging.DEBUG,
-                       "Not setting {k} to {v}; force_nulls: {nulls}".
+                       "Not setting {k} to {v}; _force_nulls: {nulls}".
                        format(k=key, v=value,
                               nulls=self.__dict__["_force_nulls"]))
 
@@ -245,9 +242,6 @@ class AttributeDict(MutableMapping):
 
     def __len__(self):
         return sum(1 for _ in iter(self))
-
-    def __str__(self):
-        return str({k: self.__dict__[k] for k in self.__iter__()})
 
     def __repr__(self):
         return repr(self.__dict__)
@@ -397,7 +391,7 @@ class Project(AttributeDict):
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             if "pipelines_dir" not in self.metadata:
-                # TODO: beware of AttributeDict with force_nulls = True here,
+                # TODO: beware of AttributeDict with _force_nulls = True here,
                 # as that may return 'pipelines_dir' name itself.
                 pipe_path = []
                 #raise PipelinesException()

@@ -383,20 +383,20 @@ class AttributeDictNullTests:
 
 
     @pytest.mark.parametrize(
-            argnames="force_nulls", argvalues=[None, False, True])
-    def test_force_null(self, name_update_func, name_fetch_func, force_nulls):
+            argnames="_force_nulls", argvalues=[None, False, True])
+    def test_force_null(self, name_update_func, name_fetch_func, _force_nulls):
         """ AttributeDict is configurable w.r.t. null value insertion. """
 
         ctor_kwargs = {}
-        if force_nulls is not None:
-            ctor_kwargs["force_nulls"] = force_nulls
+        if _force_nulls is not None:
+            ctor_kwargs["_force_nulls"] = _force_nulls
         ad = AttributeDict({"only_attr": 1}, **ctor_kwargs)
 
         setter = getattr(ad, name_update_func)
         self._do_update(name_update_func, setter, ("only_attr", None))
 
         is_now_null = getattr(ad, name_fetch_func)("only_attr") is None
-        assert is_now_null if force_nulls else not is_now_null
+        assert is_now_null if _force_nulls else not is_now_null
 
 
     def test_replace_null(self, name_update_func, name_fetch_func):
@@ -455,7 +455,7 @@ class AttributeDictItemAccessTests:
         ad = AttributeDict()
         with pytest.raises(error_type):
             getattr(ad, getter)("unknown")
-        ad = AttributeDict(attribute_identity=True)
+        ad = AttributeDict(_attribute_identity=True)
         assert getattr(ad, getter)("self_reporter") == "self_reporter"
 
 
@@ -470,9 +470,11 @@ def _assert_entirely_equal(observed, expected):
         assert (observed == expected).all()
 
 
+
 @pytest.mark.usefixtures("write_project_files", "pipe_iface_config_file")
 class PipelineInterfaceTests:
+    """ Test cases specific to PipelineInterface """
 
     def test_missing_input_files(self, proj):
         # This should not throw an error
-        assert proj.samples[0].get_attr_values("all_input_files") == None
+        assert proj.samples[0].get_attr_values("all_input_files") is None
