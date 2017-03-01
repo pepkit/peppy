@@ -69,7 +69,6 @@ def parse_arguments():
                         choices=range(len(_LEVEL_BY_VERBOSITY)),
                         help=argparse.SUPPRESS)
     parser.add_argument("--logging-level",
-                        default=LOGGING_LEVEL,
                         help=argparse.SUPPRESS)
     parser.add_argument("--dbg",
                         action="store_true",
@@ -159,7 +158,7 @@ def parse_arguments():
         level = _LEVEL_BY_VERBOSITY[args.verbosity]
     else:
         # Normally, we're not in debug mode, and there's not verbosity.
-        level = args.logging_level
+        level = LOGGING_LEVEL
 
     # Establish the project-root logger and attach one for this module.
     setup_looper_logger(level=level,
