@@ -523,11 +523,15 @@ class Project(AttributeDict):
 
 
     def _ensure_absolute(self, maybe_relpath):
+        _LOGGER.debug("Ensuring absolute path for '%s'", maybe_relpath)
         if _os.path.isabs(maybe_relpath):
+            _LOGGER.debug("Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
         expanded = _os.path.expandvars(maybe_relpath)
+        _LOGGER.debug("Expanded: '%s'", expanded)
         if _os.path.isabs(expanded):
+            _LOGGER.debug("Expanded is absolute")
             return expanded
         _LOGGER.debug("Making non-absolute path '%s' be absolute",
                       maybe_relpath)
