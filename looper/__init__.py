@@ -98,6 +98,12 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
             logging.info("{} as logs destination appears to be neither "
                          "a filepath nor a stream.".format(loc))
             continue
+
+        if handler_type is logging.FileHandler:
+            handler = handler_type(loc, mode='w')
+        else:
+            handler = handler_type(loc)
+
         handler = handler_type(loc)
         handler.setLevel(level)
         handler.setFormatter(formatter)
