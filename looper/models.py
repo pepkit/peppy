@@ -338,7 +338,7 @@ class Project(AttributeDict):
                 _LOGGER.debug("results_subdir: %s",
                               self.metadata.results_subdir)
             except AttributeError:
-                pass
+                _LOGGER.debug("No results_subdir yet")
 
         # Get project name
         # deduce from output_dir variable in config file:

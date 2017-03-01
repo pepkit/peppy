@@ -203,6 +203,7 @@ def run(prj, args, remaining_args, interface_manager):
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+        _LOGGER.debug("Pipeline output folder: '%s'", pipeline_outfolder)
         fail_message = ""
 
         # Don't submit samples with duplicate names
