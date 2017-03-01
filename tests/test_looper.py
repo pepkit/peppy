@@ -7,10 +7,12 @@ The primary function under test here is the creation of a project instance.
 
 import logging
 import os
-import pytest
-import numpy.random as nprand
 
-from looper.models import COL_KEY_SUFFIX
+import numpy.random as nprand
+import pytest
+import yaml
+
+from looper.models import AttributeDict, ATTRDICT_METADATA, COL_KEY_SUFFIX
 
 from conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, FILE_BY_SAMPLE, \
@@ -165,3 +167,69 @@ class SampleWrtProjectCtorTests:
     def test_looper_args_usage(self, pipe_iface, pipeline, expected):
         observed = pipe_iface.uses_looper_args(pipeline)
         assert (expected and observed) or not (observed or expected)
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class SampleRoundtripTests:
+    """ Test equality of objects written to and from YAML files. """
+
+
+    def test_basic_roundtrip_equality(self, tmpdir, proj):
+        tempfolder = str(tmpdir)
+        sample_tempfiles = []
+        for sample in proj.samples:
+            path_sample_tempfile = os.path.join(tempfolder,
+                                                "{}.yaml".format(sample.name))
+            sample.to_yaml(path_sample_tempfile)
+            sample_tempfiles.append(path_sample_tempfile)
+        for original_sample, temp_sample_path in zip(proj.samples,
+                                                     sample_tempfiles):
+            with open(temp_sample_path, 'r') as sample_file:
+                restored_sample_data = yaml.load(sample_file)
+            ad = AttributeDict(restored_sample_data)
+            self._metadata_equality(original_sample.prj, ad)
+
+
+
+    def test_default_behavioral_metadata_retention(self):
+        pass
+
+
+    def test_modified_behavioral_metadata_preservation(self):
+        pass
+
+
+    def _check_nested_metadata(self, original, restored):
+        for key, data in original.items():
+            if key not in restored:
+                return False
+            equal_level = self._metadata_equality(original, restored)
+            if not equal_level:
+                return False
+            if isinstance(original, AttributeDict):
+                return isinstance(restored, AttributeDict) and \
+                       self._check_nested_metadata(data, restored[key])
+            else:
+                return True
+
+
+    @staticmethod
+    def _metadata_equality(original, restored):
+        """
+        Check nested levels of metadata equality.
+
+        :param AttributeDict original: a raw AttributeDict or an
+            instance of a child class that was serialized and written to disk
+        :param AttributeDict restored: an AttributeDict instance created by
+            parsing the file associated with the original object
+        :return:
+        """
+        for metadata_item in ATTRDICT_METADATA:
+            if metadata_item not in original or \
+                    metadata_item not in restored or \
+                    original[metadata_item] != restored[metadata_item]:
+                return False
+        return True
+
+

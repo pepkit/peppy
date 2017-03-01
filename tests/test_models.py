@@ -225,11 +225,10 @@ class AttributeDictUpdateTests:
 
     @pytest.mark.parametrize(
             argnames="funcname,name_metadata_item",
-            argvalues=itertools.product(_GETTERS + _SETTERS,
-                                        ATTRDICT_METADATA),
+            argvalues=itertools.product(_SETTERS, ATTRDICT_METADATA),
             ids=["{}, '{}'".format(func.strip("_"), attr)
-                 for func, attr in itertools.product(_GETTERS + _SETTERS,
-                                                     ATTRDICT_METADATA)])
+                 for func, attr
+                 in itertools.product(_SETTERS, ATTRDICT_METADATA)])
     def test_touch_privileged_metadata_item(self, funcname,
                                             name_metadata_item):
         """ AttributeDict has a few metadata members that may not be set. """

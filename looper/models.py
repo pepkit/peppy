@@ -87,6 +87,7 @@ class Paths(object):
     """
     A class to hold paths as attributes.
     """
+
     def __repr__(self):
         return "Paths object."
 
@@ -161,14 +162,10 @@ class AttributeDict(MutableMapping):
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
-        :raises MetadataOperationException: if the attribute
-            for which access was attempted is a special metadata item
         :raises AttributeError: if the requested item has not been set and
             this `AttributeDict` instance is not configured to return the
             requested key/item itself when it's missing
         """
-        if item in ATTRDICT_METADATA:
-            raise MetadataOperationException(self, item)
         try:
             return self.__dict__[item]
         except KeyError:
@@ -1020,7 +1017,6 @@ class Sample(object):
         # The SampleSheet object, after being added to a project, will
         # call Sample.set_file_paths().
 
-
     def __repr__(self):
         return "Sample '%s'" % self.sample_name
 
@@ -1083,13 +1079,14 @@ class Sample(object):
 \            """
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            elif isinstance(obj, (dict, AttributeDict)):
+            elif isinstance(obj, dict):
                 return {k: obj2dict(v)
                         for k, v in obj.items() if k not in to_skip}
-            elif isinstance(obj, (Paths, Sample)):
+            elif isinstance(obj, (AttributeDict, Paths, Sample)):
                 return {k: obj2dict(v)
                         for k, v in obj.__dict__.items() if k not in to_skip}
             elif hasattr(obj, 'dtype'):  # numpy data types
+                # TODO: this fails with ValueError for multi-element array.
                 return obj.item()
             elif _pd.isnull(obj):
                 # Missing values as evaluated by pd.isnull().
