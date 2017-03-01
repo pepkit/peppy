@@ -104,7 +104,6 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
         else:
             handler = handler_type(loc)
 
-        handler = handler_type(loc)
         handler.setLevel(level)
         handler.setFormatter(formatter)
         LOOPER_LOGGER.addHandler(handler)
