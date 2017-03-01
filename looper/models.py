@@ -329,17 +329,6 @@ class Project(AttributeDict):
         self.config, self.paths = None, None    # Set by config parsing call.
         self.parse_config_file(subproject)
 
-        # DEBUG duplicate folder names within path.
-        try:
-            _LOGGER.debug("results_subdir: %s",
-                          str(self.results_subdir))
-        except AttributeError:
-            try:
-                _LOGGER.debug("results_subdir: %s",
-                              self.metadata.results_subdir)
-            except AttributeError:
-                _LOGGER.debug("No results_subdir yet")
-
         # Get project name
         # deduce from output_dir variable in config file:
 
