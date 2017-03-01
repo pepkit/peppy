@@ -5,7 +5,7 @@ Changelog
 
   - New
 
-    - Add new looper version tracking, with `--version` option and printing version at runtime
+    - Add new looper version tracking, with `--version` and `-V` options and printing version at runtime
 
     - Add support for asterisks in file paths
 
@@ -15,13 +15,7 @@ Changelog
 
     - Colorize output
 
-    - Adds new internal object structure for handling ProtocolMapping and PipelineInterface
-
     - Complete rehaul of logging and test infrastructure, using logging and pytest packages
-
-    - Switched from tabs to spaces in source code
-
-    - Add new functionality and tests to AttributeDict object in models
 
   - Fixes
 
