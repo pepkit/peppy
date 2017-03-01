@@ -1073,10 +1073,9 @@ class Sample(object):
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
 
-            :param obj: skips including attributes named in provided list.
-            :param to_skip: List of strings to ignore.
-            :type to_skip: list.
-            """
+            :param object obj: what to serialize to write to YAML.
+            :param tuple[str] to_skip: names of attributes to ignore.
+\            """
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             elif isinstance(obj, (dict, AttributeDict)):
