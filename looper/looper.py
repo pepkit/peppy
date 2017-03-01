@@ -153,7 +153,7 @@ def parse_arguments():
     # Set the logging level.
     if args.dbg:
         # Debug mode takes precedence and will listen for all messages.
-        level = logging.DEBUG
+        level = args.logging_level or logging.DEBUG
     elif args.verbosity is not None:
         # Verbosity-framed specification trumps logging_level.
         level = _LEVEL_BY_VERBOSITY[args.verbosity]
