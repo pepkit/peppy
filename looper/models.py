@@ -136,7 +136,7 @@ class AttributeDict(MutableMapping):
         :param collections.Iterable | collections.Mapping entries: collection
             of pairs of keys and values
         """
-        self._log_(0, "Adding entries {}".format(entries))
+        self._log_(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
