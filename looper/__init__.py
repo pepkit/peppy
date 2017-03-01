@@ -41,6 +41,9 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     :return logging.Logger: project-root logger
     """
 
+    logging.addLevelName(0, "EVERYTHING")
+    logging.addLevelName(5, "VERY_FINE")
+
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
@@ -83,7 +86,7 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     for loc in where:
         if isinstance(loc, str):
             # File destination
-            dirpath = os.path.dirname(loc)
+            dirpath = os.path.abspath(os.path.dirname(loc))
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
             handler_type = logging.FileHandler
@@ -95,6 +98,12 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
             logging.info("{} as logs destination appears to be neither "
                          "a filepath nor a stream.".format(loc))
             continue
+
+        if handler_type is logging.FileHandler:
+            handler = handler_type(loc, mode='w')
+        else:
+            handler = handler_type(loc)
+
         handler = handler_type(loc)
         handler.setLevel(level)
         handler.setFormatter(formatter)

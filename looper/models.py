@@ -87,6 +87,7 @@ class Paths(object):
     """
     A class to hold paths as attributes.
     """
+
     def __repr__(self):
         return "Paths object."
 
@@ -107,7 +108,7 @@ class AttributeDict(MutableMapping):
     """
 
     def __init__(self, entries=None,
-                 force_nulls=False, attribute_identity=False):
+                 _force_nulls=False, _attribute_identity=False):
         """
         Establish a logger for this instance, set initial entries,
         and determine behavior with regard to null values and behavior
@@ -115,15 +116,15 @@ class AttributeDict(MutableMapping):
 
         :param collections.Iterable | collections.Mapping entries: collection
             of key-value pairs, initial data for this mapping
-        :param bool force_nulls: whether to allow a null value to overwrite
+        :param bool _force_nulls: whether to allow a null value to overwrite
             an existing non-null value
-        :param bool attribute_identity: whether to return attribute name
+        :param bool _attribute_identity: whether to return attribute name
             requested rather than exception when unset attribute/key is queried
         """
         # Null value can squash non-null?
-        self.__dict__["_force_nulls"] = force_nulls
+        self.__dict__["_force_nulls"] = _force_nulls
         # Return requested attribute name if not set?
-        self.__dict__["_attribute_identity"] = attribute_identity
+        self.__dict__["_attribute_identity"] = _attribute_identity
         if entries:
             self.add_entries(entries)
 
@@ -135,6 +136,7 @@ class AttributeDict(MutableMapping):
         :param collections.Iterable | collections.Mapping entries: collection
             of pairs of keys and values
         """
+        self._log_(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
@@ -144,9 +146,6 @@ class AttributeDict(MutableMapping):
             entries_iter = entries
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
-            if key in ATTRDICT_METADATA:
-                _LOGGER.debug("Not adding {}".format(key))
-                continue
             self.__setitem__(key, value)
 
 
@@ -161,14 +160,10 @@ class AttributeDict(MutableMapping):
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
-        :raises MetadataOperationException: if the attribute
-            for which access was attempted is a special metadata item
         :raises AttributeError: if the requested item has not been set and
             this `AttributeDict` instance is not configured to return the
             requested key/item itself when it's missing
         """
-        if item in ATTRDICT_METADATA:
-            raise MetadataOperationException(self, item)
         try:
             return self.__dict__[item]
         except KeyError:
@@ -210,7 +205,7 @@ class AttributeDict(MutableMapping):
             self.__dict__[key] = value
         else:
             self._log_(logging.DEBUG,
-                       "Not setting {k} to {v}; force_nulls: {nulls}".
+                       "Not setting {k} to {v}; _force_nulls: {nulls}".
                        format(k=key, v=value,
                               nulls=self.__dict__["_force_nulls"]))
 
@@ -248,9 +243,6 @@ class AttributeDict(MutableMapping):
 
     def __len__(self):
         return sum(1 for _ in iter(self))
-
-    def __str__(self):
-        return str({k: self.__dict__[k] for k in self.__iter__()})
 
     def __repr__(self):
         return repr(self.__dict__)
@@ -356,6 +348,7 @@ class Project(AttributeDict):
 
         # Set project's directory structure
         if not dry:
+            _LOGGER.debug("Ensuring project directories exist")
             self.make_project_dirs()
             # self.set_project_permissions()
 
@@ -400,7 +393,7 @@ class Project(AttributeDict):
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             if "pipelines_dir" not in self.metadata:
-                # TODO: beware of AttributeDict with force_nulls = True here,
+                # TODO: beware of AttributeDict with _force_nulls = True here,
                 # as that may return 'pipelines_dir' name itself.
                 pipe_path = []
                 #raise PipelinesException()
@@ -474,16 +467,19 @@ class Project(AttributeDict):
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"
         }
+
+        metadata = self.metadata
+
         for key, value in config_vars.items():
-            if hasattr(self.metadata, key):
-                if not _os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key,
-                            _os.path.join(self.metadata.output_dir,
-                                          getattr(self.metadata, key)))
+            if hasattr(metadata, key):
+                if not _os.path.isabs(getattr(metadata, key)):
+                    setattr(metadata, key,
+                            _os.path.join(metadata.output_dir,
+                                          getattr(metadata, key)))
             else:
-                outdir = self.metadata.output_dir
+                outdir = metadata.output_dir
                 outpath = _os.path.join(outdir, value)
-                setattr(self.metadata, key, _os.path.join(outpath, value))
+                setattr(metadata, key, outpath)
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
@@ -532,11 +528,15 @@ class Project(AttributeDict):
 
 
     def _ensure_absolute(self, maybe_relpath):
+        _LOGGER.debug("Ensuring absolute path for '%s'", maybe_relpath)
         if _os.path.isabs(maybe_relpath):
+            _LOGGER.debug("Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
         expanded = _os.path.expandvars(maybe_relpath)
+        _LOGGER.debug("Expanded: '%s'", expanded)
         if _os.path.isabs(expanded):
+            _LOGGER.debug("Expanded is absolute")
             return expanded
         _LOGGER.debug("Making non-absolute path '%s' be absolute",
                       maybe_relpath)
@@ -590,11 +590,13 @@ class Project(AttributeDict):
         Creates project directory structure if it doesn't exist.
         """
         for name, path in self.metadata.items():
+            _LOGGER.debug("Ensuring project dir exists: '%s'", path)
             # this is a list just to support future variables
             #if name not in ["pipelines_dir", "merge_table", "compare_table", "sample_annotation"]:
             # opt-in; which ones actually need to be created?
             if name in ["output_dir", "results_subdir", "submission_subdir"]:
                 if not _os.path.exists(path):
+                    _LOGGER.debug("Creating: '%s'", path)
                     _os.makedirs(path)
 
 
@@ -888,6 +890,8 @@ class SampleSheet(object):
             if hasattr(self.prj.metadata, "pipelines_dir") and self.prj.metadata.pipelines_dir:  # pipelines_dir is optional
                 try:
                     pipeline_dirpaths = self.prj.metadata.pipelines_dir
+                    if isinstance(pipeline_dirpaths, str):
+                        pipeline_dirpaths = [pipeline_dirpaths]
                     sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
                     _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
                                   format(len(pipeline_dirpaths), pipeline_dirpaths))
@@ -1020,7 +1024,6 @@ class Sample(object):
         # The SampleSheet object, after being added to a project, will
         # call Sample.set_file_paths().
 
-
     def __repr__(self):
         return "Sample '%s'" % self.sample_name
 
@@ -1078,19 +1081,23 @@ class Sample(object):
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
 
-            :param obj: skips including attributes named in provided list.
-            :param to_skip: List of strings to ignore.
-            :type to_skip: list.
-            """
-            if type(obj) is list:  # recursive serialization (lists)
+            :param object obj: what to serialize to write to YAML.
+            :param tuple[str] to_skip: names of attributes to ignore.
+\            """
+            if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            elif type(obj) is dict:  # recursive serialization (dict)
-                return {k: obj2dict(v) for k, v in obj.items() if k not in to_skip}
-            elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip}
+            elif isinstance(obj, dict):
+                return {k: obj2dict(v)
+                        for k, v in obj.items() if k not in to_skip}
+            elif isinstance(obj, (AttributeDict, Paths, Sample)):
+                return {k: obj2dict(v)
+                        for k, v in obj.__dict__.items() if k not in to_skip}
             elif hasattr(obj, 'dtype'):  # numpy data types
+                # TODO: this fails with ValueError for multi-element array.
                 return obj.item()
-            elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
+            elif _pd.isnull(obj):
+                # Missing values as evaluated by pd.isnull().
+                # This gets correctly written into yaml.
                 return "NaN"
             else:
                 return obj
@@ -1098,7 +1105,8 @@ class Sample(object):
         # if path is not specified, use default:
         # prj.metadata.submission_dir + sample_name + yaml
         if path is None:
-            self.yaml_file = _os.path.join(self.prj.metadata.submission_subdir, self.sample_name + ".yaml")
+            self.yaml_file = _os.path.join(self.prj.metadata.submission_subdir,
+                                           self.sample_name + ".yaml")
         else:
             self.yaml_file = path
 
