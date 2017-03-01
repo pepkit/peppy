@@ -86,7 +86,7 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     for loc in where:
         if isinstance(loc, str):
             # File destination
-            dirpath = os.path.dirname(loc)
+            dirpath = os.path.abspath(os.path.dirname(loc))
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
             handler_type = logging.FileHandler
