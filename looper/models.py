@@ -478,16 +478,19 @@ class Project(AttributeDict):
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"
         }
+
+        metadata = self.metadata
+
         for key, value in config_vars.items():
-            if hasattr(self.metadata, key):
-                if not _os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key,
-                            _os.path.join(self.metadata.output_dir,
-                                          getattr(self.metadata, key)))
+            if hasattr(metadata, key):
+                if not _os.path.isabs(getattr(metadata, key)):
+                    setattr(metadata, key,
+                            _os.path.join(metadata.output_dir,
+                                          getattr(metadata, key)))
             else:
-                outdir = self.metadata.output_dir
+                outdir = metadata.output_dir
                 outpath = _os.path.join(outdir, value)
-                setattr(self.metadata, key, _os.path.join(outpath, value))
+                setattr(metadata, key, outpath)
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
