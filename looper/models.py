@@ -596,11 +596,13 @@ class Project(AttributeDict):
         Creates project directory structure if it doesn't exist.
         """
         for name, path in self.metadata.items():
+            _LOGGER.debug("Ensuring project dir exists: '%s'", path)
             # this is a list just to support future variables
             #if name not in ["pipelines_dir", "merge_table", "compare_table", "sample_annotation"]:
             # opt-in; which ones actually need to be created?
             if name in ["output_dir", "results_subdir", "submission_subdir"]:
                 if not _os.path.exists(path):
+                    _LOGGER.debug("Creating: '%s'", path)
                     _os.makedirs(path)
 
 
