@@ -329,6 +329,7 @@ class Project(AttributeDict):
         self.config, self.paths = None, None    # Set by config parsing call.
         self.parse_config_file(subproject)
 
+        # DEBUG duplicate folder names within path.
         try:
             _LOGGER.debug("results_subdir: %s",
                           str(self.results_subdir))
@@ -358,6 +359,7 @@ class Project(AttributeDict):
 
         # Set project's directory structure
         if not dry:
+            _LOGGER.debug("Ensuring project directories exist")
             self.make_project_dirs()
             # self.set_project_permissions()
 
