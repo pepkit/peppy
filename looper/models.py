@@ -1077,15 +1077,19 @@ class Sample(object):
             :param to_skip: List of strings to ignore.
             :type to_skip: list.
             """
-            if type(obj) is list:  # recursive serialization (lists)
+            if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            elif type(obj) is dict:  # recursive serialization (dict)
-                return {k: obj2dict(v) for k, v in obj.items() if k not in to_skip}
-            elif any([isinstance(obj, t) for t in [AttributeDict, Project, Paths, Sample]]):  # recursive serialization (AttributeDict and children)
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip}
+            elif isinstance(obj, (dict, AttributeDict)):
+                return {k: obj2dict(v)
+                        for k, v in obj.items() if k not in to_skip}
+            elif isinstance(obj, (Paths, Sample)):
+                return {k: obj2dict(v)
+                        for k, v in obj.__dict__.items() if k not in to_skip}
             elif hasattr(obj, 'dtype'):  # numpy data types
                 return obj.item()
-            elif _pd.isnull(obj):  # Missing values as evaluated by pd.isnull() <- this gets correctly written into yaml
+            elif _pd.isnull(obj):
+                # Missing values as evaluated by pd.isnull().
+                # This gets correctly written into yaml.
                 return "NaN"
             else:
                 return obj
@@ -1093,7 +1097,8 @@ class Sample(object):
         # if path is not specified, use default:
         # prj.metadata.submission_dir + sample_name + yaml
         if path is None:
-            self.yaml_file = _os.path.join(self.prj.metadata.submission_subdir, self.sample_name + ".yaml")
+            self.yaml_file = _os.path.join(self.prj.metadata.submission_subdir,
+                                           self.sample_name + ".yaml")
         else:
             self.yaml_file = path
 
