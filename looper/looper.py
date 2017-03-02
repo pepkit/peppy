@@ -69,7 +69,6 @@ def parse_arguments():
                         choices=range(len(_LEVEL_BY_VERBOSITY)),
                         help=argparse.SUPPRESS)
     parser.add_argument("--logging-level",
-                        default=LOGGING_LEVEL,
                         help=argparse.SUPPRESS)
     parser.add_argument("--dbg",
                         action="store_true",
@@ -153,13 +152,13 @@ def parse_arguments():
     # Set the logging level.
     if args.dbg:
         # Debug mode takes precedence and will listen for all messages.
-        level = logging.DEBUG
+        level = args.logging_level or logging.DEBUG
     elif args.verbosity is not None:
         # Verbosity-framed specification trumps logging_level.
         level = _LEVEL_BY_VERBOSITY[args.verbosity]
     else:
         # Normally, we're not in debug mode, and there's not verbosity.
-        level = args.logging_level
+        level = LOGGING_LEVEL
 
     # Establish the project-root logger and attach one for this module.
     setup_looper_logger(level=level,
@@ -204,6 +203,7 @@ def run(prj, args, remaining_args, interface_manager):
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+        _LOGGER.debug("Pipeline output folder: '%s'", pipeline_outfolder)
         fail_message = ""
 
         # Don't submit samples with duplicate names
@@ -337,7 +337,7 @@ def run(prj, args, remaining_args, interface_manager):
                     cmd += " -M " + submit_settings["mem"]
 
             # Add the command string and job name to the submit_settings object
-            submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline_job
+            submit_settings["JOBNAME"] = sample.sample_name + "_" + pl_id
             submit_settings["CODE"] = cmd
 
             # Submit job!
@@ -734,8 +734,16 @@ def main():
             prj.set_compute(args.compute)
 
         # TODO split here, spawning separate run process for each pipelines directory in project metadata pipelines directory.
-        pipedirs = prj.metadata.pipelines_dir
-        _LOGGER.debug("Pipelines dirpath(s): {}".format(pipedirs))
+        try:
+            pipedirs = prj.metadata.pipelines_dir
+            _LOGGER.info("Pipelines path(s): {}".format(pipedirs))
+        except AttributeError:
+            _LOGGER.error("Looper requires a metadata.pipelines_dir")
+            raise
+
+        if len(pipedirs) == 0:
+            _LOGGER.error("Looper requires a metadata.pipelines_dir")   
+            raise AttributeError         
 
         interface_manager = InterfaceManager(prj.metadata.pipelines_dir)
         try:
