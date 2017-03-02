@@ -1,4 +1,4 @@
-Tutorials
+Extended tutorial
 ***************************************************
 
 The best way to learn is by example, so here's a quick tutorial to get you started using looper to run pre-made pipelines on a pre-made project.
@@ -29,7 +29,7 @@ Now you can run this project with looper! Just use ``looper run``:
 
 .. HINT::
 
-	If the looper executable isn't in your path, add it with export PATH=~/.local/bin:$PATH -- check out the :doc:`FAQ <faq>`.
+	If the looper executable isn't in your path, add it with ``export PATH=~/.local/bin:$PATH`` -- check out the :doc:`FAQ <faq>`.
 
 Pipeline outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

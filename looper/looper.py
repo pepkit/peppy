@@ -200,6 +200,7 @@ def run(prj, args, remaining_args, interface_manager):
     failures = []
 
     for sample in prj.samples:
+        _LOGGER.debug(sample)
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
         pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
