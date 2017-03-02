@@ -337,7 +337,7 @@ def run(prj, args, remaining_args, interface_manager):
                     cmd += " -M " + submit_settings["mem"]
 
             # Add the command string and job name to the submit_settings object
-            submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline_job
+            submit_settings["JOBNAME"] = sample.sample_name + "_" + pl_id
             submit_settings["CODE"] = cmd
 
             # Submit job!
