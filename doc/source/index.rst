@@ -1,42 +1,53 @@
 Welcome
 ^^^^^^^^
 
-Deploying pipelines just got easier. Looper helps you deploy your current pipeline across a cluster or server with minimal effort on your part.
-
-Looper is a lightweight python toolkit for managing pipeline job creation and submission. To get started, proceed with the :doc:`Introduction <intro>` or use the table of contents below to navigate the docs.
-
-Links
-^^^^^^^^
-
- * Public-facing permalink: http://databio.org/looper
- * Documentation: http://looper.readthedocs.io/
- * Source code: http://github.com/epigen/looper
-
-
-Sister projects
-^^^^^^^^^^^^^^^^
-
-`Pypiper <http://pypiper.readthedocs.io/>`_ and `Looper <http://looper.readthedocs.io/>`_ work together as a comprehensive pipeline management system. `Pypiper <http://pypiper.readthedocs.io/>`_ builds individual, single-sample pipelines that can be run one sample at a time. `Looper <http://looper.readthedocs.io/>`_ then processes groups of samples, submitting appropriate pipelines to a cluster or server. The two projects are independent and can be used separately, but they are most powerful when combined.
-
+Deploying pipelines just got easier. Looper is a lightweight python toolkit that deploys your pipeline across samples with minimal effort. To get started, proceed with the :doc:`Introduction <intro>` or use the table of contents below to navigate the docs.
 
 Contents
 ^^^^^^^^
 
 .. toctree::
-	:maxdepth: 2
+	:caption: Getting Started
+	:maxdepth: 0
 
 	intro.rst
-	install.rst
+	hello-world.rst
 	features.rst
 	usage-and-commands.rst
 	tutorials.rst
+
+.. toctree::
+	:maxdepth: 2
+	:caption: Using Looper in Production
+
 	define-your-project.rst
-	connecting-pipelines.rst
 	advanced.rst
+
+.. toctree::
+	:caption: Developing Pipelines
+	:maxdepth: 2
+
+	connecting-pipelines.rst
 	config-files.rst
+
+.. toctree::
+	:caption: Project Models
+	:maxdepth: 2
+
+	models.rst
+
+.. toctree::
+	:caption: Further Reading
+	:maxdepth: 1
+
 	api.rst
 	faq.rst
 	changelog.rst
+	support.rst
+
+
+
+
 
 Indices and tables
 ==================
@@ -44,3 +55,10 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+Links
+^^^^^^^^
+
+ * Public-facing permalink: http://databio.org/looper
+ * Documentation: http://looper.readthedocs.io/
+ * Source code: http://github.com/epigen/looper

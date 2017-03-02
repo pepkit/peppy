@@ -94,10 +94,10 @@ Second, the `submission_command` is the command-line command that `looper` will 
 In `Templates <https://github.com/epigen/looper/tree/master/templates>`__ are examples for submission templates for `SLURM <https://github.com/epigen/looper/blob/master/templates/slurm_template.sub>`__, `SGE <https://github.com/epigen/looper/blob/master/templates/sge_template.sub>`__, and `local runs <https://github.com/epigen/looper/blob/master/templates/localhost_template.sub>`__. 
 
 
-Handling multiple input files with a merge table
+Handling multiple input files
 ****************************************
 
-Sometimes you have multiple input files that you want to merge for one sample. For example, the primary use case is a single library that was spread across multiple sequencing lanes; these need to be first merged, and then run through the pipeline. Rather than putting multiple lines in your sample annotation sheet, which causes conceptual and analytical challenges, we introduce two ways to merge these:
+Sometimes you have multiple input files that you want to merge for one sample. For example, a common use case is a single library that was spread across multiple sequencing lanes, yielding multiple input files that need to be merged, and then run through the pipeline as one. Rather than putting multiple lines in your sample annotation sheet, which causes conceptual and analytical challenges, we introduce two ways to merge these:
 
 1. Use shell expansion characters (like '*' or '[]') in your `data_source` definition or filename (good for simple merges)
 2. Specify a *merge table* which maps input files to samples for samples with more than one input file (infinitely customizable for more complicated merges).
@@ -119,68 +119,19 @@ Make sure the ``sample_name`` column of this table matches, and then include any
 Note: to handle different *classes* of input files, like read1 and read2, these are *not* merged and should be handled as different derived columns in the main sample annotation sheet (and therefore different arguments to the pipeline).
 
 
-.. _extending-sample-objects:
-
-Extending Sample objects
+Connecting to multiple pipelines
 ****************************************
 
-Looper uses object oriented programming (OOP) under the hood. This means that concepts like a sample to be processed or a project are modeled as objects in Python. 
+If you have a project that contains samples of different types, then you may need to specify multiple pipeline repositories to your project. Starting in version 0.5, looper can handle a priority list of pipeline directories in the metadata.pipelines_dir 
+attribute.
 
-By default we use `generic models <https://github.com/epigen/looper/tree/master/looper/models.py>`__ (see the `API <api.html>`__ for more) to handle samples in Looper, but these can also be reused in other contexts by importing ``looper.models`` or by means of object serialization through YAML files.
+For example:
 
-Since these models provide useful methods to interact, update, and store attributes in the objects (most nobly *samples* - ``Sample`` object), a useful use case is during the run of a pipeline: pipeline scripts can extend ``Sample`` objects with further attributes or methods.
+.. code-block:: yaml
 
-Example:
-
-You want a convenient yet systematic way of specifying many file paths for several samples depending on the type of NGS sample you're handling: a ChIP-seq sample might have at some point during a run a peak file with a certain location, while a RNA-seq sample will have a file with transcript quantifications. Both paths to the files exist only for the respective samples, will likely be used during a run of a pipeline, but also during some analysis later on.
-By working with ``Sample`` objects that are specific to each file type, you can specify the location of such files only once during the whole process and later access them "on the fly".
-
-
-**To have** ``Looper`` **create a Sample object specific to your data type, simply import the base** ``Sample`` **object from** ``looper.models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
+	metadata:
+	  pipelines_dir: [pipeline1, pipeline2]
 
 
-.. code-block:: python
+In this case, for a given sample, looper will first look in the pipeline1 directory to see if appropriate pipeline exists for this sample type. If it finds one, it will use this pipeline (or set of pipelines, as specified in the protocol_mappings.yaml file). Having submitted a suitable pipeline it will ignore the pipeline2 directory. However if there is no suitable pipeline in the first directory, looper will check the second directory and, if it finds a match, will submit that. If no suitable pipelines are found in any of the directories, the sample will be skipped as usual.
 
-	# atacseq.py
-
-	from looper.models import Sample
-
-	class ATACseqSample(Sample):
-		"""
-		Class to model ATAC-seq samples based on the generic Sample class.
-
-		:param series: Pandas `Series` object.
-		:type series: pandas.Series
-		"""
-		__library__ = "ATAC-seq"
-
-		def __init__(self, series):
-			if not isinstance(series, pd.Series):
-				raise TypeError("Provided object is not a pandas Series.")
-			super(ATACseqSample, self).__init__(series)
-			self.make_sample_dirs()
-
-		def set_file_paths(self):
-			"""Sets the paths of all files for this sample."""
-			# Inherit paths from Sample by running Sample's set_file_paths()
-			super(ATACseqSample, self).set_file_paths()
-
-			self.fastqc = os.path.join(self.paths.sample_root, self.name + ".fastqc.zip")
-			self.trimlog = os.path.join(self.paths.sample_root, self.name + ".trimlog.txt")
-			self.fastq = os.path.join(self.paths.sample_root, self.name + ".fastq")
-			self.trimmed = os.path.join(self.paths.sample_root, self.name + ".trimmed.fastq")
-			self.mapped = os.path.join(self.paths.sample_root, self.name + ".bowtie2.bam")
-			self.peaks = os.path.join(self.paths.sample_root, self.name + "_peaks.bed")
-
-
-When ``Looper`` parses your config file and creates ``Sample`` objects, it will:
-
-	- check if any pipeline has a class extending ``Sample`` with the ``__library__`` attribute:
-		
-		- first by trying to import a ``pipelines`` module and checking the module pipelines;
-
-		- if the previous fails, it will try appending the provided pipeline_dir to ``$PATH`` and checking the module files for pipelines;
-
-	- if any of the above is successful, if will match the sample ``library`` with the ``__library__`` attribute of the classes to create extended sample objects.
-
-	- if a sample cannot be matched to an extended class, it will be a generic ``Sample`` object.

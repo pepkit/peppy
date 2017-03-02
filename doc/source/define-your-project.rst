@@ -10,7 +10,7 @@ The format is simple and modular, so you only need to define the components you 
 1. **Project config file** - a ``yaml`` file describing input and output file paths and other (optional) project settings
 2. **Sample annotation sheet** - a ``csv`` file with 1 row per sample
 
-In the simplest case, ``project_config.yaml`` is just a few lines of ``yaml``. Here's a minimal example **project_config.yaml**:
+**Quick example**: In the simplest case, ``project_config.yaml`` is just a few lines of ``yaml``. Here's a minimal example **project_config.yaml**:
 
 
 .. code-block:: yaml
