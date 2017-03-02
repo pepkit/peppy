@@ -3,7 +3,6 @@ python:
   - "2.7"
 os:
   - linux
-  - osx
 before_install:
   - pip install -U pip
 install:
