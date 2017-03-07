@@ -13,5 +13,4 @@ install:
 script: pytest
 branches:
   only:
-  - dev
-  - master
+  - support26
