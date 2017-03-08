@@ -10,6 +10,4 @@ install:
 script: pytest
 branches:
   only:
-    - master
-    - dev
-
+    - setupargs
