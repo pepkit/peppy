@@ -7,9 +7,7 @@ os:
 before_install:
   - pip install -U pip
 install:
-  - pip install -U -r requirements.txt
-  - pip install -U -r requirements-dev.txt
-  - pip install -U -r requirements-test.txt
+  - pip install .
 script: pytest
 branches:
   only:

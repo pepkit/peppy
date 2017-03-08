@@ -7,7 +7,7 @@ import os
 # Additional keyword arguments for setup().
 extra = {}
 
-DEPENDENCIES = ["pyyaml", "pandas"]
+DEPENDENCIES = ["colorama", "pyyaml", "pandas"]
 if sys.version_info < (2, 7):
     DEPENDENCIES.append('argparse')
 
