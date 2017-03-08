@@ -8,8 +8,6 @@ import os
 extra = {}
 
 DEPENDENCIES = ["colorama", "pyyaml", "pandas"]
-if sys.version_info < (2, 7):
-    DEPENDENCIES.append('argparse')
 
 try:
     from setuptools import setup
