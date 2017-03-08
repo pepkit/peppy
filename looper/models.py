@@ -1264,7 +1264,7 @@ class Sample(object):
 
         # input_size
         if not self.all_inputs_attr:
-            self.required_inputs_attr = self.required_inputs_attr
+            self.all_inputs_attr = self.required_inputs_attr
 
         # Convert attribute keys into values
         self.required_inputs = self.get_attr_values("required_inputs_attr")
