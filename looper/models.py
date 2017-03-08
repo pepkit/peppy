@@ -1239,27 +1239,38 @@ class Sample(object):
         excludes things like config files or other derived entries. Could probably be made
         more robust but this works for now.
         """
-
-        return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
+        return _OrderedDict([[k, getattr(self, k)]
+                             for k in self.sheet_attributes])
 
 
     def set_pipeline_attributes(self, pipeline_interface, pipeline_name):
         """
-        Some sample attributes are relative to a particular pipeline run, like which files should be considered
-        inputs, what is the total input file size for the sample, etc. This function sets these pipeline-specific
-        sample attributes, provided via a PipelineInterface object and the name of a pipeline to select from
-        that interface.
-        :param pipeline_interface: A PipelineInterface object that has the settings for this given pipeline.
-        :param pipeline_name: Which pipeline to choose.
+        Some sample attributes are relative to a particular pipeline run,
+        like which files should be considered inputs, what is the total
+        input file size for the sample, etc. This function sets these
+        pipeline-specific sample attributes, provided via a PipelineInterface
+        object and the name of a pipeline to select from that interface.
+        :param PipelineInterface pipeline_interface: A PipelineInterface
+            object that has the settings for this given pipeline.
+        :param str pipeline_name: Which pipeline to choose.
         """
-        # Settings ending in _attr are lists of attribute keys; these attributes are then queried to populate
-        # values for the primary entries.
-        self.ngs_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "ngs_input_files")
-        self.required_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "required_input_files")
-        self.all_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "all_input_files")
+
+        _LOGGER.debug("Setting pipeline attributes for: '%s'",
+                      str(pipeline_name))
+
+        # Settings ending in _attr are lists of attribute keys.
+        # These attributes are then queried to populate values
+        # for the primary entries.
+        self.ngs_inputs_attr = pipeline_interface.get_attribute(
+                pipeline_name, "ngs_input_files")
+        self.required_inputs_attr = pipeline_interface.get_attribute(
+                pipeline_name, "required_input_files")
+        self.all_inputs_attr = pipeline_interface.get_attribute(
+                pipeline_name, "all_input_files")
 
         if self.ngs_inputs_attr:
-            # NGS data inputs exit, so we can add attributes like read_type, read_length, paired.
+            # NGS data inputs exit, so we can add attributes like
+            # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
             self.set_read_type()
 
@@ -1278,15 +1289,20 @@ class Sample(object):
     def confirm_required_inputs(self, permissive=False):
         # set_pipeline_attributes must be run first.
 
+        _LOGGER.debug("Confirming required inputs")
+
         if not hasattr(self, "required_inputs"):
-            _LOGGER.warn("You must run set_pipeline_attributes before confirm_required_inputs")
+            _LOGGER.warn("You must run set_pipeline_attributes "
+                         "before confirm_required_inputs")
             return True
 
         if not self.required_inputs:
+            _LOGGER.debug("No required inputs")
             return True
 
         # First, attributes
         for file_attribute in self.required_inputs_attr:
+            _LOGGER.debug("Checking '{}'".format(file_attribute))
             if not hasattr(self, file_attribute):
                 message = "Sample missing required input attribute '{}'".\
                     format(file_attribute)
@@ -1299,9 +1315,12 @@ class Sample(object):
         # Second, files
         missing_files = []
         for paths in self.required_inputs:
+            _LOGGER.debug("Checking paths")
             # There can be multiple, space-separated values here.
             for path in paths.split(" "):
+                _LOGGER.debug("Checking path: '{}'".format(path))
                 if not _os.path.exists(path):
+                    _LOGGER.debug("Missing: '{}'".format(path))
                     missing_files.append(path)
 
         if len(missing_files) > 0:

@@ -7,12 +7,17 @@ import os
 # Additional keyword arguments for setup().
 extra = {}
 
-DEPENDENCIES = ["colorama", "pyyaml", "pandas"]
+DEPENDENCIES = []
+with open("requirements.txt", "r") as reqs_file:
+    for line in reqs_file:
+        if not line.strip():
+            continue
+        DEPENDENCIES.append(line.split("=")[0].rstrip("<>"))
 
 try:
     from setuptools import setup
     if sys.version_info >= (3,):
-        extra['use_2to3'] = True
+        extra["use_2to3"] = True
     extra["install_requires"] = DEPENDENCIES
 except ImportError:
     from distutils.core import setup
