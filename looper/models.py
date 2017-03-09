@@ -187,7 +187,7 @@ class AttributeDict(MutableMapping):
         :raises AttributeDict.MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
-        self._log_(0, "Executing __setitem__ for '{}', '{}'".
+        self._log_(5, "Executing __setitem__ for '{}', '{}'".
                    format(key, str(value)))
         if isinstance(value, Mapping):
             try:
@@ -201,7 +201,7 @@ class AttributeDict(MutableMapping):
                        format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            _LOGGER.debug("Setting '{}' to {}".format(key, value))
+            self._log_(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
             self._log_(logging.DEBUG,
@@ -327,6 +327,9 @@ class Project(AttributeDict):
 
         # Parse config file
         self.config, self.paths = None, None    # Set by config parsing call.
+        _LOGGER.info("Parsing %s config file", self.__class__.__name__)
+        if subproject:
+            _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
         # Get project name
@@ -435,9 +438,11 @@ class Project(AttributeDict):
 
         # Overwrite any config entries with entries in the subproject.
         if "subprojects" in self.config and subproject:
-            _LOGGER.debug("Adding entries for subproject {}".
+            _LOGGER.debug("Adding entries for subproject '{}'".
                           format(subproject))
-            self.add_entries(self.config['subprojects'][subproject])
+            subproj_updates = self.config['subprojects'][subproject]
+            _LOGGER.debug("Updating with: {}".format(subproj_updates))
+            self.add_entries(subproj_updates)
         else:
             _LOGGER.debug("No subproject")
 
@@ -461,6 +466,9 @@ class Project(AttributeDict):
                     var, "metadata", self.__class__.__name__, self.metadata)
             setattr(self.metadata, var,
                     _os.path.expandvars(getattr(self.metadata, var)))
+
+        _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
+                                               self.metadata))
 
         # These are optional because there are defaults
         config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
@@ -1571,10 +1579,9 @@ class PipelineInterface(object):
         """
         For a given pipeline and sample, return the argument string
 
-        :param pipeline_name: Name of pipeline.
-        :type pipeline_name: str
-        :param sample: Sample object.
-        :type sample: Sample
+        :param str pipeline_name: Name of pipeline.
+        :param Sample sample: current sample for which job is being built
+        :return str: command-line argument string for pipeline
         """
 
         _LOGGER.debug("Building arguments string")
@@ -1589,7 +1596,8 @@ class PipelineInterface(object):
         args = config['arguments']
 
         for key, value in args.iteritems():
-            _LOGGER.debug("%s, %s", key, value)
+            _LOGGER.debug("Script argument: '%s', sample attribute: '%s'",
+                          key, value)
             if value is None:
                 _LOGGER.debug("Null value for opt arg key '%s'",
                                    str(key))
@@ -1604,6 +1612,7 @@ class PipelineInterface(object):
                     pipeline_name, value, key)
                 raise
 
+            _LOGGER.debug("Adding '{}' for '{}'".format(arg, key))
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
@@ -1626,6 +1635,8 @@ class PipelineInterface(object):
                     continue
 
                 argstring += " " + str(key) + " " + str(arg)
+
+        _LOGGER.debug("Script args: '%s'", argstring)
 
         return argstring
 
