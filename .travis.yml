@@ -3,14 +3,11 @@ python:
   - "2.7"
 os:
   - linux
-before_install:
-  - pip install -U pip
 install:
-  - pip install -U -r requirements.txt
-  - pip install -U -r requirements-dev.txt
-  - pip install -U -r requirements-test.txt
+  - pip install .
+  - pip install -r requirements-dev.txt
+  - pip install -r requirements-test.txt
 script: pytest
 branches:
   only:
-  - dev
-  - master
+    - setupargs

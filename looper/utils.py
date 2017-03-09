@@ -1,9 +1,10 @@
 """ Helpers without an obvious logical home. """
 
 from argparse import ArgumentParser
-from collections import defaultdict, Iterable
+from collections import Counter, defaultdict, Iterable
 import logging
 import os
+import subprocess as sp
 import yaml
 from _version import __version__
 
@@ -17,6 +18,7 @@ class VersionInHelpParser(ArgumentParser):
         """ Add version information to help text. """
         return "version: {}\n".format(__version__) + \
                super(VersionInHelpParser, self).format_help()
+
 
 
 def parse_text_data(lines_or_path, delimiter=os.linesep):
@@ -45,6 +47,7 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
     else:
         raise ValueError("Unable to parse as data lines {} ({})".
                          format(lines_or_path, type(lines_or_path)))
+
 
 
 def partition(items, test):
@@ -223,3 +226,66 @@ def is_command_callable(command, name=""):
         _LOGGER.debug("Command{0}is not callable: {1}".
                       format(alias_value, command))
     return not bool(code)
+
+
+
+def bam_or_fastq(input_file):
+    """
+    Checks if string endswith `bam` or `fastq`.
+
+    :param str input_file: String to check.
+    :return str: filetype (extension without dot prefix)
+    :raises TypeError: if file does not appear of a supported type,
+        based on extension
+    """
+    if input_file.endswith(".bam"):
+        return "bam"
+    elif input_file.endswith(".fastq") or \
+            input_file.endswith(".fq") or \
+            input_file.endswith(".fq.gz") or \
+            input_file.endswith(".fastq.gz"):
+        return "fastq"
+    else:
+        raise TypeError("Type of input file ends in neither '.bam' "
+                        "nor '.fastq' [file: '" + input_file + "']")
+
+
+
+def check_bam(bam, o):
+    """
+    Check reads in BAM file for read type and lengths.
+
+    :param str bam: BAM file path.
+    :param int o: Number of reads to look at for estimation.
+    """
+    try:
+        p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
+
+        # Count paired alignments
+        paired = 0
+        read_length = Counter()
+        while o > 0:  # Count down number of lines
+            line = p.stdout.next().split("\t")
+            flag = int(line[1])
+            read_length[len(line[9])] += 1
+            if 1 & flag:  # check decimal flag contains 1 (paired)
+                paired += 1
+            o -= 1
+        p.kill()
+    except OSError:
+        reason = "Note (samtools not in path): For NGS inputs, " \
+                 "looper needs samtools to auto-populate " \
+                 "'read_length' and 'read_type' attributes; " \
+                 "these attributes were not populated."
+        raise OSError(reason)
+
+    _LOGGER.debug("Read lengths: {}".format(read_length))
+    _LOGGER.debug("paired: {}".format(paired))
+    return read_length, paired
+
+
+
+def check_fastq(fastq, o):
+    raise NotImplementedError("Detection of read type/length for "
+                              "fastq input is not yet implemented.")
+

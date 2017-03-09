@@ -3,19 +3,25 @@
 import sys
 import os
 
-# take care of extra required modules depending on Python version
+
+# Additional keyword arguments for setup().
 extra = {}
+
+DEPENDENCIES = []
+with open("requirements.txt", "r") as reqs_file:
+    for line in reqs_file:
+        if not line.strip():
+            continue
+        DEPENDENCIES.append(line.split("=")[0].rstrip("<>"))
 
 try:
     from setuptools import setup
-    if sys.version_info < (2, 7):
-        extra['install_requires'] = ['argparse']
     if sys.version_info >= (3,):
-        extra['use_2to3'] = True
+        extra["use_2to3"] = True
+    extra["install_requires"] = DEPENDENCIES
 except ImportError:
     from distutils.core import setup
-    if sys.version_info < (2, 7):
-        extra['dependencies'] = ['argparse']
+    extra["requires"] = DEPENDENCIES
 
 
 # Additional files to include with package
@@ -49,7 +55,6 @@ setup(
     url="https://github.com/epigen/looper",
     author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
     license="GPL2",
-    install_requires=["pyyaml", "pandas"],
     entry_points={
         "console_scripts": [
             'looper = looper.looper:main'
