@@ -22,6 +22,8 @@ Changelog
     - Removes pipelines_dir requirement for models, making it useful outside looper
 
     - Small bug fixes related to `all_input_files` and `required_input_files` attributes
+    
+    - More robust installation and more explicit requirement of Python 2.7
 
 
 - **v0.4** (*2017-01-12*):
