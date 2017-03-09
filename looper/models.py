@@ -1664,12 +1664,6 @@ class InterfaceManager(object):
     """ Aggregate PipelineInterface and ProtocolMapper objects so that a
      Project can use pipelines distributed across multiple locations. """
 
-    # TODO: note that this permits submission of jobs for same sample for
-    # same script/pipeline name if a protocol maps to that script name in
-    # multiple pipelines_dir locations. This is intentional, but it's a
-    # design decision that can be discussed. Perhaps a boolean
-    # parameter governing this behavior could be provided.
-
 
     def __init__(self, pipeline_dirs):
         """
