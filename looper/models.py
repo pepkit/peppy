@@ -53,6 +53,7 @@ from collections import \
     defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
 from functools import partial
 import glob
+import inspect
 import itertools
 import logging
 import os as _os
@@ -61,7 +62,7 @@ from pkg_resources import resource_filename
 import pandas as _pd
 import yaml as _yaml
 
-from . import LOOPERENV_VARNAME
+from . import LOOPERENV_VARNAME, setup_looper_logger
 from exceptions import *
 from utils import bam_or_fastq, check_bam, check_fastq, partition
 
@@ -69,6 +70,18 @@ COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
 _LOGGER = logging.getLogger(__name__)
 
+
+
+def _ensure_logger():
+    source_module = \
+    inspect.getframeinfo(inspect.getouterframes(inspect.currentframe())[1][0])[
+        0]
+    via_looper = _os.path.split(source_module)[1] == "looper.py"
+    if via_looper:
+        return
+    setup_looper_logger(level=logging.INFO)
+
+_ensure_logger()
 
 def copy(obj):
     def copy(self):
