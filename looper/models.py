@@ -73,15 +73,23 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _ensure_logger():
-    source_module = \
-    inspect.getframeinfo(inspect.getouterframes(inspect.currentframe())[1][0])[
-        0]
+    """ Assure that the module-scope logger has a handler.
+
+     This avoids an import of something from here, say, in
+    iPython, and getting a logger without handler(s), the
+    annoying message about that, and thus no logs. This is
+    always executed; it's a function for variable locality only.
+     
+    """
+    source_module = inspect.getframeinfo(
+            inspect.getouterframes(inspect.currentframe())[1][0])[0]
     via_looper = _os.path.split(source_module)[1] == "looper.py"
     if via_looper:
         return
     setup_looper_logger(level=logging.INFO)
-
 _ensure_logger()
+
+
 
 def copy(obj):
     def copy(self):
