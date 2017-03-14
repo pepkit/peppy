@@ -10,7 +10,6 @@ install:
 script: pytest
 branches:
   only:
-    - mods-logs
     - dev
     - master
 
