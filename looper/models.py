@@ -79,7 +79,7 @@ def _ensure_logger():
     iPython, and getting a logger without handler(s), the
     annoying message about that, and thus no logs. This is
     always executed; it's a function for variable locality only.
-     
+
     """
     source_module = inspect.getframeinfo(
             inspect.getouterframes(inspect.currentframe())[1][0])[0]
@@ -1102,8 +1102,7 @@ class Sample(object):
         """
         Serializes itself in YAML format.
 
-        :param path: A file path to write yaml to.
-        :type path: str
+        :param str path: A file path to write yaml to.
         """
         def obj2dict(obj, to_skip=("samples", "sheet", "sheet_attributes")):
             """
