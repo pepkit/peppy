@@ -76,7 +76,7 @@ _LOGGER = logging.getLogger(__name__)
 def _ensure_logger():
     """ Assure that the module-scope logger has a handler.
 
-     This avoids an import of something from here, say, in
+    This avoids an import of something from here, say, in
     iPython, and getting a logger without handler(s), the
     annoying message about that, and thus no logs. This is
     always executed; it's a function for variable locality only.

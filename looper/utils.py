@@ -297,16 +297,17 @@ def get_file_size(filename):
 
     :param str | collections.Iterable[str] filename: A space-separated
         string or list of space-separated strings of absolute file paths.
+    :return float: size of file(s), in gigabytes.
     """
     if filename is None:
-        return 0
+        return float(0)
     if type(filename) is list:
-        return sum([get_file_size(x) for x in filename])
+        return float(sum([get_file_size(x) for x in filename]))
     try:
         total_bytes = sum([float(os.stat(f).st_size)
                            for f in filename.split(" ") if f is not ''])
     except OSError:
         # File not found
-        return 0
+        return 0.0
     else:
         return float(total_bytes) / (1024 ** 3)
