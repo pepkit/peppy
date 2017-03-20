@@ -63,7 +63,7 @@ import yaml as _yaml
 
 from . import LOOPERENV_VARNAME
 from exceptions import *
-from utils import partition
+from utils import bam_or_fastq, check_bam, check_fastq, partition
 
 COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
@@ -187,7 +187,7 @@ class AttributeDict(MutableMapping):
         :raises AttributeDict.MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
-        self._log_(0, "Executing __setitem__ for '{}', '{}'".
+        self._log_(5, "Executing __setitem__ for '{}', '{}'".
                    format(key, str(value)))
         if isinstance(value, Mapping):
             try:
@@ -201,7 +201,7 @@ class AttributeDict(MutableMapping):
                        format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            _LOGGER.debug("Setting '{}' to {}".format(key, value))
+            self._log_(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
             self._log_(logging.DEBUG,
@@ -327,6 +327,9 @@ class Project(AttributeDict):
 
         # Parse config file
         self.config, self.paths = None, None    # Set by config parsing call.
+        _LOGGER.info("Parsing %s config file", self.__class__.__name__)
+        if subproject:
+            _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
         # Get project name
@@ -435,9 +438,11 @@ class Project(AttributeDict):
 
         # Overwrite any config entries with entries in the subproject.
         if "subprojects" in self.config and subproject:
-            _LOGGER.debug("Adding entries for subproject {}".
+            _LOGGER.debug("Adding entries for subproject '{}'".
                           format(subproject))
-            self.add_entries(self.config['subprojects'][subproject])
+            subproj_updates = self.config['subprojects'][subproject]
+            _LOGGER.debug("Updating with: {}".format(subproj_updates))
+            self.add_entries(subproj_updates)
         else:
             _LOGGER.debug("No subproject")
 
@@ -461,6 +466,9 @@ class Project(AttributeDict):
                     var, "metadata", self.__class__.__name__, self.metadata)
             setattr(self.metadata, var,
                     _os.path.expandvars(getattr(self.metadata, var)))
+
+        _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
+                                               self.metadata))
 
         # These are optional because there are defaults
         config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
@@ -1123,13 +1131,11 @@ class Sample(object):
         pieces together an actual path, by substituting variables (encoded by "{variable}"") with
         sample attributes.
 
-        :param column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
-        :type column_name: str
-        :param source_key: The key of the data_source, used to index into the project config data_sources
+        :param str column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
+        :param str source_key: The key of the data_source, used to index into the project config data_sources
         section. By default, the source key will be taken as the value of the specified column (as a sample
         attribute); but	for cases where the sample doesn't have this attribute yet (e.g. in a merge table),
         you must specify the source key.
-        :type source_key: str
         :param extra_vars: By default, locate_data_source will look to populate the template location
         using attributes found in the current sample; however, you may also provide a dict of
         extra variables that can also be used for variable replacement. These extra variables are
@@ -1177,6 +1183,7 @@ class Sample(object):
 
         return val
 
+
     def get_genome_transcriptome(self):
         """
         Get genome and transcriptome, based on project config file.
@@ -1187,12 +1194,12 @@ class Sample(object):
         except AttributeError:
             _LOGGER.warn("Project config lacks genome mapping for "
                               "organism '%s'", str(self.organism))
-        # get transcriptome
         try:
             self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
         except AttributeError:
             _LOGGER.warn("Project config lacks transcriptome mapping for "
                               "organism '%s'", str(self.organism))
+
 
     def set_file_paths(self, override=False):
         """
@@ -1223,6 +1230,7 @@ class Sample(object):
         except:
             pass
 
+
     def make_sample_dirs(self):
         """
         Creates sample directory structure if it doesn't exist.
@@ -1231,6 +1239,7 @@ class Sample(object):
             if not _os.path.exists(path):
                 _os.makedirs(path)
 
+
     def get_sheet_dict(self):
         """
         Returns a dict of values but only those that were originally passed in via the sample
@@ -1238,33 +1247,44 @@ class Sample(object):
         excludes things like config files or other derived entries. Could probably be made
         more robust but this works for now.
         """
-
-        return _OrderedDict([[k, getattr(self, k)] for k in self.sheet_attributes])
+        return _OrderedDict([[k, getattr(self, k)]
+                             for k in self.sheet_attributes])
 
 
     def set_pipeline_attributes(self, pipeline_interface, pipeline_name):
         """
-        Some sample attributes are relative to a particular pipeline run, like which files should be considered
-        inputs, what is the total input file size for the sample, etc. This function sets these pipeline-specific
-        sample attributes, provided via a PipelineInterface object and the name of a pipeline to select from
-        that interface.
-        :param pipeline_interface: A PipelineInterface object that has the settings for this given pipeline.
-        :param pipeline_name: Which pipeline to choose.
+        Some sample attributes are relative to a particular pipeline run,
+        like which files should be considered inputs, what is the total
+        input file size for the sample, etc. This function sets these
+        pipeline-specific sample attributes, provided via a PipelineInterface
+        object and the name of a pipeline to select from that interface.
+        :param PipelineInterface pipeline_interface: A PipelineInterface
+            object that has the settings for this given pipeline.
+        :param str pipeline_name: Which pipeline to choose.
         """
-        # Settings ending in _attr are lists of attribute keys; these attributes are then queried to populate
-        # values for the primary entries.
-        self.ngs_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "ngs_input_files")
-        self.required_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "required_input_files")
-        self.all_inputs_attr = pipeline_interface.get_attribute(pipeline_name, "all_input_files")
+
+        _LOGGER.debug("Setting pipeline attributes for: '%s'",
+                      str(pipeline_name))
+
+        # Settings ending in _attr are lists of attribute keys.
+        # These attributes are then queried to populate values
+        # for the primary entries.
+        self.ngs_inputs_attr = pipeline_interface.get_attribute(
+                pipeline_name, "ngs_input_files")
+        self.required_inputs_attr = pipeline_interface.get_attribute(
+                pipeline_name, "required_input_files")
+        self.all_inputs_attr = pipeline_interface.get_attribute(
+                pipeline_name, "all_input_files")
 
         if self.ngs_inputs_attr:
-            # NGS data inputs exit, so we can add attributes like read_type, read_length, paired.
+            # NGS data inputs exit, so we can add attributes like
+            # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
             self.set_read_type()
 
         # input_size
         if not self.all_inputs_attr:
-            self.required_inputs_attr = self.required_inputs_attr
+            self.all_inputs_attr = self.required_inputs_attr
 
         # Convert attribute keys into values
         self.required_inputs = self.get_attr_values("required_inputs_attr")
@@ -1277,15 +1297,20 @@ class Sample(object):
     def confirm_required_inputs(self, permissive=False):
         # set_pipeline_attributes must be run first.
 
+        _LOGGER.debug("Confirming required inputs")
+
         if not hasattr(self, "required_inputs"):
-            _LOGGER.warn("You must run set_pipeline_attributes before confirm_required_inputs")
+            _LOGGER.warn("You must run set_pipeline_attributes "
+                         "before confirm_required_inputs")
             return True
 
         if not self.required_inputs:
+            _LOGGER.debug("No required inputs")
             return True
 
         # First, attributes
         for file_attribute in self.required_inputs_attr:
+            _LOGGER.debug("Checking '{}'".format(file_attribute))
             if not hasattr(self, file_attribute):
                 message = "Sample missing required input attribute '{}'".\
                     format(file_attribute)
@@ -1298,9 +1323,12 @@ class Sample(object):
         # Second, files
         missing_files = []
         for paths in self.required_inputs:
+            _LOGGER.debug("Checking paths")
             # There can be multiple, space-separated values here.
             for path in paths.split(" "):
+                _LOGGER.debug("Checking path: '{}'".format(path))
                 if not _os.path.exists(path):
+                    _LOGGER.debug("Missing: '{}'".format(path))
                     missing_files.append(path)
 
         if len(missing_files) > 0:
@@ -1391,71 +1419,6 @@ class Sample(object):
                 missing_files.append(path)
             else:
                 existing_files.append(path)
-
-        import subprocess as sp
-        from collections import Counter
-
-        def bam_or_fastq(input_file):
-            """
-            Checks if string endswith `bam` or `fastq`.
-            Returns string. Raises TypeError if neither.
-
-            :param str input_file: String to check.
-            :return str: filetype (extension without dot prefix)
-            :raises TypeError: if file does not appear of a supported type,
-                based on extension
-            """
-            if input_file.endswith(".bam"):
-                return "bam"
-            elif input_file.endswith(".fastq") or \
-                    input_file.endswith(".fq") or \
-                    input_file.endswith(".fq.gz") or \
-                    input_file.endswith(".fastq.gz"):
-                return "fastq"
-            else:
-                raise TypeError("Type of input file ends in neither '.bam' "
-                                "nor '.fastq' [file: '" + input_file +"']")
-
-        def check_bam(bam, o):
-            """
-            Check reads in BAM file for read type and lengths.
-
-            :param bam: BAM file path.
-            :type bam: str
-            :param o: Number of reads to look at for estimation.
-            :type o: int
-            """
-            # view reads
-            try:
-                p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
-
-                # Count paired alignments
-                paired = 0
-                read_length = Counter()
-                while o > 0:  # Count down number of lines
-                    line = p.stdout.next().split("\t")
-                    flag = int(line[1])
-                    read_length[len(line[9])] += 1
-                    if 1 & flag:  # check decimal flag contains 1 (paired)
-                        paired += 1
-                    o -= 1
-                p.kill()
-            except OSError:
-                reason = "Note (samtools not in path): For NGS inputs, " \
-                         "looper needs samtools to auto-populate " \
-                         "'read_length' and 'read_type' attributes; " \
-                         "these attributes were not populated."
-                raise OSError(reason)
-
-            _LOGGER.debug("Read lengths: {}".format(read_length))
-            _LOGGER.debug("paired: {}".format(paired))
-            return read_length, paired
-
-        def check_fastq(fastq, o):
-            """
-            """
-            raise NotImplementedError("Detection of read type/length for "
-                                      "fastq input is not yet implemented.")
 
         # for samples with multiple original bams, check all
         files = list()
@@ -1616,10 +1579,9 @@ class PipelineInterface(object):
         """
         For a given pipeline and sample, return the argument string
 
-        :param pipeline_name: Name of pipeline.
-        :type pipeline_name: str
-        :param sample: Sample object.
-        :type sample: Sample
+        :param str pipeline_name: Name of pipeline.
+        :param Sample sample: current sample for which job is being built
+        :return str: command-line argument string for pipeline
         """
 
         _LOGGER.debug("Building arguments string")
@@ -1634,7 +1596,8 @@ class PipelineInterface(object):
         args = config['arguments']
 
         for key, value in args.iteritems():
-            _LOGGER.debug("%s, %s", key, value)
+            _LOGGER.debug("Script argument: '%s', sample attribute: '%s'",
+                          key, value)
             if value is None:
                 _LOGGER.debug("Null value for opt arg key '%s'",
                                    str(key))
@@ -1649,6 +1612,7 @@ class PipelineInterface(object):
                     pipeline_name, value, key)
                 raise
 
+            _LOGGER.debug("Adding '{}' for '{}'".format(arg, key))
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
@@ -1671,6 +1635,8 @@ class PipelineInterface(object):
                     continue
 
                 argstring += " " + str(key) + " " + str(arg)
+
+        _LOGGER.debug("Script args: '%s'", argstring)
 
         return argstring
 
@@ -1697,12 +1663,6 @@ class PipelineInterface(object):
 class InterfaceManager(object):
     """ Aggregate PipelineInterface and ProtocolMapper objects so that a
      Project can use pipelines distributed across multiple locations. """
-
-    # TODO: note that this permits submission of jobs for same sample for
-    # same script/pipeline name if a protocol maps to that script name in
-    # multiple pipelines_dir locations. This is intentional, but it's a
-    # design decision that can be discussed. Perhaps a boolean
-    # parameter governing this behavior could be provided.
 
 
     def __init__(self, pipeline_dirs):
