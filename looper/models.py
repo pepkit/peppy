@@ -53,6 +53,7 @@ from collections import \
     defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
 from functools import partial
 import glob
+import inspect
 import itertools
 import logging
 import os as _os
@@ -61,13 +62,34 @@ from pkg_resources import resource_filename
 import pandas as _pd
 import yaml as _yaml
 
-from . import LOOPERENV_VARNAME
+from . import LOOPERENV_VARNAME, setup_looper_logger
 from exceptions import *
-from utils import bam_or_fastq, check_bam, check_fastq, partition
+from utils import \
+    bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
 COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
 _LOGGER = logging.getLogger(__name__)
+
+
+
+def _ensure_logger():
+    """ Assure that the module-scope logger has a handler.
+
+    This avoids an import of something from here, say, in
+    iPython, and getting a logger without handler(s), the
+    annoying message about that, and thus no logs. This is
+    always executed; it's a function for variable locality only.
+
+    """
+    source_module = inspect.getframeinfo(
+            inspect.getouterframes(inspect.currentframe())[1][0])[0]
+    via_looper = _os.path.split(source_module)[1] == "looper.py"
+    if via_looper:
+        return
+    setup_looper_logger(level=logging.INFO)
+_ensure_logger()
+
 
 
 def copy(obj):
@@ -1081,8 +1103,7 @@ class Sample(object):
         """
         Serializes itself in YAML format.
 
-        :param path: A file path to write yaml to.
-        :type path: str
+        :param str path: A file path to write yaml to.
         """
         def obj2dict(obj, to_skip=("samples", "sheet", "sheet_attributes")):
             """
@@ -1289,7 +1310,7 @@ class Sample(object):
         # Convert attribute keys into values
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
-        self.input_file_size = self.get_file_size(self.all_inputs)
+        self.input_file_size = get_file_size(self.all_inputs)
 
         # pipeline_name
 
@@ -1367,25 +1388,6 @@ class Sample(object):
                 for attr in attribute_list]
 
 
-    def get_file_size(self, filename):
-        """
-        Get size of all files in gigabytes (Gb).
-
-        :param str | collections.Iterable[str] filename: A space-separated
-            string or list of space-separated strings of absolute file paths.
-        """
-        if filename is None:
-            return 0
-        if type(filename) is list:
-            return sum([self.get_file_size(x) for x in filename])
-        try:
-            total_bytes = sum([float(_os.stat(f).st_size)
-                               for f in filename.split(" ") if f is not ''])
-        except OSError:
-            # File not found
-            return 0
-        else:
-            return total_bytes / (1024 ** 3)
 
     def set_read_type(self, n = 10, permissive=True):
         """

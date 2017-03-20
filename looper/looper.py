@@ -544,13 +544,6 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 
 
-def get_file_size(filename):
-    """
-    Get size of all files in string (space-separated) in gigabytes (Gb).
-    """
-    return sum([float(os.stat(f).st_size) for f in filename.split(" ") if f is not '']) / (1024 ** 3)
-
-
 def make_sure_path_exists(path):
     """
     Create directory if it does not exist.
