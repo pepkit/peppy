@@ -64,7 +64,8 @@ import yaml as _yaml
 
 from . import LOOPERENV_VARNAME, setup_looper_logger
 from exceptions import *
-from utils import bam_or_fastq, check_bam, check_fastq, partition
+from utils import \
+    bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
 COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
@@ -1309,7 +1310,7 @@ class Sample(object):
         # Convert attribute keys into values
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
-        self.input_file_size = self.get_file_size(self.all_inputs)
+        self.input_file_size = get_file_size(self.all_inputs)
 
         # pipeline_name
 
@@ -1387,25 +1388,6 @@ class Sample(object):
                 for attr in attribute_list]
 
 
-    def get_file_size(self, filename):
-        """
-        Get size of all files in gigabytes (Gb).
-
-        :param str | collections.Iterable[str] filename: A space-separated
-            string or list of space-separated strings of absolute file paths.
-        """
-        if filename is None:
-            return 0
-        if type(filename) is list:
-            return sum([self.get_file_size(x) for x in filename])
-        try:
-            total_bytes = sum([float(_os.stat(f).st_size)
-                               for f in filename.split(" ") if f is not ''])
-        except OSError:
-            # File not found
-            return 0
-        else:
-            return total_bytes / (1024 ** 3)
 
     def set_read_type(self, n = 10, permissive=True):
         """

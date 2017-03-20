@@ -289,3 +289,24 @@ def check_fastq(fastq, o):
     raise NotImplementedError("Detection of read type/length for "
                               "fastq input is not yet implemented.")
 
+
+
+def get_file_size(filename):
+    """
+    Get size of all files in gigabytes (Gb).
+
+    :param str | collections.Iterable[str] filename: A space-separated
+        string or list of space-separated strings of absolute file paths.
+    """
+    if filename is None:
+        return 0
+    if type(filename) is list:
+        return sum([get_file_size(x) for x in filename])
+    try:
+        total_bytes = sum([float(os.stat(f).st_size)
+                           for f in filename.split(" ") if f is not ''])
+    except OSError:
+        # File not found
+        return 0
+    else:
+        return float(total_bytes) / (1024 ** 3)
