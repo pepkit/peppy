@@ -55,6 +55,7 @@ from functools import partial
 import glob
 import itertools
 import logging
+import urlparse
 import os as _os
 from pkg_resources import resource_filename
 
@@ -80,6 +81,10 @@ def copy(obj):
         return deepcopy(self)
     obj.copy = copy
     return obj
+
+
+def is_url(maybe_url):
+    return urlparse.urlparse(maybe_url).scheme != ""
 
 
 @copy
@@ -537,7 +542,7 @@ class Project(AttributeDict):
 
     def _ensure_absolute(self, maybe_relpath):
         _LOGGER.debug("Ensuring absolute path for '%s'", maybe_relpath)
-        if _os.path.isabs(maybe_relpath):
+        if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
             _LOGGER.debug("Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
