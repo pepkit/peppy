@@ -696,7 +696,7 @@ class Project(AttributeDict):
                 argstring += " " + key
                 # Arguments can have null values; then print nothing
                 if value:
-                    argstring += " " + value
+                    argstring += " " + _os.path.expandvars(value)
         # Now add pipeline-specific args
         if hasattr(pipeline_args, pipeline_name):
             for key, value in getattr(pipeline_args, pipeline_name).__dict__.items():
@@ -705,7 +705,7 @@ class Project(AttributeDict):
                 argstring += " " + key
                 # Arguments can have null values; then print nothing
                 if value:
-                    argstring += " " + value
+                    argstring += " " + _os.path.expandvars(value)
 
         return argstring
 
