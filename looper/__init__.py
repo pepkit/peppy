@@ -61,8 +61,8 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     try:
         LOOPER_LOGGER.setLevel(level)
     except Exception:
-        logging.error("Can's set logging level to %s; using %s",
-                      str(LOGGING_LEVEL))
+        logging.error("Can't set logging level to %s; instead using: '%s'",
+                      str(level), str(LOGGING_LEVEL))
         level = LOGGING_LEVEL
         LOOPER_LOGGER.setLevel(level)
 
