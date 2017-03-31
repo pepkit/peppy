@@ -21,6 +21,7 @@ Contents
 	:caption: Using Looper in Production
 
 	define-your-project.rst
+	derived-columns.rst
 	cluster-computing.rst
 	advanced.rst
 
