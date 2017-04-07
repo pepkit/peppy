@@ -2,6 +2,12 @@
 
 tests/test/*
 
+# ignore eggs
+.eggs/*
+.eggs/
+
+# ignore python backup files
+
 # ignore built docs
 doc/build/*
 
