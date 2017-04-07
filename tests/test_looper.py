@@ -163,7 +163,7 @@ class SampleWrtProjectCtorTests:
 
 
     @pytest.mark.parametrize(argnames="pipeline,expected",
-                             argvalues=LOOPER_ARGS_BY_PIPELINE.items())
+                             argvalues=list(LOOPER_ARGS_BY_PIPELINE.items()))
     def test_looper_args_usage(self, pipe_iface, pipeline, expected):
         observed = pipe_iface.uses_looper_args(pipeline)
         assert (expected and observed) or not (observed or expected)
