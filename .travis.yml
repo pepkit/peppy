@@ -13,6 +13,5 @@ install:
 script: pytest
 branches:
   only:
-    - alias-setup-tests
     - dev
     - master
