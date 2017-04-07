@@ -13,6 +13,5 @@ install:
 script: pytest
 branches:
   only:
-    - py3
     - dev
     - master
