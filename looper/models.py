@@ -817,7 +817,7 @@ class Project(AttributeDict):
                                     if val:  # this purges out any None entries
                                         _LOGGER.debug("merge: sample '%s'; %s=%s",
                                                            str(sample.name), str(key), str(val))
-                                        if not merged_cols.has_key(key):
+                                        if not key in merged_cols:
                                             merged_cols[key] = str(val).rstrip()
                                         else:
                                             merged_cols[key] = " ".join([merged_cols[key],
@@ -1575,7 +1575,7 @@ class PipelineInterface(object):
         """
         config = self._select_pipeline(pipeline_name)
 
-        if config.has_key(attribute_key):
+        if attribute_key in config:
             value = config[attribute_key]
         else:
             value = None
