@@ -30,7 +30,7 @@ def get_static(name, condition=None):
     if condition is None:
         return static
     else:
-        return filter(lambda x: eval(condition), static)
+        return [i for i in filter(lambda x: eval(condition), static)]
 
 # scripts to be added to the $PATH
 scripts = get_static("scripts", condition="'.' in x")
@@ -63,5 +63,6 @@ setup(
     scripts=scripts,
     package_data={'looper': ['submit_templates/*']},
     include_package_data=True,
+    test_suite="tests",
     **extra
 )

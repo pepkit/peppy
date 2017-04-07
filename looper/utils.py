@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess as sp
 import yaml
-from _version import __version__
+from ._version import __version__
 
 
 _LOGGER = logging.getLogger(__name__)

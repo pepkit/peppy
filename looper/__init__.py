@@ -10,7 +10,7 @@ local level, but this will at least provide a foundation.
 import logging
 import os
 from sys import stdout
-from _version import __version__
+from ._version import __version__
 
 
 LOOPERENV_VARNAME = "LOOPERENV"

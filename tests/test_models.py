@@ -4,7 +4,7 @@ from copy import deepcopy
 import itertools
 import numpy as np
 import pytest
-from conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
+from .conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from looper.exceptions import MetadataOperationException
 from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
 

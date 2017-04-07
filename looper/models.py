@@ -56,7 +56,8 @@ import glob
 import inspect
 import itertools
 import logging
-import urlparse
+#import urlparse
+from urllib.parse import urlparse
 import os as _os
 from pkg_resources import resource_filename
 
@@ -64,8 +65,8 @@ import pandas as _pd
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME, setup_looper_logger
-from exceptions import *
-from utils import \
+#from exceptions import *
+from .utils import \
     bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
 COL_KEY_SUFFIX = "_key"
@@ -641,7 +642,7 @@ class Project(AttributeDict):
         """
         for d in [self.trackhubs.trackhub_dir]:
             try:
-                _os.chmod(d, 0755)
+                _os.chmod(d, 0o0755)
             except OSError:
                 # This currently does not fail now
                 # ("cannot change folder's mode: %s" % d)
