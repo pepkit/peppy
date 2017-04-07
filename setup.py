@@ -8,7 +8,7 @@ import os
 extra = {}
 
 DEPENDENCIES = []
-with open("requirements.txt", "r") as reqs_file:
+with open("requirements/requirements-all.txt", "r") as reqs_file:
     for line in reqs_file:
         if not line.strip():
             continue
@@ -26,7 +26,8 @@ except ImportError:
 
 # Additional files to include with package
 def get_static(name, condition=None):
-    static = [os.path.join(name, f) for f in os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), name))]
+    static = [os.path.join(name, f) for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), name))]
     if condition is None:
         return static
     else:
