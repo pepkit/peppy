@@ -56,10 +56,14 @@ import glob
 import inspect
 import itertools
 import logging
-#import urlparse
-from urllib.parse import urlparse
 import os as _os
 from pkg_resources import resource_filename
+import sys
+if sys.version_info < (3, 0):
+    from urlparse import urlparse
+else:
+    from urllib.parse import urlparse
+
 
 import pandas as _pd
 import yaml as _yaml
@@ -107,7 +111,7 @@ def copy(obj):
 
 
 def is_url(maybe_url):
-    return urlparse.urlparse(maybe_url).scheme != ""
+    return urlparse(maybe_url).scheme != ""
 
 
 @copy
