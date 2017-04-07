@@ -4,6 +4,12 @@ tests/test/*
 
 # ignore eggs
 .eggs/*
+<<<<<<< HEAD
+=======
+.eggs/
+
+# ignore python backup files
+>>>>>>> master
 
 # ignore built docs
 doc/build/*
