@@ -3,7 +3,6 @@
 tests/test/*
 
 # ignore eggs
-.eggs/*
 .eggs/
 
 # ignore python backup files
