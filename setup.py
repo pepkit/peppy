@@ -38,11 +38,6 @@ scripts = get_static("scripts", condition="'.' in x")
 with open("looper/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
-print("FIRST: {}".format({"ptr", "test", "tests", "pytest"} & set(sys.argv)))
-print("SECOND: {}".format(["pytest-runner"] if {"ptr", "test", "tests", "pytest"} & set(sys.argv) else []))
-
-
-# setup
 setup(
     name="looper",
     packages=["looper"],
@@ -69,6 +64,8 @@ setup(
     include_package_data=True,
     test_suite="tests",
     tests_require=["pytest"],
-    setup_requires=(["pytest-runner"] if {"ptr", "test", "tests", "pytest"} & set(sys.argv) else []),
+    setup_requires=(["pytest-runner"]
+                    if {"ptr", "test", "tests", "pytest"} & set(sys.argv)
+                    else []),
     **extra
 )
