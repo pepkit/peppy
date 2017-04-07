@@ -4,7 +4,7 @@ from copy import deepcopy
 import itertools
 import numpy as np
 import pytest
-from conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
+from .conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from looper.exceptions import MetadataOperationException
 from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
 
@@ -207,7 +207,7 @@ class AttributeDictUpdateTests:
                 getattr(ad, item_name)
             item_values = self._TOTALLY_ARBITRARY_VALUES
         else:
-            item_name = np.random.choice(a=data.keys(), size=1)[0]
+            item_name = np.random.choice(a=list(data.keys()), size=1)[0]
             item_value = data[item_name]
             assert ad[item_name] == item_value
             assert getattr(ad, item_name) == item_value

@@ -277,7 +277,7 @@ else:
 						content_float = 100.0*float(sample_dict['Aligned_reads'])/float(sample_dict['Trimmed_reads'])
 					elif field == 'Multimap_rate':
 						content_float = 100.0*float(sample_dict['Multimap_reads'])/float(sample_dict['Trimmed_reads'])
-					elif sample_dict.has_key(field):
+					elif field in sample_dict:
 						content = str(sample_dict[field].strip())
 					else:
 						content = 'NA'

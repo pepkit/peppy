@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess as sp
 import yaml
-from _version import __version__
+from ._version import __version__
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -260,12 +260,11 @@ def check_bam(bam, o):
     """
     try:
         p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
-
         # Count paired alignments
         paired = 0
         read_length = Counter()
         while o > 0:  # Count down number of lines
-            line = p.stdout.next().split("\t")
+            line = p.stdout.readline().decode().split("\t")
             flag = int(line[1])
             read_length[len(line[9])] += 1
             if 1 & flag:  # check decimal flag contains 1 (paired)

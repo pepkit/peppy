@@ -56,16 +56,21 @@ import glob
 import inspect
 import itertools
 import logging
-import urlparse
 import os as _os
 from pkg_resources import resource_filename
+import sys
+if sys.version_info < (3, 0):
+    from urlparse import urlparse
+else:
+    from urllib.parse import urlparse
+
 
 import pandas as _pd
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME, setup_looper_logger
-from exceptions import *
-from utils import \
+#from exceptions import *
+from .utils import \
     bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
 COL_KEY_SUFFIX = "_key"
@@ -106,7 +111,7 @@ def copy(obj):
 
 
 def is_url(maybe_url):
-    return urlparse.urlparse(maybe_url).scheme != ""
+    return urlparse(maybe_url).scheme != ""
 
 
 @copy
@@ -641,7 +646,7 @@ class Project(AttributeDict):
         """
         for d in [self.trackhubs.trackhub_dir]:
             try:
-                _os.chmod(d, 0755)
+                _os.chmod(d, 0o0755)
             except OSError:
                 # This currently does not fail now
                 # ("cannot change folder's mode: %s" % d)
@@ -812,7 +817,7 @@ class Project(AttributeDict):
                                     if val:  # this purges out any None entries
                                         _LOGGER.debug("merge: sample '%s'; %s=%s",
                                                            str(sample.name), str(key), str(val))
-                                        if not merged_cols.has_key(key):
+                                        if not key in merged_cols:
                                             merged_cols[key] = str(val).rstrip()
                                         else:
                                             merged_cols[key] = " ".join([merged_cols[key],
@@ -1570,7 +1575,7 @@ class PipelineInterface(object):
         """
         config = self._select_pipeline(pipeline_name)
 
-        if config.has_key(attribute_key):
+        if attribute_key in config:
             value = config[attribute_key]
         else:
             value = None

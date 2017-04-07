@@ -30,7 +30,7 @@ def get_static(name, condition=None):
     if condition is None:
         return static
     else:
-        return filter(lambda x: eval(condition), static)
+        return [i for i in filter(lambda x: eval(condition), static)]
 
 # scripts to be added to the $PATH
 scripts = get_static("scripts", condition="'.' in x")
@@ -38,7 +38,6 @@ scripts = get_static("scripts", condition="'.' in x")
 with open("looper/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
-# setup
 setup(
     name="looper",
     packages=["looper"],
@@ -63,5 +62,10 @@ setup(
     scripts=scripts,
     package_data={'looper': ['submit_templates/*']},
     include_package_data=True,
+    test_suite="tests",
+    tests_require=["pytest"],
+    setup_requires=(["pytest-runner"]
+                    if {"ptr", "test", "tests", "pytest"} & set(sys.argv)
+                    else []),
     **extra
 )

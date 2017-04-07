@@ -14,7 +14,7 @@ import yaml
 
 from looper.models import AttributeDict, ATTRDICT_METADATA, COL_KEY_SUFFIX
 
-from conftest import \
+from .conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, FILE_BY_SAMPLE, \
     LOOPER_ARGS_BY_PIPELINE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
@@ -163,7 +163,7 @@ class SampleWrtProjectCtorTests:
 
 
     @pytest.mark.parametrize(argnames="pipeline,expected",
-                             argvalues=LOOPER_ARGS_BY_PIPELINE.items())
+                             argvalues=list(LOOPER_ARGS_BY_PIPELINE.items()))
     def test_looper_args_usage(self, pipe_iface, pipeline, expected):
         observed = pipe_iface.uses_looper_args(pipeline)
         assert (expected and observed) or not (observed or expected)
