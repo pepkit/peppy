@@ -65,7 +65,7 @@ setup(
     test_suite="tests",
     tests_require=["pytest"],
     setup_requires=(["pytest-runner"]
-                    if {"ptr", "test", "tests", "pytest"} & set(sys.argv)
+                    if {"ptr", "test", "pytest"} & set(sys.argv)
                     else []),
     **extra
 )
