@@ -1249,6 +1249,21 @@ class Sample(object):
                     setattr(self, col, self.locate_data_source(col))
                     self.derived_cols_done.append(col)
 
+        if hasattr(self.prj, "implied_columns"):
+            _LOGGER.debug(self.prj["implied_columns"])
+            for base_col in self.prj["implied_columns"]:
+                try:
+                    base_col_value = self[base_col]
+                    _LOGGER.debug(self.prj["implied_columns"][base_col][self[base_col]])
+                    for new_col in self.prj["implied_columns"][base_col][self[base_col]].keys():
+                        val_to_append = self.prj["implied_columns"][base_col][self[base_col]][new_col]
+                        _LOGGER.debug(new_col)
+
+                        setattr(self, new_col, val_to_append)
+                except KeyError:  # that value was not mapped
+                    value_to_append = None
+
+
         # parent
         self.results_subdir = self.prj.metadata.results_subdir
         self.paths.sample_root = _os.path.join(self.prj.metadata.results_subdir, self.sample_name)
