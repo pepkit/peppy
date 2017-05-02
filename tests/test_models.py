@@ -541,37 +541,68 @@ class ParseSampleImplicationsTests:
         for implied_field_name in implications.keys():
             assert not hasattr(sample, implied_field_name)
 
+        # Set the parameterized value for the implications source field.
         setattr(sample, self.IMPLIER_NAME, implier_value)
+
+        # Perform column inference based on mocked implications.
         implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
         with mock.patch.object(sample, "prj", create=True, new=implications):
             sample.infer_columns()
 
+        # Validate updates to sample based on column implications & inference.
         for implied_name, implied_value in implications.items():
             assert implied_value == getattr(sample, implied_name)
 
 
-    @pytest.mark.skip("Not implemented")
-    def test_sample_has_unmapped_value_for_implication(self, sample):
+    @pytest.mark.parametrize(
+            argnames="unmapped_implier_value",
+            argvalues=["totally-wacky-value", 62, None, np.nan])
+    @pytest.mark.parametrize(
+            argnames="implications", argvalues=IMPLICATIONS,
+            ids=lambda implications: "implied={}".format(str(implications)))
+    def test_sample_has_unmapped_value_for_implication(
+            self, sample, unmapped_implier_value, implications):
         """ Unknown value in implier field --> null inference. """
-        pass
+
+        # Negative control pre-/post-test.
+        def no_implied_values():
+            assert all([not hasattr(sample, implied_field_name)
+                        for implied_field_name in implications.keys()])
+        no_implied_values()
+
+        # Set the parameterized value for the implications source field.
+        setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
+
+        # Perform column inference based on mocked implications.
+        implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
+        with mock.patch.object(sample, "prj", create=True, new=implications):
+            sample.infer_columns()
+        no_implied_values()
 
 
     @pytest.fixture(scope="function")
     def sample(self, request):
+        """
+        Provide a Sample test case, with always-true validation.
+        
+        :param _pytest.fixtures.SubRequest request: test case requesting 
+            a Sample instance.
+        :return looper.models.Sample: basic Sample instance for a test case, 
+            with the constructor's required attributes validator mocked 
+            to ensure that an exception isn't raised.
+        """
+
+        # Provide name (required) for Sample, and any data that the
+        # test case have via parameterization.
         if "data" in request.fixturenames:
             data = request.getfixturevalue("data")
         else:
             data = {}
         data.setdefault("sample_name", "test-sample")
+
+        # Mock the validation and return a new Sample.
         rubber_stamper = mock.MagicMock(return_value=[])
         with mock.patch("looper.models.Sample.check_valid",
                         new=rubber_stamper):
             mocked_sample = looper.models.Sample(data)
         return mocked_sample
-
-
-
-@pytest.mark.skip("Not implemented")
-class SampleRequiredAttributesTests:
-    """ Tests for ensuring Sample's required attribute(s)' presence. """
-    pass
