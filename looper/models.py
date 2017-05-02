@@ -73,8 +73,11 @@ from .utils import \
     bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
 
+IMPLICATIONS_DECLARATION = "implied_columns"
 COL_KEY_SUFFIX = "_key"
+
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -1295,10 +1298,10 @@ class Sample(object):
         
         :return None: this function mutates state and is strictly for effect
         """
-        if not hasattr(self.prj, "implied_columns"):
+        if not hasattr(self.prj, IMPLICATIONS_DECLARATION):
             return
 
-        impliers = self.prj["implied_columns"]
+        impliers = self.prj[IMPLICATIONS_DECLARATION]
         _LOGGER.debug(
                 "Sample variable(s) that can imply others: %s", str(impliers))
         for implier_name, implied in impliers.items():

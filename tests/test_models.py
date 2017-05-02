@@ -8,8 +8,11 @@ import numpy as np
 import pytest
 
 from .conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
+import looper
 from looper.exceptions import MetadataOperationException
-from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
+from looper.models import \
+        AttributeDict, Paths, copy, \
+        ATTRDICT_METADATA, IMPLICATIONS_DECLARATION
 
 
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
@@ -487,16 +490,13 @@ class PipelineInterfaceTests:
 class ParseSampleImplicationsTests:
     """ Tests for appending columns/fields to a Sample based on a mapping. """
 
-    IMPLICATIONS_DATA = {
-        "sample_name": {
-            "a": {
-                "genome": "hg38",
-                "phenome": "hg72"
-            },
-            "b": {
-                "genome": "hg38"
-            }
-        }
+    IMPLIER_NAME = "sample_name"
+    IMPLIER_VALUES = ["a", "b"]
+    SAMPLE_A_IMPLICATIONS = {"genome": "hg38", "phenome": "hg72"}
+    SAMPLE_B_IMPLICATIONS = {"genome": "hg38"}
+    IMPLICATIONS = [SAMPLE_A_IMPLICATIONS, SAMPLE_B_IMPLICATIONS]
+    IMPLICATIONS_MAP = {
+        IMPLIER_NAME: IMPLICATIONS
     }
 
 
@@ -512,22 +512,40 @@ class ParseSampleImplicationsTests:
     def test_empty_implications(self, sample):
         """ Empty implications mapping --> unmodified sample. """
         before_inference = sample.__dict__
-        project = mock.MagicMock(implied_columns={})
-        with mock.patch.object(sample, "prj", new=project):
-            sample.infer_columns()
+        sample.prj[IMPLICATIONS_DECLARATION] = {}
+        sample.infer_columns()
         assert before_inference == sample.__dict__
 
 
-    @pytest.mark.skip("Not implemented")
     def test_null_intersection_between_sample_and_implications(self, sample):
         """ Sample with none of implications' fields --> no change. """
-        pass
+        before_inference = sample.__dict__
+        sample.prj[IMPLICATIONS_DECLARATION] = self.IMPLICATIONS_MAP
+        sample.infer_columns()
+        assert before_inference == sample.__dict__
 
 
-    @pytest.mark.skip("Not implemented")
-    def test_intersection_between_sample_and_implications(self, sample):
+    @pytest.mark.parametrize(
+            argnames=["implier_value", "implications"],
+            argvalues=zip(IMPLIER_VALUES, IMPLICATIONS),
+            ids=lambda (implier_value, implications):
+            "implier='{}', implications={}".format(implier_value, str(implications)))
+    def test_intersection_between_sample_and_implications(
+            self, sample, implier_value, implications):
         """ Intersection between implications and sample fields --> append. """
-        pass
+
+        # Negative control pretest
+        for implied_field_name in implications.keys():
+            delattr(sample, implied_field_name)
+            assert not hasattr(sample, implied_field_name)
+
+        project = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
+        patches = {"prj": project, self.IMPLIER_NAME: implier_value}
+        with mock.patch.multiple(sample, **patches):
+            sample.infer_columns()
+
+        for implied_name, implied_value in implications.items():
+            assert implied_value == getattr(sample, implied_name)
 
 
     @pytest.mark.skip("Not implemented")
@@ -542,8 +560,12 @@ class ParseSampleImplicationsTests:
             data = request.getfixturevalue("data")
         else:
             data = {}
-        name = "test-sample"
-        mocked_sample = mock.MagicMock(name=name, sample_name=name, **data)
+        data.setdefault("sample_name", "test-sample")
+        rubber_stamper = mock.MagicMock(return_value=[])
+        with mock.patch("looper.models.Sample.check_valid",
+                        new=rubber_stamper):
+            mocked_sample = looper.models.Sample(data)
+        mocked_sample.prj = {}
         return mocked_sample
 
 
