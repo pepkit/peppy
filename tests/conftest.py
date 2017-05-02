@@ -38,14 +38,6 @@ data_sources:
   src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
   src3: "{basedir}/data/{sample_name}.txt"
   src2: "{basedir}/data/{sample_name}-bamfile.bam"
-
-implied_columns:
-  sample_name:
-    a:
-      genome: hg38
-      phenome: hg72
-    b:
-      genome: hg38
 """.splitlines(True)
 # Will populate the corresponding string format entry in project config lines.
 DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
