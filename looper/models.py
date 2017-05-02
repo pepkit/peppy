@@ -1030,10 +1030,8 @@ class Sample(object):
         Instantiate `Sample` with data from given series.
         
         :param pandas.core.series.Series series: data for instance
+        :raises ValueError: if data lacks required attribute(s)
         """
-        # Passed series must either be a pd.Series or a daughter class
-        if not isinstance(series, _pd.Series):
-            raise TypeError("Provided object is not a pandas Series.")
         super(Sample, self).__init__()
         self.merged_cols = {}
         self.derived_cols_done = []
@@ -1052,7 +1050,13 @@ class Sample(object):
             setattr(self, key, value)
 
         # Check if required attributes exist and are not empty.
-        self.check_valid()
+        lacking = self.check_valid()
+        if lacking:
+            missing_kwarg = "missing"
+            empty_kwarg = "empty"
+            raise ValueError("Sample lacks attribute(s). {}={}; {}={}".
+                             format(missing_kwarg, lacking[missing_kwarg],
+                                    empty_kwarg, lacking[empty_kwarg]))
 
         # Short hand for getting sample_name
         self.name = self.sample_name
@@ -1069,7 +1073,7 @@ class Sample(object):
         # call Sample.set_file_paths().
 
     def __repr__(self):
-        return "Sample '%s'" % self.sample_name
+        return "Sample '{}'".format(self.name)
 
     def __getitem__(self, item):
         """
@@ -1089,22 +1093,19 @@ class Sample(object):
             setattr(self, key, value)
 
 
-    def check_valid(self):
+    def check_valid(self, required=None):
         """
         Check provided sample annotation is valid.
 
         It requires the field `sample_name` is existent and non-empty.
         """
-        def check_attrs(req):
-            for attr in req:
-                if not hasattr(self, attr):
-                    raise ValueError("Missing value for " + attr + " (sample: " + str(self) + ")")
-                if attr == "nan":
-                    raise ValueError("Empty value for " + attr + " (sample: " + str(self) + ")")
-
-        # Check mandatory items are there.
-        # We always require a sample_name
-        check_attrs(["sample_name"])
+        lacking = defaultdict(list)
+        for attr in required or ["sample_name"]:
+            if not hasattr(self, attr):
+                lacking["missing"].append(attr)
+            if attr == "nan":
+                lacking["empty"].append(attr)
+        return lacking
 
 
     def generate_name(self):
@@ -1264,33 +1265,7 @@ class Sample(object):
                     setattr(self, col, self.locate_data_source(col))
                     self.derived_cols_done.append(col)
 
-        if hasattr(self.prj, "implied_columns"):
-            impliers = self.prj["implied_columns"]
-            _LOGGER.debug("%s variables that can imply others: %s", 
-                          self.__class__.__name, str(impliers))
-            for implier_name, implied in impliers.items():
-                _LOGGER.debug(
-                        "Setting %s variable(s) implied by '%s'",
-                        self.__class__.__name__, implier_name)
-                try:
-                    implier_value = self[implier_name]
-                except KeyError:
-                    _LOGGER.debug("No '%s' for this sample", implier_name)
-                    continue
-                try:
-                    implied_value_by_column = implied[implier_value]
-                    _LOGGER.debug("Implications for '%s' = %s: %s",
-                                  implier_name, implier_value,
-                                  str(implied_value_by_column))
-                    for colname, implied_value in \
-                            implied_value_by_column.items():
-                        _LOGGER.log(5, "Setting '%s'=%s",
-                                    colname, implied_value)
-                        setattr(self, colname, implied_value)
-                except KeyError:
-                    _LOGGER.log(
-                            5, "Unknown implied value for implier '%s' = '%s'",
-                            implier_name, implier_value)
+        self.infer_columns()
 
         # Parent
         self.results_subdir = self.prj.metadata.results_subdir
@@ -1308,6 +1283,46 @@ class Sample(object):
         except:
             _LOGGER.debug("No trackhub/URL")
             pass
+
+
+    def infer_columns(self):
+        """
+        Infer value for additional field(s) from other field(s).
+        
+        Add columns/fields to the sample based on values in those already-set 
+        that the sample's project defines as indicative of implications for 
+        additional data elements for the sample.
+        
+        :return None: this function mutates state and is strictly for effect
+        """
+        if not hasattr(self.prj, "implied_columns"):
+            return
+
+        impliers = self.prj["implied_columns"]
+        _LOGGER.debug(
+                "Sample variable(s) that can imply others: %s", str(impliers))
+        for implier_name, implied in impliers.items():
+            _LOGGER.debug(
+                "Setting Sample variable(s) implied by '%s'", implier_name)
+            try:
+                implier_value = self[implier_name]
+            except KeyError:
+                _LOGGER.debug("No '%s' for this sample", implier_name)
+                continue
+            try:
+                implied_value_by_column = implied[implier_value]
+                _LOGGER.debug("Implications for '%s' = %s: %s",
+                              implier_name, implier_value,
+                              str(implied_value_by_column))
+                for colname, implied_value in \
+                        implied_value_by_column.items():
+                    _LOGGER.log(5, "Setting '%s'=%s",
+                                colname, implied_value)
+                    setattr(self, colname, implied_value)
+            except KeyError:
+                _LOGGER.log(
+                    5, "Unknown implied value for implier '%s' = '%s'",
+                    implier_name, implier_value)
 
 
     def make_sample_dirs(self):

@@ -2,8 +2,11 @@
 
 from copy import deepcopy
 import itertools
+
+import mock
 import numpy as np
 import pytest
+
 from .conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from looper.exceptions import MetadataOperationException
 from looper.models import AttributeDict, Paths, copy, ATTRDICT_METADATA
@@ -481,7 +484,48 @@ class PipelineInterfaceTests:
 
 
 
-@pytest.mark.skip("Not implemented")
 class ParseSampleImplicationsTests:
     """ Tests for appending columns/fields to a Sample based on a mapping. """
+
+    @pytest.fixture(scope="function")
+    def sample(self, request):
+        if "data" in request.fixturenames:
+            data = request.getfixturevalue("data")
+        else:
+            data = {}
+        name = "test-sample"
+        mocked_sample = mock.MagicMock(name=name, sample_name=name, **data)
+        return mocked_sample
+
+
+    def test_project_lacks_implications(self, sample):
+        """ With no implications mapping, sample is unmodified. """
+        before_inference = sample.__dict__
+        with mock.patch.object(sample, "prj"):
+            sample.infer_columns()
+        after_inference = sample.__dict__
+        assert before_inference == after_inference
+
+
+    def test_empty_implications(self, sample):
+        """ Empty implications mapping --> unmodified sample. """
+        pass
+
+    def test_null_intersection_between_sample_and_implications(self, sample):
+        """ Sample with none of implications' fields --> no change. """
+        pass
+
+    def test_intersection_between_sample_and_implications(self, sample):
+        """ Intersection between implications and sample fields --> append. """
+        pass
+
+    def test_sample_has_unmapped_value_for_implication(self, sample):
+        """ Unknown value in implier field --> null inference. """
+        pass
+
+
+
+@pytest.mark.skip("Not implemented")
+class SampleRequiredAttributesTests:
+    """ Tests for ensuring Sample's required attribute(s)' presence. """
     pass
