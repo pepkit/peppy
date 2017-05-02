@@ -1022,14 +1022,13 @@ class Sample(object):
 
     _FEATURE_ATTR_NAMES = ["read_length", "read_type", "paired"]
 
-
     # Originally, this object was inheriting from _pd.Series,
     # but complications with serializing and code maintenance
     # made me go back and implement it as a top-level object
     def __init__(self, series):
         """
         Instantiate `Sample` with data from given series.
-
+        
         :param pandas.core.series.Series series: data for instance
         """
         # Passed series must either be a pd.Series or a daughter class
@@ -1039,16 +1038,17 @@ class Sample(object):
         self.merged_cols = {}
         self.derived_cols_done = []
 
-        # Keep a list of attributes that came from the sample sheet, so we can provide a
-        # minimal representation of the original sample as provided (in order!).
-        # Useful to summarize the sample (appending new columns onto the original table)
+        # Keep a list of attributes that came from the sample sheet,
+        # so we can create a minimal, ordered representation of the original.
+        # This allows summarization of the sample (i.e.,
+        # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
 
-        # Set series attributes on self
+        # Set series attributes on self.
         for key, value in series.to_dict().items():
             setattr(self, key, value)
 
-        # Check if required attributes exist and are not empty
+        # Check if required attributes exist and are not empty.
         self.check_valid()
 
         # Short hand for getting sample_name
@@ -1057,14 +1057,11 @@ class Sample(object):
         # Default to no required paths
         self.required_paths = None
 
-        # Get name for sample:
-        # this is a concatenation of all passed Series attributes except "unmappedBam"
-        # self.generate_name()
-
         # Sample dirs
         self.paths = Paths()
         # Only when sample is added to project, can paths be added -
-        # this is because sample-specific files will be created in a data root directory dependent on the project.
+        # This is because sample-specific files will be created in a
+        # data root directory dependent on the project.
         # The SampleSheet object, after being added to a project, will
         # call Sample.set_file_paths().
 
@@ -1164,23 +1161,27 @@ class Sample(object):
         with open(yaml_file, 'w') as outfile:
             outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
-    def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
+    def locate_data_source(self, column_name="data_source",
+                           source_key=None, extra_vars=None):
         """
-        Uses the template path provided in the project config section "data_sources" to
-        pieces together an actual path, by substituting variables (encoded by "{variable}"") with
-        sample attributes.
+        Uses the template path provided in the project config section 
+        "data_sources" to piece together an actual path by substituting 
+        variables (encoded by "{variable}"") with sample attributes.
 
-        :param str column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
-        :param str source_key: The key of the data_source, used to index into the project config data_sources
-        section. By default, the source key will be taken as the value of the specified column (as a sample
-        attribute); but	for cases where the sample doesn't have this attribute yet (e.g. in a merge table),
-        you must specify the source key.
-        :param extra_vars: By default, locate_data_source will look to populate the template location
-        using attributes found in the current sample; however, you may also provide a dict of
-        extra variables that can also be used for variable replacement. These extra variables are
-        given a higher priority.
+        :param str column_name: Name of sample attribute 
+            (equivalently, sample sheet column) specifying a derived column.
+        :param str source_key: The key of the data_source, 
+            used to index into the project config data_sources section. 
+            By default, the source key will be taken as the value of 
+            the specified column (as a sample attribute). 
+            For cases where the sample doesn't have this attribute yet 
+            (e.g. in a merge table), you must specify the source key.
+        :param dict extra_vars: By default, locate_data_source will look to 
+            populate the template location using attributes found in the 
+            current sample; however, you may also provide a dict of extra 
+            variables that can also be used for variable replacement. 
+            These extra variables are given a higher priority.
         """
-        # default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
         if not source_key:
             if not hasattr(self, column_name):
@@ -1192,19 +1193,20 @@ class Sample(object):
         try:
             regex = self.prj["data_sources"][source_key]
         except:
-            _LOGGER.warn("Config lacks entry for data_source key: "
-                              "'{}' (in column: '{}')".format(source_key,
-                                                              column_name))
+            _LOGGER.warn(
+                    "Config lacks entry for data_source key: '{}' "
+                    "(in column: '{}')".format(source_key, column_name))
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
         regex = _os.path.expandvars(regex)
 
         try:
-            # Grab a temporary dictionary of sample attributes, and update these
+            # Grab a temporary dictionary of sample attributes and update these
             # with any provided extra variables to use in the replacement.
             # This is necessary for derived_columns in the merge table.
-            # .copy() here prevents the actual sample from getting updated by the .update() call.
+            # Here the copy() prevents the actual sample from being
+            # updated by update().
             temp_dict = self.__dict__.copy()
             if extra_vars:
                 temp_dict.update(extra_vars)
@@ -1260,23 +1262,31 @@ class Sample(object):
                     self.derived_cols_done.append(col)
 
         if hasattr(self.prj, "implied_columns"):
-            _LOGGER.debug(self.prj["implied_columns"])
-            for base_col in self.prj["implied_columns"]:
-                _LOGGER.debug("Setting columns implied by '%s'", base_col)
+            impliers = self.prj["implied_columns"]
+            _LOGGER.debug("%s variables that can imply others: %s", 
+                          self.__class__.__name, str(impliers))
+            for implier_name, implied_data_by_implier_value in impliers.items():
+                _LOGGER.debug(
+                        "Setting %s variable(s) implied by '%s'",
+                        self.__class__.__name__, implier_name)
                 try:
-                    implier = self[base_col]
+                    implier_value = self[implier_name]
                 except KeyError:
-                    _LOGGER.debug("No '%s' for this sasmple", base_col)
+                    _LOGGER.debug("No '%s' for this sample", implier_name)
                     continue
                 try:
-                    _LOGGER.debug(self.prj["implied_columns"][base_col][implier])
-                    for new_col in self.prj["implied_columns"][base_col][implier].keys():
-                        val_to_append = self.prj["implied_columns"][base_col][implier][new_col]
-                        _LOGGER.debug(new_col)
-
-                        setattr(self, new_col, val_to_append)
-                except KeyError:  # that value was not mapped
-                    _LOGGER.log(5, "No ")
+                    implied_value_by_column = \
+                            implied_data_by_implier_value[implier_value]
+                    _LOGGER.debug(implied_data_by_implier_value[implier_value])
+                    for colname, implied_value in \
+                            implied_value_by_column.items():
+                        _LOGGER.log(5, "Setting '%s'=%s",
+                                    colname, implied_value)
+                        setattr(self, colname, implied_value)
+                except KeyError:
+                    _LOGGER.log(
+                            5, "Unknown implied value for implier '%s' = '%s'",
+                            implier_name, implier_value)
 
         # Parent
         self.results_subdir = self.prj.metadata.results_subdir
@@ -1284,11 +1294,15 @@ class Sample(object):
                 self.prj.metadata.results_subdir, self.sample_name)
 
         # Track url
+        bigwig_filename = self.name + ".bigWig"
         try:
             # Project's public_html folder
-            self.bigwig = _os.path.join(self.prj.trackhubs.trackhub_dir, self.sample_name + ".bigWig")
-            self.track_url = "/".join([self.prj.trackhubs.url, self.sample_name + ".bigWig"])
+            self.bigwig = _os.path.join(
+                    self.prj.trackhubs.trackhub_dir, bigwig_filename)
+            self.track_url = \
+                    "{}/{}".format(self.prj.trackhubs.url, bigwig_filename)
         except:
+            _LOGGER.debug("No trackhub/URL")
             pass
 
 
