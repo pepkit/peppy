@@ -1302,6 +1302,10 @@ class Sample(object):
             return
 
         impliers = self.prj[IMPLICATIONS_DECLARATION]
+
+        # DEBUG
+        print("IMPLIERS: {}".format(impliers))
+
         _LOGGER.debug(
                 "Sample variable(s) that can imply others: %s", str(impliers))
         for implier_name, implied in impliers.items():
@@ -1309,11 +1313,19 @@ class Sample(object):
                 "Setting Sample variable(s) implied by '%s'", implier_name)
             try:
                 implier_value = self[implier_name]
+
+                # DEBUG
+                print("Got {} for {}".format(implier_value, implier_name))
+
             except KeyError:
                 _LOGGER.debug("No '%s' for this sample", implier_name)
                 continue
             try:
                 implied_value_by_column = implied[implier_value]
+
+                # DEBUG
+                print("Got implied_value_by_column: {}".format(implied_value_by_column))
+
                 _LOGGER.debug("Implications for '%s' = %s: %s",
                               implier_name, implier_value,
                               str(implied_value_by_column))
