@@ -527,7 +527,6 @@ class ParseSampleImplicationsTests:
         assert before_inference == sample.__dict__
 
 
-    @pytest.mark.skip("Limit output")
     @pytest.mark.parametrize(
             argnames=["implier_value", "implications"],
             argvalues=zip(IMPLIER_VALUES, IMPLICATIONS),
@@ -542,9 +541,10 @@ class ParseSampleImplicationsTests:
         for implied_field_name in implications.keys():
             assert not hasattr(sample, implied_field_name)
 
-        sample.prj[IMPLICATIONS_DECLARATION] = self.IMPLICATIONS_MAP
         setattr(sample, self.IMPLIER_NAME, implier_value)
-        sample.infer_columns()
+        implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
+        with mock.patch.object(sample, "prj", create=True, new=implications):
+            sample.infer_columns()
 
         for implied_name, implied_value in implications.items():
             assert implied_value == getattr(sample, implied_name)
