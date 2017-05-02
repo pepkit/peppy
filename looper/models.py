@@ -1044,8 +1044,11 @@ class Sample(object):
         # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
 
+        if isinstance(series, _pd.Series):
+            series = series.to_dict()
+
         # Set series attributes on self.
-        for key, value in series.to_dict().items():
+        for key, value in series.items():
             setattr(self, key, value)
 
         # Check if required attributes exist and are not empty.
@@ -1265,7 +1268,7 @@ class Sample(object):
             impliers = self.prj["implied_columns"]
             _LOGGER.debug("%s variables that can imply others: %s", 
                           self.__class__.__name, str(impliers))
-            for implier_name, implied_data_by_implier_value in impliers.items():
+            for implier_name, implied in impliers.items():
                 _LOGGER.debug(
                         "Setting %s variable(s) implied by '%s'",
                         self.__class__.__name__, implier_name)
@@ -1275,9 +1278,10 @@ class Sample(object):
                     _LOGGER.debug("No '%s' for this sample", implier_name)
                     continue
                 try:
-                    implied_value_by_column = \
-                            implied_data_by_implier_value[implier_value]
-                    _LOGGER.debug(implied_data_by_implier_value[implier_value])
+                    implied_value_by_column = implied[implier_value]
+                    _LOGGER.debug("Implications for '%s' = %s: %s",
+                                  implier_name, implier_value,
+                                  str(implied_value_by_column))
                     for colname, implied_value in \
                             implied_value_by_column.items():
                         _LOGGER.log(5, "Setting '%s'=%s",
