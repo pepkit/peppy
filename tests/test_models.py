@@ -530,9 +530,9 @@ class ParseSampleImplicationsTests:
     @pytest.mark.parametrize(
             argnames=["implier_value", "implications"],
             argvalues=zip(IMPLIER_VALUES, IMPLICATIONS),
-            ids=lambda (implier_value, implications):
-            "implier='{}', implications={}".format(implier_value,
-                                                   str(implications)))
+            ids=lambda implier_and_implications:
+            "implier='{}', implications={}".format(
+                implier_and_implications[0], str(implier_and_implications[1])))
     def test_intersection_between_sample_and_implications(
             self, sample, implier_value, implications):
         """ Intersection between implications and sample fields --> append. """

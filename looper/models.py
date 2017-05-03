@@ -174,7 +174,7 @@ class AttributeDict(MutableMapping):
         :param collections.Iterable | collections.Mapping entries: collection
             of pairs of keys and values
         """
-        self._log_(5, "Adding entries {}".format(entries))
+        _LOGGER.log(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
@@ -225,27 +225,26 @@ class AttributeDict(MutableMapping):
         :raises AttributeDict.MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
-        self._log_(5, "Executing __setitem__ for '{}', '{}'".
-                   format(key, str(value)))
+        _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
+                    format(key, str(value)))
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
-                self._log_(logging.DEBUG, "Updating key: '{}'".format(key))
+                _LOGGER.debug("Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            self._log_(logging.DEBUG, "'{}' now has keys {}".
-                       format(key, self.__dict__[key].keys()))
+            _LOGGER.debug("'{}' now has keys {}".
+                          format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            self._log_(5, "Setting '{}' to {}".format(key, value))
+            _LOGGER.log(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
-            self._log_(logging.DEBUG,
-                       "Not setting {k} to {v}; _force_nulls: {nulls}".
-                       format(k=key, v=value,
-                              nulls=self.__dict__["_force_nulls"]))
+            _LOGGER.debug("Not setting {k} to {v}; _force_nulls: {nulls}".
+                          format(k=key, v=value,
+                                 nulls=self.__dict__["_force_nulls"]))
 
 
     def __getitem__(self, item):
@@ -263,7 +262,7 @@ class AttributeDict(MutableMapping):
         try:
             del self.__dict__[item]
         except KeyError:
-            self._log_(logging.DEBUG, "No item {} to delete".format(item))
+            _LOGGER.debug("No item {} to delete".format(item))
 
     def __eq__(self, other):
         for k in iter(self):
@@ -284,9 +283,6 @@ class AttributeDict(MutableMapping):
 
     def __repr__(self):
         return repr(self.__dict__)
-
-    def _log_(self, level, message):
-        _LOGGER.log(level, message)
 
 
 
