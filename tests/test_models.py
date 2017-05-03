@@ -5,14 +5,13 @@ import itertools
 
 import mock
 import numpy as np
+from pandas import Series
 import pytest
 
 from .conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 import looper
 from looper.exceptions import MetadataOperationException
-from looper.models import \
-        AttributeDict, Paths, copy, \
-        ATTRDICT_METADATA, IMPLICATIONS_DECLARATION
+from looper.models import AttributeDict, Paths, Sample, copy, ATTRDICT_METADATA
 
 
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),
@@ -606,3 +605,28 @@ class ParseSampleImplicationsTests:
                         new=rubber_stamper):
             mocked_sample = looper.models.Sample(data)
         return mocked_sample
+
+
+
+class SampleMinimumInputTests:
+    """ Test minimal input and formats to create a Sample. """
+
+
+    @pytest.mark.parametrize(
+            argnames="data_type", argvalues=[dict, Series],
+            ids=lambda data_type: "data_type={}".format(data_type.__name__))
+    @pytest.mark.parametrize(
+            argnames="has_name", argvalues=[False, True],
+            ids=lambda has_name: "has_name: {}".format(has_name))
+    def test_requires_sample_name(self, has_name, data_type):
+        data = {}
+        sample_name_key = "sample_name"
+        sample_name = "test-sample"
+        if has_name:
+            data[sample_name_key] = sample_name
+            sample = Sample(data_type(data))
+            assert sample_name == getattr(sample, sample_name_key)
+        else:
+            with pytest.raises(ValueError):
+                Sample(data_type(data))
+
