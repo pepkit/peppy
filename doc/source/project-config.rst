@@ -51,6 +51,23 @@ Example:
 For more details, see :ref:`advanced-derived-columns`.
 
 
+Project config section: implied_columns
+"""""""""""""""""""""""""""""""""""""""""""
+``implied_columns`` lets you infer additional attributes, which can be useful for pipeline arguments.
+
+Example:
+
+.. code-block:: yaml
+
+  implied_columns:
+    organism:
+      human:
+        genome: "hg38"
+        macs_genome_size: "hs"
+
+For more details, see :ref:`advanced-implied-columns`.
+
+
 Project config section: subprojects
 """""""""""""""""""""""""""""""""""""""""""""""
 

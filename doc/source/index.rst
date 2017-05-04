@@ -22,6 +22,7 @@ Contents
 
 	define-your-project.rst
 	derived-columns.rst
+	implied-columns.rst
 	cluster-computing.rst
 	advanced.rst
 

@@ -1,6 +1,14 @@
 Changelog
 ******************************
 
+- **v0.6** (*unreleased*):
+
+  - New
+
+    - Adds support for implied_column section of the project config file
+
+    - Adds support for Python 3
+
 - **v0.5** (*2017-03-01*):
 
   - New
