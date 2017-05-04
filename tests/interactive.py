@@ -4,9 +4,7 @@
 # cd $CODEBASE/looper/tests
 # ipython
 
-from __future__ import absolute_import
-import looper
-from . import conftest
+import conftest
 
-print("Running interactive.py tests")
+print("Establishing Project and PipelineInterface for testing and exploration")
 proj, pi = conftest.interactive()

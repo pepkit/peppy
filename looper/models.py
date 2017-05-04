@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Models for NGS projects
 =======================
@@ -12,7 +10,7 @@ Workflow explained:
 In the process, stuff is checked:
     - project structure (created if not existing)
     - existence of csv sample sheet with minimal fields
-    - Constructing a path to a sample's input file and checking for its existance
+    - Constructing a path to a sample's input file and checking for its existence
     - read type/length of samples (optionally)
 
 Example:
@@ -64,17 +62,22 @@ if sys.version_info < (3, 0):
 else:
     from urllib.parse import urlparse
 
-
 import pandas as _pd
 import yaml as _yaml
 
 from . import LOOPERENV_VARNAME, setup_looper_logger
-#from exceptions import *
+from .exceptions import \
+        ComputeEstablishmentException, DefaultLooperenvException, \
+        MetadataOperationException, MissingConfigEntryException
 from .utils import \
     bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
+
+IMPLICATIONS_DECLARATION = "implied_columns"
 COL_KEY_SUFFIX = "_key"
+
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -110,8 +113,10 @@ def copy(obj):
     return obj
 
 
+
 def is_url(maybe_url):
     return urlparse(maybe_url).scheme != ""
+
 
 
 @copy
@@ -128,6 +133,7 @@ class Paths(object):
         Provides dict-style access to attributes
         """
         return getattr(self, key)
+
 
 
 @copy
@@ -168,7 +174,7 @@ class AttributeDict(MutableMapping):
         :param collections.Iterable | collections.Mapping entries: collection
             of pairs of keys and values
         """
-        self._log_(5, "Adding entries {}".format(entries))
+        _LOGGER.log(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
@@ -219,27 +225,26 @@ class AttributeDict(MutableMapping):
         :raises AttributeDict.MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
-        self._log_(5, "Executing __setitem__ for '{}', '{}'".
-                   format(key, str(value)))
+        _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
+                    format(key, str(value)))
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
-                self._log_(logging.DEBUG, "Updating key: '{}'".format(key))
+                _LOGGER.debug("Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            self._log_(logging.DEBUG, "'{}' now has keys {}".
-                       format(key, self.__dict__[key].keys()))
+            _LOGGER.debug("'{}' now has keys {}".
+                          format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            self._log_(5, "Setting '{}' to {}".format(key, value))
+            _LOGGER.log(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
-            self._log_(logging.DEBUG,
-                       "Not setting {k} to {v}; _force_nulls: {nulls}".
-                       format(k=key, v=value,
-                              nulls=self.__dict__["_force_nulls"]))
+            _LOGGER.debug("Not setting {k} to {v}; _force_nulls: {nulls}".
+                          format(k=key, v=value,
+                                 nulls=self.__dict__["_force_nulls"]))
 
 
     def __getitem__(self, item):
@@ -257,7 +262,7 @@ class AttributeDict(MutableMapping):
         try:
             del self.__dict__[item]
         except KeyError:
-            self._log_(logging.DEBUG, "No item {} to delete".format(item))
+            _LOGGER.debug("No item {} to delete".format(item))
 
     def __eq__(self, other):
         for k in iter(self):
@@ -278,9 +283,6 @@ class AttributeDict(MutableMapping):
 
     def __repr__(self):
         return repr(self.__dict__)
-
-    def _log_(self, level, message):
-        _LOGGER.log(level, message)
 
 
 
@@ -431,7 +433,6 @@ class Project(AttributeDict):
                 # TODO: beware of AttributeDict with _force_nulls = True here,
                 # as that may return 'pipelines_dir' name itself.
                 pipe_path = []
-                #raise PipelinesException()
             else:
                 pipe_path = self.metadata.pipelines_dir
 
@@ -443,11 +444,10 @@ class Project(AttributeDict):
             pipe_path = list(pipe_path)
         else:
             _LOGGER.debug("Got {} as pipelines path(s) ({})".
-                            format(pipe_path, type(pipe_path)))
+                          format(pipe_path, type(pipe_path)))
             pipe_path = []
 
         self.metadata.pipelines_dir = pipe_path
-
 
 
     def parse_config_file(self, subproject=None):
@@ -891,6 +891,7 @@ class SampleSheet(object):
         else:
             return "SampleSheet with %i samples." % len(self.df)
 
+
     def check_sheet(self, dtype):
         """
         Check if csv file exists and has all required columns.
@@ -907,6 +908,7 @@ class SampleSheet(object):
 
         if len(missing) != 0:
             raise ValueError("Annotation sheet (" + str(self.csv) + ") is missing columns: %s" % " ".join(missing))
+
 
     def make_sample(self, series):
         """
@@ -964,6 +966,7 @@ class SampleSheet(object):
         except KeyError:
             return Sample(series)
 
+
     def make_samples(self):
         """
         Creates samples from annotation sheet dependent on library and adds them to the project.
@@ -971,15 +974,13 @@ class SampleSheet(object):
         for i in range(len(self.df)):
             self.samples.append(self.make_sample(self.df.ix[i].dropna()))
 
-    def as_data_frame(self, all_attrs=True):
+
+    def as_data_frame(self):
         """
         Returns a `pandas.DataFrame` representation of self.
         """
-        df = _pd.DataFrame([s.as_series() for s in self.samples])
+        return _pd.DataFrame([s.as_series() for s in self.samples])
 
-        # One might want to filter some attributes out
-
-        return df
 
     def to_csv(self, path, all_attrs=False):
         """
@@ -998,7 +999,8 @@ class SampleSheet(object):
             sheet = SampleSheet("/projects/example/sheet.csv")
             sheet.to_csv("/projects/example/sheet2.csv")
         """
-        df = self.as_data_frame(all_attrs=all_attrs)
+        df = self.as_data_frame()
+        # TODO: decide which--if any--attributes to drop here.
         df.to_csv(path, index=False)
 
 
@@ -1025,27 +1027,35 @@ class Sample(object):
     def __init__(self, series):
         """
         Instantiate `Sample` with data from given series.
-
+        
         :param pandas.core.series.Series series: data for instance
+        :raises ValueError: if data lacks required attribute(s)
         """
-        # Passed series must either be a pd.Series or a daughter class
-        if not isinstance(series, _pd.Series):
-            raise TypeError("Provided object is not a pandas Series.")
         super(Sample, self).__init__()
         self.merged_cols = {}
         self.derived_cols_done = []
 
-        # Keep a list of attributes that came from the sample sheet, so we can provide a
-        # minimal representation of the original sample as provided (in order!).
-        # Useful to summarize the sample (appending new columns onto the original table)
+        # Keep a list of attributes that came from the sample sheet,
+        # so we can create a minimal, ordered representation of the original.
+        # This allows summarization of the sample (i.e.,
+        # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
 
-        # Set series attributes on self
-        for key, value in series.to_dict().items():
+        if isinstance(series, _pd.Series):
+            series = series.to_dict()
+
+        # Set series attributes on self.
+        for key, value in series.items():
             setattr(self, key, value)
 
-        # Check if required attributes exist and are not empty
-        self.check_valid()
+        # Check if required attributes exist and are not empty.
+        lacking = self.check_valid()
+        if lacking:
+            missing_kwarg = "missing"
+            empty_kwarg = "empty"
+            raise ValueError("Sample lacks attribute(s). {}={}; {}={}".
+                             format(missing_kwarg, lacking[missing_kwarg],
+                                    empty_kwarg, lacking[empty_kwarg]))
 
         # Short hand for getting sample_name
         self.name = self.sample_name
@@ -1053,25 +1063,26 @@ class Sample(object):
         # Default to no required paths
         self.required_paths = None
 
-        # Get name for sample:
-        # this is a concatenation of all passed Series attributes except "unmappedBam"
-        # self.generate_name()
-
         # Sample dirs
         self.paths = Paths()
         # Only when sample is added to project, can paths be added -
-        # this is because sample-specific files will be created in a data root directory dependent on the project.
+        # This is because sample-specific files will be created in a
+        # data root directory dependent on the project.
         # The SampleSheet object, after being added to a project, will
         # call Sample.set_file_paths().
 
     def __repr__(self):
-        return "Sample '%s'" % self.sample_name
+        return "Sample '{}'".format(self.name)
 
     def __getitem__(self, item):
         """
         Provides dict-style access to attributes
         """
-        return getattr(self, item)
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item)
+
 
     def update(self, newdata):
         """
@@ -1080,34 +1091,38 @@ class Sample(object):
         for key, value in newdata.items():
             setattr(self, key, value)
 
-    def check_valid(self):
+
+    def check_valid(self, required=None):
         """
         Check provided sample annotation is valid.
 
         It requires the field `sample_name` is existent and non-empty.
         """
-        def check_attrs(req):
-            for attr in req:
-                if not hasattr(self, attr):
-                    raise ValueError("Missing value for " + attr + " (sample: " + str(self) + ")")
-                if attr == "nan":
-                    raise ValueError("Empty value for " + attr + " (sample: " + str(self) + ")")
+        lacking = defaultdict(list)
+        for attr in required or ["sample_name"]:
+            if not hasattr(self, attr):
+                lacking["missing"].append(attr)
+            if attr == "nan":
+                lacking["empty"].append(attr)
+        return lacking
 
-        # Check mandatory items are there.
-        # We always require a sample_name
-        check_attrs(["sample_name"])
 
     def generate_name(self):
         """
-        Generates a name for the sample by joining some of its attribute strings.
+        Generate name for the sample by joining some of its attribute strings.
         """
         raise NotImplementedError("Not implemented in new code base.")
+
 
     def as_series(self):
         """
         Returns a `pandas.Series` object with all the sample's attributes.
+
+        :return pandas.core.series.Series: pandas Series representation 
+            of this Sample, with its attributes.
         """
         return _pd.Series(self.__dict__)
+
 
     def to_yaml(self, path=None):
         """
@@ -1141,38 +1156,35 @@ class Sample(object):
             else:
                 return obj
 
-        # if path is not specified, use default:
+        # If path is not specified, use default:
         # prj.metadata.submission_dir + sample_name + yaml
-        if path is None:
-            self.yaml_file = _os.path.join(self.prj.metadata.submission_subdir,
-                                           self.sample_name + ".yaml")
-        else:
-            self.yaml_file = path
-
-        # transform into dict
+        yaml_file = path or _os.path.join(self.prj.metadata.submission_subdir,
+                                          self.sample_name + ".yaml")
         serial = obj2dict(self)
-
-        # write
-        with open(self.yaml_file, 'w') as outfile:
+        with open(yaml_file, 'w') as outfile:
             outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
-    def locate_data_source(self, column_name = "data_source", source_key = None, extra_vars = None):
+    def locate_data_source(self, column_name="data_source",
+                           source_key=None, extra_vars=None):
         """
-        Uses the template path provided in the project config section "data_sources" to
-        pieces together an actual path, by substituting variables (encoded by "{variable}"") with
-        sample attributes.
+        Uses the template path provided in the project config section 
+        "data_sources" to piece together an actual path by substituting 
+        variables (encoded by "{variable}"") with sample attributes.
 
-        :param str column_name: Name of sample attribute (equivalently, sample sheet column) specifying a derived column.
-        :param str source_key: The key of the data_source, used to index into the project config data_sources
-        section. By default, the source key will be taken as the value of the specified column (as a sample
-        attribute); but	for cases where the sample doesn't have this attribute yet (e.g. in a merge table),
-        you must specify the source key.
-        :param extra_vars: By default, locate_data_source will look to populate the template location
-        using attributes found in the current sample; however, you may also provide a dict of
-        extra variables that can also be used for variable replacement. These extra variables are
-        given a higher priority.
+        :param str column_name: Name of sample attribute 
+            (equivalently, sample sheet column) specifying a derived column.
+        :param str source_key: The key of the data_source, 
+            used to index into the project config data_sources section. 
+            By default, the source key will be taken as the value of 
+            the specified column (as a sample attribute). 
+            For cases where the sample doesn't have this attribute yet 
+            (e.g. in a merge table), you must specify the source key.
+        :param dict extra_vars: By default, locate_data_source will look to 
+            populate the template location using attributes found in the 
+            current sample; however, you may also provide a dict of extra 
+            variables that can also be used for variable replacement. 
+            These extra variables are given a higher priority.
         """
-        # default_regex = "/scratch/lab_bsf/samples/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 
         if not source_key:
             if not hasattr(self, column_name):
@@ -1184,19 +1196,20 @@ class Sample(object):
         try:
             regex = self.prj["data_sources"][source_key]
         except:
-            _LOGGER.warn("Config lacks entry for data_source key: "
-                              "'{}' (in column: '{}')".format(source_key,
-                                                              column_name))
+            _LOGGER.warn(
+                    "Config lacks entry for data_source key: '{}' "
+                    "(in column: '{}')".format(source_key, column_name))
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
         regex = _os.path.expandvars(regex)
 
         try:
-            # Grab a temporary dictionary of sample attributes, and update these
+            # Grab a temporary dictionary of sample attributes and update these
             # with any provided extra variables to use in the replacement.
             # This is necessary for derived_columns in the merge table.
-            # .copy() here prevents the actual sample from getting updated by the .update() call.
+            # Here the copy() prevents the actual sample from being
+            # updated by update().
             temp_dict = self.__dict__.copy()
             if extra_vars:
                 temp_dict.update(extra_vars)
@@ -1232,34 +1245,84 @@ class Sample(object):
                               "organism '%s'", str(self.organism))
 
 
-    def set_file_paths(self, override=False):
+    def set_file_paths(self):
         """
         Sets the paths of all files for this sample.
         """
-        # any columns specified as "derived" will be constructed based on regex
+        # Any columns specified as "derived" will be constructed based on regex
         # in the "data_sources" section of project config
 
         if hasattr(self.prj, "derived_columns"):
             for col in self.prj["derived_columns"]:
-
-                # Only proceed if the specified column exists, and was not already merged or derived.
-                if hasattr(self, col) and col not in self.merged_cols and col not in self.derived_cols_done:
-                    # set a variable called {col}_key, so the original source can also be retrieved
+                # Only proceed if the specified column exists
+                # and was not already merged or derived.
+                if hasattr(self, col) and col not in self.merged_cols \
+                        and col not in self.derived_cols_done:
+                    # Set a variable called {col}_key, so the
+                    # original source can also be retrieved.
                     setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
                     setattr(self, col, self.locate_data_source(col))
                     self.derived_cols_done.append(col)
 
-        # parent
+        self.infer_columns()
+
+        # Parent
         self.results_subdir = self.prj.metadata.results_subdir
-        self.paths.sample_root = _os.path.join(self.prj.metadata.results_subdir, self.sample_name)
+        self.paths.sample_root = _os.path.join(
+                self.prj.metadata.results_subdir, self.sample_name)
 
         # Track url
+        bigwig_filename = self.name + ".bigWig"
         try:
             # Project's public_html folder
-            self.bigwig = _os.path.join(self.prj.trackhubs.trackhub_dir, self.sample_name + ".bigWig")
-            self.track_url = "/".join([self.prj.trackhubs.url, self.sample_name + ".bigWig"])
+            self.bigwig = _os.path.join(
+                    self.prj.trackhubs.trackhub_dir, bigwig_filename)
+            self.track_url = \
+                    "{}/{}".format(self.prj.trackhubs.url, bigwig_filename)
         except:
+            _LOGGER.debug("No trackhub/URL")
             pass
+
+
+    def infer_columns(self):
+        """
+        Infer value for additional field(s) from other field(s).
+        
+        Add columns/fields to the sample based on values in those already-set 
+        that the sample's project defines as indicative of implications for 
+        additional data elements for the sample.
+        
+        :return None: this function mutates state and is strictly for effect
+        """
+        if not hasattr(self.prj, IMPLICATIONS_DECLARATION):
+            return
+
+        impliers = self.prj[IMPLICATIONS_DECLARATION]
+
+        _LOGGER.debug(
+                "Sample variable(s) that can imply others: %s", str(impliers))
+        for implier_name, implied in impliers.items():
+            _LOGGER.debug(
+                "Setting Sample variable(s) implied by '%s'", implier_name)
+            try:
+                implier_value = self[implier_name]
+            except KeyError:
+                _LOGGER.debug("No '%s' for this sample", implier_name)
+                continue
+            try:
+                implied_value_by_column = implied[implier_value]
+                _LOGGER.debug("Implications for '%s' = %s: %s",
+                              implier_name, implier_value,
+                              str(implied_value_by_column))
+                for colname, implied_value in \
+                        implied_value_by_column.items():
+                    _LOGGER.log(5, "Setting '%s'=%s",
+                                colname, implied_value)
+                    setattr(self, colname, implied_value)
+            except KeyError:
+                _LOGGER.log(
+                    5, "Unknown implied value for implier '%s' = '%s'",
+                    implier_name, implier_value)
 
 
     def make_sample_dirs(self):
