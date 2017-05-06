@@ -676,10 +676,12 @@ class Project(AttributeDict):
 
             if not _os.path.isabs(self.compute.submission_template):
                 # Relative to looper environment config file.
-                self.compute.submission_template = _os.path.join(_os.path.dirname(self.looperenv_file), self.compute.submission_template)
+                self.compute.submission_template = _os.path.join(
+                        _os.path.dirname(self.looperenv_file),
+                        self.compute.submission_template)
         else:
             _LOGGER.warn("Cannot load compute settings: %s (%s)",
-                              setting, str(type(setting)))
+                         setting, str(type(setting)))
 
     def get_arg_string(self, pipeline_name):
         """
@@ -687,58 +689,35 @@ class Project(AttributeDict):
         specified in the project config file.
         """
 
-        argstring = ""
         if not hasattr(self, "pipeline_args"):
-            return argstring
+            return ""
 
-        pipeline_args = self.pipeline_args
+        def make_optarg_text(opt, arg):
+            return "{} {}".format(opt, _os.path.expandvars(arg)) \
+                    if arg else opt
 
-        # Add default args to every pipeline
-        if hasattr(pipeline_args, "default"):
-            for key, value in getattr(pipeline_args, "default").__dict__.items():
-                if key in ATTRDICT_METADATA:
-                    continue
-                argstring += " " + key
-                # Arguments can have null values; then print nothing
-                if value:
-                    argstring += " " + _os.path.expandvars(value)
-        # Now add pipeline-specific args
-        if hasattr(pipeline_args, pipeline_name):
-            for key, value in getattr(pipeline_args, pipeline_name).__dict__.items():
-                if key in ATTRDICT_METADATA:
-                    continue
-                argstring += " " + key
-                # Arguments can have null values; then print nothing
-                if value:
-                    argstring += " " + _os.path.expandvars(value)
+        def create_argtext(name):
+            optargs = getattr(self.pipeline_args, name)
+            # TODO: if failing, try optargs.__dict__.items()
+            optargs_texts = map(make_optarg_text, optargs.items())
+            # TODO: may need to fix some spacing issues here.
+            return " ".join(optargs_texts)
 
-        return argstring
+        default_argtext = create_argtext("default")
+        pipeline_argtext = create_argtext(pipeline_name)
+        return " ".join([default_argtext, pipeline_argtext])
 
-    def add_sample_sheet(self, csv=None, permissive=None, file_checks=None):
+
+    def add_sample_sheet(self, csv=None):
         """
         Build a `SampleSheet` object from a csv file and
         add it and its samples to the project.
 
         :param csv: Path to csv file.
         :type csv: str
-        :param permissive: Should it throw error if sample input is not found/readable? Defaults to what is set to the Project.
-        :type permissive: bool
-        :param file_checks: Should it check for properties of sample input files (e.g. read type, length)? Defaults to what is set to the Project.
-        :type file_checks: bool
         """
 
         _LOGGER.debug("Adding sample sheet")
-
-        # If options are not passed, used what has been set for project.
-        if permissive is None:
-            permissive = self.permissive
-        else:
-            permissive = self.permissive
-
-        if file_checks is None:
-            file_checks = self.file_checks
-        else:
-            file_checks = self.file_checks
 
         # Make SampleSheet object
         # By default read sample_annotation, but allow explict CSV arg.
@@ -753,7 +732,8 @@ class Project(AttributeDict):
 
         # Add samples to Project
         for sample in self.sheet.samples:
-            sample.merged = False  # mark sample as not merged - will be overwritten later if indeed merged
+            # Overwritten later if merged
+            sample.merged = False
             self.add_sample(sample)		# Side-effect: self.samples += [sample]
 
         # Merge sample files (!) using merge table if provided:
@@ -764,13 +744,15 @@ class Project(AttributeDict):
                     merge_table = _pd.read_csv(self.metadata.merge_table)
 
                     if 'sample_name' not in merge_table.columns:
-                        raise KeyError("Merge table requires a column named 'sample_name'.")
+                        raise KeyError("Merge table requires a column "
+                                       "named 'sample_name'.")
 
-                    # for each sample:
                     for sample in self.sheet.samples:
-                        merge_rows = merge_table[merge_table['sample_name'] == sample.name]
+                        merge_rows = merge_table[merge_table['sample_name'] ==
+                                                 sample.name]
 
-                        # check if there are rows in the merge table for this sample:
+                        # Check if there are rows in the
+                        # merge table for this sample:
                         if len(merge_rows) > 0:
                             # for each row in the merge table of this sample:
                             # 1) populate any derived columns
@@ -861,8 +843,9 @@ class SampleSheet(object):
     :param csv: Path to csv file.
     :type csv: str
 
-    Kwargs (will overule specified in config):
-    :param merge_technical: Should technical replicates be merged to create biological replicate samples?
+    Kwargs (will overrule specified in config):
+    :param merge_technical: Should technical replicates be merged 
+        to create biological replicate samples?
     :type merge_technical: bool
     :param merge_biological: Should biological replicates be merged?
     :type merge_biological: bool
@@ -895,24 +878,28 @@ class SampleSheet(object):
     def check_sheet(self, dtype):
         """
         Check if csv file exists and has all required columns.
+        
+        :param type dtype: data type for CSV read.
+        :raises ValueError: if required column(s) is/are missing.
         """
-        # Read in sheet
+        # Read in sheet.
         try:
             self.df = _pd.read_csv(self.csv, dtype=dtype)
         except IOError("Given csv file couldn't be read.") as e:
             raise e
 
-        # Check mandatory items are there
+        # Check mandatory items are there.
         req = ["sample_name"]
         missing = [col for col in req if col not in self.df.columns]
-
         if len(missing) != 0:
-            raise ValueError("Annotation sheet (" + str(self.csv) + ") is missing columns: %s" % " ".join(missing))
+            raise ValueError(
+                    "Annotation sheet ('{}') is missing column(s): {}".
+                    format(self.csv, missing))
 
 
     def make_sample(self, series):
         """
-        Make a children of class Sample dependent on its "library" attribute if existing.
+        Create a Sample, dependent on its "library" attribute if present.
 
         :param series: Pandas `Series` object.
         :type series: pandas.Series
@@ -925,21 +912,26 @@ class SampleSheet(object):
         if not hasattr(series, "library"):
             return Sample(series)
 
-        # If "library" attribute exists, try to get a matched Sample object for it from any "pipelines" repository.
+        # If "library" attribute exists, try to get a matched Sample
+        # object for it from any "pipelines" repository.
         try:
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
-            if hasattr(self.prj.metadata, "pipelines_dir") and self.prj.metadata.pipelines_dir:  # pipelines_dir is optional
+            # pipelines_dir is optional.
+            if hasattr(self.prj.metadata, "pipelines_dir") \
+                    and self.prj.metadata.pipelines_dir:
                 try:
                     pipeline_dirpaths = self.prj.metadata.pipelines_dir
                     if isinstance(pipeline_dirpaths, str):
                         pipeline_dirpaths = [pipeline_dirpaths]
-                    sys.path.extend(pipeline_dirpaths)  # try using the pipeline package from the config file
-                    _LOGGER.debug("Added {} pipeline dirpath(s) to sys.path: {}".
-                                  format(len(pipeline_dirpaths), pipeline_dirpaths))
+                    # Try using the pipeline package from the config file.
+                    sys.path.extend(pipeline_dirpaths)
+                    _LOGGER.debug(
+                            "Added {} pipeline dirpath(s) to sys.path: {}".
+                            format(len(pipeline_dirpaths), pipeline_dirpaths))
                     import pipelines
                 except ImportError:
-                    return Sample(series)  # if so, return generic Sample
+                    return Sample(series)
             else:
                 return Sample(series)
 
@@ -1384,8 +1376,6 @@ class Sample(object):
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
         self.input_file_size = get_file_size(self.all_inputs)
-
-        # pipeline_name
 
 
     def confirm_required_inputs(self, permissive=False):
