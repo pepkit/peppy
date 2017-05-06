@@ -1,15 +1,11 @@
 # ignore test results
-
 tests/test/*
 
-# ignore eggs
-.eggs/*
-<<<<<<< HEAD
-=======
-.eggs/
+# toy/experimental files
+*.csv
 
-# ignore python backup files
->>>>>>> master
+# ignore eggs
+.eggs/
 
 # ignore built docs
 doc/build/*

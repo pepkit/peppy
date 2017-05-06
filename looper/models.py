@@ -860,41 +860,38 @@ class SampleSheet(object):
         prj = Project("config.yaml")
         sheet = SampleSheet("sheet.csv")
     """
+
     def __init__(self, csv, dtype=str, **kwargs):
-
         super(SampleSheet, self).__init__()
-
+        self.df = self.check_sheet(csv, dtype)
         self.csv = csv
         self.samples = list()
-        self.check_sheet(dtype)
 
     def __repr__(self):
         if hasattr(self, "prj"):
-            return "SampleSheet for project '%s' with %i samples." % (self.prj, len(self.df))
+            return "SampleSheet for project '%s' with %i samples." % \
+                   (self.prj, len(self.df))
         else:
             return "SampleSheet with %i samples." % len(self.df)
 
 
-    def check_sheet(self, dtype):
+    @staticmethod
+    def check_sheet(csv, dtype):
         """
         Check if csv file exists and has all required columns.
         
+        :param str csv: path to sample annotations file.
         :param type dtype: data type for CSV read.
+        :raises IOError: if given annotations file can't be read.
         :raises ValueError: if required column(s) is/are missing.
         """
-        # Read in sheet.
-        try:
-            self.df = _pd.read_csv(self.csv, dtype=dtype)
-        except IOError("Given csv file couldn't be read.") as e:
-            raise e
-
-        # Check mandatory items are there.
+        df = _pd.read_csv(csv, dtype=dtype)
         req = ["sample_name"]
-        missing = [col for col in req if col not in self.df.columns]
+        missing = set(req) - set(df.columns)
         if len(missing) != 0:
             raise ValueError(
                     "Annotation sheet ('{}') is missing column(s): {}".
-                    format(self.csv, missing))
+                    format(csv, missing))
 
 
     def make_sample(self, series):
