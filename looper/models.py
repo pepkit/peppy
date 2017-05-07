@@ -372,22 +372,22 @@ class Project(AttributeDict):
         self.name = _os.path.basename(self.metadata.output_dir)
         self.subproject = subproject
 
+        """
         # Derived columns: by default, use data_source
         if hasattr(self, "derived_columns"):
             if "data_source" not in self.derived_columns:  # do not duplicate!
                 self.derived_columns.append("data_source")
         else:
             self.derived_columns = ["data_source"]
-
         # TODO:
         # or require config file to have it:
         # self.name = self.config["project"]["name"]
+        """
 
         # Set project's directory structure
         if not dry:
             _LOGGER.debug("Ensuring project directories exist")
             self.make_project_dirs()
-            # self.set_project_permissions()
 
         self.samples = list()
 
@@ -759,7 +759,8 @@ class Project(AttributeDict):
                             # 2) merge derived columns into space-delimited strings
                             # 3) update the sample values with the merge table
 
-                            # keep track of merged cols, so we don't re-derive them later.
+                            # Keep track of merged cols,
+                            # so we don't re-derive them later.
                             merged_cols = {key: "" for key in merge_rows.columns}
                             for row in merge_rows.index:
                                 _LOGGER.debug(
@@ -767,29 +768,34 @@ class Project(AttributeDict):
                                 # Update with derived columns
                                 row_dict = merge_rows.ix[row].to_dict()
                                 for col in merge_rows.columns:
-                                    if col == "sample_name":
+                                    if col == "sample_name" or col not in \
+                                            self["derived_columns"]:
                                         continue
-                                    if col in self["derived_columns"]:
-                                        # Initialize key in parent dict.
-                                        merged_cols[col + COL_KEY_SUFFIX] = ""
-                                        row_dict[col + COL_KEY_SUFFIX] = row_dict[col]
-                                        row_dict[col] = sample.locate_data_source(
-                                            col, row_dict[col], row_dict)  # 1)
+                                    # Initialize key in parent dict.
+                                    col_key = col + COL_KEY_SUFFIX
+                                    merged_cols[col_key] = ""
+                                    row_dict[col_key] = row_dict[col]
+                                    row_dict[col] = sample.locate_data_source(
+                                        col, row_dict[col], row_dict)  # 1)
 
-                                # Also add in any derived cols present
+                                # Also add in any derived cols present.
                                 for col in self["derived_columns"]:
-                                    if hasattr(sample, col) and not col in row_dict:
-                                        _LOGGER.debug(
-                                            "PROBLEM adding derived column: '%s'",
-                                            str(col))
-                                        row_dict[col + "_key"] = getattr(sample, col)
-                                        row_dict[col] = sample.locate_data_source(
-                                            col, getattr(sample,col), row_dict)
-                                        _LOGGER.debug(
-                                            "/PROBLEM adding derived column: "
-                                            "'%s', %s, %s",
-                                            str(col), str(row_dict[col]),
-                                            str(getattr(sample,col)))
+                                    if not hasattr(sample, col) or \
+                                                    col in row_dict:
+                                        # Unproblematic
+                                        continue
+                                    _LOGGER.debug(
+                                        "PROBLEM adding derived column: '%s'",
+                                        str(col))
+                                    col_key = col + COL_KEY_SUFFIX
+                                    row_dict[col_key] = getattr(sample, col)
+                                    row_dict[col] = sample.locate_data_source(
+                                        col, getattr(sample,col), row_dict)
+                                    _LOGGER.debug(
+                                        "PROBLEM adding derived column: "
+                                        "'%s', %s, %s",
+                                        str(col), str(row_dict[col]),
+                                        str(getattr(sample, col)))
 
                                 # Since we are now jamming multiple (merged) entries into a single attribute,
                                 # we have to join them into a space-delimited string, and then set to sample attribute
@@ -810,15 +816,14 @@ class Project(AttributeDict):
                             sample.merged = True  # mark sample as merged
                             sample.merged_cols = merged_cols
 
-        # With all samples, prepare file paths and get read type (optionally make sample dirs)
+        # With all samples, prepare file paths.
         for sample in self.sheet.samples:
             if hasattr(sample, "organism"):
                 sample.get_genome_transcriptome()
-
             sample.set_file_paths()
-
-            # hack for backwards-compatibility (pipelines should now use `data_source`)
-            if hasattr(sample,"data_source"):
+            # Hack for backwards-compatibility
+            # Pipelines should now use `data_source`)
+            if hasattr(sample, "data_source"):
                 sample.data_path = sample.data_source
 
     def add_sample(self, sample):
@@ -951,7 +956,8 @@ class SampleSheet(object):
 
     def make_samples(self):
         """
-        Creates samples from annotation sheet dependent on library and adds them to the project.
+        Create samples from annotation sheet (considering library), 
+        and them to the project.
         """
         for i in range(len(self.df)):
             self.samples.append(self.make_sample(self.df.ix[i].dropna()))
@@ -964,14 +970,12 @@ class SampleSheet(object):
         return _pd.DataFrame([s.as_series() for s in self.samples])
 
 
-    def to_csv(self, path, all_attrs=False):
+    def to_csv(self, path):
         """
         Saves a csv annotation sheet from the samples.
 
         :param path: Path to csv file to be written.
         :type path: str
-        :param all_attrs: If all sample attributes should be kept in the annotation sheet.
-        :type all_attrs: bool
 
         :Example:
 
@@ -1177,7 +1181,7 @@ class Sample(object):
 
         try:
             regex = self.prj["data_sources"][source_key]
-        except:
+        except KeyError:
             _LOGGER.warn(
                     "Config lacks entry for data_source key: '{}' "
                     "(in column: '{}')".format(source_key, column_name))
@@ -1730,8 +1734,8 @@ class InterfaceManager(object):
             there is a pipeline interface file and a protocol mappings file
         """
         # Collect interface/mappings pairs by protocol name.
-        interfaces_and_protocols = [ProtocolInterfaces(pipedir)
-                                    for pipedir in pipeline_dirs]
+        interfaces_and_protocols = \
+                [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs]
         self.ifproto_by_proto_name = defaultdict(list)
         for ifproto in interfaces_and_protocols:
             for proto_name in ifproto.protocols:
@@ -1744,8 +1748,7 @@ class InterfaceManager(object):
 
         :param str protocol_name: name for the protocol for which to build
             pipelines
-        :param bool priority: should only the top priority mapping be
-            used?
+        :param bool priority: should only the top priority mapping be used?
         :return list[str]: sequence of jobs (script paths) to execute for
             the given protocol
         """
@@ -1898,10 +1901,7 @@ class ProtocolMapper(object):
 
     # TODO: incorporate into the InterfaceManager?
     def parse_parallel_jobs(self, job, dep):
-        # Eliminate any parenthesis
-        job = job.replace("(", "")
-        job = job.replace(")", "")
-        # Split csv entry
+        job = job.replace("(", "").replace(")", "")
         split_jobs = [x.strip() for x in job.split(',')]
         if len(split_jobs) > 1:
             for s in split_jobs:
