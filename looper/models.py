@@ -904,13 +904,10 @@ class SampleSheet(object):
         :rtype: looper.models.Sample
         """
         import sys
-        import inspect
 
         if not hasattr(series, "library"):
             return Sample(series)
 
-        # If "library" attribute exists, try to get a matched Sample
-        # object for it from any "pipelines" repository.
         try:
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
@@ -918,13 +915,13 @@ class SampleSheet(object):
             if hasattr(self.prj.metadata, "pipelines_dir") \
                     and self.prj.metadata.pipelines_dir:
                 try:
+                    # Try using the pipeline package from the config file.
                     pipeline_dirpaths = self.prj.metadata.pipelines_dir
                     if isinstance(pipeline_dirpaths, str):
                         pipeline_dirpaths = [pipeline_dirpaths]
-                    # Try using the pipeline package from the config file.
                     sys.path.extend(pipeline_dirpaths)
                     _LOGGER.debug(
-                            "Added {} pipeline dirpath(s) to sys.path: {}".
+                            "Added {} pipelines path(s) to sys.path: {}".
                             format(len(pipeline_dirpaths), pipeline_dirpaths))
                     import pipelines
                 except ImportError:
@@ -932,26 +929,22 @@ class SampleSheet(object):
             else:
                 return Sample(series)
 
-        # get all class objects from modules of the pipelines package that have a __library__ attribute
-        sample_types = list()
-        for _, module in inspect.getmembers(
-                sys.modules["pipelines"],
-                lambda member: inspect.ismodule(member)):
-            st = inspect.getmembers(
-                    module,
-                    lambda member: inspect.isclass(member) and
-                                   hasattr(member, "__library__"))
-            _LOGGER.debug("Adding %d sample type classes: %s",
-                          len(st), str(st))
-            sample_types += st
+        # Get all pipelines package Sample subclasses.
+        import inspect
+        from utils import fetch_package_classes
+        sample_types = fetch_package_classes(
+                pipelines,
+                lambda maybe_class: inspect.isclass(maybe_class)
+                                    and issubclass(maybe_class, Sample))
 
-        # get __library__ attribute from classes and make mapping of __library__: Class (a dict)
+        # TODO: perhaps modify or alter handling of need for __library__.
         pairing = {sample_class.__library__: sample_class
                    for sample_type, sample_class in sample_types}
 
         # Match sample and sample_class
         try:
-            return pairing[series.library](series)  # quite stringent matching, maybe improve
+            # TODO: quite stringent matching, maybe improve.
+            return pairing[series.library](series)
         except KeyError:
             return Sample(series)
 

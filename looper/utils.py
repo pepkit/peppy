@@ -21,6 +21,25 @@ class VersionInHelpParser(ArgumentParser):
 
 
 
+def fetch_package_classes(pkg, predicate=None):
+    """
+    Enable single-depth fetch of package's classes if not exported.
+    
+    :param module pkg: the package of interest.
+    :param function(type) -> bool predicate: condition each class must 
+        satisfy in order to be returned.
+    :return Iterable(type): classes one layer deep within the package, that 
+        satisfy the condition if given.
+    """
+    import inspect
+    import itertools
+    return list(itertools.chain(
+            *[inspect.getmembers(mod, predicate)
+              for mod in inspect.getmembers(
+                        pkg, lambda obj: inspect.ismodule(obj))]))
+
+
+
 def parse_text_data(lines_or_path, delimiter=os.linesep):
     """
     Interpret input argument as lines of data. This is intended to support
