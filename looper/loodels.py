@@ -22,11 +22,6 @@ class Project(models.Project):
         return ["output_dir", "results_subdir", "submission_subdir"]
 
 
-    @property
-    def output_dir(self):
-        return self.metadata.output_dir
-
-
     @staticmethod
     def infer_name(path_config_file):
         import os

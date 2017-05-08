@@ -406,11 +406,36 @@ class Project(AttributeDict):
 
     @property
     def output_dir(self):
-        return _os.path.dirname(self.config_file)
+        """
+        Directory in which to place results and submissions folders.
+        
+        By default, assume that the project's configuration file specifies
+        an output directory, and that this is therefore available within 
+        the project metadata. If that assumption does not hold, though, 
+        consider the folder in which the project configuration file lives 
+        to be the project's output directory. 
+        
+        :return str: path to the project's output directory, either as 
+            specified in the configuration file or the folder that contains
+            the project's configuration file.
+        """
+        try:
+            return self.metadata.output_dir
+        except AttributeError:
+            return _os.path.dirname(self.config_file)
 
 
     @staticmethod
     def infer_name(path_config_file):
+        """
+        Infer project name based on location of configuration file.
+        
+        Provide the project with a name, taken to be the name of the folder 
+        in which its configuration file lives.
+        
+        :param str path_config_file: path to the project's configuration file.
+        :return str: name of the configuration file's folder, to name project.
+        """
         config_dirpath = _os.path.dirname(path_config_file)
         _, config_folder = _os.path.split(config_dirpath)
         return config_folder
@@ -418,11 +443,11 @@ class Project(AttributeDict):
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
-        After parsing the config file, finalize the establishment of path
-        to this project's pipelines. Override anything else with the passed
-        argument. Otherwise, prefer path provided in this project's config,
-        then local pipelines folder, then a location set in looper environment.
-
+        Finalize the establishment of a path to this project's pipelines.
+        
+        With the passed argument, override anything already set. 
+        Otherwise, prefer path provided in this project's config, then 
+        local pipelines folder, then a location set in looper environment.
 
         :param str pipe_path: (absolute) path to pipelines
         :raises PipelinesException: if (prioritized) search in attempt to
@@ -436,14 +461,14 @@ class Project(AttributeDict):
 
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
-            if "pipelines_dir" not in self.metadata:
-                # TODO: beware of AttributeDict with _force_nulls = True here,
-                # as that may return 'pipelines_dir' name itself.
-                pipe_path = []
-            else:
+            try:
+                # TODO: beware of AttributeDict with _attribute_identity = True
+                #  here, as that may return 'pipelines_dir' name itself.
                 pipe_path = self.metadata.pipelines_dir
+            except AttributeError:
+                pipe_path = []
 
-        # Ensure we work with text or flat iterable or empty list.
+        # Ensure we're working with a flattened list.
         if isinstance(pipe_path, str):
             pipe_path = [pipe_path]
         elif isinstance(pipe_path, Iterable) and \
