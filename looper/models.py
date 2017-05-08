@@ -1029,6 +1029,7 @@ class SampleSheet(object):
         df.to_csv(path, index=False)
 
 
+
 @copy
 class Sample(object):
     """

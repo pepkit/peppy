@@ -165,7 +165,7 @@ class SampleRequirementsTests:
     argnames="accessor", argvalues=["attr", "item"],
     ids=lambda access_mode: "accessor={}".format(access_mode))
 @pytest.mark.parametrize(argnames="data_type", argvalues=[dict, Series])
-def test_exception_type_matches_access_mode(self, data_type, accessor):
+def test_exception_type_matches_access_mode(data_type, accessor):
     """ Exception for attribute access failure reflects access mode. """
     data = {"sample_name": "placeholder"}
     sample = Sample(data_type(data))
