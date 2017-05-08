@@ -10,8 +10,9 @@ import pytest
 
 from .conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 import looper
-from looper.exceptions import MetadataOperationException
-from looper.models import AttributeDict, Paths, Sample, copy, ATTRDICT_METADATA
+from looper.models import \
+        AttributeDict, Paths, Sample, copy, \
+        ATTRDICT_METADATA, MetadataOperationException
 
 
 _ATTR_VALUES = [None, set(), [], {}, {"abc": 123}, (1, 'a'),

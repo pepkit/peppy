@@ -28,8 +28,8 @@ Explore!
 
     # see all samples
     prj.samples
-    prj.samples[0].fastq
     # get fastq file of first sample
+    prj.samples[0].fastq
     # get all bam files of WGBS samples
     [s.mapped for s in prj.samples if s.library == "WGBS"]
 
@@ -47,11 +47,13 @@ Explore!
 
 """
 
+# TODO: perhaps update examples based on removal of guarantee of some attrs.
+# TODO: the examples changes would involve library and output_dir.
+
 from collections import \
     defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
 from functools import partial
 import glob
-import inspect
 import itertools
 import logging
 import os as _os
@@ -65,10 +67,6 @@ else:
 import pandas as _pd
 import yaml as _yaml
 
-from . import LOOPERENV_VARNAME, setup_looper_logger
-from .exceptions import \
-        ComputeEstablishmentException, DefaultLooperenvException, \
-        MetadataOperationException, MissingConfigEntryException
 from .utils import \
     bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
@@ -79,25 +77,8 @@ COL_KEY_SUFFIX = "_key"
 ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
 
 _LOGGER = logging.getLogger(__name__)
-
-
-
-def _ensure_logger():
-    """ Assure that the module-scope logger has a handler.
-
-    This avoids an import of something from here, say, in
-    iPython, and getting a logger without handler(s), the
-    annoying message about that, and thus no logs. This is
-    always executed; it's a function for variable locality only.
-
-    """
-    source_module = inspect.getframeinfo(
-            inspect.getouterframes(inspect.currentframe())[1][0])[0]
-    via_looper = _os.path.split(source_module)[1] == "looper.py"
-    if via_looper:
-        return
-    setup_looper_logger(level=logging.INFO)
-_ensure_logger()
+if not logging.getLogger().handlers:
+    _LOGGER.addHandler(logging.NullHandler())
 
 
 
@@ -222,7 +203,7 @@ class AttributeDict(MutableMapping):
         :param str key: name of the key/attribute for which to establish value
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
-        :raises AttributeDict.MetadataOperationException: if attempt is made
+        :raises MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
         _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
@@ -293,11 +274,15 @@ class Project(AttributeDict):
 
     :param config_file: Project config file (yaml).
     :type config_file: str
-    :param dry: If dry mode is activated, no directories will be created upon project instantiation.
+    :param dry: If dry mode is activated, no directories 
+        will be created upon project instantiation.
     :type dry: bool
-    :param permissive: Whether a error should be thrown if a sample input file(s) do not exist or cannot be open.
+    :param permissive: Whether a error should be thrown if 
+        a sample input file(s) do not exist or cannot be open.
     :type permissive: bool
-    :param file_checks: Whether sample input files should be checked for their attributes (read type, read length) if this is not set in sample metadata.
+    :param file_checks: Whether sample input files should be checked 
+        for their  attributes (read type, read length) 
+        if this is not set in sample metadata.
     :type file_checks: bool
     :param looperenv_file: Looperenv YAML file specifying compute settings.
     :type looperenv_file: str
@@ -327,17 +312,16 @@ class Project(AttributeDict):
         self.update_looperenv(default_looperenv)
         # Ensure that update set looperenv and looperenv file attributes.
         if self.looperenv is None or self.looperenv_file is None:
-            raise DefaultLooperenvException(
+            raise RuntimeError(
                 "Failed to setup default looperenv from data in {}.".
-                format(default_looperenv)
-            )
+                format(default_looperenv))
 
         # Load settings from looper environment yaml
         # for local compute infrastructure.
         if not looperenv_file:
             _LOGGER.info("Using default {envvar}. You may set environment "
-                              "variable '{envvar}' to configure compute "
-                              "settings.".format(envvar=LOOPERENV_VARNAME))
+                              "variable {envvar} to configure compute "
+                              "settings.".format(envvar=self.compute_env_var))
         else:
             _LOGGER.debug("Updating compute settings (looper environment) "
                               "based on file '%s'", looperenv_file)
@@ -348,7 +332,7 @@ class Project(AttributeDict):
         _LOGGER.debug("Establishing project compute settings")
         self.set_compute("default")
         if self.compute is None:
-            raise ComputeEstablishmentException()
+            raise RuntimeError("Failed to establish project compute settings")
 
         _LOGGER.debug("Compute: %s", str(self.compute))
 
@@ -366,10 +350,7 @@ class Project(AttributeDict):
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
-        # Get project name
-        # deduce from output_dir variable in config file:
-
-        self.name = _os.path.basename(self.metadata.output_dir)
+        self.name = self.infer_name(self.config_file)
         self.subproject = subproject
 
         """
@@ -407,6 +388,32 @@ class Project(AttributeDict):
 
         return "Project '%s'" % name + "\nConfig: " + str(self.config)
 
+
+    @property
+    def compute_env_var(self):
+        return "COMPUTE_SETTINGS"
+
+
+    @property
+    def required_metadata(self):
+        return []
+
+
+    @property
+    def project_folders(self):
+        return ["results_subdir", "submission_subdir"]
+
+
+    @property
+    def output_dir(self):
+        return _os.path.dirname(self.config_file)
+
+
+    @staticmethod
+    def infer_name(path_config_file):
+        config_dirpath = _os.path.dirname(path_config_file)
+        _, config_folder = _os.path.split(config_dirpath)
+        return config_folder
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -491,11 +498,9 @@ class Project(AttributeDict):
             self.paths = None
 
         # Ensure required absolute paths are present and absolute.
-        required_metadata = ["output_dir"]
-        for var in required_metadata:
+        for var in self.required_metadata:
             if var not in self.metadata:
-                raise MissingConfigEntryException(
-                    var, "metadata", self.__class__.__name__, self.metadata)
+                raise ValueError("Missing required metadata item: '%s'")
             setattr(self.metadata, var,
                     _os.path.expandvars(getattr(self.metadata, var)))
 
@@ -508,18 +513,15 @@ class Project(AttributeDict):
             "submission_subdir": "submission"
         }
 
-        metadata = self.metadata
-
         for key, value in config_vars.items():
-            if hasattr(metadata, key):
-                if not _os.path.isabs(getattr(metadata, key)):
-                    setattr(metadata, key,
-                            _os.path.join(metadata.output_dir,
-                                          getattr(metadata, key)))
+            if hasattr(self.metadata, key):
+                if not _os.path.isabs(getattr(self.metadata, key)):
+                    setattr(self.metadata, key,
+                            _os.path.join(self.output_dir,
+                                          getattr(self.metadata, key)))
             else:
-                outdir = metadata.output_dir
-                outpath = _os.path.join(outdir, value)
-                setattr(metadata, key, outpath)
+                outpath = _os.path.join(self.output_dir, value)
+                setattr(self.metadata, key, outpath)
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
@@ -597,7 +599,7 @@ class Project(AttributeDict):
         try:
             with open(looperenv_file, 'r') as handle:
                 _LOGGER.info("Loading %s: %s",
-                                  LOOPERENV_VARNAME, looperenv_file)
+                             self.compute_env_var, looperenv_file)
                 looperenv = _yaml.load(handle)
                 _LOGGER.debug("Looperenv: %s", str(looperenv))
 
@@ -609,7 +611,9 @@ class Project(AttributeDict):
                         for key2, value2 in y[key].items():
                             if key2 == 'submission_template':
                                 if not _os.path.isabs(y[key][key2]):
-                                    y[key][key2] = _os.path.join(_os.path.dirname(looperenv_file), y[key][key2])
+                                    y[key][key2] = _os.path.join(
+                                            _os.path.dirname(looperenv_file),
+                                            y[key][key2])
 
                 looperenv['compute'] = y
                 if hasattr(self, "looperenv"):
@@ -629,15 +633,12 @@ class Project(AttributeDict):
         """
         Creates project directory structure if it doesn't exist.
         """
-        for name, path in self.metadata.items():
-            _LOGGER.debug("Ensuring project dir exists: '%s'", path)
-            # this is a list just to support future variables
-            #if name not in ["pipelines_dir", "merge_table", "compare_table", "sample_annotation"]:
-            # opt-in; which ones actually need to be created?
-            if name in ["output_dir", "results_subdir", "submission_subdir"]:
-                if not _os.path.exists(path):
-                    _LOGGER.debug("Creating: '%s'", path)
-                    _os.makedirs(path)
+        for folder_name in self.project_folders:
+            folder_path = self.metadata[folder_name]
+            _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
+            if not _os.path.exists(folder_path):
+                _LOGGER.debug("Creating: '%s'", folder_path)
+                _os.makedirs(folder_path)
 
 
     def set_project_permissions(self):
@@ -897,6 +898,7 @@ class SampleSheet(object):
             raise ValueError(
                     "Annotation sheet ('{}') is missing column(s): {}".
                     format(csv, missing))
+        return df
 
 
     def make_sample(self, series):
@@ -1915,6 +1917,31 @@ class ProtocolMapper(object):
 
     def __repr__(self):
         return str(self.__dict__)
+
+
+
+class MetadataOperationException(Exception):
+    """ Illegal/unsupported operation, motivated by `AttributeDict`. """
+
+    def __init__(self, obj, meta_item):
+        """
+        Instance with which the access attempt was made, along with the
+        name of the reserved/privileged metadata item, define the exception.
+
+        :param object obj: instance with which
+            offending operation was attempted
+        :param str meta_item: name of the reserved metadata item
+        """
+        try:
+            classname = obj.__class__.__name__
+        except AttributeError:
+            # Maybe we were given a class or function not an instance?
+            classname = obj.__name__
+        explanation = "Attempted unsupported operation on {} item '{}'". \
+            format(classname, meta_item)
+        super(MetadataOperationException, self). \
+            __init__(explanation)
+
 
 
 class CommandChecker(object):
