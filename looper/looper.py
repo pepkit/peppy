@@ -18,16 +18,17 @@ import sys
 import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, __version__
+from loodels import Project
 from utils import VersionInHelpParser
 
 try:
     from .models import \
-        InterfaceManager, Project, PipelineInterface, \
+        InterfaceManager, PipelineInterface, \
         ProtocolMapper, LOOPERENV_VARNAME
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from looper.models import \
-        InterfaceManager, Project, PipelineInterface, \
+        InterfaceManager, PipelineInterface, \
         ProtocolMapper, LOOPERENV_VARNAME
 
 from colorama import init
