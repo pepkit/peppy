@@ -490,11 +490,11 @@ class Project(AttributeDict):
         _LOGGER.debug("Setting %s data from '%s'",
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
-            self.config = _yaml.load(handle)
+            self.config = _yaml.safe_load(handle)
 
-        # parse yaml into the project's attributes
-        _LOGGER.debug("Adding {} attributes for {}: {}".format(
-            len(self.config), self.__class__.__name__, self.config.keys()))
+        # Parse yaml into the project's attributes.
+        _LOGGER.debug("Adding attributes for {}: {}".format(
+            self.__class__.__name__, self.config.keys()))
         _LOGGER.debug("Config metadata: {}")
         self.add_entries(self.config)
         _LOGGER.debug("{} now has {} keys: {}".format(
