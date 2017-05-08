@@ -353,18 +353,6 @@ class Project(AttributeDict):
         self.name = self.infer_name(self.config_file)
         self.subproject = subproject
 
-        """
-        # Derived columns: by default, use data_source
-        if hasattr(self, "derived_columns"):
-            if "data_source" not in self.derived_columns:  # do not duplicate!
-                self.derived_columns.append("data_source")
-        else:
-            self.derived_columns = ["data_source"]
-        # TODO:
-        # or require config file to have it:
-        # self.name = self.config["project"]["name"]
-        """
-
         # Set project's directory structure
         if not dry:
             _LOGGER.debug("Ensuring project directories exist")
