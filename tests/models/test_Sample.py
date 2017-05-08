@@ -138,9 +138,8 @@ class ParseSampleImplicationsTests:
 
 
 
-class SampleHodgepodgeTests:
-    """ One-off sorts of Sample tests. """
-
+class SampleRequirementsTests:
+    """ Test what a Sample requires. """
 
     @pytest.mark.parametrize(
         argnames="data_type", argvalues=[dict, Series],
@@ -161,21 +160,22 @@ class SampleHodgepodgeTests:
                 Sample(data_type(data))
 
 
-    @pytest.mark.parametrize(
-        argnames="accessor", argvalues=["attr", "item"],
-        ids=lambda access_mode: "accessor={}".format(access_mode))
-    @pytest.mark.parametrize(argnames="data_type", argvalues=[dict, Series])
-    def test_exception_type(self, data_type, accessor):
-        """ Exception for attribute access failure reflects access mode. """
-        data = {"sample_name": "placeholder"}
-        sample = Sample(data_type(data))
-        if accessor == "attr":
-            with pytest.raises(AttributeError):
-                sample.undefined_attribute
-        elif accessor == "item":
-            with pytest.raises(KeyError):
-                sample["not-set"]
-        else:
-            # Personal safeguard against unexpected behavior
-            pytest.fail("Unknown access mode for exception type test: {}".
-                        format(accessor))
+
+@pytest.mark.parametrize(
+    argnames="accessor", argvalues=["attr", "item"],
+    ids=lambda access_mode: "accessor={}".format(access_mode))
+@pytest.mark.parametrize(argnames="data_type", argvalues=[dict, Series])
+def test_exception_type_matches_access_mode(self, data_type, accessor):
+    """ Exception for attribute access failure reflects access mode. """
+    data = {"sample_name": "placeholder"}
+    sample = Sample(data_type(data))
+    if accessor == "attr":
+        with pytest.raises(AttributeError):
+            sample.undefined_attribute
+    elif accessor == "item":
+        with pytest.raises(KeyError):
+            sample["not-set"]
+    else:
+        # Personal safeguard against unexpected behavior
+        pytest.fail("Unknown access mode for exception type test: {}".
+                    format(accessor))

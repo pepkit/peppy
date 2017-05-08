@@ -852,6 +852,7 @@ class Project(AttributeDict):
             if hasattr(sample, "data_source"):
                 sample.data_path = sample.data_source
 
+
     def add_sample(self, sample):
         """
         Adds a sample to the project's `samples`.
@@ -864,6 +865,7 @@ class Project(AttributeDict):
         sample.prj = self
         # Append
         self.samples.append(sample)
+
 
 
 @copy
@@ -970,15 +972,25 @@ class SampleSheet(object):
                                     and issubclass(maybe_class, Sample))
 
         # TODO: perhaps modify or alter handling of need for __library__.
-        pairing = {sample_class.__library__: sample_class
+        pairing = {self.alpha_cased(sample_class.__library__): sample_class
                    for sample_type, sample_class in sample_types}
-
-        # Match sample and sample_class
         try:
-            # TODO: quite stringent matching, maybe improve.
-            return pairing[series.library](series)
+            return pairing[self.alpha_cased(series.library)](series)
         except KeyError:
             return Sample(series)
+
+
+    @staticmethod
+    def alpha_cased(text, lower=False):
+        """
+        Filter text to just letters and homogenize case.
+        
+        :param str text: what to filter and homogenize.
+        :param bool lower: whether to convert to lowercase; default uppercase.
+        :return str: input filtered to just letters, with homogenized case.
+        """
+        text = "".join(filter(lambda c: c.isalpha(), text))
+        return text.lower() if lower else text.upper()
 
 
     def make_samples(self):

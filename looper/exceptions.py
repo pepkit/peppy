@@ -1,10 +1,8 @@
 """ Exceptions for specific looper issues. """
 
 
-# Simplify imports by permitting '*', especially for models.
-__all__ = ["ModelConstructionException", "PipelinesException",
-           "ProjectConstructionException"]
-
+__author__ = "Vince Reuter"
+__email__ = "vreuter@virginia.edu"
 
 
 class ModelConstructionException(Exception):

@@ -1,23 +1,16 @@
 """ Tests for data type and function definitions in the `models` module. """
 
-import mock
 import numpy as np
-from pandas import Series
 import pytest
-
-import looper
-from looper.models import AttributeDict, Paths, Sample, copy
+from looper.models import Paths, copy
 from tests.utils import assert_entirely_equal
-
-
-
-class ExampleObject:
-    pass
 
 
 
 def test_copy():
     """ Test reference and equivalence comparison operators. """
+    class ExampleObject:
+        pass
     obj = ExampleObject()
     new_obj = copy(obj)
     assert obj is new_obj
