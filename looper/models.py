@@ -863,14 +863,7 @@ class SampleSheet(object):
 
     :param csv: Path to csv file.
     :type csv: str
-
-    Kwargs (will overrule specified in config):
-    :param merge_technical: Should technical replicates be merged 
-        to create biological replicate samples?
-    :type merge_technical: bool
-    :param merge_biological: Should biological replicates be merged?
-    :type merge_biological: bool
-    :param dtype: Data type to read csv file as. Default=str.
+    :param dtype: Data type to read csv file as. Default is str.
     :type dtype: type
 
     :Example:
@@ -882,7 +875,7 @@ class SampleSheet(object):
         sheet = SampleSheet("sheet.csv")
     """
 
-    def __init__(self, csv, dtype=str, **kwargs):
+    def __init__(self, csv, dtype=str):
         super(SampleSheet, self).__init__()
         self.df = self.check_sheet(csv, dtype)
         self.csv = csv
@@ -934,34 +927,24 @@ class SampleSheet(object):
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
             # pipelines_dir is optional.
-            if hasattr(self.prj.metadata, "pipelines_dir") \
-                    and self.prj.metadata.pipelines_dir:
+            try:
+                pipeline_dirpaths = self.prj.metadata.pipelines_dir
+            except AttributeError:
+                return Sample(series)
+            else:
+                if not pipeline_dirpaths:
+                    return Sample(series)
+                if isinstance(pipeline_dirpaths, str):
+                    pipeline_dirpaths = [pipeline_dirpaths]
+                sys.path.extend(pipeline_dirpaths)
+                _LOGGER.debug(
+                    "Added {} pipelines path(s) to sys.path: {}".
+                        format(len(pipeline_dirpaths), pipeline_dirpaths))
                 try:
-                    # Try using the pipeline package from the config file.
-                    pipeline_dirpaths = self.prj.metadata.pipelines_dir
-                    if isinstance(pipeline_dirpaths, str):
-                        pipeline_dirpaths = [pipeline_dirpaths]
-                    sys.path.extend(pipeline_dirpaths)
-                    _LOGGER.debug(
-                            "Added {} pipelines path(s) to sys.path: {}".
-                            format(len(pipeline_dirpaths), pipeline_dirpaths))
                     import pipelines
                 except ImportError:
                     return Sample(series)
-            else:
-                return Sample(series)
 
-        # Get all pipelines package Sample subclasses.
-        import inspect
-        from utils import fetch_package_classes
-        sample_types = fetch_package_classes(
-                pipelines,
-                lambda maybe_class: inspect.isclass(maybe_class)
-                                    and issubclass(maybe_class, Sample))
-
-        # TODO: perhaps modify or alter handling of need for __library__.
-        pairing = {self.alpha_cased(sample_class.__library__): sample_class
-                   for sample_type, sample_class in sample_types}
         try:
             return pairing[self.alpha_cased(series.library)](series)
         except KeyError:
@@ -986,8 +969,56 @@ class SampleSheet(object):
         Create samples from annotation sheet (considering library), 
         and them to the project.
         """
+
+        found_pipelines = False
+        try:
+            import pipelines  # Use a pipelines package if installed.
+        except ImportError:
+            # pipelines_dir is optional.
+            pipeline_dirpaths = getattr(
+                    self.prj.metadata, "pipelines_dir", None)
+            if pipeline_dirpaths:
+                if isinstance(pipeline_dirpaths, str):
+                    pipeline_dirpaths = [pipeline_dirpaths]
+                sys.path.extend(pipeline_dirpaths)
+                _LOGGER.debug(
+                    "Added {} pipelines path(s) to sys.path: {}".
+                        format(len(pipeline_dirpaths), pipeline_dirpaths))
+            try:
+                import pipelines
+            except ImportError:
+                pass
+            else:
+                found_pipelines = True
+        else:
+            found_pipelines = True
+
+        if not found_pipelines:
+            # Just return a basic Sample for each of the sheet's rows.
+            def make_sample(data):
+                return Sample(data)
+        else:
+            # Attempt creation of Sample subtype specific to protocol.
+
+            # Get all pipelines package Sample subclasses.
+            import inspect
+            from utils import fetch_package_classes
+            sample_types = fetch_package_classes(pipelines,
+                    lambda maybe_class: inspect.isclass(maybe_class)
+                                        and issubclass(maybe_class, Sample))
+
+            # TODO: perhaps modify or alter handling of need for __library__.
+            pairing = {self.alpha_cased(sample_class.__library__): sample_class
+                       for sample_type, sample_class in sample_types}
+
+            def make_sample(data):
+                try:
+                    return pairing[self.alpha_cased(data.library)](data)
+                except (AttributeError, KeyError):
+                    return Sample(data)
+
         for i in range(len(self.df)):
-            self.samples.append(self.make_sample(self.df.ix[i].dropna()))
+            self.samples.append(make_sample(self.df.ix[i].dropna()))
 
 
     def as_data_frame(self):
