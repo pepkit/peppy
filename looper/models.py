@@ -909,48 +909,6 @@ class SampleSheet(object):
         return df
 
 
-    def make_sample(self, series):
-        """
-        Create a Sample, dependent on its "library" attribute if present.
-
-        :param series: Pandas `Series` object.
-        :type series: pandas.Series
-        :return: An object or class `Sample` or a child of that class.
-        :rtype: looper.models.Sample
-        """
-        import sys
-
-        if not hasattr(series, "library"):
-            return Sample(series)
-
-        try:
-            import pipelines  # Use a pipelines package if installed.
-        except ImportError:
-            # pipelines_dir is optional.
-            try:
-                pipeline_dirpaths = self.prj.metadata.pipelines_dir
-            except AttributeError:
-                return Sample(series)
-            else:
-                if not pipeline_dirpaths:
-                    return Sample(series)
-                if isinstance(pipeline_dirpaths, str):
-                    pipeline_dirpaths = [pipeline_dirpaths]
-                sys.path.extend(pipeline_dirpaths)
-                _LOGGER.debug(
-                    "Added {} pipelines path(s) to sys.path: {}".
-                        format(len(pipeline_dirpaths), pipeline_dirpaths))
-                try:
-                    import pipelines
-                except ImportError:
-                    return Sample(series)
-
-        try:
-            return pairing[self.alpha_cased(series.library)](series)
-        except KeyError:
-            return Sample(series)
-
-
     @staticmethod
     def alpha_cased(text, lower=False):
         """
