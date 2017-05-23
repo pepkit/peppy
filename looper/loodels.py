@@ -2,7 +2,7 @@
 
 import os
 from pkg_resources import resource_filename
-import models
+from . import models
 
 
 __author__ = "Vince Reuter"
@@ -17,6 +17,7 @@ DEFAULT_PROJECT_COMPUTE_CONFIG = os.path.join(
 class Project(models.Project):
     """ Looper-specific NGS Project. """
 
+    # Default project/compute environment with looper specificity.
     DEFAULT_ENVIRONMENT = resource_filename(
             "looper", DEFAULT_PROJECT_COMPUTE_CONFIG)
 

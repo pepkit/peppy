@@ -32,6 +32,7 @@ ENV_CONF_LINES = """compute:
 
 @pytest.fixture(scope="function")
 def env_config_filepath(tmpdir):
+    """ Write default project/compute environment file for Project ctor. """
     conf_file = tmpdir.join(DEFAULT_COMPUTE_CONFIG_FILENAME)
     conf_file.write(ENV_CONF_LINES)
     return conf_file.strpath

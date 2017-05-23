@@ -54,7 +54,9 @@ class ProjectSampleInteractionTests:
 
 @pytest.fixture(scope="function")
 def project(request, tmpdir, env_config_filepath):
+    """ Provide requesting test case with a basic Project instance. """
 
+    # Write just the sample names as the annotations.
     annotations_filename = "anns-fill.csv"
     anns_path = tmpdir.join(annotations_filename).strpath
     num_samples = request.getfixturevalue("num_samples")
@@ -62,17 +64,20 @@ def project(request, tmpdir, env_config_filepath):
         anns_file.write("sample_name\n")
         anns_file.write("\n".join(
                 ["sample{}".format(i) for i in range(1, num_samples + 1)]))
-    config_data = {"metadata": {SAMPLE_ANNOTATIONS_KEY: annotations_filename}}
 
+    # Create the Project config data.
+    config_data = {"metadata": {SAMPLE_ANNOTATIONS_KEY: annotations_filename}}
     if request.getfixturevalue(request.cls.CONFIG_DATA_PATHS_HOOK):
         config_data["paths"] = {}
         paths_dest = config_data["paths"]
     else:
         paths_dest = config_data["metadata"]
 
+    # Add the paths data to the Project config.
     for path_name, path in PATH_BY_TYPE.items():
         paths_dest[path_name] = os.path.join(tmpdir.strpath, path)
 
+    # Write the Project config file.
     conf_path = tmpdir.join("proj-conf.yaml").strpath
     with open(conf_path, 'w') as conf_file:
         yaml.safe_dump(config_data, conf_file)

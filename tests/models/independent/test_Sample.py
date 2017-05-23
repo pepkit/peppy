@@ -205,6 +205,7 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
     s = Sample({"sample_name": "placeholder"})
     s.paths = fullpaths
 
+    # Base the test's initial condition on the parameterization.
     if preexists:
         def precheck(flags):
             return all(flags)
