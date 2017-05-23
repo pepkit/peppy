@@ -116,7 +116,7 @@ class Paths(object):
         instance should be a path.
         
         """
-        return self.__dict__.values()
+        return iter(self.__dict__.values())
 
     def __getitem__(self, key):
         """
@@ -512,12 +512,12 @@ class Project(AttributeDict):
 
         _LOGGER.debug("Setting %s data from '%s'",
                       self.__class__.__name__, self.config_file)
-        with open(self.config_file, 'r') as handle:
-            config = _yaml.safe_load(handle)
+        with open(self.config_file, 'r') as conf_file:
+            config = _yaml.safe_load(conf_file)
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
-            self.__class__.__name__, config.keys()))
+                self.__class__.__name__, config.keys()))
         _LOGGER.debug("Config metadata: {}")
         self.add_entries(config)
         _LOGGER.debug("{} now has {} keys: {}".format(
@@ -946,8 +946,9 @@ class SampleSheet(object):
         missing = set(req) - set(df.columns)
         if len(missing) != 0:
             raise ValueError(
-                    "Annotation sheet ('{}') is missing column(s): {}".
-                    format(csv, missing))
+                "Annotation sheet ('{}') is missing column(s): {}".format(
+                        csv, ", ".join(['{}'.format(missing_colname)
+                                        for missing_colname in missing])))
         return df
 
 
