@@ -1,5 +1,6 @@
 """ Tests for the Sample. """
 
+import os
 import mock
 import numpy as np
 from pandas import Series
@@ -131,8 +132,8 @@ class ParseSampleImplicationsTests:
 
         # Mock the validation and return a new Sample.
         rubber_stamper = mock.MagicMock(return_value=[])
-        with mock.patch("looper.models.Sample.check_valid",
-                        new=rubber_stamper):
+        with mock.patch(
+                "looper.models.Sample.check_valid", new=rubber_stamper):
             mocked_sample = looper.models.Sample(data)
         return mocked_sample
 
@@ -179,3 +180,39 @@ def test_exception_type_matches_access_mode(data_type, accessor):
         # Personal safeguard against unexpected behavior
         pytest.fail("Unknown access mode for exception type test: {}".
                     format(accessor))
+
+
+
+@pytest.mark.parametrize(
+        argnames="paths",
+        argvalues=[["subfolder0a", "subfolder0b"],
+                   [os.path.join("subfolder1", "subfolder2")]])
+@pytest.mark.parametrize(
+        argnames="preexists", argvalues=[False, True],
+        ids=lambda exists: "preexists={}".format(exists))
+def test_make_sample_dirs(self, paths, preexists, tmpdir):
+
+    # Derive full paths and assure nonexistence before creation.
+    fullpaths = []
+    for p in paths:
+        fullpath = tmpdir.join(p).strpath
+        assert not os.path.exists(fullpath)
+        if preexists:
+            os.makedirs(fullpath)
+        fullpaths.append(fullpath)
+
+    # Make the sample and assure paths preexistence.
+    s = Sample({"sample_name": "placeholder"})
+    s.paths = fullpaths
+
+    if preexists:
+        def precheck(flags):
+            return all(flags)
+    else:
+        def precheck(flags):
+            return not any(flags)
+    assert precheck([os.path.exists(p) for p in s.paths])
+
+    # The sample folders creation call should do nothing.
+    s.make_sample_dirs()
+    assert all([os.path.exists(p) for p in s.paths])

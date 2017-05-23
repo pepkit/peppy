@@ -17,7 +17,7 @@ Example:
 
 .. code-block:: python
 
-    from looper.models import Project
+    from models import Project
     prj = Project("config.yaml")
     prj.add_sample_sheet()
     # that's it!
@@ -57,7 +57,6 @@ import glob
 import itertools
 import logging
 import os as _os
-from pkg_resources import resource_filename
 import sys
 if sys.version_info < (3, 0):
     from urlparse import urlparse
@@ -71,6 +70,7 @@ from .utils import \
     bam_or_fastq, check_bam, check_fastq, get_file_size, partition
 
 
+SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
 COL_KEY_SUFFIX = "_key"
 
@@ -106,7 +106,7 @@ class Paths(object):
     A class to hold paths as attributes.
     """
 
-    def __repr__(self):
+    def __str__(self):
         return "Paths object."
 
     def __getitem__(self, key):
@@ -272,8 +272,11 @@ class Project(AttributeDict):
     """
     A class to model a Project.
 
-    :param config_file: Project config file (yaml).
+    :param config_file: Project config file (YAML).
     :type config_file: str
+    :param default_compute: Configuration file (YAML) for 
+        default compute settings.
+    :type default_compute: str
     :param dry: If dry mode is activated, no directories 
         will be created upon project instantiation.
     :type dry: bool
@@ -284,19 +287,20 @@ class Project(AttributeDict):
         for their  attributes (read type, read length) 
         if this is not set in sample metadata.
     :type file_checks: bool
-    :param looperenv_file: Looperenv YAML file specifying compute settings.
-    :type looperenv_file: str
+    :param compute_env_file: Looperenv YAML file specifying compute settings.
+    :type compute_env_file: str
 
     :Example:
 
     .. code-block:: python
 
-        from looper.models import Project
+        from models import Project
         prj = Project("config.yaml")
     """
 
-    def __init__(self, config_file, subproject=None, dry=False,
-                 permissive=True, file_checks=False, looperenv_file=None):
+    def __init__(self, config_file, default_compute, 
+                 subproject=None, dry=False, permissive=True, 
+                 file_checks=False, compute_env_file=None):
 
         super(Project, self).__init__()
 
@@ -304,30 +308,26 @@ class Project(AttributeDict):
                           self.__class__.__name__, config_file)
 
         # Initialize local, serial compute as default (no cluster submission)
-        # Start with default looperenv
-        _LOGGER.debug("Establishing default looperenv compute settings")
-        default_looperenv = \
-            resource_filename("looper",
-                              "submit_templates/default_looperenv.yaml")
-        self.update_looperenv(default_looperenv)
-        # Ensure that update set looperenv and looperenv file attributes.
-        if self.looperenv is None or self.looperenv_file is None:
+        # Start with default compute settings.
+        _LOGGER.debug("Establishing default environment settings")
+        self.update_environment(default_compute)
+        
+        # Ensure that update set environment attributes.
+        if self.environment is None or self.environment_file is None:
             raise RuntimeError(
-                "Failed to setup default looperenv from data in {}.".
-                format(default_looperenv))
+                "Failed to establish environment settings from data in '{}'.".
+                format(default_compute))
 
-        # Load settings from looper environment yaml
-        # for local compute infrastructure.
-        if not looperenv_file:
+        # Load settings from environment yaml for local compute infrastructure.
+        if not compute_env_file:
             _LOGGER.info("Using default {envvar}. You may set environment "
-                              "variable {envvar} to configure compute "
+                              "variable {envvar} to configure environment "
                               "settings.".format(envvar=self.compute_env_var))
         else:
-            _LOGGER.debug("Updating compute settings (looper environment) "
-                              "based on file '%s'", looperenv_file)
-            self.update_looperenv(looperenv_file)
+            _LOGGER.debug("Updating environment settings based on file '%s'", 
+                          compute_env_file)
+            self.update_environment(compute_env_file)
 
-        # Here, looperenv has been loaded (either custom or default).
         # Initialize default compute settings.
         _LOGGER.debug("Establishing project compute settings")
         self.set_compute("default")
@@ -344,7 +344,6 @@ class Project(AttributeDict):
         self.config_file = _os.path.abspath(config_file)
 
         # Parse config file
-        self.config, self.paths = None, None    # Set by config parsing call.
         _LOGGER.info("Parsing %s config file", self.__class__.__name__)
         if subproject:
             _LOGGER.info("Using subproject: '{}'".format(subproject))
@@ -358,37 +357,62 @@ class Project(AttributeDict):
             _LOGGER.debug("Ensuring project directories exist")
             self.make_project_dirs()
 
-        self.samples = list()
-
         # Sheet will be set to non-null value by call to add_sample_sheet().
         # That call also sets the samples (list) attribute for the instance.
         self.sheet = None
+        self.samples = list()
         self.add_sample_sheet()
 
         self.finalize_pipelines_directory()
 
 
-    def __repr__(self):
-        if hasattr(self, "name"):
+    def __str__(self):
+        """
+        Provide project's actual name, along with its data for text form.
+        
+        :return str: project's name and its data for printing
+        """
+        try:
             name = self.name
-        else:
+        except AttributeError:
             name = "[no name]"
-
-        return "Project '%s'" % name + "\nConfig: " + str(self.config)
+        return "{} '{name}'\n{data}".format(
+                self.__class__.__name__, name=name, data=self)
 
 
     @property
     def compute_env_var(self):
+        """
+        Environment variable through which to access compute settings.
+        
+        :return str: name of the environment variable to pointing to 
+            compute settings
+        """
         return "COMPUTE_SETTINGS"
 
 
     @property
     def required_metadata(self):
+        """
+        Names of metadata fields that must be present for a valid project.
+        
+        Make a base project as unconstrained as possible by requiring no 
+        specific metadata attributes. It's likely that some common-sense 
+        requirements may arise in domain-specific client applications, in 
+        which case this can be redefined in a subclass.
+        
+        :return Iterable[str]: names of metadata fields required by a project
+        """
         return []
 
 
     @property
     def project_folders(self):
+        """
+        Names of folders to nest within a project output directory.
+        
+        :return Iterable[str]: names of output-nested folders
+        """
         return ["results_subdir", "submission_subdir"]
 
 
@@ -435,7 +459,7 @@ class Project(AttributeDict):
         
         With the passed argument, override anything already set. 
         Otherwise, prefer path provided in this project's config, then 
-        local pipelines folder, then a location set in looper environment.
+        local pipelines folder, then a location set in project environment.
 
         :param str pipe_path: (absolute) path to pipelines
         :raises PipelinesException: if (prioritized) search in attempt to
@@ -445,7 +469,7 @@ class Project(AttributeDict):
             of path(s)
         """
 
-        # TODO: check for local pipelines or looperenv.
+        # TODO: check for local pipelines or those from environment.
 
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
@@ -473,42 +497,43 @@ class Project(AttributeDict):
     def parse_config_file(self, subproject=None):
         """
         Parse provided yaml config file and check required fields exist.
+        
+        :raises KeyError: if config file lacks required section(s)
         """
 
         _LOGGER.debug("Setting %s data from '%s'",
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as handle:
-            self.config = _yaml.safe_load(handle)
+            config = _yaml.safe_load(handle)
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
-            self.__class__.__name__, self.config.keys()))
+            self.__class__.__name__, config.keys()))
         _LOGGER.debug("Config metadata: {}")
-        self.add_entries(self.config)
+        self.add_entries(config)
         _LOGGER.debug("{} now has {} keys: {}".format(
                 self.__class__.__name__, len(self.keys()), self.keys()))
 
         # Overwrite any config entries with entries in the subproject.
-        if "subprojects" in self.config and subproject:
+        if "subprojects" in config and subproject:
             _LOGGER.debug("Adding entries for subproject '{}'".
                           format(subproject))
-            subproj_updates = self.config['subprojects'][subproject]
+            subproj_updates = config['subprojects'][subproject]
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
         else:
             _LOGGER.debug("No subproject")
 
-        # In looper 0.4 we eliminated the paths section for simplicity.
-        # For backwards compatibility, mirror the paths section into metadata
-        if "paths" in self.config:
+        # In looper 0.4, for simplicity the paths section was eliminated.
+        # For backwards compatibility, mirror the paths section into metadata.
+        if "paths" in config:
             _LOGGER.warn(
                 "Paths section in project config is deprecated. "
                 "Please move all paths attributes to metadata section. "
                 "This option will be removed in future versions.")
-            self.metadata.add_entries(self.paths.__dict__)
+            self.metadata.add_entries(self.paths.items())
             _LOGGER.debug("Metadata: %s", str(self.metadata))
-            _LOGGER.debug("Paths: %s", str(self.paths))
-            self.paths = None
+            delattr(self, "paths")
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
@@ -521,7 +546,8 @@ class Project(AttributeDict):
                                                self.metadata))
 
         # These are optional because there are defaults
-        config_vars = {  # variables with defaults = {"variable": "default"}, relative to output_dir
+        config_vars = {
+            # Defaults = {"variable": "default"}, relative to output_dir.
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"
         }
@@ -570,16 +596,17 @@ class Project(AttributeDict):
         # compute.submission_template could have been reset by project config
         # into a relative path; make sure it stays absolute.
         if not _os.path.isabs(self.compute.submission_template):
-            # Relative to looper environment config file.
+            # Relative to environment config file.
             self.compute.submission_template = _os.path.join(
-                    _os.path.dirname(self.looperenv_file),
+                    _os.path.dirname(self.environment_file),
                     self.compute.submission_template
             )
 
         # Required variables check
-        if not hasattr(self.metadata, "sample_annotation"):
-            raise KeyError("Required field not in config file: "
-                           "%s" % "sample_annotation")
+        if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
+            raise MissingMetadataException(
+                    missing_section=SAMPLE_ANNOTATIONS_KEY, 
+                    path_config_file=self.config_file)
 
 
     def _ensure_absolute(self, maybe_relpath):
@@ -602,43 +629,44 @@ class Project(AttributeDict):
         return abs_path
 
 
-    def update_looperenv(self, looperenv_file):
+    def update_environment(self, env_settings_file):
         """
-        Parse data from looper environment configuration file.
+        Parse data from environment configuration file.
 
-        :param str looperenv_file: path to file with new looper
-            environment configuration data
+        :param str env_settings_file: path to file with 
+            new environment configuration data
         """
         try:
-            with open(looperenv_file, 'r') as handle:
+            with open(env_settings_file, 'r') as handle:
                 _LOGGER.info("Loading %s: %s",
-                             self.compute_env_var, looperenv_file)
-                looperenv = _yaml.load(handle)
-                _LOGGER.debug("Looperenv: %s", str(looperenv))
+                             self.compute_env_var, env_settings_file)
+                env_settings = _yaml.load(handle)
+                _LOGGER.debug("Parsed environment settings: %s", 
+                              str(env_settings))
 
                 # Any compute.submission_template variables should be made
-                # absolute, relative to current looperenv yaml file
-                y = looperenv['compute']
+                # absolute, relative to current environment settings file.
+                y = env_settings["compute"]
                 for key, value in y.items():
                     if type(y[key]) is dict:
                         for key2, value2 in y[key].items():
-                            if key2 == 'submission_template':
+                            if key2 == "submission_template":
                                 if not _os.path.isabs(y[key][key2]):
                                     y[key][key2] = _os.path.join(
-                                            _os.path.dirname(looperenv_file),
+                                            _os.path.dirname(env_settings_file),
                                             y[key][key2])
 
-                looperenv['compute'] = y
-                if hasattr(self, "looperenv"):
-                    self.looperenv.add_entries(looperenv)
+                env_settings["compute"] = y
+                if hasattr(self, "environment"):
+                    self.environment.add_entries(env_settings)
                 else:
-                    self.looperenv = AttributeDict(looperenv)
+                    self.environment = AttributeDict(env_settings)
 
-            self.looperenv_file = looperenv_file
+            self.environment_file = env_settings_file
 
         except Exception as e:
-            _LOGGER.error("Can't load looperenv config file '%s'",
-                               str(looperenv_file))
+            _LOGGER.error("Can't load environment config file '%s'", 
+                          str(env_settings_file))
             _LOGGER.error(str(type(e).__name__) + str(e))
 
 
@@ -673,25 +701,27 @@ class Project(AttributeDict):
         :param: setting	An option for compute settings as specified in the environment file.
         """
 
-        if setting and hasattr(self, "looperenv") and hasattr(self.looperenv, "compute"):
+        if setting and \
+                hasattr(self, "environment") and \
+                hasattr(self.environment, "compute"):
             _LOGGER.debug("Loading compute settings: '%s'", str(setting))
             if hasattr(self, "compute"):
                 _LOGGER.debug("Adding compute entries for setting %s",
                                    setting)
-                self.compute.add_entries(self.looperenv.compute[setting].__dict__)
+                self.compute.add_entries(self.environment.compute[setting].__dict__)
             else:
                 _LOGGER.debug("Creating compute entries for setting '%s'",
                                    setting)
-                self.compute = AttributeDict(self.looperenv.compute[setting].__dict__)
+                self.compute = AttributeDict(self.environment.compute[setting].__dict__)
 
             _LOGGER.debug("%s: %s", str(setting),
-                               self.looperenv.compute[setting])
-            _LOGGER.debug("Compute: %s", str(self.looperenv.compute))
+                               self.environment.compute[setting])
+            _LOGGER.debug("Compute: %s", str(self.environment.compute))
 
             if not _os.path.isabs(self.compute.submission_template):
-                # Relative to looper environment config file.
+                # Relative to environment config file.
                 self.compute.submission_template = _os.path.join(
-                        _os.path.dirname(self.looperenv_file),
+                        _os.path.dirname(self.environment_file),
                         self.compute.submission_template)
         else:
             _LOGGER.warn("Cannot load compute settings: %s (%s)",
@@ -748,7 +778,7 @@ class Project(AttributeDict):
         for sample in self.sheet.samples:
             # Overwritten later if merged
             sample.merged = False
-            self.add_sample(sample)		# Side-effect: self.samples += [sample]
+            self.add_sample(sample)		# Appends sample to self.samples.
 
         # Merge sample files (!) using merge table if provided:
         if hasattr(self.metadata, "merge_table"):
@@ -757,13 +787,16 @@ class Project(AttributeDict):
                     # read in merge table
                     merge_table = _pd.read_csv(self.metadata.merge_table)
 
-                    if 'sample_name' not in merge_table.columns:
-                        raise KeyError("Merge table requires a column "
-                                       "named 'sample_name'.")
+                    sample_name_colname = "sample_name"
+                    if sample_name_colname not in merge_table.columns:
+                        raise KeyError(
+                                "Merge table requires a column named '{}'.".
+                                format(sample_name_colname))
 
                     for sample in self.sheet.samples:
-                        merge_rows = merge_table[merge_table['sample_name'] ==
-                                                 sample.name]
+                        sample_indexer = \
+                                merge_table[sample_name_colname] == sample.name
+                        merge_rows = merge_table[sample_indexer]
 
                         # Check if there are rows in the
                         # merge table for this sample:
@@ -870,7 +903,7 @@ class SampleSheet(object):
 
     .. code-block:: python
 
-        from looper.models import Project, SampleSheet
+        from models import Project, SampleSheet
         prj = Project("config.yaml")
         sheet = SampleSheet("sheet.csv")
     """
@@ -997,9 +1030,9 @@ class SampleSheet(object):
 
         .. code-block:: python
 
-            from looper.models import SampleSheet
+            from models import SampleSheet
             sheet = SampleSheet("/projects/example/sheet.csv")
-            sheet.to_csv("/projects/example/sheet2.csv")
+            sheet.to_csv("~/projects/example/sheet2.csv")
         """
         df = self.as_data_frame()
         # TODO: decide which--if any--attributes to drop here.
@@ -1016,9 +1049,9 @@ class Sample(object):
 
     .. code-block:: python
 
-        from looper.models import Project, SampleSheet, Sample
+        from models import Project, SampleSheet, Sample
         prj = Project("ngs")
-        sheet = SampleSheet("/projects/example/sheet.csv", prj)
+        sheet = SampleSheet("~/projects/example/sheet.csv", prj)
         s1 = Sample(sheet.ix[0])
     """
 
@@ -1332,17 +1365,21 @@ class Sample(object):
         """
         Creates sample directory structure if it doesn't exist.
         """
-        for path in self.paths.__dict__.values():
+        for path in self.paths:
             if not _os.path.exists(path):
                 _os.makedirs(path)
 
 
     def get_sheet_dict(self):
         """
-        Returns a dict of values but only those that were originally passed in via the sample
-        sheet. This is useful for summarizing; it gives you a representation of the sample that
-        excludes things like config files or other derived entries. Could probably be made
-        more robust but this works for now.
+        Create a K-V pairs for items originally passed in via the sample sheet.
+        
+        This is useful for summarizing; it provides a representation of the 
+        sample that excludes things like config files and derived entries.
+        
+        :return OrderedDict: mapping from name to value for data elements 
+            originally provided via the sample sheet (i.e., the a map-like 
+            representation of the instance, excluding derived items)
         """
         return _OrderedDict([[k, getattr(self, k)]
                              for k in self.sheet_attributes])
@@ -1558,15 +1595,17 @@ class Sample(object):
 
             if getattr(self, feature) is None:
                 _LOGGER.warn("Not all input files agree on "
-                                  "%s for sample '%s'", feature, self.name)
+                             "feature '%s' for sample '%s'",
+                             feature, self.name)
+
 
 
 @copy
 class PipelineInterface(object):
     """
     This class parses, holds, and returns information for a yaml file that
-    specifies tells the looper how to interact with each individual pipeline. This
-    includes both resources to request for cluster job submission, as well as
+    specifies how to interact with each individual pipeline. This includes 
+    both resources to request for cluster job submission, as well as
     arguments to be passed from the sample annotation metadata to the pipeline
     """
 
@@ -1574,38 +1613,45 @@ class PipelineInterface(object):
         import yaml
         _LOGGER.info("Creating %s from file '%s'",
                           self.__class__.__name__, yaml_config_file)
-        self.looper_config_file = yaml_config_file
+        self.pipe_iface_file = yaml_config_file
         with open(yaml_config_file, 'r') as f:
-            self.looper_config = yaml.load(f)
+            self.pipe_iface_config = yaml.load(f)
 
 
     def uses_looper_args(self, pipeline_name):
+        """
+        Determine whether the indicated pipeline uses looper arguments.
+        
+        :param pipeline_name: name of a pipeline of interest
+        :type pipeline_name: str
+        :return: whether the indicated pipeline uses looper arguments
+        :rtype: bool
+        """
         config = self._select_pipeline(pipeline_name)
+        return "looper_args" in config and config["looper_args"]
 
-        if "looper_args" in config and config["looper_args"]:
-            return True
-        else:
-            return False
 
     def get_pipeline_name(self, pipeline_name):
         """
+        Translate a pipeline name (e.g., stripping file extension).
+        
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
+        :return: translated pipeline name, as specified in config or by 
+            stripping the pipeline's file extension
+        :rtype: str: translated name for pipeline
         """
         config = self._select_pipeline(pipeline_name)
+        try:
+            return config["name"]
+        except KeyError:
+            return _os.path.splitext(pipeline_name)[0]
 
-        if "name" not in config:
-            # Discard extensions for the name
-            name = _os.path.splitext(pipeline_name)[0]
-        else:
-            name = config["name"]
-
-        return name
 
     def choose_resource_package(self, pipeline_name, file_size):
         """
-        Given a pipeline name (pipeline_name) and a file size (size), return the
-        resource configuratio specified by the config file.
+        Given a pipeline name (pipeline_name) and a file size (size), 
+        return the resource configuration specified by the config file.
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
@@ -1615,7 +1661,7 @@ class PipelineInterface(object):
         config = self._select_pipeline(pipeline_name)
 
         if "resources" not in config:
-            msg = "No resources found for '" + pipeline_name + "' in '" + self.looper_config_file + "'"
+            msg = "No resources found for '" + pipeline_name + "' in '" + self.pipe_iface_file + "'"
             # Should I just use defaults or force you to define this?
             raise IOError(msg)
 
@@ -1666,7 +1712,7 @@ class PipelineInterface(object):
 
         if "arguments" not in config:
             _LOGGER.info("No arguments found for '%s' in '%s'",
-                              pipeline_name, self.looper_config_file)
+                              pipeline_name, self.pipe_iface_file)
             return argstring
 
         args = config['arguments']
@@ -1723,15 +1769,14 @@ class PipelineInterface(object):
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
         """
-        if pipeline_name not in self.looper_config:
+        if pipeline_name not in self.pipe_iface_config:
             _LOGGER.error(
                 "Missing pipeline description: '%s' not found in '%s'",
-                pipeline_name, self.looper_config_file)
+                pipeline_name, self.pipe_iface_file)
             # Should I just use defaults or force you to define this?
-            raise Exception("You need to teach the looper about that pipeline")
+            raise Exception("You need to teach looper about that pipeline")
 
-        return self.looper_config[pipeline_name]
-
+        return self.pipe_iface_config[pipeline_name]
 
 
 
@@ -1851,10 +1896,10 @@ class ProtocolInterfaces:
         """
         self.pipedir = pipedir
         self.config_path = _os.path.join(pipedir, "config")
-        self.interface_path = _os.path.join(self.config_path,
-                                            "pipeline_interface.yaml")
-        self.protomaps_path = _os.path.join(self.config_path,
-                                            "protocol_mappings.yaml")
+        self.interface_path = _os.path.join(
+                self.config_path, "pipeline_interface.yaml")
+        self.protomaps_path = _os.path.join(
+                self.config_path, "protocol_mappings.yaml")
         self.interface = PipelineInterface(self.interface_path)
         self.protomap = ProtocolMapper(self.protomaps_path)
         self.pipelines_path = _os.path.join(pipedir, "pipelines")
@@ -1953,22 +1998,16 @@ class MetadataOperationException(Exception):
             # Maybe we were given a class or function not an instance?
             classname = obj.__name__
         explanation = "Attempted unsupported operation on {} item '{}'". \
-            format(classname, meta_item)
-        super(MetadataOperationException, self). \
-            __init__(explanation)
+                format(classname, meta_item)
+        super(MetadataOperationException, self).__init__(explanation)
 
 
 
-class CommandChecker(object):
-    """
-    This class checks if programs specified in a
-    pipeline config file (under "tools") exist and are callable.
-    """
-    def __init__(self, config):
-        import yaml
-
-        self.config = yaml.load(open(config, 'r'))
-
-        # Check if ALL returned elements are True
-        if not all(map(self.check_command, self.config["tools"].items())):
-            raise BaseException("Config file contains non-callable tools.")
+class MissingMetadataException(Exception):
+    """ Project needs certain metadata. """
+    def __init__(self, missing_section, path_config_file=None):
+        reason = "Project configuration lacks required metadata section {}".\
+                format(missing_section)
+        if path_config_file:
+            reason += "; used config file '{}'".format(path_config_file)
+        super(MissingMetadataException, self).__init__(reason)

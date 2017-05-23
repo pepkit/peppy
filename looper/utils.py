@@ -116,19 +116,20 @@ class CommandChecker(object):
     # pointed to in relevant section of project config file:
     # http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config
 
-    def __init__(self, path_conf_file, include=None, exclude=None):
+    def __init__(self, path_conf_file,
+                 sections_to_check=None, sections_to_skip=None):
         """
         The path to the configuration file, and perhaps names of
         validation inclusion and exclusion sections define the instance.
 
         :param str path_conf_file: path to configuration file with
             sections detailing executable tools to validate
-        :param collections.abc.Iterable(str) include: names of sections
-            of the given configuration file that are relevant; optional, will
-            default to all sections if not given, but some may be excluded
-            via another optional parameter
-        :param collections.abc.Iterable(str) exclude: analogous to the
-            inclusion parameter, but for specific sections to exclude.
+        :param collections.abc.Iterable(str) sections_to_check: names of 
+            sections of the given configuration file that are relevant; 
+            optional, will default to all sections if not given, but some 
+            may be excluded via another optional parameter
+        :param collections.abc.Iterable(str) sections_to_skip: analogous to 
+            the check names parameter, but for specific sections to skip.
         """
 
         super(CommandChecker, self).__init__()
@@ -140,12 +141,13 @@ class CommandChecker(object):
         # TODO: could also derive parsing behavior from extension.
         self.path = path_conf_file
         with open(self.path, 'r') as conf_file:
-            data = yaml.safe_load(conf_file)
+            conf_data = yaml.safe_load(conf_file)
 
         # Determine which sections to validate.
-        sections = {include} if isinstance(include, str) else \
-                   set(include or data.keys())
-        excl = {exclude} if isinstance(exclude, str) else set(exclude or [])
+        sections = {sections_to_check} if isinstance(sections_to_check, str) \
+                else set(sections_to_check or conf_data.keys())
+        excl = {sections_to_skip} if isinstance(sections_to_skip, str) \
+                else set(sections_to_skip or [])
         sections -= excl
 
         self._logger.info("Validating %d sections: %s",
@@ -161,7 +163,7 @@ class CommandChecker(object):
         for s in sections:
             # Fetch section data or skip.
             try:
-                section_data = data[s]
+                section_data = conf_data[s]
             except KeyError:
                 _LOGGER.info("No section '%s' in file '%s', skipping",
                              s, self.path)
@@ -179,7 +181,7 @@ class CommandChecker(object):
                                        "FAILURE" if failed else "SUCCESS")
             except AttributeError:
                 self._logger.debug("Processing section '%s' data as list", s)
-                commands_iter = data[s]
+                commands_iter = conf_data[s]
                 for cmd_item in commands_iter:
                     # Item is K-V pair?
                     try:

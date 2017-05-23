@@ -1,5 +1,7 @@
 """ Looper versions of NGS project models. """
 
+import os
+from pkg_resources import resource_filename
 import models
 
 
@@ -7,9 +9,32 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
+DEFAULT_PROJECT_COMPUTE_NAME = "default_looperenv.yaml"
+DEFAULT_PROJECT_COMPUTE_CONFIG = os.path.join(
+        "submit_templates", DEFAULT_PROJECT_COMPUTE_NAME)
+
 
 class Project(models.Project):
     """ Looper-specific NGS Project. """
+
+
+    def __init__(
+            self, config_file,
+            default_compute= resource_filename("looper",
+                                               DEFAULT_PROJECT_COMPUTE_CONFIG),
+            *args, **kwargs):
+        """
+        Create a new Project.
+        
+        :param str config_file: path to configuration file with data from 
+            which Project is to be built
+        :param str default_compute: path to default compute environment 
+            configuration data
+        :param tuple args: additional positional arguments
+        :param dict kwargs: additional keyword arguments
+        """
+        super(Project, self).__init__(
+                config_file, default_compute, *args, **kwargs)
 
 
     @property

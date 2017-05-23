@@ -22,8 +22,7 @@ def minimal_project_conf_path(tmpdir):
     anns_file = tmpdir.join(ANNOTATIONS_FILENAME)
     anns_file.write("\n".join(MINIMAL_SAMPLE_ANNS_LINES))
     conf_file = tmpdir.join(CONFIG_FILENAME)
-    conflines = "metadata:\n  sample_annotation: {}".format(anns_file.strpath)
-    conf_file.write(conflines)
+    config_lines = \
+            "metadata:\n  sample_annotation: {}".format(anns_file.strpath)
+    conf_file.write(config_lines)
     return conf_file.strpath
-
-
