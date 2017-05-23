@@ -17,11 +17,14 @@ DEFAULT_PROJECT_COMPUTE_CONFIG = os.path.join(
 class Project(models.Project):
     """ Looper-specific NGS Project. """
 
+    DEFAULT_ENVIRONMENT = resource_filename(
+            "looper", DEFAULT_PROJECT_COMPUTE_CONFIG)
+
 
     def __init__(
             self, config_file,
-            default_compute= resource_filename("looper",
-                                               DEFAULT_PROJECT_COMPUTE_CONFIG),
+            default_compute= resource_filename(
+                    "looper", DEFAULT_PROJECT_COMPUTE_CONFIG),
             *args, **kwargs):
         """
         Create a new Project.

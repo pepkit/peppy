@@ -190,7 +190,7 @@ def test_exception_type_matches_access_mode(data_type, accessor):
 @pytest.mark.parametrize(
         argnames="preexists", argvalues=[False, True],
         ids=lambda exists: "preexists={}".format(exists))
-def test_make_sample_dirs(self, paths, preexists, tmpdir):
+def test_make_sample_dirs(paths, preexists, tmpdir):
 
     # Derive full paths and assure nonexistence before creation.
     fullpaths = []

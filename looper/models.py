@@ -102,12 +102,21 @@ def is_url(maybe_url):
 
 @copy
 class Paths(object):
-    """
-    A class to hold paths as attributes.
-    """
+    """ A class to hold paths as attributes. """
 
     def __str__(self):
         return "Paths object."
+
+    def __iter__(self):
+        """
+        Iteration is over the paths themselves.
+        
+        Note that this implementation constrains the assignments to be 
+        non-nested. That is, the value for any attribute attached to the 
+        instance should be a path.
+        
+        """
+        return self.__dict__.values()
 
     def __getitem__(self, key):
         """
@@ -120,10 +129,10 @@ class Paths(object):
 @copy
 class AttributeDict(MutableMapping):
     """
-    A class to convert a nested Dictionary into an object with key-values
-    accessibly using attribute notation (AttributeDict.attribute) instead of
-    key notation (Dict["key"]). This class recursively sets Dicts to objects,
-    allowing you to recurse down nested dicts (like: AttributeDict.attr.attr)
+    A class to convert a nested mapping(s) into an object(s) with key-values
+    using object syntax (attr_dict.attribute) instead of getitem syntax 
+    (attr_dict["key"]). This class recursively sets mappings to objects, 
+    facilitating attribute traversal (e.g., attr_dict.attr.attr).
     """
 
     def __init__(self, entries=None,
@@ -531,7 +540,7 @@ class Project(AttributeDict):
                 "Paths section in project config is deprecated. "
                 "Please move all paths attributes to metadata section. "
                 "This option will be removed in future versions.")
-            self.metadata.add_entries(self.paths.items())
+            self.metadata.add_entries(self.paths)
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
 
