@@ -354,12 +354,15 @@ def pipe_iface_config_file(request):
         this fixture
     :return str: path to the temporary file with configuration data
     """
+
+    # Write the config file and attach path as attribute on request's class.
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(
             PIPELINE_INTERFACE_CONFIG_LINES,
-            dirpath=dirpath, fname="pipeline_interface.yaml"
-    )
+            dirpath=dirpath, fname="pipeline_interface.yaml")
     request.cls.pipe_iface_config_file = path_conf_file
+
+    # Alternative mechanism to request.addfinalizer for tearDown behavior.
     yield path_conf_file
     shutil.rmtree(dirpath)
 

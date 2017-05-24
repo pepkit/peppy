@@ -67,9 +67,11 @@ import pandas as _pd
 import yaml as _yaml
 
 from .utils import \
-    bam_or_fastq, check_bam, check_fastq, get_file_size, partition
+    parse_ftype, check_bam, check_fastq, get_file_size, partition
 
 
+DATA_SOURCE_COLNAME = "data_source"
+SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
 COL_KEY_SUFFIX = "_key"
@@ -307,6 +309,9 @@ class Project(AttributeDict):
         prj = Project("config.yaml")
     """
 
+    DERIVED_COLUMNS_DEFAULT = [DATA_SOURCE_COLNAME]
+
+
     def __init__(self, config_file, default_compute, 
                  subproject=None, dry=False, permissive=True, 
                  file_checks=False, compute_env_file=None):
@@ -367,7 +372,8 @@ class Project(AttributeDict):
             self.make_project_dirs()
 
         # Sheet will be set to non-null value by call to add_sample_sheet().
-        # That call also sets the samples (list) attribute for the instance.
+        # That call also sets the samples (list) attribute for the instance
+        # and adds default derived columns.
         self.sheet = None
         self.samples = list()
         self.add_sample_sheet()
@@ -772,6 +778,14 @@ class Project(AttributeDict):
 
         _LOGGER.debug("Adding sample sheet")
 
+        try:
+            # Do not duplicate derived column names.
+            self.derived_columns.extend(
+                    [colname for colname in self.DERIVED_COLUMNS_DEFAULT
+                     if colname not in self.derived_columns])
+        except AttributeError:
+            self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
+
         # Make SampleSheet object
         # By default read sample_annotation, but allow explict CSV arg.
         self.sheet = SampleSheet(csv or self.metadata.sample_annotation)
@@ -796,36 +810,36 @@ class Project(AttributeDict):
                     # read in merge table
                     merge_table = _pd.read_csv(self.metadata.merge_table)
 
-                    sample_name_colname = "sample_name"
-                    if sample_name_colname not in merge_table.columns:
+                    if SAMPLE_NAME_COLNAME not in merge_table.columns:
                         raise KeyError(
                                 "Merge table requires a column named '{}'.".
-                                format(sample_name_colname))
+                                format(SAMPLE_NAME_COLNAME))
 
                     for sample in self.sheet.samples:
                         sample_indexer = \
-                                merge_table[sample_name_colname] == sample.name
+                                merge_table[SAMPLE_NAME_COLNAME] == sample.name
                         merge_rows = merge_table[sample_indexer]
 
                         # Check if there are rows in the
                         # merge table for this sample:
                         if len(merge_rows) > 0:
-                            # for each row in the merge table of this sample:
+                            # For each row in the merge table of this sample:
                             # 1) populate any derived columns
-                            # 2) merge derived columns into space-delimited strings
+                            # 2) derived columns --> space-delimited strings
                             # 3) update the sample values with the merge table
 
                             # Keep track of merged cols,
                             # so we don't re-derive them later.
-                            merged_cols = {key: "" for key in merge_rows.columns}
+                            merged_cols = {
+                                    key: "" for key in merge_rows.columns}
                             for row in merge_rows.index:
                                 _LOGGER.debug(
                                     "New row: {}, {}".format(row, merge_rows))
                                 # Update with derived columns
                                 row_dict = merge_rows.ix[row].to_dict()
                                 for col in merge_rows.columns:
-                                    if col == "sample_name" or col not in \
-                                            self["derived_columns"]:
+                                    if col == SAMPLE_NAME_COLNAME or \
+                                            col not in self.derived_columns:
                                         continue
                                     # Initialize key in parent dict.
                                     col_key = col + COL_KEY_SUFFIX
@@ -835,9 +849,9 @@ class Project(AttributeDict):
                                         col, row_dict[col], row_dict)  # 1)
 
                                 # Also add in any derived cols present.
-                                for col in self["derived_columns"]:
+                                for col in self.derived_columns:
                                     if not hasattr(sample, col) or \
-                                                    col in row_dict:
+                                            col in row_dict:
                                         # Unproblematic
                                         continue
                                     _LOGGER.debug(
@@ -853,23 +867,28 @@ class Project(AttributeDict):
                                         str(col), str(row_dict[col]),
                                         str(getattr(sample, col)))
 
-                                # Since we are now jamming multiple (merged) entries into a single attribute,
-                                # we have to join them into a space-delimited string, and then set to sample attribute
+                                # Since we are now jamming multiple (merged)
+                                # entries into a single attribute, we have to
+                                # join them into a space-delimited string
+                                # and then set to sample attribute.
                                 for key, val in row_dict.items():
-                                    if key == "sample_name":
+                                    if key == SAMPLE_NAME_COLNAME or not val:
                                         continue
-                                    if val:  # this purges out any None entries
-                                        _LOGGER.debug("merge: sample '%s'; %s=%s",
-                                                           str(sample.name), str(key), str(val))
-                                        if not key in merged_cols:
-                                            merged_cols[key] = str(val).rstrip()
-                                        else:
-                                            merged_cols[key] = " ".join([merged_cols[key],
-                                                                         str(val)]).strip()  # 2)
+                                    _LOGGER.debug("merge: sample '%s'; %s=%s",
+                                                  str(sample.name), 
+                                                  str(key), str(val))
+                                    if not key in merged_cols:
+                                        new_val = str(val).rstrip()
+                                    else:
+                                        new_val = "{} {}".format(
+                                            merged_cols[key], str(val)).strip()
+                                    merged_cols[key] = new_val    # 2)
 
-                            merged_cols.pop('sample_name', None)  # Don't update sample_name.
-                            sample.update(merged_cols)  # 3)
-                            sample.merged = True  # mark sample as merged
+                            # Don't update sample_name.
+                            merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+
+                            sample.update(merged_cols)    # 3)
+                            sample.merged = True    # mark sample as merged
                             sample.merged_cols = merged_cols
 
         # With all samples, prepare file paths.
@@ -879,8 +898,11 @@ class Project(AttributeDict):
             sample.set_file_paths()
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
-            if hasattr(sample, "data_source"):
+            try:
                 sample.data_path = sample.data_source
+            except AttributeError:
+                _LOGGER.debug("Sample '%s' lacks data source --> skipping "
+                              "data path assignment", sample.sample_name)
 
 
     def add_sample(self, sample):
@@ -942,7 +964,7 @@ class SampleSheet(object):
         :raises ValueError: if required column(s) is/are missing.
         """
         df = _pd.read_csv(csv, dtype=dtype)
-        req = ["sample_name"]
+        req = [SAMPLE_NAME_COLNAME]
         missing = set(req) - set(df.columns)
         if len(missing) != 0:
             raise ValueError(
@@ -1145,7 +1167,7 @@ class Sample(object):
         It requires the field `sample_name` is existent and non-empty.
         """
         lacking = defaultdict(list)
-        for attr in required or ["sample_name"]:
+        for attr in required or [SAMPLE_NAME_COLNAME]:
             if not hasattr(self, attr):
                 lacking["missing"].append(attr)
             if attr == "nan":
@@ -1210,7 +1232,7 @@ class Sample(object):
         with open(yaml_file, 'w') as outfile:
             outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
-    def locate_data_source(self, column_name="data_source",
+    def locate_data_source(self, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
         """
         Uses the template path provided in the project config section 
@@ -1295,8 +1317,8 @@ class Sample(object):
         """
         Sets the paths of all files for this sample.
         """
-        # Any columns specified as "derived" will be constructed based on regex
-        # in the "data_sources" section of project config
+        # Any columns specified as "derived" will be constructed
+        # based on regex in the "data_sources" section of project config.
 
         if hasattr(self.prj, "derived_columns"):
             for col in self.prj["derived_columns"]:
@@ -1395,16 +1417,23 @@ class Sample(object):
                              for k in self.sheet_attributes])
 
 
-    def set_pipeline_attributes(self, pipeline_interface, pipeline_name):
+    def set_pipeline_attributes(
+            self, pipeline_interface, pipeline_name, permissive=True):
         """
+        Set pipeline-specific sample attributes.
+        
         Some sample attributes are relative to a particular pipeline run,
         like which files should be considered inputs, what is the total
         input file size for the sample, etc. This function sets these
         pipeline-specific sample attributes, provided via a PipelineInterface
         object and the name of a pipeline to select from that interface.
+        
         :param PipelineInterface pipeline_interface: A PipelineInterface
             object that has the settings for this given pipeline.
         :param str pipeline_name: Which pipeline to choose.
+        :param bool permissive: whether to simply log a warning or error 
+            message rather than raising an exception if sample file is not 
+            found or otherwise cannot be read, default True
         """
 
         _LOGGER.debug("Setting pipeline attributes for: '%s'",
@@ -1424,7 +1453,7 @@ class Sample(object):
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
-            self.set_read_type()
+            self.set_read_type(permissive=permissive)
 
         # input_size
         if not self.all_inputs_attr:
@@ -1498,10 +1527,11 @@ class Sample(object):
 
         attribute_list = getattr(self, attrlist)
 
-        if not attribute_list:  # It can be none; if attribute is None, then value is also none
+        # If attribute is None, then value is also None.
+        if not attribute_list:
             return None
 
-        if type(attribute_list) is not list:
+        if not isinstance(attribute_list, list):
             attribute_list = [attribute_list]
 
         # Strings contained here are appended later so shouldn't be null.
@@ -1509,19 +1539,20 @@ class Sample(object):
                 for attr in attribute_list]
 
 
-
-    def set_read_type(self, n = 10, permissive=True):
+    def set_read_type(self, n=10, permissive=True):
         """
-        For a sample with attr `ngs_inputs` set, This sets the read type (single, paired)
-        and read length of an input file.
+        For a sample with attr `ngs_inputs` set, this sets the 
+        read type (single, paired) and read length of an input file.
 
         :param n: Number of reads to read to determine read type. Default=10.
         :type n: int
-        :param permissive: Should throw error if sample file is not found/readable?.
+        :param permissive: whether to simply log a warning or error message 
+            rather than raising an exception if sample file is not found or 
+            otherwise cannot be read, default True
         :type permissive: bool
         """
-        # Initialize the parameters in case there is no input_file,
-        # so these attributes at least exist - as long as they are not already set!
+        # Initialize the parameters in case there is no input_file, so these
+        # attributes at least exist - as long as they are not already set!
         if not hasattr(self, "read_length"):
             self.read_length = None
         if not hasattr(self, "read_type"):
@@ -1543,39 +1574,34 @@ class Sample(object):
             else:
                 existing_files.append(path)
 
-        # for samples with multiple original bams, check all
+        # For samples with multiple original BAM files, check all.
         files = list()
+        check_by_ftype = {"bam": check_bam, "fastq": check_fastq}
         for input_file in existing_files:
             try:
-                # Guess the file type, parse accordingly
-                file_type = bam_or_fastq(input_file)
-                if file_type == "bam":
-                    read_length, paired = check_bam(input_file, n)
-                elif file_type == "fastq":
-                    read_length, paired = check_fastq(input_file, n)
-                else:
-                    message = "Type of input file should be '.bam' or '.fastq'"
-                    if not permissive:
-                        raise TypeError(message)
-                    else:
-                        _LOGGER.error(message)
-                    return
+                file_type = parse_ftype(input_file)
+                read_length, paired = check_by_ftype[file_type](input_file, n)
+            except (KeyError, TypeError):
+                message = "Input file type should be one of: {}".format(
+                        check_by_ftype.keys())
+                if not permissive:
+                    raise TypeError(message)
+                _LOGGER.error(message)
+                return
             except NotImplementedError as e:
                 if not permissive:
                     raise
-                else:
-                    _LOGGER.warn(e.message)
-                    return
+                _LOGGER.warn(e.message)
+                return
             except IOError:
                 if not permissive:
                     raise
-                else:
-                    _LOGGER.error("Input file does not exist or "
-                                       "cannot be read: %s", str(input_file))
-                    for feat_name in self._FEATURE_ATTR_NAMES:
-                        if not hasattr(self, feat_name):
-                            setattr(self, feat_name, None)
-                    return
+                _LOGGER.error("Input file does not exist or "
+                              "cannot be read: %s", str(input_file))
+                for feat_name in self._FEATURE_ATTR_NAMES:
+                    if not hasattr(self, feat_name):
+                        setattr(self, feat_name, None)
+                return
             except OSError as e:
                 _LOGGER.error(str(e) + " [file: {}]".format(input_file))
                 for feat_name in self._FEATURE_ATTR_NAMES:

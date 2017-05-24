@@ -69,15 +69,3 @@ class Project(models.Project):
         proj_root_path, _ = os.path.split(metadata_folder_path)
         _, proj_root_name = os.path.split(proj_root_path)
         return proj_root_name
-
-
-    def add_sample_sheet(self, csv=None):
-        """ Unlike general NGS project, require data source for looper. """
-        # Derived columns: by default, use data_source
-        if hasattr(self, "derived_columns"):
-            # Do not duplicate!
-            if "data_source" not in self.derived_columns:
-                self.derived_columns.append("data_source")
-        else:
-            self.derived_columns = ["data_source"]
-        super(Project, self).add_sample_sheet(csv)

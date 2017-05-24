@@ -250,14 +250,13 @@ def is_command_callable(command, name=""):
 
 
 
-def bam_or_fastq(input_file):
+def parse_ftype(input_file):
     """
-    Checks if string endswith `bam` or `fastq`.
+    Checks determine filetype from extension.
 
     :param str input_file: String to check.
     :return str: filetype (extension without dot prefix)
-    :raises TypeError: if file does not appear of a supported type,
-        based on extension
+    :raises TypeError: if file does not appear of a supported type
     """
     if input_file.endswith(".bam"):
         return "bam"
