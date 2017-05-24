@@ -5,6 +5,7 @@ The primary function under test here is the creation of a project instance.
 
 """
 
+from functools import partial
 import logging
 import os
 
@@ -166,13 +167,19 @@ class SampleWrtProjectCtorTests:
             self, proj, pipe_iface, sample_index, permissive, tmpdir):
         """ An NGS-dependent pipeline with non-NGS sample(s) is dubious. """
 
+        # Based on the test case's parameterization,
+        # get the sample and create the function call to test.
         sample = proj.samples[sample_index]
+        kwargs = {"pipeline_interface": pipe_iface,
+                  "pipeline_name": "testngs.sh",
+                  "permissive": permissive}
+        test_call = partial(sample.set_pipeline_attributes, **kwargs)
 
         # Permissiveness parameter determines whether
         # there's an exception or just an error message.
         if not permissive:
             with pytest.raises(TypeError):
-                sample.set_pipeline_attributes(pipe_iface, "testngs.sh")
+                test_call()
         else:
             # Log to a file just for this test.
 
@@ -190,8 +197,7 @@ class SampleWrtProjectCtorTests:
             looper.models._LOGGER.addHandler(capture_handler)
 
             # Execute the actual call under test.
-            sample.set_pipeline_attributes(
-                    pipe_iface, "testngs.sh", permissive=permissive)
+            test_call()
 
             # Read the captured, logged lines and make content assertion(s).
             with open(logfile, 'r') as captured:
