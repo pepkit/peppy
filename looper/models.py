@@ -1647,19 +1647,23 @@ class Sample(object):
 class PipelineInterface(object):
     """
     This class parses, holds, and returns information for a yaml file that
-    specifies how to interact with each individual pipeline. This includes 
-    both resources to request for cluster job submission, as well as
+    specifies how to interact with each individual pipeline. This
+    includes both resources to request for cluster job submission, as well as
     arguments to be passed from the sample annotation metadata to the pipeline
     """
 
-    def __init__(self, yaml_config_file):
-        import yaml
-        _LOGGER.info("Creating %s from file '%s'",
-                          self.__class__.__name__, yaml_config_file)
-        self.pipe_iface_file = yaml_config_file
-        with open(yaml_config_file, 'r') as f:
-            self.pipe_iface_config = yaml.load(f)
-
+    def __init__(self, yaml_config_input, yaml_input=False):
+        if not yaml_input:
+            import yaml
+            _LOGGER.info("Creating %s from file '%s'",
+                              self.__class__.__name__, yaml_config_input)
+            self.looper_config_file = yaml_config_input
+            with open(yaml_config_input, 'r') as f:
+                self.looper_config = yaml.load(f)
+        else:
+            # input already parsed, just populate
+            self.looper_config_file = None
+            self.looper_config = yaml_config_input
 
     def uses_looper_args(self, pipeline_name):
         """
@@ -1937,16 +1941,37 @@ class ProtocolInterfaces:
             pipeline interface, and protocol mapping information,
             nested within subfolders as required
         """
-        self.pipedir = pipedir
-        self.config_path = _os.path.join(pipedir, "config")
-        self.interface_path = _os.path.join(
-                self.config_path, "pipeline_interface.yaml")
-        self.protomaps_path = _os.path.join(
-                self.config_path, "protocol_mappings.yaml")
-        self.interface = PipelineInterface(self.interface_path)
-        self.protomap = ProtocolMapper(self.protomaps_path)
-        self.pipelines_path = _os.path.join(pipedir, "pipelines")
 
+        if _os.path.isdir(pipedir):
+            self.pipedir = pipedir
+            self.config_path = _os.path.join(pipedir, "config")
+            self.interface_path = _os.path.join(self.config_path,
+                                                "pipeline_interface.yaml")
+            self.protomaps_path = _os.path.join(self.config_path,
+                                                "protocol_mappings.yaml")
+            self.interface = PipelineInterface(self.interface_path)
+            self.protomap = ProtocolMapper(self.protomaps_path)
+            self.pipelines_path = _os.path.join(pipedir, "pipelines")
+        elif _os.path.isfile(pipedir):
+            # Secondary version that passes combined yaml file directly,
+            # instead of relying on separate hard-coded config names as above
+            self.pipedir = None
+            import yaml
+            self.interface_file = pipedir
+
+            self.pipelines_path = _os.path.dirname(pipedir)
+
+            with open(self.interface_file, 'r') as interface_file:
+                iface = yaml.load(interface_file)
+            try:
+                if "protocol_mapping" in iface:
+                    self.protomap = ProtocolMapper(iface['protocol_mapping'], yaml_input=True)
+                    self.interface = PipelineInterface(iface['pipeline_interface'], yaml_input=True)
+                else:
+                    raise Exception("Missing protocol_mapping.")
+            except Exception as e:
+                _LOGGER.info(iface)
+                raise e
 
     @property
     def protocols(self):
@@ -1968,13 +1993,20 @@ class ProtocolMapper(object):
     WGBS is mapped to wgbs.py
     """
 
-    def __init__(self, mappings_file):
-        import yaml
-        # mapping libraries to pipelines
-        self.mappings_file = mappings_file
-        with open(mappings_file, 'r') as mapfile:
-            mappings = yaml.load(mapfile)
-        self.mappings = {k.upper(): v for k, v in mappings.items()}
+    def __init__(self, mappings_input, yaml_input=False):
+        if not yaml_input:
+            import yaml
+            # mapping libraries to pipelines
+            # input was a file, parse then populate
+            self.mappings_file = mappings_input
+            with open(self.mappings_file, 'r') as mapfile:
+                mappings = yaml.load(mapfile)
+            self.mappings = {k.upper(): v for k, v in mappings.items()}
+        else:
+            # input was already parsed, just populate
+            self.mappings_file = None
+            self.mappings = {k.upper(): v for k, v in mappings_input.items()}
+
 
 
     # TODO: remove once comfortable that the aggregate InterfaceManager version is stable.
