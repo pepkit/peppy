@@ -371,6 +371,15 @@ class Project(AttributeDict):
             _LOGGER.debug("Ensuring project directories exist")
             self.make_project_dirs()
 
+        # Establish derived columns.
+        try:
+            # Do not duplicate derived column names.
+            self.derived_columns.extend(
+                    [colname for colname in self.DERIVED_COLUMNS_DEFAULT
+                     if colname not in self.derived_columns])
+        except AttributeError:
+            self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
+
         # Sheet will be set to non-null value by call to add_sample_sheet().
         # That call also sets the samples (list) attribute for the instance
         # and adds default derived columns.
@@ -777,14 +786,6 @@ class Project(AttributeDict):
         """
 
         _LOGGER.debug("Adding sample sheet")
-
-        try:
-            # Do not duplicate derived column names.
-            self.derived_columns.extend(
-                    [colname for colname in self.DERIVED_COLUMNS_DEFAULT
-                     if colname not in self.derived_columns])
-        except AttributeError:
-            self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
 
         # Make SampleSheet object
         # By default read sample_annotation, but allow explict CSV arg.
@@ -1320,17 +1321,16 @@ class Sample(object):
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
 
-        if hasattr(self.prj, "derived_columns"):
-            for col in self.prj["derived_columns"]:
-                # Only proceed if the specified column exists
-                # and was not already merged or derived.
-                if hasattr(self, col) and col not in self.merged_cols \
-                        and col not in self.derived_cols_done:
-                    # Set a variable called {col}_key, so the
-                    # original source can also be retrieved.
-                    setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
-                    setattr(self, col, self.locate_data_source(col))
-                    self.derived_cols_done.append(col)
+        for col in self.prj.derived_columns:
+            # Only proceed if the specified column exists
+            # and was not already merged or derived.
+            if hasattr(self, col) and col not in self.merged_cols \
+                    and col not in self.derived_cols_done:
+                # Set a variable called {col}_key, so the
+                # original source can also be retrieved.
+                setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
+                setattr(self, col, self.locate_data_source(col))
+                self.derived_cols_done.append(col)
 
         self.infer_columns()
 
