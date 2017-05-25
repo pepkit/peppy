@@ -2001,12 +2001,12 @@ class ProtocolMapper(object):
             self.mappings_file = mappings_input
             with open(self.mappings_file, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
-            self.mappings = {k.upper(): v for k, v in mappings.items()}
         else:
             # input was already parsed, just populate
             self.mappings_file = None
-            self.mappings = {k.upper(): v for k, v in mappings_input.items()}
+            mappings = mappings_input
 
+        self.mappings = {k.upper(): v for k, v in mappings.items()}
 
 
     # TODO: remove once comfortable that the aggregate InterfaceManager version is stable.
