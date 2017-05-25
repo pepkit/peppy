@@ -24,7 +24,7 @@ Now you can run this project with looper! Just use ``looper run``:
 
 .. code:: bash
 
-	looper run microtest/config/microtest_config.yaml
+	looper run microtest/config/microtest_config.tutorial.yaml
 
 
 .. HINT::

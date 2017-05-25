@@ -18,7 +18,8 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 
 from looper import setup_looper_logger
-from looper.models import PipelineInterface, Project
+from looper.models import PipelineInterface
+from looper.loodels import Project
 
 
 # TODO: needed for interactive mode, but may crush cmdl option for setup.
@@ -249,6 +250,7 @@ class _DataSourceFormatMapping(dict):
         return "{" + derived_column + "}"
 
 
+
 def _write_temp(lines, dirpath, fname):
     """
     Note that delete flag is a required argument since it's potentially
@@ -283,6 +285,7 @@ def _write_temp(lines, dirpath, fname):
         return tmpf.name
 
 
+
 @pytest.fixture(scope="class")
 def write_project_files(request):
     """
@@ -311,7 +314,8 @@ def write_project_files(request):
     shutil.rmtree(dirpath)
 
 
-# Placed here for data/use locality.
+
+# Placed here (rather than near top of file) for data/use locality.
 _TEST_DATA_FOLDER = "data"
 _BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
                              _TEST_DATA_FOLDER, "d-bamfile.bam")
@@ -319,6 +323,7 @@ _TEST_DATA_FILE_BASENAMES = ["a", "b1", "b2", "b3", "c", "d"]
 _TEST_DATA = {"{}.txt".format(name):
               "This is the content of test file {}.".format(name)
               for name in _TEST_DATA_FILE_BASENAMES}
+
 
 
 def _write_test_data_files(tempdir):
@@ -339,6 +344,7 @@ def _write_test_data_files(tempdir):
             testfile.write(data)
 
 
+
 @pytest.fixture(scope="class")
 def pipe_iface_config_file(request):
     """
@@ -348,19 +354,24 @@ def pipe_iface_config_file(request):
         this fixture
     :return str: path to the temporary file with configuration data
     """
+
+    # Write the config file and attach path as attribute on request's class.
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(
             PIPELINE_INTERFACE_CONFIG_LINES,
-            dirpath=dirpath, fname="pipeline_interface.yaml"
-    )
+            dirpath=dirpath, fname="pipeline_interface.yaml")
     request.cls.pipe_iface_config_file = path_conf_file
+
+    # Alternative mechanism to request.addfinalizer for tearDown behavior.
     yield path_conf_file
     shutil.rmtree(dirpath)
+
 
 
 def _req_cls_att(req, attr):
     """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
+
 
 
 def _create(request, wanted):
@@ -382,8 +393,9 @@ def _create(request, wanted):
         raise
 
 
+
 @pytest.fixture(scope="function")
-def proj(request):
+def proj(request, ):
     """
     Create `looper` `Project` instance using data from file
     pointed to by class of `request`.
@@ -394,6 +406,7 @@ def proj(request):
         data in file pointed to by `request` class
     """
     return _create(request, Project)
+
 
 
 @pytest.fixture(scope="function")
@@ -412,11 +425,14 @@ def pipe_iface(request):
 
 
 def basic_entries():
+    """ AttributeDict data that lack nested strcuture. """
     for k, v in zip(_BASE_KEYS, _BASE_VALUES):
         yield k, v
 
 
+
 def nested_entries():
+    """ AttributeDict data with some nesting going on. """
     for k, v in _SEASON_HIERARCHY.items():
         yield k, v
 

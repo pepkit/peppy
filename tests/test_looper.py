@@ -5,6 +5,7 @@ The primary function under test here is the creation of a project instance.
 
 """
 
+from functools import partial
 import logging
 import os
 
@@ -12,6 +13,7 @@ import numpy.random as nprand
 import pytest
 import yaml
 
+import looper.models
 from looper.models import AttributeDict, ATTRDICT_METADATA, COL_KEY_SUFFIX
 
 from .conftest import \
@@ -72,7 +74,7 @@ class ProjectConstructorTest:
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=MERGED_SAMPLE_INDICES)
     def test_derived_columns_merge_table_sample(self, proj, sample_index):
-        # Make sure derived columns works on merged table.
+        """ Make sure derived columns works on merged table. """
         observed_merged_sample_filepaths = \
             [os.path.basename(f) for f in
              proj.samples[sample_index].file2.split(" ")]
@@ -125,6 +127,7 @@ class SampleWrtProjectCtorTests:
             argvalues=(set(range(NUM_SAMPLES)) - NGS_SAMPLE_INDICES)
     )
     def test_required_inputs(self, proj, pipe_iface, sample_index):
+        """ A looper Sample's required inputs are based on pipeline. """
         # Note that this is testing only the non-NGS samples for req's inputs.
         expected_required_inputs = \
             PIPELINE_TO_REQD_INFILES_BY_SAMPLE["testpipeline.sh"][sample_index]
@@ -139,6 +142,7 @@ class SampleWrtProjectCtorTests:
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=NGS_SAMPLE_INDICES)
     def test_ngs_pipe_ngs_sample(self, proj, pipe_iface, sample_index):
+        """ NGS pipeline with NGS input works just fine. """
         sample = proj.samples[sample_index]
         sample.set_pipeline_attributes(pipe_iface, "testngs.sh")
         expected_required_input_basename = \
@@ -153,18 +157,64 @@ class SampleWrtProjectCtorTests:
                observed_required_input_basename
 
 
-    @pytest.mark.parametrize(argnames="sample_index",
-                             argvalues=set(range(NUM_SAMPLES)) -
-                                       NGS_SAMPLE_INDICES)
-    def test_ngs_pipe_non_ngs_sample(self, proj, pipe_iface, sample_index):
-            sample = proj.samples[sample_index]
+    @pytest.mark.parametrize(
+            argnames="sample_index",
+            argvalues=set(range(NUM_SAMPLES)) - NGS_SAMPLE_INDICES)
+    @pytest.mark.parametrize(
+            argnames="permissive", argvalues=[False, True],
+            ids=lambda permissive: "permissive={}".format(permissive))
+    def test_ngs_pipe_non_ngs_sample(
+            self, proj, pipe_iface, sample_index, permissive, tmpdir):
+        """ An NGS-dependent pipeline with non-NGS sample(s) is dubious. """
+
+        # Based on the test case's parameterization,
+        # get the sample and create the function call to test.
+        sample = proj.samples[sample_index]
+        kwargs = {"pipeline_interface": pipe_iface,
+                  "pipeline_name": "testngs.sh",
+                  "permissive": permissive}
+        test_call = partial(sample.set_pipeline_attributes, **kwargs)
+
+        # Permissiveness parameter determines whether
+        # there's an exception or just an error message.
+        if not permissive:
             with pytest.raises(TypeError):
-                sample.set_pipeline_attributes(pipe_iface, "testngs.sh")
+                test_call()
+        else:
+            # Log to a file just for this test.
+
+            # Get a logging handlers snapshot so that we can ensure that
+            # we've successfully reset logging state upon test conclusion.
+            import copy
+            pre_test_handlers = copy.copy(looper.models._LOGGER.handlers)
+
+            # Control the format to enable assertions about message content.
+            logfile = tmpdir.join("captured.log").strpath
+            capture_handler = logging.FileHandler(logfile, mode='w')
+            logmsg_format = "{%(name)s} %(module)s:%(lineno)d [%(levelname)s] > %(message)s "
+            capture_handler.setFormatter(logging.Formatter(logmsg_format))
+            capture_handler.setLevel(logging.ERROR)
+            looper.models._LOGGER.addHandler(capture_handler)
+
+            # Execute the actual call under test.
+            test_call()
+
+            # Read the captured, logged lines and make content assertion(s).
+            with open(logfile, 'r') as captured:
+                loglines = captured.readlines()
+            assert 1 == len(loglines)
+            assert "ERROR" in loglines[0]
+
+            # Remove the temporary handler and assert that we've reset state.
+            del looper.models._LOGGER.handlers[-1]
+            assert pre_test_handlers == looper.models._LOGGER.handlers
 
 
-    @pytest.mark.parametrize(argnames="pipeline,expected",
-                             argvalues=list(LOOPER_ARGS_BY_PIPELINE.items()))
+    @pytest.mark.parametrize(
+            argnames="pipeline,expected",
+            argvalues=list(LOOPER_ARGS_BY_PIPELINE.items()))
     def test_looper_args_usage(self, pipe_iface, pipeline, expected):
+        """ Test looper args usage flag. """
         observed = pipe_iface.uses_looper_args(pipeline)
         assert (expected and observed) or not (observed or expected)
 

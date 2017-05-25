@@ -1,16 +1,15 @@
 #! /usr/bin/env python
+""" Create a trackhub for each sample. """
 
-#  This script loops through all the samples,
-#  creates trackhubs for them.
-import csv
-import os
-import pwd
-import subprocess
 from argparse import ArgumentParser
+import csv
 import datetime
 import getpass
-from pypiper import AttributeDict
+import os
+import subprocess
 import yaml
+from looper.looper import SAMPLE_EXECUTION_TOGGLE
+from pypiper import AttributeDict
 
 
 #  Argument Parsing
@@ -167,8 +166,9 @@ try:
 
 		tableDict[sample_name] = dict()
 
-		if 'run' in row:
-			if row["run"] == "0" or row["run"].lower() == "false":
+		if SAMPLE_EXECUTION_TOGGLE in row:
+			exec_flag = row[SAMPLE_EXECUTION_TOGGLE]
+			if exec_flag == "0" or exec_flag.lower() == "false":
 				print(sample_name + ": not selected")
 				continue
 			else:
