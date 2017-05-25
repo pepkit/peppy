@@ -11,8 +11,11 @@ Certain keyword columns are required or provide looper-specific features.
 Required columns are:
 
 - ``sample_name`` - a **unique** string identifying each sample [1]_.
+This is **required** for `Sample` *construction*.
 - ``library`` - the source of data for the sample (*e.g.* ATAC-seq, RNA-seq, RRBS).
+`Looper` uses this information to determine which pipelines are relevant for the `Sample`.
 - A column specifying a data file (default name is ``data_source``).
+This is **required** for `Looper` to *submit* job(s) for a `Sample`.
 
 Recommended columns are:
 

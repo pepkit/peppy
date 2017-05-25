@@ -23,7 +23,7 @@ This is a work in progress, but you can find more information and examples in th
 Extending sample objects
 ****************************************
 
-By default we use `generic models <https://github.com/epigen/looper/tree/master/looper/models.py>`_ (see the `API <api.html>`_ for more) to handle samples in Looper, but these can also be reused in other contexts by importing ``looper.models`` or by means of object serialization through YAML files.
+By default we use `generic models <https://github.com/epigen/looper/tree/master/looper/models.py>`_ (see the `API <api.html>`_ for more) to handle samples in Looper, but these can also be reused in other contexts by importing ``models`` or by means of object serialization through YAML files.
 
 Since these models provide useful methods to interact, update, and store attributes in the objects (most nobly *samples* - ``Sample`` object), a useful use case is during the run of a pipeline: pipeline scripts can extend ``Sample`` objects with further attributes or methods.
 
@@ -33,14 +33,14 @@ You want a convenient yet systematic way of specifying many file paths for sever
 By working with ``Sample`` objects that are specific to each file type, you can specify the location of such files only once during the whole process and later access them "on the fly".
 
 
-**To have** ``Looper`` **create a Sample object specific to your data type, simply import the base** ``Sample`` **object from** ``looper.models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
+**To have** ``Looper`` **create a ``Sample`` object specific to your data type, simply import the base** ``Sample`` **object from** ``models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
 
 
 .. code-block:: python
 
 	# atacseq.py
 
-	from looper.models import Sample
+	from models import Sample
 
 	class ATACseqSample(Sample):
 		"""

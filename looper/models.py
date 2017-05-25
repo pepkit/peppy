@@ -1233,6 +1233,7 @@ class Sample(object):
         with open(yaml_file, 'w') as outfile:
             outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
 
+
     def locate_data_source(self, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
         """
@@ -1248,22 +1249,29 @@ class Sample(object):
             the specified column (as a sample attribute). 
             For cases where the sample doesn't have this attribute yet 
             (e.g. in a merge table), you must specify the source key.
-        :param dict extra_vars: By default, locate_data_source will look to 
+        :param dict extra_vars: By default, this will look to 
             populate the template location using attributes found in the 
             current sample; however, you may also provide a dict of extra 
             variables that can also be used for variable replacement. 
             These extra variables are given a higher priority.
+        :return str: regex expansion of data source specified in configuration,
+            with variable substitions made
         """
 
+        sources_section = "data_sources"
+
         if not source_key:
-            if not hasattr(self, column_name):
-                raise AttributeError("You must provide a source_key, "
-                                     "no attribute: {}".format(source_key))
-            else:
+            try:
                 source_key = getattr(self, column_name)
+            except AttributeError:
+                reason = "'{attr}': to locate sample's data source, provide " \
+                         "the name of a key from '{sources}' or ensure " \
+                         "sample has attribute '{attr}'".format(
+                         attr=column_name, sources=sources_section)
+                raise AttributeError(reason)
 
         try:
-            regex = self.prj["data_sources"][source_key]
+            regex = self.prj[sources_section][source_key]
         except KeyError:
             _LOGGER.warn(
                     "Config lacks entry for data_source key: '{}' "
@@ -1280,8 +1288,7 @@ class Sample(object):
             # Here the copy() prevents the actual sample from being
             # updated by update().
             temp_dict = self.__dict__.copy()
-            if extra_vars:
-                temp_dict.update(extra_vars)
+            temp_dict.update(extra_vars or {})
             val = regex.format(**temp_dict)
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)

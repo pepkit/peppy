@@ -34,13 +34,14 @@ from colorama import init
 init()
 from colorama import Fore, Style
 
+SAMPLE_EXECUTION_TOGGLE = "toggle"
 
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
                        logging.INFO, logging.DEBUG]
 
-
 _LOGGER = logging.getLogger()
 _COUNTER = None
+
 
 
 def parse_arguments():
@@ -191,7 +192,6 @@ def run(prj, args, remaining_args, interface_manager):
     # Easier change later, especially likely for library --> protocol.
     _read_type = "read_type"
     _protocol = "library"
-    _sample_exec_toggle = "toggle"
 
     _start_counter(len(prj.samples))
 
@@ -219,9 +219,9 @@ def run(prj, args, remaining_args, interface_manager):
             skip_reasons.append("Duplicate sample name.")
 
         # Check if sample should be run.
-        if hasattr(sample, _sample_exec_toggle):
+        if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
             if not sample.run:
-                skip_reasons.append("Column '{}' deselected.".format(_sample_exec_toggle))
+                skip_reasons.append("Column '{}' deselected.".format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
         if hasattr(sample, _read_type):
