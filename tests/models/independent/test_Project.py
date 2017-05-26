@@ -164,6 +164,24 @@ class DerivedColumnsTests:
 
 
 
+class PipelineArgumentsTests:
+    """ Tests for Project config's pipeline_arguments section. """
+
+
+    def test_no_pipeline_arguments(self):
+        """ Case in which config specifies no additional pipeline args. """
+        pass
+
+
+    def test_pipeline_args_flags(self):
+        pass
+
+
+    def test_pipeline_args_flags_and_options(self):
+        pass
+
+
+
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     """
     Write the configuration file for a Project.
