@@ -1669,17 +1669,21 @@ class PipelineInterface(object):
     arguments to be passed from the sample annotation metadata to the pipeline
     """
 
-    def __init__(self, yaml_config_input, yaml_input=False):
-        if not yaml_input:
-            _LOGGER.info("Creating %s from file '%s'",
-                              self.__class__.__name__, yaml_config_input)
-            self.pipe_iface_file = yaml_config_input
-            with open(yaml_config_input, 'r') as f:
-                self.pipe_iface_config = yaml.load(f)
-        else:
-            # input already parsed, just populate
+    def __init__(self, config):
+        """
+        Create PipelineInterface from mapping or filepath.
+        
+        :param Mapping | str config: path to config file or parsed result
+        """
+        if isinstance(config, Mapping):
             self.pipe_iface_file = None
-            self.pipe_iface_config = yaml_config_input
+            self.pipe_iface_config = config
+        else:
+            _LOGGER.info("Creating %s from file '%s'",
+                              self.__class__.__name__, config)
+            self.pipe_iface_file = config
+            with open(config, 'r') as f:
+                self.pipe_iface_config = yaml.load(f)
 
 
     def uses_looper_args(self, pipeline_name):
@@ -1981,14 +1985,12 @@ class ProtocolInterfaces:
                 iface = yaml.load(interface_file)
             try:
                 if "protocol_mapping" in iface:
-                    self.protomap = ProtocolMapper(
-                            iface["protocol_mapping"], yaml_input=True)
+                    self.protomap = ProtocolMapper(iface["protocol_mapping"])
                 else:
                     raise Exception("pipeline_interface file is missing "
                                     "a 'protocol_mapping' section.")
                 if "pipelines" in iface:
-                    self.interface = PipelineInterface(
-                            iface["pipelines"], yaml_input=True)
+                    self.interface = PipelineInterface(iface["pipelines"])
                 else:
                     raise Exception("pipeline_interface file is missing "
                                     "a 'pipelines' section.")
@@ -2012,22 +2014,26 @@ class ProtocolInterfaces:
 @copy
 class ProtocolMapper(object):
     """
-    This class maps protocols (the library column) to pipelines. For example,
-    WGBS is mapped to wgbs.py
+    This class maps protocols (the library column) to pipelines. 
+    For example, WGBS is mapped to wgbs.py.
     """
 
-    def __init__(self, mappings_input, yaml_input=False):
-        if not yaml_input:
+    def __init__(self, mappings_input):
+        """
+        Create ProtocolMapper from config file or parsed result.
+        
+        :param str | Mapping mappings_input: path to mappings file or 
+            result of parsing one
+        """
+        if isinstance(mappings_input, Mapping):
+            self.mappings_file = None
+            mappings = mappings_input
+        else:
             # mapping libraries to pipelines
             # input was a file, parse then populate
             self.mappings_file = mappings_input
             with open(self.mappings_file, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
-        else:
-            # input was already parsed, just populate
-            self.mappings_file = None
-            mappings = mappings_input
-
         self.mappings = {k.upper(): v for k, v in mappings.items()}
 
 
