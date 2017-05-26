@@ -352,7 +352,7 @@ class RunErrorReportTests:
                 this_sample_reasons = nprand.choice(
                     reasons, size=nprand.choice([1, 2]), replace=False)
                 for reason in this_sample_reasons:
-                    expected[reason].append((sample, 1))
+                    expected[reason].append(sample)
                 original_reasons.append((this_sample_reasons, sample))
 
             observed = aggregate_exec_skip_reasons(original_reasons)
@@ -360,7 +360,7 @@ class RunErrorReportTests:
 
 
     def test_same_skip_same_sample(self):
-        """ We count pipeline skips of each sample by reason. """
+        """ Multiple submission skips for one sample collapse by reason. """
 
         # Designate all-but-one of the failure reasons as the observations.
         for failures in itertools.combinations(
@@ -368,20 +368,18 @@ class RunErrorReportTests:
 
             # Build up the expectations and the input.
             all_skip_reasons = []
-            nskip_by_skip = {}
 
             # Randomize skip/fail count for each reason.
             for skip in failures:
                 n_skip = nprand.randint(low=2, high=5, size=1)[0]
                 all_skip_reasons.extend([skip] * n_skip)
-                nskip_by_skip[skip] = n_skip
 
-            random.shuffle(all_skip_reasons)
             # Aggregation is order-agnostic...
+            random.shuffle(all_skip_reasons)
             original_skip_reasons = [(all_skip_reasons, "control-sample")]
             # ...and maps each reason to pair of sample and count.
-            expected_aggregation = {skip: [("control-sample", n_skip)]
-                                    for skip, n_skip in nskip_by_skip.items()}
+            expected_aggregation = {skip: ["control-sample"]
+                                    for skip in set(all_skip_reasons)}
 
             # Validate.
             observed_aggregation = aggregate_exec_skip_reasons(
