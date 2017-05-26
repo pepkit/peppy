@@ -1968,7 +1968,7 @@ class ProtocolInterfaces:
                 if "protocol_mapping" in iface:
                     self.protomap = ProtocolMapper(iface['protocol_mapping'], yaml_input=True)
                 else:
-                    raise Exception("ipeline_interface file is missing a 'protocol_mapping' section.")
+                    raise Exception("pipeline_interface file is missing a 'protocol_mapping' section.")
                 if "pipelines" in iface:
                     self.interface = PipelineInterface(iface['pipelines'], yaml_input=True)
                 else:
