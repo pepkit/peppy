@@ -23,7 +23,7 @@ from utils import VersionInHelpParser
 try:
     from .models import \
         InterfaceManager, PipelineInterface, \
-        ProtocolMapper, LOOPERENV_VARNAME
+        ProtocolMapper
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from models import \
@@ -220,7 +220,7 @@ def run(prj, args, remaining_args, interface_manager):
 
         # Check if sample should be run.
         if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
-            if not sample.run:
+            if sample.toggle != "1":
                 skip_reasons.append("Column '{}' deselected.".format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
