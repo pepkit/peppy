@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-
 """
-Looper
-
-a pipeline submission engine.
-https://github.com/epigen/looper
+Looper: a pipeline submission engine. https://github.com/epigen/looper
 """
 
 import argparse
@@ -17,8 +13,8 @@ import sys
 import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, __version__, LOOPERENV_VARNAME
-from loodels import Project
-from utils import VersionInHelpParser
+from .loodels import Project
+from .utils import VersionInHelpParser
 
 try:
     from .models import \
@@ -52,7 +48,7 @@ def parse_arguments():
         arguments defined here, them undefined arguments
     """
 
-    description = "%(prog)s - Loop through samples and submit pipelines for them."
+    description = "%(prog)s - Loop through samples and submit pipelines."
     epilog = "For subcommand-specific options, type: '%(prog)s <subcommand> -h'"
     epilog += "\nhttps://github.com/epigen/looper"
 
@@ -400,7 +396,7 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     from collections import Counter, defaultdict
     sample_count_pairs_by_skip_reason = defaultdict(list)
     for skip_reasons, sample in skip_reasons_sample_pairs:
-        for reason, num_skips in Counter(skip_reasons):
+        for reason, num_skips in Counter(skip_reasons).items():
             sample_count_pairs_by_skip_reason[reason].append(
                     (sample, num_skips))
     return sample_count_pairs_by_skip_reason
@@ -599,7 +595,7 @@ def cluster_submit(
     """
     Submit job to cluster manager.
     
-    :param looper.models.Sample sample: the sample object for submission
+    :param models.Sample sample: the sample object for submission
     :param str submit_template: path to submission script template
     :param str submission_command: actual command with which to execute the 
         submission of the cluster job for the given sample

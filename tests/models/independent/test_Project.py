@@ -176,6 +176,7 @@ class ProjectPipelineArgstringTests:
         "ATACSeq.py": {"--frip-peaks": "/atac/metadata/CD4_hotSpot.bed"},
         "rrbs.py": {"--rrbs-fill": "4", "--quality-threshold": "30"}
     }
+    # Combine the flags- and options-only argument maps.
     PIPELINE_ARGS_MIXED = copy.deepcopy(PIPELINE_ARGS_FLAGS_ONLY)
     for pipeline, args_data in PIPELINE_ARGS_OPTIONS_ONLY.items():
         PIPELINE_ARGS_MIXED[pipeline].update(**args_data)
@@ -187,12 +188,15 @@ class ProjectPipelineArgstringTests:
         "options": PIPELINE_ARGS_OPTIONS_ONLY, 
         "mixed": PIPELINE_ARGS_MIXED}
     EXPECTATIONS_BY_CASE_TYPE = {
+        # Just the flags themselves are components.
         "flags": {pipe: set(flags_encoding.keys())
                   for pipe, flags_encoding
                   in PIPELINE_ARGS_FLAGS_ONLY.items()},
+        # Pair option with argument for non-flag command components.
         "options": {pipe: set(opts_encoding.items())
                     for pipe, opts_encoding
                     in PIPELINE_ARGS_OPTIONS_ONLY.items()},
+        # Null-valued KV pairs represent flags, not options.
         "mixed": {pipe: {opt if arg is None else (opt, arg)
                          for opt, arg in mixed_encoding.items()}
                   for pipe, mixed_encoding in PIPELINE_ARGS_MIXED.items()}}
@@ -203,6 +207,7 @@ class ProjectPipelineArgstringTests:
     def test_no_pipeline_args(self, tmpdir, pipeline,
                               env_config_filepath, project_config_data):
         """ Project need not specify pipeline arguments. """
+        # Project-level argstring is empty if pipeline_args section is absent.
         assert [""] == self.observed_argstring_elements(
                 project_config_data, pipeline, 
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
@@ -219,6 +224,7 @@ class ProjectPipelineArgstringTests:
             self, tmpdir, pipeline, pipeline_args,
             env_config_filepath, project_config_data):
         """ Project-level argstring is empty for unmapped pipeline name. """
+        # Project-level argstring is empty if pipeline_args section is absent.
         project_config_data["pipeline_args"] = pipeline_args
         observed_argstring_elements = self.observed_argstring_elements(
                 project_config_data, pipeline, 
@@ -234,15 +240,23 @@ class ProjectPipelineArgstringTests:
             self, pipeline, optargs, tmpdir, 
             project_config_data, env_config_filepath):
         """ Project does flags-only, options-only, or mixed pipeline_args. """
-        pipeline_args_data = self.DATA_BY_CASE_TYPE[optargs]
+
+        # Allow parameterization to determine pipeline_args section content.
+        project_config_data["pipeline_args"] = self.DATA_BY_CASE_TYPE[optargs]
+
+        # Expectation arises from section content and requested pipeline.
         expected_argstring_components = \
                 self.EXPECTATIONS_BY_CASE_TYPE[optargs][pipeline]
-        project_config_data["pipeline_args"] = pipeline_args_data
+
+        # Write config, make Project, and request argstring.
         observed_argstring_elements = self.observed_argstring_elements(
                 project_config_data, pipeline,
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
+
+        # Format the flags/opt-arg pairs for validation.
         observed_argstring_elements = self._parse_flags_and_options(
                 observed_argstring_elements)
+
         assert expected_argstring_components == observed_argstring_elements
 
 
@@ -278,6 +292,7 @@ class ProjectPipelineArgstringTests:
     def test_default_plus_non_default(
             self, default, pipeline, tmpdir,
             project_config_data, env_config_filepath):
+        """ Default arguments apply to all pipelines; others are specific. """
         case_type = "mixed"
         pipeline_args = copy.deepcopy(self.DATA_BY_CASE_TYPE[case_type])
         pipeline_args["default"] = default
@@ -298,6 +313,7 @@ class ProjectPipelineArgstringTests:
 
     def test_path_expansion(
             self, tmpdir, project_config_data, env_config_filepath):
+        """ Path values in pipeline_args expand environment variables. """
         pipeline = "wgbs.py"
         genomes_extension = "mm10/indexed_epilog/mm10_cg.tsv.gz"
         genomes_substitution = os.path.expandvars("$HOME")
@@ -324,8 +340,11 @@ class ProjectPipelineArgstringTests:
         :return Iterable[str] argstring components
         """
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
+
+        # Subvert requirement for sample annotations file.
         with mock.patch("looper.models.Project.add_sample_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
+
         argstring = project.get_arg_string(pipeline)
         return argstring.split(" ")
     
