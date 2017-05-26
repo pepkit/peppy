@@ -370,7 +370,7 @@ def run(prj, args, remaining_args, interface_manager):
         _LOGGER.info("Failure count: %d; Reasons for failure:",
                  len(failures))
         for skip_causes, sample in failures:
-            _LOGGER.info("> {}: {}", sample, skip_causes)
+            _LOGGER.info("> {}: {}".format(sample, skip_causes))
 
 
 
