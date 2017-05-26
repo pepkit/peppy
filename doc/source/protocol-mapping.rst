@@ -2,7 +2,7 @@
 Pipeline interface section: protocol_mapping 
 ********************************************
 
-The ``protocol_mapping`` section explains how looper should map from a sample protocol (like ``RNA-seq``, which is an attribute in your annotation sheet) to a particular pipeline (like ``rnaseq.py``), or group of pipelines. Here's how to build ``protocol_mapping``:
+The ``protocol_mapping`` section explains how looper should map from a sample protocol (like ``RNA-seq``, which is a column in your annotation sheet) to a particular pipeline (like ``rnaseq.py``), or group of pipelines. Here's how to build ``protocol_mapping``:
 
 - **Case 1:** one protocol maps to one pipeline. Example: ``RNA-seq: rnaseq.py``
 
