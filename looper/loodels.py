@@ -24,8 +24,7 @@ class Project(models.Project):
 
     def __init__(
             self, config_file,
-            default_compute= resource_filename(
-                    "looper", DEFAULT_PROJECT_COMPUTE_CONFIG),
+            default_compute=None,
             *args, **kwargs):
         """
         Create a new Project.
@@ -37,6 +36,10 @@ class Project(models.Project):
         :param tuple args: additional positional arguments
         :param dict kwargs: additional keyword arguments
         """
+        print("default_compute:" + str(default_compute))
+        if not default_compute:
+            default_compute = resource_filename(
+                    "looper", DEFAULT_PROJECT_COMPUTE_CONFIG)
         super(Project, self).__init__(
                 config_file, default_compute, *args, **kwargs)
 
