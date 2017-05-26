@@ -4,21 +4,22 @@ Usage and commands
 
 Looper doesn't just run pipelines, it can also check and summarize the progress of your jobs, as well as remove all files created by them.
 
-Each task is controlled by one of the four main commands ``run``, ``summarize``, ``destroy``, ``check``: 
+Each task is controlled by one of the four main commands ``run``, ``summarize``, ``destroy``, ``check``, ``clean``: 
 
 
 .. code-block:: bash
 
-  usage: looper [-h] [--version] {run,summarize,destroy,check} ...
+  usage: looper [-h] [--version] {run,summarize,destroy,check,clean} ...
 
   looper - Loops through samples and submits pipelines for them.
 
   positional arguments:
-    {run,summarize,destroy,check}
+    {run,summarize,destroy,check,clean}
       run                 Main Looper function: Submit jobs for samples.
       summarize           Summarize statistics of project samples.
       destroy             Remove all files of the project.
-      check               Remove all files of the project.
+      check               Checks flag status of current runs.
+      clean               Runs clean scripts to remove intermediate files of already processed jobs.
 
   optional arguments:
     -h, --help            show this help message and exit
