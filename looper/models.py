@@ -64,7 +64,7 @@ else:
     from urllib.parse import urlparse
 
 import pandas as _pd
-import yaml as _yaml
+import yaml
 
 from .utils import \
     parse_ftype, check_bam, check_fastq, get_file_size, partition
@@ -528,7 +528,7 @@ class Project(AttributeDict):
         _LOGGER.debug("Setting %s data from '%s'",
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as conf_file:
-            config = _yaml.safe_load(conf_file)
+            config = yaml.safe_load(conf_file)
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
@@ -664,7 +664,7 @@ class Project(AttributeDict):
             with open(env_settings_file, 'r') as handle:
                 _LOGGER.info("Loading %s: %s",
                              self.compute_env_var, env_settings_file)
-                env_settings = _yaml.load(handle)
+                env_settings = yaml.load(handle)
                 _LOGGER.debug("Parsed environment settings: %s", 
                               str(env_settings))
 
@@ -759,7 +759,7 @@ class Project(AttributeDict):
         """
 
         def make_optarg_text(opt, arg):
-            """ Transform flag/option into CLI-ready text version """
+            """ Transform flag/option into CLI-ready text version. """
             return "{} {}".format(opt, _os.path.expandvars(arg)) \
                     if arg else opt
 
@@ -782,12 +782,14 @@ class Project(AttributeDict):
 
         if not pipeline_argtext:
             # The project config may not have an entry for this pipeline;
-            # no problem! There are no pipeline-specific args. Even if config
-            # lacks pipeline_args, just return empty string here.
+            # no problem! There are no pipeline-specific args. Return text 
+            # from default arguments, whether empty or not.
             return default_argtext
         elif default_argtext:
+            # Non-empty pipeline-specific and default argtext
             return " ".join([default_argtext, pipeline_argtext])
         else:
+            # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
 
 
@@ -1246,7 +1248,7 @@ class Sample(object):
                                           self.sample_name + ".yaml")
         serial = obj2dict(self)
         with open(yaml_file, 'w') as outfile:
-            outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
+            outfile.write(yaml.safe_dump(serial, default_flow_style=False))
 
 
     def locate_data_source(self, column_name=DATA_SOURCE_COLNAME,
@@ -1669,7 +1671,6 @@ class PipelineInterface(object):
 
     def __init__(self, yaml_config_input, yaml_input=False):
         if not yaml_input:
-            import yaml
             _LOGGER.info("Creating %s from file '%s'",
                               self.__class__.__name__, yaml_config_input)
             self.pipe_iface_file = yaml_config_input
@@ -1972,7 +1973,6 @@ class ProtocolInterfaces:
             # Secondary version that passes combined yaml file directly,
             # instead of relying on separate hard-coded config names as above
             self.pipedir = None
-            import yaml
             self.interface_file = pipedir
 
             self.pipelines_path = _os.path.dirname(pipedir)
@@ -1981,15 +1981,19 @@ class ProtocolInterfaces:
                 iface = yaml.load(interface_file)
             try:
                 if "protocol_mapping" in iface:
-                    self.protomap = ProtocolMapper(iface['protocol_mapping'], yaml_input=True)
+                    self.protomap = ProtocolMapper(
+                            iface["protocol_mapping"], yaml_input=True)
                 else:
-                    raise Exception("pipeline_interface file is missing a 'protocol_mapping' section.")
+                    raise Exception("pipeline_interface file is missing "
+                                    "a 'protocol_mapping' section.")
                 if "pipelines" in iface:
-                    self.interface = PipelineInterface(iface['pipelines'], yaml_input=True)
+                    self.interface = PipelineInterface(
+                            iface["pipelines"], yaml_input=True)
                 else:
-                    raise Exception("pipeline_interface file is missing a 'pipelines' section.")
+                    raise Exception("pipeline_interface file is missing "
+                                    "a 'pipelines' section.")
             except Exception as e:
-                _LOGGER.info(iface)
+                _LOGGER.error(str(iface))
                 raise e
 
     @property
@@ -2014,7 +2018,6 @@ class ProtocolMapper(object):
 
     def __init__(self, mappings_input, yaml_input=False):
         if not yaml_input:
-            import yaml
             # mapping libraries to pipelines
             # input was a file, parse then populate
             self.mappings_file = mappings_input
