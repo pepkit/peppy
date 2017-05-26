@@ -760,19 +760,29 @@ class Project(AttributeDict):
         if not hasattr(self, "pipeline_args"):
             return ""
 
-        def make_optarg_text(opt, arg):
+        def make_optarg_text(optarg):
+            opt = optarg[0]
+            arg = optarg[1]
             return "{} {}".format(opt, _os.path.expandvars(arg)) \
                     if arg else opt
 
         def create_argtext(name):
             optargs = getattr(self.pipeline_args, name)
             # TODO: if failing, try optargs.__dict__.items()
+            # NS using __dict__ will add in the metadata from AttrDict (doh!)
+            _LOGGER.debug("optargs.items():" + str(optargs.items()))
             optargs_texts = map(make_optarg_text, optargs.items())
             # TODO: may need to fix some spacing issues here.
+            _LOGGER.debug("optargs_texts" + str(optargs_texts))
             return " ".join(optargs_texts)
 
         default_argtext = create_argtext("default")
-        pipeline_argtext = create_argtext(pipeline_name)
+        try:
+            pipeline_argtext = create_argtext(pipeline_name)
+        except AttributeError:
+            # The project config may not have an entry for this pipeline;
+            # no problem! There are no pipeline-specific args.
+            pipeline_argtext = ""
         return " ".join([default_argtext, pipeline_argtext])
 
 
