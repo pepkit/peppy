@@ -1657,13 +1657,13 @@ class PipelineInterface(object):
             import yaml
             _LOGGER.info("Creating %s from file '%s'",
                               self.__class__.__name__, yaml_config_input)
-            self.looper_config_file = yaml_config_input
+            self.pipe_iface_file = yaml_config_input
             with open(yaml_config_input, 'r') as f:
-                self.looper_config = yaml.load(f)
+                self.pipe_iface_config = yaml.load(f)
         else:
             # input already parsed, just populate
-            self.looper_config_file = None
-            self.looper_config = yaml_config_input
+            self.pipe_iface_file = None
+            self.pipe_iface_config = yaml_config_input
 
     def uses_looper_args(self, pipeline_name):
         """
