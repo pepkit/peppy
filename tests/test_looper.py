@@ -315,3 +315,8 @@ class SampleRoundtripTests:
         return True
 
 
+
+@pytest.mark.skip("Not implemented")
+class RunErrorReportTests:
+    """ Tests for aggregation of submission failures. """
+    pass
