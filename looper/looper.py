@@ -220,7 +220,7 @@ def run(prj, args, remaining_args, interface_manager):
 
         # Check if sample should be run.
         if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
-            if sample.toggle != "1":
+            if sample[SAMPLE_EXECUTION_TOGGLE] != "1":
                 skip_reasons.append("Column '{}' deselected.".format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
