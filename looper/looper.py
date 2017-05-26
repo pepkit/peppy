@@ -271,7 +271,6 @@ def run(prj, args, remaining_args, interface_manager):
                 fail_message = "Pipeline required attribute(s) missing."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
-                continue
 
             # Check for any required inputs before submitting
             try:
@@ -281,7 +280,6 @@ def run(prj, args, remaining_args, interface_manager):
                 fail_message = "Required input file(s) not found."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
-                continue
 
             # Identify cluster resources required for this submission.
             submit_settings = pipeline_interface.choose_resource_package(
@@ -310,8 +308,7 @@ def run(prj, args, remaining_args, interface_manager):
                                "for pipeline arguments string."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
-                continue
-                
+
             # Project-level arguments (sample-agnostic) are handled separately.
             argstring += prj.get_arg_string(pl_id)
             cmd += argstring
@@ -388,17 +385,18 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     """
     Collect the reasons for skipping submission/execution of each sample 
     
-    :param skip_reasons_sample_pairs: 
+    :param Iterable[(Iterable[str], str)] skip_reasons_sample_pairs: pairs of 
+        collection of reasons for which a sample was skipped for submission, 
+        and the name of the sample itself
     :return Mapping[str, Iterable[str]]: mapping from explanation to 
         collection of names of samples to which it pertains
     """
     from collections import Counter, defaultdict
-    sample_count_pairs_by_skip_reason = defaultdict(list)
+    samples_by_skip_reason = defaultdict(list)
     for skip_reasons, sample in skip_reasons_sample_pairs:
-        for reason, num_skips in Counter(skip_reasons).items():
-            sample_count_pairs_by_skip_reason[reason].append(
-                    (sample, num_skips))
-    return sample_count_pairs_by_skip_reason
+        for reason in set(skip_reasons):
+            samples_by_skip_reason[reason].append(sample)
+    return samples_by_skip_reason
 
 
 
