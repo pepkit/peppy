@@ -5,17 +5,20 @@ The primary function under test here is the creation of a project instance.
 
 """
 
+from collections import defaultdict
 from functools import partial
+import itertools
 import logging
 import os
+import random
 
 import numpy.random as nprand
 import pytest
 import yaml
 
+from looper.looper import aggregate_exec_skip_reasons
 import looper.models
 from looper.models import AttributeDict, ATTRDICT_METADATA, COL_KEY_SUFFIX
-
 from .conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, FILE_BY_SAMPLE, \
     LOOPER_ARGS_BY_PIPELINE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
@@ -315,3 +318,72 @@ class SampleRoundtripTests:
         return True
 
 
+
+class RunErrorReportTests:
+    """ Tests for aggregation of submission failures. """
+
+    SKIP_REASONS = ["Missing attribute.", "No metadata.",
+                    "No config file.", "Missing input(s)."]
+    SAMPLE_NAMES = {"Kupffer-control", "Kupffer-hepatitis",
+                    "microglia-control", "microglia-cancer",
+                    "Teff", "Treg", "Tmem",
+                    "MC-circ", "Mac-tissue-res"}
+
+
+    @pytest.mark.parametrize(
+            argnames="empty_skips",
+            argvalues=[tuple(), set(), list(), dict()])
+    def test_no_failures(self, empty_skips):
+        """ Aggregation step returns empty collection for no-fail case. """
+        assert defaultdict(list) == aggregate_exec_skip_reasons(empty_skips)
+
+
+    def test_many_samples_once_each_few_failures(self):
+        """ One/few reasons for several/many samples, one skip each. """
+
+        # Looping is to boost confidence from randomization.
+        # We don't really want each case to be a parameterization.
+        for reasons in itertools.combinations(self.SKIP_REASONS, 2):
+            original_reasons = []
+            expected = defaultdict(list)
+
+            # Choose one or both reasons as single-fail for this sample.
+            for sample in self.SAMPLE_NAMES:
+                this_sample_reasons = nprand.choice(
+                    reasons, size=nprand.choice([1, 2]), replace=False)
+                for reason in this_sample_reasons:
+                    expected[reason].append((sample, 1))
+                original_reasons.append((this_sample_reasons, sample))
+
+            observed = aggregate_exec_skip_reasons(original_reasons)
+            assert expected == observed
+
+
+    def test_same_skip_same_sample(self):
+        """ We count pipeline skips of each sample by reason. """
+
+        # Designate all-but-one of the failure reasons as the observations.
+        for failures in itertools.combinations(
+                self.SKIP_REASONS, len(self.SKIP_REASONS) - 1):
+
+            # Build up the expectations and the input.
+            all_skip_reasons = []
+            nskip_by_skip = {}
+
+            # Randomize skip/fail count for each reason.
+            for skip in failures:
+                n_skip = nprand.randint(low=2, high=5, size=1)[0]
+                all_skip_reasons.extend([skip] * n_skip)
+                nskip_by_skip[skip] = n_skip
+
+            random.shuffle(all_skip_reasons)
+            # Aggregation is order-agnostic...
+            original_skip_reasons = [(all_skip_reasons, "control-sample")]
+            # ...and maps each reason to pair of sample and count.
+            expected_aggregation = {skip: [("control-sample", n_skip)]
+                                    for skip, n_skip in nskip_by_skip.items()}
+
+            # Validate.
+            observed_aggregation = aggregate_exec_skip_reasons(
+                    original_skip_reasons)
+            assert expected_aggregation == observed_aggregation

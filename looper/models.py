@@ -751,39 +751,44 @@ class Project(AttributeDict):
             _LOGGER.warn("Cannot load compute settings: %s (%s)",
                          setting, str(type(setting)))
 
+
     def get_arg_string(self, pipeline_name):
         """
         For this project, given a pipeline, return an argument string
         specified in the project config file.
         """
 
-        if not hasattr(self, "pipeline_args"):
-            return ""
-
-        def make_optarg_text(optarg):
-            opt = optarg[0]
-            arg = optarg[1]
+        def make_optarg_text(opt, arg):
+            """ Transform flag/option into CLI-ready text version """
             return "{} {}".format(opt, _os.path.expandvars(arg)) \
                     if arg else opt
 
         def create_argtext(name):
-            optargs = getattr(self.pipeline_args, name)
-            # TODO: if failing, try optargs.__dict__.items()
+            """ Create command-line argstring text from config section. """
+            try:
+                optargs = getattr(self.pipeline_args, name)
+            except AttributeError:
+                return ""
             # NS using __dict__ will add in the metadata from AttrDict (doh!)
-            _LOGGER.debug("optargs.items():" + str(optargs.items()))
-            optargs_texts = map(make_optarg_text, optargs.items())
+            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
+            optargs_texts = [make_optarg_text(opt, arg)
+                             for opt, arg in optargs.items()]
+            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
             # TODO: may need to fix some spacing issues here.
-            _LOGGER.debug("optargs_texts" + str(optargs_texts))
             return " ".join(optargs_texts)
 
-        default_argtext = create_argtext("default")
-        try:
-            pipeline_argtext = create_argtext(pipeline_name)
-        except AttributeError:
+        default_argtext, pipeline_argtext = \
+                create_argtext("default"), create_argtext(pipeline_name)
+
+        if not pipeline_argtext:
             # The project config may not have an entry for this pipeline;
-            # no problem! There are no pipeline-specific args.
-            pipeline_argtext = ""
-        return " ".join([default_argtext, pipeline_argtext])
+            # no problem! There are no pipeline-specific args. Even if config
+            # lacks pipeline_args, just return empty string here.
+            return default_argtext
+        elif default_argtext:
+            return " ".join([default_argtext, pipeline_argtext])
+        else:
+            return pipeline_argtext
 
 
     def add_sample_sheet(self, csv=None):
