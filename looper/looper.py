@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, __version__
+from . import setup_looper_logger, LOGGING_LEVEL, __version__, LOOPERENV_VARNAME
 from loodels import Project
 from utils import VersionInHelpParser
 
@@ -26,9 +26,9 @@ try:
         ProtocolMapper, LOOPERENV_VARNAME
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
-    from looper.models import \
+    from models import \
         InterfaceManager, PipelineInterface, \
-        ProtocolMapper, LOOPERENV_VARNAME
+        ProtocolMapper
 
 from colorama import init
 init()
@@ -746,7 +746,7 @@ def main():
     prj = Project(
         args.config_file, args.subproject,
         file_checks=args.file_checks,
-        looperenv_file=getattr(args, 'env', None))
+        compute_env_file=getattr(args, 'env', None))
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
 
