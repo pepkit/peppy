@@ -1665,6 +1665,7 @@ class PipelineInterface(object):
             self.pipe_iface_file = None
             self.pipe_iface_config = yaml_config_input
 
+
     def uses_looper_args(self, pipeline_name):
         """
         Determine whether the indicated pipeline uses looper arguments.
