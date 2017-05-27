@@ -64,7 +64,7 @@ else:
     from urllib.parse import urlparse
 
 import pandas as _pd
-import yaml as _yaml
+import yaml
 
 from .utils import \
     parse_ftype, check_bam, check_fastq, get_file_size, partition
@@ -528,7 +528,7 @@ class Project(AttributeDict):
         _LOGGER.debug("Setting %s data from '%s'",
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as conf_file:
-            config = _yaml.safe_load(conf_file)
+            config = yaml.safe_load(conf_file)
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
@@ -664,7 +664,7 @@ class Project(AttributeDict):
             with open(env_settings_file, 'r') as handle:
                 _LOGGER.info("Loading %s: %s",
                              self.compute_env_var, env_settings_file)
-                env_settings = _yaml.load(handle)
+                env_settings = yaml.load(handle)
                 _LOGGER.debug("Parsed environment settings: %s", 
                               str(env_settings))
 
@@ -751,29 +751,46 @@ class Project(AttributeDict):
             _LOGGER.warn("Cannot load compute settings: %s (%s)",
                          setting, str(type(setting)))
 
+
     def get_arg_string(self, pipeline_name):
         """
         For this project, given a pipeline, return an argument string
         specified in the project config file.
         """
 
-        if not hasattr(self, "pipeline_args"):
-            return ""
-
         def make_optarg_text(opt, arg):
+            """ Transform flag/option into CLI-ready text version. """
             return "{} {}".format(opt, _os.path.expandvars(arg)) \
                     if arg else opt
 
         def create_argtext(name):
-            optargs = getattr(self.pipeline_args, name)
-            # TODO: if failing, try optargs.__dict__.items()
-            optargs_texts = map(make_optarg_text, optargs.items())
+            """ Create command-line argstring text from config section. """
+            try:
+                optargs = getattr(self.pipeline_args, name)
+            except AttributeError:
+                return ""
+            # NS using __dict__ will add in the metadata from AttrDict (doh!)
+            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
+            optargs_texts = [make_optarg_text(opt, arg)
+                             for opt, arg in optargs.items()]
+            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
             # TODO: may need to fix some spacing issues here.
             return " ".join(optargs_texts)
 
-        default_argtext = create_argtext("default")
-        pipeline_argtext = create_argtext(pipeline_name)
-        return " ".join([default_argtext, pipeline_argtext])
+        default_argtext, pipeline_argtext = \
+                create_argtext("default"), create_argtext(pipeline_name)
+
+        if not pipeline_argtext:
+            # The project config may not have an entry for this pipeline;
+            # no problem! There are no pipeline-specific args. Return text 
+            # from default arguments, whether empty or not.
+            return default_argtext
+        elif default_argtext:
+            # Non-empty pipeline-specific and default argtext
+            return " ".join([default_argtext, pipeline_argtext])
+        else:
+            # No default argtext, but non-empty pipeline-specific argtext
+            return pipeline_argtext
 
 
     def add_sample_sheet(self, csv=None):
@@ -1231,7 +1248,7 @@ class Sample(object):
                                           self.sample_name + ".yaml")
         serial = obj2dict(self)
         with open(yaml_file, 'w') as outfile:
-            outfile.write(_yaml.safe_dump(serial, default_flow_style=False))
+            outfile.write(yaml.safe_dump(serial, default_flow_style=False))
 
 
     def locate_data_source(self, column_name=DATA_SOURCE_COLNAME,
@@ -1647,18 +1664,26 @@ class Sample(object):
 class PipelineInterface(object):
     """
     This class parses, holds, and returns information for a yaml file that
-    specifies how to interact with each individual pipeline. This includes 
-    both resources to request for cluster job submission, as well as
+    specifies how to interact with each individual pipeline. This
+    includes both resources to request for cluster job submission, as well as
     arguments to be passed from the sample annotation metadata to the pipeline
     """
 
-    def __init__(self, yaml_config_file):
-        import yaml
-        _LOGGER.info("Creating %s from file '%s'",
-                          self.__class__.__name__, yaml_config_file)
-        self.pipe_iface_file = yaml_config_file
-        with open(yaml_config_file, 'r') as f:
-            self.pipe_iface_config = yaml.load(f)
+    def __init__(self, config):
+        """
+        Create PipelineInterface from mapping or filepath.
+        
+        :param Mapping | str config: path to config file or parsed result
+        """
+        if isinstance(config, Mapping):
+            self.pipe_iface_file = None
+            self.pipe_iface_config = config
+        else:
+            _LOGGER.info("Creating %s from file '%s'",
+                              self.__class__.__name__, config)
+            self.pipe_iface_file = config
+            with open(config, 'r') as f:
+                self.pipe_iface_config = yaml.load(f)
 
 
     def uses_looper_args(self, pipeline_name):
@@ -1937,16 +1962,41 @@ class ProtocolInterfaces:
             pipeline interface, and protocol mapping information,
             nested within subfolders as required
         """
-        self.pipedir = pipedir
-        self.config_path = _os.path.join(pipedir, "config")
-        self.interface_path = _os.path.join(
-                self.config_path, "pipeline_interface.yaml")
-        self.protomaps_path = _os.path.join(
-                self.config_path, "protocol_mappings.yaml")
-        self.interface = PipelineInterface(self.interface_path)
-        self.protomap = ProtocolMapper(self.protomaps_path)
-        self.pipelines_path = _os.path.join(pipedir, "pipelines")
 
+        if _os.path.isdir(pipedir):
+            self.pipedir = pipedir
+            self.config_path = _os.path.join(pipedir, "config")
+            self.interface_path = _os.path.join(self.config_path,
+                                                "pipeline_interface.yaml")
+            self.protomaps_path = _os.path.join(self.config_path,
+                                                "protocol_mappings.yaml")
+            self.interface = PipelineInterface(self.interface_path)
+            self.protomap = ProtocolMapper(self.protomaps_path)
+            self.pipelines_path = _os.path.join(pipedir, "pipelines")
+        elif _os.path.isfile(pipedir):
+            # Secondary version that passes combined yaml file directly,
+            # instead of relying on separate hard-coded config names as above
+            self.pipedir = None
+            self.interface_file = pipedir
+
+            self.pipelines_path = _os.path.dirname(pipedir)
+
+            with open(self.interface_file, 'r') as interface_file:
+                iface = yaml.load(interface_file)
+            try:
+                if "protocol_mapping" in iface:
+                    self.protomap = ProtocolMapper(iface["protocol_mapping"])
+                else:
+                    raise Exception("pipeline_interface file is missing "
+                                    "a 'protocol_mapping' section.")
+                if "pipelines" in iface:
+                    self.interface = PipelineInterface(iface["pipelines"])
+                else:
+                    raise Exception("pipeline_interface file is missing "
+                                    "a 'pipelines' section.")
+            except Exception as e:
+                _LOGGER.error(str(iface))
+                raise e
 
     @property
     def protocols(self):
@@ -1964,16 +2014,26 @@ class ProtocolInterfaces:
 @copy
 class ProtocolMapper(object):
     """
-    This class maps protocols (the library column) to pipelines. For example,
-    WGBS is mapped to wgbs.py
+    This class maps protocols (the library column) to pipelines. 
+    For example, WGBS is mapped to wgbs.py.
     """
 
-    def __init__(self, mappings_file):
-        import yaml
-        # mapping libraries to pipelines
-        self.mappings_file = mappings_file
-        with open(mappings_file, 'r') as mapfile:
-            mappings = yaml.load(mapfile)
+    def __init__(self, mappings_input):
+        """
+        Create ProtocolMapper from config file or parsed result.
+        
+        :param str | Mapping mappings_input: path to mappings file or 
+            result of parsing one
+        """
+        if isinstance(mappings_input, Mapping):
+            self.mappings_file = None
+            mappings = mappings_input
+        else:
+            # mapping libraries to pipelines
+            # input was a file, parse then populate
+            self.mappings_file = mappings_input
+            with open(self.mappings_file, 'r') as mapfile:
+                mappings = yaml.load(mapfile)
         self.mappings = {k.upper(): v for k, v in mappings.items()}
 
 

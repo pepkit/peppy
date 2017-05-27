@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-
 """
-Looper
-
-a pipeline submission engine.
-https://github.com/epigen/looper
+Looper: a pipeline submission engine. https://github.com/epigen/looper
 """
 
 import argparse
@@ -16,19 +12,19 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, __version__
-from loodels import Project
-from utils import VersionInHelpParser
+from . import setup_looper_logger, LOGGING_LEVEL, __version__, LOOPERENV_VARNAME
+from .loodels import Project
+from .utils import VersionInHelpParser
 
 try:
     from .models import \
         InterfaceManager, PipelineInterface, \
-        ProtocolMapper, LOOPERENV_VARNAME
+        ProtocolMapper
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
-    from looper.models import \
+    from models import \
         InterfaceManager, PipelineInterface, \
-        ProtocolMapper, LOOPERENV_VARNAME
+        ProtocolMapper
 
 from colorama import init
 init()
@@ -52,7 +48,7 @@ def parse_arguments():
         arguments defined here, them undefined arguments
     """
 
-    description = "%(prog)s - Loop through samples and submit pipelines for them."
+    description = "%(prog)s - Loop through samples and submit pipelines."
     epilog = "For subcommand-specific options, type: '%(prog)s <subcommand> -h'"
     epilog += "\nhttps://github.com/epigen/looper"
 
@@ -220,7 +216,7 @@ def run(prj, args, remaining_args, interface_manager):
 
         # Check if sample should be run.
         if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
-            if not sample.run:
+            if sample[SAMPLE_EXECUTION_TOGGLE] != "1":
                 skip_reasons.append("Column '{}' deselected.".format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
@@ -253,6 +249,8 @@ def run(prj, args, remaining_args, interface_manager):
         sample.to_yaml()
 
         # Go through all pipelines to submit for this protocol.
+        # Note: control flow doesn't reach this point if variable "pipelines"
+        # cannot be assigned (library/protocol missing).
         for pipeline_interface, pipeline_job in pipelines:
 
             # Discard any arguments to get just the (complete) script name,
@@ -263,37 +261,37 @@ def run(prj, args, remaining_args, interface_manager):
                           format(pipeline_job, pl_id))
 
             try:
-                # add pipeline-specific attributes (read type and length, inputs, etc)
+                # Add pipeline-specific attributes.
                 sample.set_pipeline_attributes(pipeline_interface, pl_id)
                 _LOGGER.info("> Building submission for Pipeline: '{}' "
-                             "(input: {:.2f} Gb)".format(pipeline_job,
-                                                         sample.input_file_size))
+                             "(input: {:.2f} Gb)".format(
+                        pipeline_job, sample.input_file_size))
             except AttributeError:
-                # TODO: inform about which missing attribute(s).
-                fail_message = "Required attribute(s) missing to set for sample pipeline."
+                # TODO: inform about WHICH missing attribute(s).
+                fail_message = "Pipeline required attribute(s) missing."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
-                continue
 
             # Check for any required inputs before submitting
             try:
-                # TODO: we don't need return value since implicitly permissive=False?
                 sample.confirm_required_inputs()
             except IOError:
-                # TODO: inform about which missing file(s).
+                # TODO: inform about WHICH missing file(s).
                 fail_message = "Required input file(s) not found."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
-                continue
 
-            # Identify the cluster resources we will require for this submission
-            submit_settings = pipeline_interface.choose_resource_package(pl_id, sample.input_file_size)
+            # Identify cluster resources required for this submission.
+            submit_settings = pipeline_interface.choose_resource_package(
+                    pl_id, sample.input_file_size)
 
-            # Reset the partition if it was specified on the command-line
-            if hasattr(prj.compute, "partition"):
-                submit_settings["partition"] = prj.compute["partition"]
+            # Reset the partition if it was specified on the command-line.
+            try:
+                submit_settings["partition"] = prj.compute.partition
+            except AttributeError:
+                _LOGGER.debug("No partition to reset")
 
-            # Pipeline name is the key used for flag checking
+            # Pipeline name is the key used for flag checking.
             pl_name = pipeline_interface.get_pipeline_name(pl_id)
 
             # Build basic command line string
@@ -306,11 +304,11 @@ def run(prj, args, remaining_args, interface_manager):
                 argstring += " "
             except AttributeError:
                 # TODO: inform about which missing attribute(s).
-                fail_message = "Required attribute(s) missing for pipeline arguments string."
+                fail_message = "Required attribute(s) missing " \
+                               "for pipeline arguments string."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
-                continue
-                
+
             # Project-level arguments (sample-agnostic) are handled separately.
             argstring += prj.get_arg_string(pl_id)
             cmd += argstring
@@ -324,13 +322,18 @@ def run(prj, args, remaining_args, interface_manager):
                     # Index with 'pl_id' instead of 'pipeline' 
                     # because we don't care about parameters here.
                     if hasattr(prj.pipeline_config, pl_id):
-                        # First priority: pipeline config specified in project config
+                        # First priority: pipeline config in project config
                         pl_config_file = getattr(prj.pipeline_config, pl_id)
-                        if pl_config_file:  # make sure it's not null (which it could be provided as null)
+                        # Make sure it's a file (it could be provided as null.)
+                        if pl_config_file:
                             if not os.path.isfile(pl_config_file):
-                                _LOGGER.error("Pipeline config file specified but not found: %s", str(pl_config_file))
+                                _LOGGER.error("Pipeline config file specified "
+                                              "but not found: %s",
+                                              str(pl_config_file))
                                 raise IOError(pl_config_file)
-                            _LOGGER.info("Found config file: %s", str(getattr(prj.pipeline_config, pl_id)))
+                            _LOGGER.info("Found config file: %s",
+                                         str(getattr(prj.pipeline_config,
+                                                     pl_id)))
                             # Append arg for config file if found
                             cmd += " -C " + pl_config_file
 
@@ -367,10 +370,33 @@ def run(prj, args, remaining_args, interface_manager):
     _LOGGER.info(msg)
 
     if failures:
-        _LOGGER.info("Failure count: %d; Reasons for failure:",
-                 len(failures))
-        for skip_causes, sample in failures:
-            _LOGGER.info("> {}: {}", sample, skip_causes)
+        _LOGGER.info("%d sample(s) with submission failure.", len(failures))
+        sample_count_pairs_by_reason = aggregate_exec_skip_reasons(failures)
+        _LOGGER.info("{} unique reasons for submission failure: {}".format(
+                len(sample_count_pairs_by_reason),
+                sample_count_pairs_by_reason.keys()))
+        _LOGGER.info("Per-sample submission failure count for each reason:")
+        for reason, sample_nfail_pairs in sample_count_pairs_by_reason.items():
+            _LOGGER.info("> {}: {}".format(reason, sample_nfail_pairs))
+
+
+
+def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
+    """
+    Collect the reasons for skipping submission/execution of each sample 
+    
+    :param Iterable[(Iterable[str], str)] skip_reasons_sample_pairs: pairs of 
+        collection of reasons for which a sample was skipped for submission, 
+        and the name of the sample itself
+    :return Mapping[str, Iterable[str]]: mapping from explanation to 
+        collection of names of samples to which it pertains
+    """
+    from collections import Counter, defaultdict
+    samples_by_skip_reason = defaultdict(list)
+    for skip_reasons, sample in skip_reasons_sample_pairs:
+        for reason in set(skip_reasons):
+            samples_by_skip_reason[reason].append(sample)
+    return samples_by_skip_reason
 
 
 
@@ -388,7 +414,8 @@ def summarize(prj):
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+        pipeline_outfolder = os.path.join(
+                prj.metadata.results_subdir, sample.sample_name)
 
         # Grab the basic info from the annotation sheet for this sample.
         # This will correspond to a row in the output.
@@ -425,7 +452,8 @@ def summarize(prj):
 
     tsv_outfile = open(tsv_outfile_path, 'w')
 
-    tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(columns), delimiter='\t', extrasaction='ignore')
+    tsv_writer = csv.DictWriter(tsv_outfile, fieldnames=uniqify(columns),
+                                delimiter='\t', extrasaction='ignore')
     tsv_writer.writeheader()
 
     for row in stats:
@@ -448,7 +476,8 @@ def destroy(prj, args, preview_flag=True):
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(prj.metadata.results_subdir, sample.sample_name)
+        pipeline_outfolder = os.path.join(
+                prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
             # Preview: Don't actually delete, just show files.
             _LOGGER.info(str(pipeline_outfolder))
@@ -463,7 +492,8 @@ def destroy(prj, args, preview_flag=True):
         _LOGGER.info("Dry run. No files destroyed.")
         return 0
 
-    if not query_yes_no("Are you sure you want to permanently delete all pipeline results for this project?"):
+    if not query_yes_no("Are you sure you want to permanently delete "
+                        "all pipeline results for this project?"):
         _LOGGER.info("Destroy action aborted by user.")
         return 1
 
@@ -474,7 +504,7 @@ def destroy(prj, args, preview_flag=True):
 
 def clean(prj, args, preview_flag=True):
     """
-    Clean will remove all intermediate files, defined by pypiper clean scripts, in the project.
+    Remove all project's intermediate files (defined by pypiper clean scripts).
     """
 
     _LOGGER.info("Files to clean:")
@@ -488,7 +518,7 @@ def clean(prj, args, preview_flag=True):
         cleanup_files = glob.glob(os.path.join(pipeline_outfolder,
                                                "*_cleanup.sh"))
         if preview_flag:
-            # Preview: Don't actually clean, just show what we're going to clean.
+            # Preview: Don't actually clean, just show what will be cleaned.
             _LOGGER.info(str(cleanup_files))
         else:
             for f in cleanup_files:
@@ -540,7 +570,8 @@ class LooperCounter(object):
         """
         self.count += 1
         return Fore.CYAN + "## [{n} of {N}] {sample} ({library})".format(
-                n=self.count, N=self.total, sample=name, library=library) + Style.RESET_ALL 
+                n=self.count, N=self.total, sample=name, library=library) + \
+               Style.RESET_ALL
 
     def __str__(self):
         return "LooperCounter of size {}".format(self.total)
@@ -561,7 +592,7 @@ def cluster_submit(
     """
     Submit job to cluster manager.
     
-    :param looper.models.Sample sample: the sample object for submission
+    :param models.Sample sample: the sample object for submission
     :param str submit_template: path to submission script template
     :param str submission_command: actual command with which to execute the 
         submission of the cluster job for the given sample
@@ -715,7 +746,8 @@ def check(prj):
 
     counts = {}
     for f in flags:
-        counts[f] = int(subprocess.check_output(pf + "*/*" + f + ".flag 2> /dev/null | wc -l", shell=True))
+        counts[f] = int(subprocess.check_output(
+                pf + "*/*" + f + ".flag 2> /dev/null | wc -l", shell=True))
 
     for f, count in counts.items():
         if 0 < count < 30:
@@ -741,12 +773,14 @@ def main():
     args, remaining_args = parse_arguments()
 
     
-    _LOGGER.info("Command: " + args.command + " (Looper version: " + __version__ + ")")
+    _LOGGER.info("Command: {} (Looper version: {}".
+                 format(args.command, __version__))
     # Initialize project
+    _LOGGER.debug("compute_env_file: " + getattr(args, 'env', None))
     prj = Project(
         args.config_file, args.subproject,
         file_checks=args.file_checks,
-        looperenv_file=getattr(args, 'env', None))
+        compute_env_file=getattr(args, 'env', None))
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
 
@@ -754,7 +788,8 @@ def main():
         if args.compute:
             prj.set_compute(args.compute)
 
-        # TODO split here, spawning separate run process for each pipelines directory in project metadata pipelines directory.
+        # TODO split here, spawning separate run process for each
+        # pipelines directory in project metadata pipelines directory.
         try:
             pipedirs = prj.metadata.pipelines_dir
             _LOGGER.info("Pipelines path(s): {}".format(pipedirs))

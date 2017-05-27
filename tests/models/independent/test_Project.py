@@ -164,6 +164,240 @@ class DerivedColumnsTests:
 
 
 
+class ProjectPipelineArgstringTests:
+    """ Tests for Project config's pipeline_arguments section. """
+
+    # Data to add to project config based on test case parameterization
+    PIPELINE_ARGS_FLAGS_ONLY = {
+        "ATACSeq.py": {"-D": None},
+        "rrbs.py": {"--epilog": None, "--use-strand": None}
+    }
+    PIPELINE_ARGS_OPTIONS_ONLY = {
+        "ATACSeq.py": {"--frip-peaks": "/atac/metadata/CD4_hotSpot.bed"},
+        "rrbs.py": {"--rrbs-fill": "4", "--quality-threshold": "30"}
+    }
+    # Combine the flags- and options-only argument maps.
+    PIPELINE_ARGS_MIXED = copy.deepcopy(PIPELINE_ARGS_FLAGS_ONLY)
+    for pipeline, args_data in PIPELINE_ARGS_OPTIONS_ONLY.items():
+        PIPELINE_ARGS_MIXED[pipeline].update(**args_data)
+    
+    # Map heterogeneity keyword argument for test parameterization 
+    # to project config data and expected argstring components.
+    DATA_BY_CASE_TYPE = {
+        "flags": PIPELINE_ARGS_FLAGS_ONLY, 
+        "options": PIPELINE_ARGS_OPTIONS_ONLY, 
+        "mixed": PIPELINE_ARGS_MIXED}
+    EXPECTATIONS_BY_CASE_TYPE = {
+        # Just the flags themselves are components.
+        "flags": {pipe: set(flags_encoding.keys())
+                  for pipe, flags_encoding
+                  in PIPELINE_ARGS_FLAGS_ONLY.items()},
+        # Pair option with argument for non-flag command components.
+        "options": {pipe: set(opts_encoding.items())
+                    for pipe, opts_encoding
+                    in PIPELINE_ARGS_OPTIONS_ONLY.items()},
+        # Null-valued KV pairs represent flags, not options.
+        "mixed": {pipe: {opt if arg is None else (opt, arg)
+                         for opt, arg in mixed_encoding.items()}
+                  for pipe, mixed_encoding in PIPELINE_ARGS_MIXED.items()}}
+
+
+    @pytest.mark.parametrize(argnames="pipeline",
+                             argvalues=["arb-pipe-1", "dummy_pipeline_2"])
+    def test_no_pipeline_args(self, tmpdir, pipeline,
+                              env_config_filepath, project_config_data):
+        """ Project need not specify pipeline arguments. """
+        # Project-level argstring is empty if pipeline_args section is absent.
+        assert [""] == self.observed_argstring_elements(
+                project_config_data, pipeline, 
+                confpath=tmpdir.strpath, envpath=env_config_filepath)
+
+
+    @pytest.mark.parametrize(
+            argnames="pipeline", argvalues=["not-mapped-1", "unmapped_2"])
+    @pytest.mark.parametrize(
+            argnames="pipeline_args",
+            argvalues=[PIPELINE_ARGS_FLAGS_ONLY,
+                       PIPELINE_ARGS_OPTIONS_ONLY, PIPELINE_ARGS_MIXED],
+            ids=lambda pipe_args: "pipeline_args: {}".format(pipe_args))
+    def test_pipeline_args_different_pipeline(
+            self, tmpdir, pipeline, pipeline_args,
+            env_config_filepath, project_config_data):
+        """ Project-level argstring is empty for unmapped pipeline name. """
+        # Project-level argstring is empty if pipeline_args section is absent.
+        project_config_data["pipeline_args"] = pipeline_args
+        observed_argstring_elements = self.observed_argstring_elements(
+                project_config_data, pipeline, 
+                confpath=tmpdir.strpath, envpath=env_config_filepath)
+        assert [""] == observed_argstring_elements
+
+
+    @pytest.mark.parametrize(
+            argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
+    @pytest.mark.parametrize(
+            argnames="optargs", argvalues=EXPECTATIONS_BY_CASE_TYPE.keys())
+    def test_pipeline_args_pipeline_match(
+            self, pipeline, optargs, tmpdir, 
+            project_config_data, env_config_filepath):
+        """ Project does flags-only, options-only, or mixed pipeline_args. """
+
+        # Allow parameterization to determine pipeline_args section content.
+        project_config_data["pipeline_args"] = self.DATA_BY_CASE_TYPE[optargs]
+
+        # Expectation arises from section content and requested pipeline.
+        expected_argstring_components = \
+                self.EXPECTATIONS_BY_CASE_TYPE[optargs][pipeline]
+
+        # Write config, make Project, and request argstring.
+        observed_argstring_elements = self.observed_argstring_elements(
+                project_config_data, pipeline,
+                confpath=tmpdir.strpath, envpath=env_config_filepath)
+
+        # Format the flags/opt-arg pairs for validation.
+        observed_argstring_elements = self._parse_flags_and_options(
+                observed_argstring_elements)
+
+        assert expected_argstring_components == observed_argstring_elements
+
+
+    @pytest.mark.parametrize(
+            argnames="default", 
+            argvalues=[{"-D": None},
+                       {"--verbosity": "1", "-D": None, "--dirty": None}])
+    @pytest.mark.parametrize(
+            argnames="pipeline", 
+            argvalues=["missing1", "arbitrary2"] + 
+                      list(PIPELINE_ARGS_MIXED.keys()))
+    def test_default_only(
+            self, default, pipeline, tmpdir, 
+            project_config_data, env_config_filepath):
+        """ Project always adds any default pipeline arguments. """
+        project_config_data["pipeline_args"] = {"default": default}
+        expected_components = {opt if arg is None else (opt, arg)
+                               for opt, arg in default.items()}
+        observed_argstring_elements = self.observed_argstring_elements(
+                project_config_data, pipeline, 
+                confpath=tmpdir.strpath, envpath=env_config_filepath)
+        observed_argstring_elements = \
+                self._parse_flags_and_options(observed_argstring_elements)
+        assert expected_components == observed_argstring_elements
+
+
+    @pytest.mark.parametrize(
+            argnames="default", 
+            argvalues=[{"-D": None},
+                       {"--verbosity": "1", "-D": None, "--dirty": None}])
+    @pytest.mark.parametrize(
+            argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
+    def test_default_plus_non_default(
+            self, default, pipeline, tmpdir,
+            project_config_data, env_config_filepath):
+        """ Default arguments apply to all pipelines; others are specific. """
+        case_type = "mixed"
+        pipeline_args = copy.deepcopy(self.DATA_BY_CASE_TYPE[case_type])
+        pipeline_args["default"] = default
+        project_config_data["pipeline_args"] = pipeline_args
+        observed_components = self.observed_argstring_elements(
+                project_config_data, pipeline,
+                confpath=tmpdir.strpath, envpath=env_config_filepath)
+        observed_components = \
+                self._parse_flags_and_options(observed_components)
+        expected_from_default = \
+                {opt if arg is None else (opt, arg)
+                 for opt, arg in default.items()}
+        expected_from_pipeline = \
+                self.EXPECTATIONS_BY_CASE_TYPE[case_type][pipeline]
+        expected_components = expected_from_default | expected_from_pipeline
+        assert expected_components == observed_components
+
+
+    def test_path_expansion(
+            self, tmpdir, project_config_data, env_config_filepath):
+        """ Path values in pipeline_args expand environment variables. """
+        pipeline = "wgbs.py"
+        genomes_extension = "mm10/indexed_epilog/mm10_cg.tsv.gz"
+        genomes_substitution = os.path.expandvars("$HOME")
+        pipeline_args = {pipeline: {
+                "--positions": "$HOME/{}".format(genomes_extension)}}
+        project_config_data["pipeline_args"] = pipeline_args
+        expected = "--positions {}/{}".format(genomes_substitution, 
+                                              genomes_extension)
+        observed = self.observed_argstring_elements(
+                project_config_data, pipeline, 
+                confpath=tmpdir.strpath, envpath=env_config_filepath)
+        assert expected.split(" ") == observed
+
+
+    def observed_argstring_elements(
+            self, confdata, pipeline, confpath, envpath):
+        """
+        Write config, build project, and validate argstring for pipeline.
+        
+        :param dict confdata: project configuration data
+        :param str pipeline: name of pipeline for which to build argstring
+        :param str confpath: where to write project config file
+        :param str envpath: pointer to default environment file
+        :return Iterable[str] argstring components
+        """
+        conf_file_path = _write_project_config(confdata, dirpath=confpath)
+
+        # Subvert requirement for sample annotations file.
+        with mock.patch("looper.models.Project.add_sample_sheet"):
+            project = Project(conf_file_path, default_compute=envpath)
+
+        argstring = project.get_arg_string(pipeline)
+        return argstring.split(" ")
+    
+    
+    @staticmethod
+    def _parse_flags_and_options(command_elements):
+        """
+        Differentiate flags and option/argument pairs for validation.
+        
+        We need a way to assert that each option is adjacent to and precedes 
+        its argument. This creates some difficulty since we want to be 
+        disregard order of the flags/option-argument pairs with respect to one 
+        another when we validate. The desire to validate a mixture of flags 
+        and option/argument pairs precludes some indexing-based approaches to 
+        the problem. Two strategies are most apparent, each with a minor 
+        pitfall. We can regard any command element starting with a hyphen as 
+        a flag or an option, and all others as arguments, but this excludes 
+        the possibility of negative integers as arguments. Or we could assume 
+        that each element with a double-hyphen prefix takes and argument, but 
+        this seems even less reasonable. Let's settle on the first strategy.
+
+        :param Iterable[str] command_elements: components of a command
+        :return Iterable[str | (str, str)]: collection of flags or pairs 
+            of option and argument
+        """
+        # Determine which positions appear to hold an argument
+        # rather than a flag or an option name.
+        is_arg = [not cmd_elem.startswith("-")
+                  for cmd_elem in command_elements]
+
+        parsed_command_elements = set()
+
+        # Step through the command elements, using knowledge of argument index.
+        for i, cmd_elem in enumerate(command_elements):
+            if is_arg[i]:
+                # This position's been added as an argument.
+                continue
+            try:
+                # Could be in final position
+                if is_arg[i + 1]:
+                    # Pair option with argument.
+                    parsed_command_elements.add(
+                            (cmd_elem, command_elements[i + 1]))
+                else:
+                    # Add the flag.
+                    parsed_command_elements.add(cmd_elem)
+            except IndexError:
+                # Add the final element.
+                parsed_command_elements.add(cmd_elem)
+
+        return parsed_command_elements
+
+
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     """
     Write the configuration file for a Project.

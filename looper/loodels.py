@@ -14,18 +14,13 @@ DEFAULT_PROJECT_COMPUTE_CONFIG = os.path.join(
         "submit_templates", DEFAULT_PROJECT_COMPUTE_NAME)
 
 
+
 class Project(models.Project):
     """ Looper-specific NGS Project. """
 
-    # Default project/compute environment with looper specificity.
-    DEFAULT_ENVIRONMENT = resource_filename(
-            "looper", DEFAULT_PROJECT_COMPUTE_CONFIG)
-
-
     def __init__(
             self, config_file,
-            default_compute= resource_filename(
-                    "looper", DEFAULT_PROJECT_COMPUTE_CONFIG),
+            default_compute=None,
             *args, **kwargs):
         """
         Create a new Project.
@@ -37,6 +32,9 @@ class Project(models.Project):
         :param tuple args: additional positional arguments
         :param dict kwargs: additional keyword arguments
         """
+        if not default_compute:
+            default_compute = resource_filename(
+                    "looper", DEFAULT_PROJECT_COMPUTE_CONFIG)
         super(Project, self).__init__(
                 config_file, default_compute, *args, **kwargs)
 

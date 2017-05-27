@@ -5,9 +5,18 @@ Changelog
 
   - New
 
-    - Adds support for implied_column section of the project config file
+    - Add support for implied_column section of the project config file
 
-    - Adds support for Python 3
+    - Add support for Python 3
+
+    - Merges pipeline interface and protocol mappings. This means we now allow direct pointers
+    to ``pipeline_interface.yaml`` files, increasing flexibility, so this relaxes the specified 
+    folder structure that was previously used for ``pipelines_dir`` (with ``config`` subfolder).
+  
+  - Changed
+
+    - Changed name of ``run`` column to ``toggle``, since ``run`` can also refer to a sequencing run.
+
 
 - **v0.5** (*2017-03-01*):
 
