@@ -4,7 +4,7 @@ Usage and commands
 
 Looper doesn't just run pipelines; it can also check and summarize the progress of your jobs, as well as remove all files created by them.
 
-Each task is controlled by one of the five main commands ``run``, ``summarize``, ``destroy``, ``check``, ``clean``: 
+Each task is controlled by one of the five main commands ``run``, ``summarize``, ``destroy``, ``check``, ``clean``:
 
 
 .. code-block:: bash
