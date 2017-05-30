@@ -2,12 +2,16 @@
 
 from copy import deepcopy
 import itertools
+import os
+import pickle
 import numpy as np
 import pytest
+import yaml
 from looper.models import \
         AttributeDict, ATTRDICT_METADATA, MetadataOperationException
 from tests.conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from tests.utils import assert_entirely_equal
+
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -205,7 +209,7 @@ class AttributeDictUpdateTests:
 
     @pytest.mark.parametrize(
             argnames="funcname,name_metadata_item",
-            argvalues=itertools.product(_SETTERS, ATTRDICT_METADATA),
+            argvalues=itertools.product(_SETTERS, ATTRDICT_METADATA.keys()),
             ids=["{}, '{}'".format(func.strip("_"), attr)
                  for func, attr
                  in itertools.product(_SETTERS, ATTRDICT_METADATA)])
@@ -288,6 +292,7 @@ class AttributeDictCollisionTests:
                              argvalues=["__getattr__", "__getitem__"])
     def test_merge_mappings(
                 self, name_setter_func, name_getter_func):
+        """ During construction/insertion, KV pair mappings merge. """
 
         attrdict = AttributeDict()
         raw_data = {}
@@ -437,3 +442,165 @@ class AttributeDictItemAccessTests:
             getattr(ad, getter)("unknown")
         ad = AttributeDict(_attribute_identity=True)
         assert getattr(ad, getter)("self_reporter") == "self_reporter"
+
+
+
+class AttributeDictSerializationTests:
+    """ Tests for AttributeDict serialization. """
+
+    DATA_PAIRS = [('a', 1), ('b', False), ('c', range(5)),
+                  ('d', {'A': None, 'T': []}),
+                  ('e', AttributeDict({'G': 1, 'C': [False, None]})),
+                  ('f',
+                   [AttributeDict({"DNA": "deoxyribose", "RNA": "ribose"},
+                                  _attribute_identity=True),
+                    AttributeDict({"DNA": "thymine", "RNA": "uracil"},
+                                  _attribute_identity=False)])]
+
+    @pytest.mark.parametrize(
+            argnames="data",
+            argvalues=itertools.combinations(DATA_PAIRS, 2),
+            ids=lambda data: " data = {}".format(str(data)))
+    @pytest.mark.parametrize(
+            argnames="data_type", argvalues=[list, dict],
+            ids=lambda data_type: " data_type = {}".format(data_type))
+    def test_pickle_restoration(self, tmpdir, data, data_type):
+        """ Pickled and restored AttributeDict objects are identical. """
+
+        # Type the AttributeDict input data argument according to parameter.
+        data = data_type(data)
+        original_attrdict = AttributeDict(data)
+        filename = "attrdict-test.pkl"
+
+        # Allow either Path or raw string.
+        try:
+            dirpath = tmpdir.strpath
+        except AttributeError:
+            dirpath = tmpdir
+
+        # Serialize AttributeDict and write to disk.
+        filepath = os.path.join(dirpath, filename)
+        with open(filepath, 'wb') as pkl:
+            pickle.dump(original_attrdict, pkl)
+
+        # Validate equivalence between original and restored versions.
+        with open(filepath, 'rb') as pkl:
+            restored_attrdict = pickle.load(pkl)
+        assert restored_attrdict == original_attrdict
+
+
+
+class AttributeDictObjectSyntaxAccessTests:
+    """ Test behavior of dot attribute access / identity setting. """
+
+    DEFAULT_VALUE = "totally-arbitrary"
+    NORMAL_ITEM_ARG_VALUES = \
+            ["__getattr__", "__getitem__", "__dict__", "__repr__", "__str__"]
+    PICKLE_ITEM_ARG_VALUES = ["__getstate__", "__setstate__"]
+    ATTR_DICT_DATA = {"a": 0, "b": range(1, 3), "c": {"CO": 70, "WA": 5}}
+    UNMAPPED = ["arb-att-1", "random-attribute-2"]
+
+    @pytest.fixture(scope="function")
+    def attrdict(self, request):
+        identity = request.getfixturevalue("return_identity")
+        return AttributeDict(self.ATTR_DICT_DATA, _attribute_identity=identity)
+
+
+    @pytest.mark.parametrize(
+            argnames="return_identity", argvalues=[False, True],
+            ids=lambda ret_id: " identity setting: {} ".format(ret_id))
+    @pytest.mark.parametrize(
+            argnames="attr_to_request",
+            argvalues=NORMAL_ITEM_ARG_VALUES + PICKLE_ITEM_ARG_VALUES +
+                      UNMAPPED + list(ATTR_DICT_DATA.keys()),
+            ids=lambda attr: " requested = {} ".format(attr))
+    def test_attribute_access(
+            self, return_identity, attr_to_request, attrdict):
+        """ Access behavior depends on request and behavior toggle. """
+        if attr_to_request == "__dict__":
+            # The underlying mapping is still accessible.
+            assert attrdict.__dict__ is getattr(attrdict, "__dict__")
+        elif attr_to_request in self.NORMAL_ITEM_ARG_VALUES:
+            # Request for common protected function returns the function.
+            assert callable(getattr(attrdict, attr_to_request))
+        elif attr_to_request in self.PICKLE_ITEM_ARG_VALUES:
+            # We don't tinker with the pickle-relevant attributes.
+            with pytest.raises(AttributeError):
+                getattr(attrdict, attr_to_request)
+        elif attr_to_request in self.UNMAPPED:
+            # Unmapped request behavior depends on parameterization.
+            if return_identity:
+                assert attr_to_request == getattr(attrdict, attr_to_request)
+            else:
+                with pytest.raises(AttributeError):
+                    getattr(attrdict, attr_to_request)
+        else:
+            # A mapped attribute returns its known value.
+            expected = self.ATTR_DICT_DATA[attr_to_request]
+            observed = getattr(attrdict, attr_to_request)
+            assert expected == observed
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class SampleYamlTests:
+    """ AttributeDict metadata only appear in YAML if non-default. """
+
+
+    @pytest.mark.parametrize(
+            argnames="metadata_attribute", argvalues=ATTRDICT_METADATA.keys(),
+            ids=lambda attr_name: " metadata item = {} ".format(attr_name))
+    def test_all_defaults_no_metadata(self, tmpdir, proj, metadata_attribute):
+        """ No metadata entries are written if all hold default values. """
+        for i, sample in enumerate(proj.samples):
+            filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
+            lines, _ = self._yaml_data(sample, filepath)
+            assert all([metadata_attribute not in line for line in lines])
+
+
+    @pytest.mark.parametrize(
+        argnames="metadata_attribute", argvalues=ATTRDICT_METADATA.keys(),
+        ids=lambda attr_name: " metadata item = {} ".format(attr_name))
+    def test_non_defaults_have_metadata(
+            self, tmpdir, proj, metadata_attribute):
+        """ Only non-default metadata elements are written to file. """
+        for i, sample in enumerate(proj.samples):
+            filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
+
+            # Flip the value of an attribute in the project section.
+            newval = not ATTRDICT_METADATA[metadata_attribute]
+            lines, data = self._yaml_data(
+                    sample, filepath, section_to_change="prj",
+                    attr_to_change=metadata_attribute, newval=newval)
+
+            # Is the test sensitive?
+            assert newval == data["prj"][metadata_attribute]
+            # How about specific?
+            num_meta_lines = sum(1 if any(
+                    [meta_item in line for meta_item
+                     in ATTRDICT_METADATA.keys()]) else 0 for line in lines)
+            assert 1 == num_meta_lines
+
+    
+    @staticmethod
+    def _yaml_data(sample, filepath, section_to_change=None,
+                   attr_to_change=None, newval=None):
+        """
+        Serialize a Sample, possibly tweaking it first, write, and parse.
+
+        :param models.Sample sample: what to serialize and write
+        :param str filepath: where to write the data
+        :param str section_to_change: name of section
+            in which to change attribute
+        :param str attr_to_change: name of attribute to change
+        :param object newval: value to set for targeted attribute
+        :return (Iterable[str], dict): raw lines and parsed version (YAML)
+        """
+        if section_to_change:
+            getattr(sample, section_to_change)[attr_to_change] = newval
+        sample.to_yaml(filepath)
+        with open(filepath, 'r') as f:
+            data = yaml.safe_load(f)
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+        return lines, data
