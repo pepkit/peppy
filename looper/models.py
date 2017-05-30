@@ -190,21 +190,34 @@ class AttributeDict(MutableMapping):
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
-        :raises AttributeError: if the requested item has not been set and
-            this `AttributeDict` instance is not configured to return the
-            requested key/item itself when it's missing
+        :raises AttributeError: if the requested item has not been set,
+            no default value is provided, and this instance is not configured
+            to return the requested key/item itself when it's missing; also,
+            if the requested item is unmapped and appears to be protected,
+            i.e. by flanking double underscores, then raise AttributeError
+            anyway. More specifically, respect attribute naming that appears
+            to be indicative of the intent of protection.
         """
         try:
+            # Fundamentally, this is still a mapping;
+            # route object notation access pattern accordingly.
+            # Ideally, the requested item maps to a value.
             return self.__dict__[item]
         except KeyError:
+            # If not, arbitrage and cope accordingly.
             if item.startswith("__") and item.endswith("__"):
-                raise AttributeError(
-                        "Attempt to access protected-looking attribute: {}".
-                        format(item))
+                # Some libraries use exception for protected attribute
+                # access as a control flow mechanism.
+                error_reason = "Protected-looking attribute: {}".format(item)
+                raise AttributeError(error_reason)
             if default is not None:
+                # For compatibility with ordinary getattr() invocation, allow
+                # caller the ability to provide a default value.
                 return default
             if self.__dict__.setdefault("_attribute_identity", False):
+                # Check if we should return the attribute name as the value.
                 return item
+            # Throw up our hands in despair and resort to exception behavior.
             raise AttributeError(item)
 
 
@@ -247,8 +260,7 @@ class AttributeDict(MutableMapping):
 
     def __getitem__(self, item):
         try:
-            # Ability to handle returning requested item itself is delegated.
-            # TODO: use getattr() to leverage definition i/o direct access.
+            # Ability to return requested item name itself is delegated.
             return self.__getattr__(item)
         except AttributeError:
             # Requested item is unknown, but request was made via

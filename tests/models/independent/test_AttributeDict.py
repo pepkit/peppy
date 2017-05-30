@@ -291,6 +291,7 @@ class AttributeDictCollisionTests:
                              argvalues=["__getattr__", "__getitem__"])
     def test_merge_mappings(
                 self, name_setter_func, name_getter_func):
+        """ During construction/insertion, KV pair mappings merge. """
 
         attrdict = AttributeDict()
         raw_data = {}
@@ -476,10 +477,62 @@ class AttributeDictSerializationTests:
 
         # Serialize AttributeDict and write to disk.
         filepath = os.path.join(dirpath, filename)
-        with open(filepath, 'w') as pkl:
+        with open(filepath, 'wb') as pkl:
             pickle.dump(original_attrdict, pkl)
 
-        # Validate quivalence between original and restored versions.
-        with open(filepath, 'r') as pkl:
+        # Validate equivalence between original and restored versions.
+        with open(filepath, 'rb') as pkl:
             restored_attrdict = pickle.load(pkl)
         assert restored_attrdict == original_attrdict
+
+
+
+class AttributeDictObjectSyntaxAccessTests:
+    """ Test behavior of dot attribute access / identity setting. """
+
+    DEFAULT_VALUE = "totally-arbitrary"
+    NORMAL_ITEM_ARG_VALUES = \
+            ["__getattr__", "__getitem__", "__dict__", "__repr__", "__str__"]
+    PICKLE_ITEM_ARG_VALUES = ["__getstate__", "__setstate__"]
+    ATTR_DICT_DATA = {"a": 0, "b": range(1, 3), "c": {"CO": 70, "WA": 5}}
+    UNMAPPED = ["arb-att-1", "random-attribute-2"]
+
+    @pytest.fixture(scope="function")
+    def attrdict(self, request):
+        identity = request.getfixturevalue("return_identity")
+        return AttributeDict(self.ATTR_DICT_DATA, _attribute_identity=identity)
+
+
+    @pytest.mark.parametrize(
+            argnames="return_identity", argvalues=[False, True],
+            ids=lambda ret_id: " identity setting: {} ".format(ret_id))
+    @pytest.mark.parametrize(
+            argnames="attr_to_request",
+            argvalues=NORMAL_ITEM_ARG_VALUES + PICKLE_ITEM_ARG_VALUES +
+                      UNMAPPED + list(ATTR_DICT_DATA.keys()),
+            ids=lambda attr: " requested = {} ".format(attr))
+    def test_attribute_access(
+            self, return_identity, attr_to_request, attrdict):
+        """ Access behavior depends on request and behavior toggle. """
+        if attr_to_request == "__dict__":
+            # The underlying mapping is still accessible.
+            assert attrdict.__dict__ is getattr(attrdict, "__dict__")
+        elif attr_to_request in self.NORMAL_ITEM_ARG_VALUES:
+            # Request for common protected function returns the function.
+            assert callable(getattr(attrdict, attr_to_request))
+        elif attr_to_request in self.PICKLE_ITEM_ARG_VALUES:
+            # We don't tinker with the pickle-relevant attributes.
+            with pytest.raises(AttributeError):
+                getattr(attrdict, attr_to_request)
+        elif attr_to_request in self.UNMAPPED:
+            # Unmapped request behavior depends on parameterization.
+            if return_identity:
+                assert attr_to_request == getattr(attrdict, attr_to_request)
+            else:
+                with pytest.raises(AttributeError):
+                    getattr(attrdict, attr_to_request)
+        else:
+            # A mapped attribute returns its known value.
+            expected = self.ATTR_DICT_DATA[attr_to_request]
+            observed = getattr(attrdict, attr_to_request)
+            assert expected == observed
