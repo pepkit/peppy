@@ -6,6 +6,7 @@ import os
 import pickle
 import numpy as np
 import pytest
+import yaml
 from looper.models import \
         AttributeDict, ATTRDICT_METADATA, MetadataOperationException
 from tests.conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
@@ -208,7 +209,7 @@ class AttributeDictUpdateTests:
 
     @pytest.mark.parametrize(
             argnames="funcname,name_metadata_item",
-            argvalues=itertools.product(_SETTERS, ATTRDICT_METADATA),
+            argvalues=itertools.product(_SETTERS, ATTRDICT_METADATA.keys()),
             ids=["{}, '{}'".format(func.strip("_"), attr)
                  for func, attr
                  in itertools.product(_SETTERS, ATTRDICT_METADATA)])
@@ -450,9 +451,11 @@ class AttributeDictSerializationTests:
     DATA_PAIRS = [('a', 1), ('b', False), ('c', range(5)),
                   ('d', {'A': None, 'T': []}),
                   ('e', AttributeDict({'G': 1, 'C': [False, None]})),
-                  ('f', [AttributeDict({"DNA": "deoxyribose", "RNA": "ribose"}, _attribute_identity=True),
-                         AttributeDict({"DNA": "thymine", "RNA": "uracil"},
-                                       _attribute_identity=False)])]
+                  ('f',
+                   [AttributeDict({"DNA": "deoxyribose", "RNA": "ribose"},
+                                  _attribute_identity=True),
+                    AttributeDict({"DNA": "thymine", "RNA": "uracil"},
+                                  _attribute_identity=False)])]
 
     @pytest.mark.parametrize(
             argnames="data",
@@ -536,3 +539,68 @@ class AttributeDictObjectSyntaxAccessTests:
             expected = self.ATTR_DICT_DATA[attr_to_request]
             observed = getattr(attrdict, attr_to_request)
             assert expected == observed
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class SampleYamlTests:
+    """ AttributeDict metadata only appear in YAML if non-default. """
+
+
+    @pytest.mark.parametrize(
+            argnames="metadata_attribute", argvalues=ATTRDICT_METADATA.keys(),
+            ids=lambda attr_name: " metadata item = {} ".format(attr_name))
+    def test_all_defaults_no_metadata(self, tmpdir, proj, metadata_attribute):
+        """ No metadata entries are written if all hold default values. """
+        for i, sample in enumerate(proj.samples):
+            filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
+            lines, _ = self._yaml_data(sample, filepath)
+            assert all([metadata_attribute not in line for line in lines])
+
+
+    @pytest.mark.parametrize(
+        argnames="metadata_attribute", argvalues=ATTRDICT_METADATA.keys(),
+        ids=lambda attr_name: " metadata item = {} ".format(attr_name))
+    def test_non_defaults_have_metadata(
+            self, tmpdir, proj, metadata_attribute):
+        """ Only non-default metadata elements are written to file. """
+        for i, sample in enumerate(proj.samples):
+            filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
+
+            # Flip the value of an attribute in the project section.
+            newval = not ATTRDICT_METADATA[metadata_attribute]
+            lines, data = self._yaml_data(
+                    sample, filepath, section_to_change="prj",
+                    attr_to_change=metadata_attribute, newval=newval)
+
+            # Is the test sensitive?
+            assert newval == data["prj"][metadata_attribute]
+            # How about specific?
+            num_meta_lines = sum(1 if any(
+                    [meta_item in line for meta_item
+                     in ATTRDICT_METADATA.keys()]) else 0 for line in lines)
+            assert 1 == num_meta_lines
+
+    
+    @staticmethod
+    def _yaml_data(sample, filepath, section_to_change=None,
+                   attr_to_change=None, newval=None):
+        """
+        Serialize a Sample, possibly tweaking it first, write, and parse.
+
+        :param models.Sample sample: what to serialize and write
+        :param str filepath: where to write the data
+        :param str section_to_change: name of section
+            in which to change attribute
+        :param str attr_to_change: name of attribute to change
+        :param object newval: value to set for targeted attribute
+        :return (Iterable[str], dict): raw lines and parsed version (YAML)
+        """
+        if section_to_change:
+            getattr(sample, section_to_change)[attr_to_change] = newval
+        sample.to_yaml(filepath)
+        with open(filepath, 'r') as f:
+            data = yaml.safe_load(f)
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+        return lines, data

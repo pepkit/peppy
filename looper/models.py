@@ -76,7 +76,7 @@ SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
 COL_KEY_SUFFIX = "_key"
 
-ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
+ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
 _LOGGER = logging.getLogger(__name__)
 if not logging.getLogger().handlers:
@@ -1245,10 +1245,12 @@ class Sample(object):
 \            """
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            elif isinstance(obj, dict):
+            if isinstance(obj, AttributeDict):
+                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip and (k not in ATTRDICT_METADATA or v != ATTRDICT_METADATA[k])}
+            elif isinstance(obj, Mapping):
                 return {k: obj2dict(v)
                         for k, v in obj.items() if k not in to_skip}
-            elif isinstance(obj, (AttributeDict, Paths, Sample)):
+            elif isinstance(obj, (Paths, Sample)):
                 return {k: obj2dict(v)
                         for k, v in obj.__dict__.items() if k not in to_skip}
             elif hasattr(obj, 'dtype'):  # numpy data types
