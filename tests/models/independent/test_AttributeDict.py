@@ -446,32 +446,40 @@ class AttributeDictItemAccessTests:
 class AttributeDictSerializationTests:
     """ Tests for AttributeDict serialization. """
 
-
     DATA_PAIRS = [('a', 1), ('b', False), ('c', range(5)),
-                  ('d', {'f': None, 'g': []}),
-                  ('e', AttributeDict({'a': 1, 't': [False, None]}))]
-
+                  ('d', {'A': None, 'T': []}),
+                  ('e', AttributeDict({'G': 1, 'C': [False, None]})),
+                  ('f', [AttributeDict({"DNA": "deoxyribose", "RNA": "ribose"}, _attribute_identity=True),
+                         AttributeDict({"DNA": "thymine", "RNA": "uracil"},
+                                       _attribute_identity=False)])]
 
     @pytest.mark.parametrize(
             argnames="data",
-            argvalues=itertools.combinations(DATA_PAIRS, 2))
-    @pytest.mark.parametrize(argnames="data_type", argvalues=[list, dict])
+            argvalues=itertools.combinations(DATA_PAIRS, 2),
+            ids=lambda data: " data = {}".format(str(data)))
+    @pytest.mark.parametrize(
+            argnames="data_type", argvalues=[list, dict],
+            ids=lambda data_type: " data_type = {}".format(data_type))
     def test_pickle_restoration(self, tmpdir, data, data_type):
         """ Pickled and restored AttributeDict objects are identical. """
+
+        # Type the AttributeDict input data argument according to parameter.
         data = data_type(data)
         original_attrdict = AttributeDict(data)
         filename = "attrdict-test.pkl"
+
+        # Allow either Path or raw string.
         try:
             dirpath = tmpdir.strpath
         except AttributeError:
             dirpath = tmpdir
+
+        # Serialize AttributeDict and write to disk.
         filepath = os.path.join(dirpath, filename)
         with open(filepath, 'w') as pkl:
             pickle.dump(original_attrdict, pkl)
+
+        # Validate quivalence between original and restored versions.
         with open(filepath, 'r') as pkl:
             restored_attrdict = pickle.load(pkl)
         assert restored_attrdict == original_attrdict
-
-
-    def test_pickle_respects_attribute_identity(self, tmpdir):
-        pass

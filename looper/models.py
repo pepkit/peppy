@@ -183,7 +183,7 @@ class AttributeDict(MutableMapping):
         self.__setitem__(key, value)
 
 
-    def __getattr__(self, item):
+    def __getattr__(self, item, default=None):
         """
         Fetch the value associated with the provided identifier. Unlike an
         ordinary object, `AttributeDict` supports fetching
@@ -197,6 +197,12 @@ class AttributeDict(MutableMapping):
         try:
             return self.__dict__[item]
         except KeyError:
+            if item.startswith("__") and item.endswith("__"):
+                raise AttributeError(
+                        "Attempt to access protected-looking attribute: {}".
+                        format(item))
+            if default is not None:
+                return default
             if self.__dict__.setdefault("_attribute_identity", False):
                 return item
             raise AttributeError(item)
@@ -242,6 +248,7 @@ class AttributeDict(MutableMapping):
     def __getitem__(self, item):
         try:
             # Ability to handle returning requested item itself is delegated.
+            # TODO: use getattr() to leverage definition i/o direct access.
             return self.__getattr__(item)
         except AttributeError:
             # Requested item is unknown, but request was made via
