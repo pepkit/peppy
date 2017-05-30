@@ -2,12 +2,15 @@
 
 from copy import deepcopy
 import itertools
+import os
+import pickle
 import numpy as np
 import pytest
 from looper.models import \
         AttributeDict, ATTRDICT_METADATA, MetadataOperationException
 from tests.conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from tests.utils import assert_entirely_equal
+
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -437,3 +440,38 @@ class AttributeDictItemAccessTests:
             getattr(ad, getter)("unknown")
         ad = AttributeDict(_attribute_identity=True)
         assert getattr(ad, getter)("self_reporter") == "self_reporter"
+
+
+
+class AttributeDictSerializationTests:
+    """ Tests for AttributeDict serialization. """
+
+
+    DATA_PAIRS = [('a', 1), ('b', False), ('c', range(5)),
+                  ('d', {'f': None, 'g': []}),
+                  ('e', AttributeDict({'a': 1, 't': [False, None]}))]
+
+
+    @pytest.mark.parametrize(
+            argnames="data",
+            argvalues=itertools.combinations(DATA_PAIRS, 2))
+    @pytest.mark.parametrize(argnames="data_type", argvalues=[list, dict])
+    def test_pickle_restoration(self, tmpdir, data, data_type):
+        """ Pickled and restored AttributeDict objects are identical. """
+        data = data_type(data)
+        original_attrdict = AttributeDict(data)
+        filename = "attrdict-test.pkl"
+        try:
+            dirpath = tmpdir.strpath
+        except AttributeError:
+            dirpath = tmpdir
+        filepath = os.path.join(dirpath, filename)
+        with open(filepath, 'w') as pkl:
+            pickle.dump(original_attrdict, pkl)
+        with open(filepath, 'r') as pkl:
+            restored_attrdict = pickle.load(pkl)
+        assert restored_attrdict == original_attrdict
+
+
+    def test_pickle_respects_attribute_identity(self, tmpdir):
+        pass

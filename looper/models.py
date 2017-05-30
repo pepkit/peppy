@@ -197,7 +197,7 @@ class AttributeDict(MutableMapping):
         try:
             return self.__dict__[item]
         except KeyError:
-            if self.__dict__["_attribute_identity"]:
+            if self.__dict__.setdefault("_attribute_identity", False):
                 return item
             raise AttributeError(item)
 
