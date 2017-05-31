@@ -173,14 +173,30 @@ COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
                         "keys", "values", "items"]
 
 
+
 def pytest_addoption(parser):
+    """ Facilitate command-line test behavior adjustment. """
     parser.addoption("--logging-level",
                      default="WARN",
                      help="Project root logger level to use for tests")
 
 
+
+def pytest_generate_tests(metafunc):
+    """ Centralize dynamic test case parameterization. """
+    if "empty_collection" in metafunc.fixturenames:
+        # Test case strives to validate expected behavior on empty container.
+        collection_types = [tuple, list, set, dict]
+        metafunc.parametrize(
+                "empty_collection",
+                argvalues=[ctype() for ctype in collection_types],
+                ids=[ctype.__name__ for ctype in collection_types])
+
+
+
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
+    """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
     setup_looper_logger(level=level, devmode=True)
     logging.getLogger("looper").info(
@@ -368,25 +384,26 @@ def pipe_iface_config_file(request):
 
 
 
-def _req_cls_att(req, attr):
+def request_class_attribute(req, attr):
     """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
 
 
 
-def _create(request, wanted):
+def _create(request, data_type):
     """
-    Create instance of `wanted` type, using file in `request` class.
+    Create instance of desired type, using file in request class.
 
     :param _pytest.fixtures.FixtureRequest: test case that initiated the
         fixture request that triggered this call
-    :param type wanted: the data type to be created
+    :param type data_type: the data type to be created
     """
-    data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
+    request_class_attr_name = _ATTR_BY_TYPE[data_type]
+    data_source = request_class_attribute(request, request_class_attr_name)
     _LOGGER.debug("Using %s as source of data to build %s",
-                  data_source, wanted.__class__.__name__)
+                  data_source, data_type.__class__.__name__)
     try:
-        return wanted(data_source)
+        return data_type(data_source)
     except EmptyDataError:
         with open(data_source, 'r') as datafile:
             _LOGGER.error("File contents:\n{}".format(datafile.readlines()))
@@ -395,10 +412,9 @@ def _create(request, wanted):
 
 
 @pytest.fixture(scope="function")
-def proj(request, ):
+def proj(request):
     """
-    Create `looper` `Project` instance using data from file
-    pointed to by class of `request`.
+    Create project instance using data from file pointed to by request class.
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
@@ -412,8 +428,8 @@ def proj(request, ):
 @pytest.fixture(scope="function")
 def pipe_iface(request):
     """
-    Create `looper` `PipelineInterface` instance using data from file
-    pointed to by class of `request`.
+    Create pipeline interface instance using data from 
+    file pointed to by request class.
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
@@ -435,15 +451,3 @@ def nested_entries():
     """ AttributeDict data with some nesting going on. """
     for k, v in _SEASON_HIERARCHY.items():
         yield k, v
-
-
-
-def pytest_generate_tests(metafunc):
-    """ Centralize dynamic test case parameterization. """
-    if "empty_collection" in metafunc.fixturenames:
-        # Test case strives to validate expected behavior on empty container.
-        collection_types = [tuple, list, set, dict]
-        metafunc.parametrize(
-                "empty_collection",
-                argvalues=[ctype() for ctype in collection_types],
-                ids=[ctype.__name__ for ctype in collection_types])

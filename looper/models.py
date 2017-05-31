@@ -76,7 +76,7 @@ SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
 COL_KEY_SUFFIX = "_key"
 
-ATTRDICT_METADATA = ("_force_nulls", "_attribute_identity")
+ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
 _LOGGER = logging.getLogger(__name__)
 if not logging.getLogger().handlers:
@@ -183,22 +183,41 @@ class AttributeDict(MutableMapping):
         self.__setitem__(key, value)
 
 
-    def __getattr__(self, item):
+    def __getattr__(self, item, default=None):
         """
         Fetch the value associated with the provided identifier. Unlike an
         ordinary object, `AttributeDict` supports fetching
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
-        :raises AttributeError: if the requested item has not been set and
-            this `AttributeDict` instance is not configured to return the
-            requested key/item itself when it's missing
+        :raises AttributeError: if the requested item has not been set,
+            no default value is provided, and this instance is not configured
+            to return the requested key/item itself when it's missing; also,
+            if the requested item is unmapped and appears to be protected,
+            i.e. by flanking double underscores, then raise AttributeError
+            anyway. More specifically, respect attribute naming that appears
+            to be indicative of the intent of protection.
         """
         try:
+            # Fundamentally, this is still a mapping;
+            # route object notation access pattern accordingly.
+            # Ideally, the requested item maps to a value.
             return self.__dict__[item]
         except KeyError:
-            if self.__dict__["_attribute_identity"]:
+            # If not, arbitrage and cope accordingly.
+            if item.startswith("__") and item.endswith("__"):
+                # Some libraries use exception for protected attribute
+                # access as a control flow mechanism.
+                error_reason = "Protected-looking attribute: {}".format(item)
+                raise AttributeError(error_reason)
+            if default is not None:
+                # For compatibility with ordinary getattr() invocation, allow
+                # caller the ability to provide a default value.
+                return default
+            if self.__dict__.setdefault("_attribute_identity", False):
+                # Check if we should return the attribute name as the value.
                 return item
+            # Throw up our hands in despair and resort to exception behavior.
             raise AttributeError(item)
 
 
@@ -241,7 +260,7 @@ class AttributeDict(MutableMapping):
 
     def __getitem__(self, item):
         try:
-            # Ability to handle returning requested item itself is delegated.
+            # Ability to return requested item name itself is delegated.
             return self.__getattr__(item)
         except AttributeError:
             # Requested item is unknown, but request was made via
@@ -1226,10 +1245,12 @@ class Sample(object):
 \            """
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            elif isinstance(obj, dict):
+            if isinstance(obj, AttributeDict):
+                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip and (k not in ATTRDICT_METADATA or v != ATTRDICT_METADATA[k])}
+            elif isinstance(obj, Mapping):
                 return {k: obj2dict(v)
                         for k, v in obj.items() if k not in to_skip}
-            elif isinstance(obj, (AttributeDict, Paths, Sample)):
+            elif isinstance(obj, (Paths, Sample)):
                 return {k: obj2dict(v)
                         for k, v in obj.__dict__.items() if k not in to_skip}
             elif hasattr(obj, 'dtype'):  # numpy data types
