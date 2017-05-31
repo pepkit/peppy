@@ -409,20 +409,6 @@ class Project(AttributeDict):
         self.finalize_pipelines_directory()
 
 
-    def __str__(self):
-        """
-        Provide project's actual name, along with its data for text form.
-        
-        :return str: project's name and its data for printing
-        """
-        try:
-            name = self.name
-        except AttributeError:
-            name = "[no name]"
-        return "{} '{name}'\n{data}".format(
-                self.__class__.__name__, name=name, data=self)
-
-
     @property
     def compute_env_var(self):
         """
@@ -1889,7 +1875,7 @@ class InterfaceManager(object):
                 [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs]
         self.ifproto_by_proto_name = defaultdict(list)
         for ifproto in interfaces_and_protocols:
-            for proto_name in ifproto.protocols:
+            for proto_name in ifproto.protomap:
                 self.ifproto_by_proto_name[proto_name].append(ifproto)
 
 
@@ -2019,24 +2005,12 @@ class ProtocolInterfaces:
                 _LOGGER.error(str(iface))
                 raise e
 
-    @property
-    def protocols(self):
-        """
-        Syntactic sugar for iteration over the
-        known protocol names for this instance.
-
-        :return generator[str]: names of protocols known by this instance
-        """
-        for protocol in self.protomap.mappings:
-            yield protocol
-
 
 
 @copy
 class ProtocolMapper(object):
     """
-    This class maps protocols (the library column) to pipelines. 
-    For example, WGBS is mapped to wgbs.py.
+    Map protocol/library name to pipeline(s). For example, "WGBS" --> wgbs.py.
     """
 
     def __init__(self, mappings_input):
@@ -2058,12 +2032,13 @@ class ProtocolMapper(object):
         self.mappings = {k.upper(): v for k, v in mappings.items()}
 
 
-    # TODO: remove once comfortable that the aggregate InterfaceManager version is stable.
     def build_pipeline(self, protocol):
         """
+        Create command-line text for given protocol's pipeline(s).
+
         :param str protocol: Name of protocol.
-        :type protocol: str
         """
+
         _LOGGER.debug("Building pipeline for protocol '%s'", protocol)
 
         if protocol not in self.mappings:
@@ -2076,7 +2051,7 @@ class ProtocolMapper(object):
         split_jobs = [x.strip() for x in self.mappings[protocol].split(';')]
         return split_jobs  # hack works if no parallelism
 
-        # TODO: OK to remove? It's unreachable
+        # Placeholder for parallelism.
         """
         for i in range(0, len(split_jobs)):
             if i == 0:
@@ -2099,8 +2074,18 @@ class ProtocolMapper(object):
     def register_job(self, job, dep):
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
 
+
+    def __getitem__(self, item):
+        return self.mappings[item]
+
+    def __iter__(self):
+        return iter(self.mappings)
+
+    def __len__(self):
+        return len(self.mappings)
+
     def __repr__(self):
-        return str(self.__dict__)
+        return repr(self.__dict__)
 
 
 
