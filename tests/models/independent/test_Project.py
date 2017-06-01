@@ -84,9 +84,19 @@ class ProjectRequirementsTests:
 
 
 
-@pytest.mark.skip("Not implemented")
 class ProjectDefaultEnvironmentSettingsTests:
     """ Project can use default environment settings but doesn't need them. """
+
+    # Base/default environment data to write to disk
+    ENVIRONMENT_CONFIG_DATA = {"compute": {
+        "default": {
+            "submission_template": "templates/slurm_template.sub",
+            "submission_command": "sbatch",
+            "partition": "serial"},
+        "local": {
+            "submission_template": "templates/localhost_template.sub",
+            "submission_command": "sh"}
+    }}
 
 
     @pytest.mark.parametrize(
@@ -132,13 +142,48 @@ class ProjectDefaultEnvironmentSettingsTests:
         # during default environment parsing and that it couldn't be set.
         with open(logfile, 'r') as messages:
             exception_messages = messages.readlines()
-        assert 2 == len(exception_messages)
+        try:
+            assert 2 == len(exception_messages)
+        except AssertionError:
+            print("Exception messages: {}".format(exception_messages))
+            raise
 
 
-    def test_uses_extant_env_settings_file(
-            self, minimal_project_conf_path, default_envconf):
+    def test_project_environment_uses_default_environment_settings(
+            self, project, expected_environment):
         """ Project updates environment settings if given extant file. """
-        pass
+        assert expected_environment == project.environment
+
+
+    def test_project_compute_uses_default_environment_settings(
+            self, project, expected_environment):
+        """ Project parses out 'default' environment settings as 'compute'. """
+        assert project.compute == expected_environment["compute"]["default"]
+
+
+    @pytest.fixture(scope="function")
+    def project(self, tmpdir, minimal_project_conf_path):
+        """ Create a Project with base/default environment. """
+        # Write base/default environment data to disk.
+        env_config_filename = "env-conf.yaml"
+        env_config_filepath = tmpdir.join(env_config_filename).strpath
+        with open(env_config_filepath, 'w') as env_conf:
+            yaml.safe_dump(self.ENVIRONMENT_CONFIG_DATA, env_conf)
+        return Project(minimal_project_conf_path,
+                          default_compute=env_config_filepath)
+
+
+    @pytest.fixture(scope="function")
+    def expected_environment(self, tmpdir):
+        """ Derive Project's expected base/default environment. """
+        # Expand submission template paths in expected environment.
+        expected_environment = copy.deepcopy(self.ENVIRONMENT_CONFIG_DATA)
+        for envname, envdata in self.ENVIRONMENT_CONFIG_DATA[
+            "compute"].items():
+            base_submit_template = envdata["submission_template"]
+            expected_environment["compute"][envname]["submission_template"] = \
+                os.path.join(tmpdir.strpath, base_submit_template)
+        return expected_environment
 
 
     @staticmethod
