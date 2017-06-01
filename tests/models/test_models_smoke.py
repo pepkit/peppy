@@ -1,7 +1,7 @@
 """ Basic smoketests for models """
 
 import pytest
-from looper.models import AttributeDict, Project
+from looper.models import AttributeDict
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virgnia.edu"
@@ -9,6 +9,7 @@ __email__ = "vreuter@virgnia.edu"
 
 
 def pytest_generate_tests(metafunc):
+    """ Dynamic test case parameterization. """
     if metafunc.cls == AttributeDictRepresentationSmokeTests:
         metafunc.parametrize(argnames="representation_method",
                              argvalues=["__repr__", "__str__"])
