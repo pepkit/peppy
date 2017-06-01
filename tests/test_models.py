@@ -40,3 +40,10 @@ class PipelineInterfaceTests:
     def test_missing_input_files(self, proj):
         # This should not throw an error
         assert proj.samples[0].get_attr_values("all_input_files") is None
+
+
+
+@pytest.mark.skip("Not implemented")
+class LooperProjectTests:
+    """ Tests for looper-specific version of Project. """
+    pass

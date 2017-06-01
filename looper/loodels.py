@@ -67,3 +67,11 @@ class Project(models.Project):
         proj_root_path, _ = os.path.split(metadata_folder_path)
         _, proj_root_name = os.path.split(proj_root_path)
         return proj_root_name
+
+
+    @staticmethod
+    def _handle_missing_env_attrs(missing_env_attrs, default_compute):
+        """ Require default environment for looper. """
+        raise RuntimeError(
+            "Failed to establish environment settings from data in '{}'; "
+            "missing: {}".format(default_compute, missing_env_attrs))

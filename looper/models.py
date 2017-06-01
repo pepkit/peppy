@@ -331,9 +331,10 @@ class Project(AttributeDict):
     DERIVED_COLUMNS_DEFAULT = [DATA_SOURCE_COLNAME]
 
 
-    def __init__(self, config_file, default_compute, 
+    def __init__(self, config_file, default_compute=None,
                  subproject=None, dry=False, permissive=True, 
-                 file_checks=False, compute_env_file=None):
+                 file_checks=False, compute_env_file=None,
+                 no_compute_exception=None):
 
         super(Project, self).__init__()
 
@@ -341,33 +342,39 @@ class Project(AttributeDict):
                           self.__class__.__name__, config_file)
 
         # Initialize local, serial compute as default (no cluster submission)
-        # Start with default compute settings.
+        # Start with default environment settings.
         _LOGGER.debug("Establishing default environment settings")
-        self.update_environment(default_compute)
-        
-        # Ensure that update set environment attributes.
-        if self.environment is None or self.environment_file is None:
-            raise RuntimeError(
-                "Failed to establish environment settings from data in '{}'.".
-                format(default_compute))
+        self.environment, self.environment_file = None, None
+        if default_compute:
+            self.update_environment(default_compute)
+        missing_env_attrs = \
+                [attr for attr in ["environment, environment_file"]
+                 if not hasattr(self, attr) or getattr(self, attr) is None]
+        self._handle_missing_env_attrs(missing_env_attrs, default_compute)
 
         # Load settings from environment yaml for local compute infrastructure.
-        if not compute_env_file:
-            _LOGGER.info("Using default {envvar}. You may set environment "
-                              "variable {envvar} to configure environment "
-                              "settings.".format(envvar=self.compute_env_var))
-        else:
-            _LOGGER.debug("Updating environment settings based on file '%s'", 
+        if compute_env_file:
+            _LOGGER.debug("Updating environment settings based on file '%s'",
                           compute_env_file)
             self.update_environment(compute_env_file)
 
+        else:
+            _LOGGER.info("Using default {envvar}. You may set environment "
+                         "variable {envvar} to configure environment "
+                         "settings.".format(envvar=self.compute_env_var))
+
         # Initialize default compute settings.
         _LOGGER.debug("Establishing project compute settings")
+        self.compute = None
         self.set_compute("default")
         if self.compute is None:
-            raise RuntimeError("Failed to establish project compute settings")
-
-        _LOGGER.debug("Compute: %s", str(self.compute))
+            message = "Failed to establish project compute settings"
+            if no_compute_exception:
+                no_compute_exception(message)
+            else:
+                _LOGGER.warn(message)
+        else:
+            _LOGGER.debug("Compute: %s", str(self.compute))
 
         # optional configs
         self.permissive = permissive
@@ -480,6 +487,13 @@ class Project(AttributeDict):
         config_dirpath = _os.path.dirname(path_config_file)
         _, config_folder = _os.path.split(config_dirpath)
         return config_folder
+
+
+    @staticmethod
+    def _handle_missing_env_attrs(missing_env_attrs, env_settings_file):
+        """ Default environment settings aren't required; warn, though. """
+        _LOGGER.warn("'{}' lacks environment attributes: {}".
+                     format(env_settings_file, missing_env_attrs))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -753,8 +767,8 @@ class Project(AttributeDict):
                         _os.path.dirname(self.environment_file),
                         self.compute.submission_template)
         else:
-            _LOGGER.warn("Cannot load compute settings: %s (%s)",
-                         setting, str(type(setting)))
+            _LOGGER.warn("Cannot load compute settings: {} ({})".
+                         format(setting, type(setting)))
 
 
     def get_arg_string(self, pipeline_name):

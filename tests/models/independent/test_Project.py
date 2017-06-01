@@ -1,10 +1,12 @@
 """ Tests for the NGS Project model. """
 
 import copy
+import logging
 import os
 import mock
 import pytest
 import yaml
+import looper
 from looper.models import \
         Project, MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
 
@@ -79,6 +81,71 @@ class ProjectRequirementsTests:
         project = Project(minimal_project_conf_path,
                           default_compute=env_config_filepath)
         assert tmpdir.strpath == project.output_dir
+
+
+
+@pytest.mark.skip("Not implemented")
+class ProjectDefaultEnvironmentSettingsTests:
+    """ Project can use default environment settings but doesn't need them. """
+
+
+    @pytest.mark.parametrize(
+            argnames="explicit_null", argvalues=[False, True],
+            ids=lambda explicit_null: "explicit_null={}".format(explicit_null))
+    def test_no_default_env_settings_provided(
+            self, minimal_project_conf_path, explicit_null):
+        """ Project doesn't require default environment settings. """
+        kwargs = {"default_compute": None} if explicit_null else {}
+        project = Project(minimal_project_conf_path, **kwargs)
+        self._assert_null_compute_environment(project)
+
+
+    @pytest.mark.parametrize(
+            argnames="envconf_filename",
+            argvalues=["arbitrary-envconf.yaml",
+                       "nonexistent_environment.yaml"])
+    def test_nonexistent_env_settings_file(
+            self, tmpdir, minimal_project_conf_path,
+            env_config_filepath, envconf_filename):
+        """ Project doesn't require default environment settings. """
+
+        # Create name to nonexistent file based on true default file.
+        envconf_dirpath, _ = os.path.split(env_config_filepath)
+        misnamed_envconf = os.path.join(envconf_dirpath, envconf_filename)
+
+        # Create and add log message handler for expected errors.
+        logfile = tmpdir.join("project-error-messages.log").strpath
+        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
+        expected_error_message_handler.setLevel(logging.ERROR)
+        looper.models._LOGGER.handlers.append(expected_error_message_handler)
+
+        # Create Project, expecting to generate error messages.
+        project = Project(minimal_project_conf_path,
+                          default_compute=misnamed_envconf)
+
+        # Remove the temporary message handler.
+        del looper.models._LOGGER.handlers[-1]
+
+        # Ensure nulls for all relevant Project attributes.
+        self._assert_null_compute_environment(project)
+        # We should have two error messages, describing the exception caught
+        # during default environment parsing and that it couldn't be set.
+        with open(logfile, 'r') as messages:
+            exception_messages = messages.readlines()
+        assert 2 == len(exception_messages)
+
+
+    def test_uses_extant_env_settings_file(
+            self, minimal_project_conf_path, default_envconf):
+        """ Project updates environment settings if given extant file. """
+        pass
+
+
+    @staticmethod
+    def _assert_null_compute_environment(project):
+        assert project.environment is None
+        assert project.environment_file is None
+        assert project.compute is None
 
 
 
