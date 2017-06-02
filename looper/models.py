@@ -1773,33 +1773,36 @@ class PipelineInterface(object):
 
     def choose_resource_package(self, pipeline_name, file_size):
         """
-        Given a pipeline name (pipeline_name) and a file size (size), 
-        return the resource configuration specified by the config file.
+        Select resource bundle for given input file size to given pipeline.
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
         :param file_size: Size of input data.
         :type file_size: float
+        :return: resource bundle appropriate for given pipeline,
+            for given input file size
         """
         config = self._select_pipeline(pipeline_name)
 
         if "resources" not in config:
-            msg = "No resources found for '" + pipeline_name + "' in '" + self.pipe_iface_file + "'"
-            # Should I just use defaults or force you to define this?
-            raise IOError(msg)
+            _LOGGER.warn("No resources found for pipeline '%s' in file '%s'",
+                         pipeline_name, self.pipe_iface_file)
+            return {}
 
-        table = config['resources']
-        current_pick = "default"
+        resource_packages = config["resources"]
+        selection = "default"
 
-        for option in table:
-            if table[option]['file_size'] == "0":
+        for pack_name, pack_data in resource_packages.items():
+            this_pack_file_size = float(pack_data["file_size"])
+            if this_pack_file_size == 0:
                 continue
-            if file_size < float(table[option]['file_size']):
+            if file_size < this_pack_file_size:
                 continue
-            elif float(table[option]['file_size']) > float(table[current_pick]['file_size']):
-                current_pick = option
+            elif this_pack_file_size > \
+                    float(resource_packages[selection]["file_size"]):
+                selection = pack_name
 
-        return table[current_pick]
+        return resource_packages[selection]
 
 
     def get_attribute(self, pipeline_name, attribute_key):
