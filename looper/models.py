@@ -879,7 +879,10 @@ class Project(AttributeDict):
             if self.metadata.merge_table is not None:
                 if _os.path.isfile(self.metadata.merge_table):
                     # read in merge table
-                    merge_table = _pd.read_csv(self.metadata.merge_table)
+
+                    merge_table = _pd.read_table(
+                            self.metadata.merge_table,
+                            sep=None, index_col=False, engine="python")
 
                     if SAMPLE_NAME_COLNAME not in merge_table.columns:
                         raise KeyError(
@@ -996,9 +999,9 @@ class SampleSheet(object):
     """
     Class to model a sample annotation sheet.
 
-    :param csv: Path to csv file.
-    :type csv: str
-    :param dtype: Data type to read csv file as. Default is str.
+    :param path: Path to sample file.
+    :type path: str
+    :param dtype: Data type to read sample file as. Default is str.
     :type dtype: type
 
     :Example:
@@ -1010,10 +1013,10 @@ class SampleSheet(object):
         sheet = SampleSheet("sheet.csv")
     """
 
-    def __init__(self, csv, dtype=str):
+    def __init__(self, path, dtype=str):
         super(SampleSheet, self).__init__()
-        self.df = self.check_sheet(csv, dtype)
-        self.csv = csv
+        self.df = self.check_sheet(path, dtype)
+        self.path = path
         self.samples = list()
 
     def __repr__(self):
@@ -1025,23 +1028,24 @@ class SampleSheet(object):
 
 
     @staticmethod
-    def check_sheet(csv, dtype):
+    def check_sheet(sample_file, dtype):
         """
         Check if csv file exists and has all required columns.
         
-        :param str csv: path to sample annotations file.
+        :param str sample_file: path to sample annotations file.
         :param type dtype: data type for CSV read.
         :raises IOError: if given annotations file can't be read.
         :raises ValueError: if required column(s) is/are missing.
         """
-        df = _pd.read_csv(csv, dtype=dtype)
+
+        df = _pd.read_table(sample_file, sep=None, dtype=dtype,
+                            index_col=False, engine="python")
         req = [SAMPLE_NAME_COLNAME]
         missing = set(req) - set(df.columns)
         if len(missing) != 0:
             raise ValueError(
-                "Annotation sheet ('{}') is missing column(s): {}".format(
-                        csv, ", ".join(['{}'.format(missing_colname)
-                                        for missing_colname in missing])))
+                "Annotation sheet ('{}') is missing column(s): {}; has: {}".
+                format(sample_file, missing, df.columns))
         return df
 
 
