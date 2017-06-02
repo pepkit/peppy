@@ -1,6 +1,8 @@
 """ Tests for interaction between a Project and a Sample. """
 
+from collections import OrderedDict
 import os
+import pandas as pd
 import pytest
 import yaml
 from looper.models import Project, SAMPLE_ANNOTATIONS_KEY
@@ -60,10 +62,11 @@ def project(request, tmpdir, env_config_filepath):
     annotations_filename = "anns-fill.csv"
     anns_path = tmpdir.join(annotations_filename).strpath
     num_samples = request.getfixturevalue("num_samples")
+    df = pd.DataFrame(OrderedDict(
+        [("sample_name", ["sample{}".format(i) for i in range(num_samples)]),
+         ("data", range(num_samples))]))
     with open(anns_path, 'w') as anns_file:
-        anns_file.write("sample_name\n")
-        anns_file.write("\n".join(
-                ["sample{}".format(i) for i in range(1, num_samples + 1)]))
+        df.to_csv(anns_file, sep="\t", index=False)
 
     # Create the Project config data.
     config_data = {"metadata": {SAMPLE_ANNOTATIONS_KEY: annotations_filename}}

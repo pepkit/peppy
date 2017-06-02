@@ -832,7 +832,9 @@ class Project(AttributeDict):
                 if _os.path.isfile(self.metadata.merge_table):
                     # read in merge table
 
-                    merge_table = _pd.read_table(self.metadata.merge_table, sep=",", index_col=False)
+                    merge_table = _pd.read_table(
+                            self.metadata.merge_table,
+                            sep=None, index_col=False, engine="python")
 
                     if SAMPLE_NAME_COLNAME not in merge_table.columns:
                         raise KeyError(
@@ -988,14 +990,19 @@ class SampleSheet(object):
         :raises ValueError: if required column(s) is/are missing.
         """
 
-        df = _pd.read_table(sample_file, sep=",", engine='python', index_col=False)
+        df = _pd.read_table(sample_file, sep=None, dtype=dtype,
+                            index_col=False, engine="python")
         req = [SAMPLE_NAME_COLNAME]
         missing = set(req) - set(df.columns)
         if len(missing) != 0:
+            # DEBUG
+            print("DATA FRAME")
+            print(df)
+            with open(sample_file, 'r') as f:
+                print("LINES: {}".format(f.readlines()))
             raise ValueError(
-                "Annotation sheet ('{}') is missing column(s): {}".format(
-                        sample_file, ", ".join(['{}'.format(missing_colname)
-                                                for missing_colname in missing])))
+                "Annotation sheet ('{}') is missing column(s): {}; has: {}".
+                format(sample_file, missing, df.columns))
         return df
 
 
