@@ -995,11 +995,6 @@ class SampleSheet(object):
         req = [SAMPLE_NAME_COLNAME]
         missing = set(req) - set(df.columns)
         if len(missing) != 0:
-            # DEBUG
-            print("DATA FRAME")
-            print(df)
-            with open(sample_file, 'r') as f:
-                print("LINES: {}".format(f.readlines()))
             raise ValueError(
                 "Annotation sheet ('{}') is missing column(s): {}; has: {}".
                 format(sample_file, missing, df.columns))
