@@ -831,11 +831,8 @@ class Project(AttributeDict):
             if self.metadata.merge_table is not None:
                 if _os.path.isfile(self.metadata.merge_table):
                     # read in merge table
-                    name, extension = _os.path.splitext(self.metadata.merge_table)
-                    if extension == ".tsv":
-                        merge_table = _pd.read_csv(self.metadata.merge_table, sep='\t')
-                    else:
-                        merge_table = _pd.read_csv(self.metadata.merge_table)
+
+                    merge_table = _pd.read_table(self.metadata.merge_table, sep=",", index_col=False)
 
                     if SAMPLE_NAME_COLNAME not in merge_table.columns:
                         raise KeyError(
@@ -952,9 +949,9 @@ class SampleSheet(object):
     """
     Class to model a sample annotation sheet.
 
-    :param path: Path to csv file.
+    :param path: Path to sample file.
     :type path: str
-    :param dtype: Data type to read csv file as. Default is str.
+    :param dtype: Data type to read sample file as. Default is str.
     :type dtype: type
 
     :Example:
@@ -991,12 +988,7 @@ class SampleSheet(object):
         :raises ValueError: if required column(s) is/are missing.
         """
 
-        name, extension = _os.path.splitext(sample_file)
-        if extension == ".tsv":
-            df = _pd.read_csv(sample_file, sep='\t')
-        else:
-            df = _pd.read_csv(sample_file)
-
+        df = _pd.read_table(sample_file, sep=",", engine='python', index_col=False)
         req = [SAMPLE_NAME_COLNAME]
         missing = set(req) - set(df.columns)
         if len(missing) != 0:
