@@ -1,10 +1,12 @@
 """ Tests for the NGS Project model. """
 
 import copy
+import logging
 import os
 import mock
 import pytest
 import yaml
+import looper
 from looper.models import \
         Project, MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
 
@@ -79,6 +81,116 @@ class ProjectRequirementsTests:
         project = Project(minimal_project_conf_path,
                           default_compute=env_config_filepath)
         assert tmpdir.strpath == project.output_dir
+
+
+
+class ProjectDefaultEnvironmentSettingsTests:
+    """ Project can use default environment settings but doesn't need them. """
+
+    # Base/default environment data to write to disk
+    ENVIRONMENT_CONFIG_DATA = {"compute": {
+        "default": {
+            "submission_template": "templates/slurm_template.sub",
+            "submission_command": "sbatch",
+            "partition": "serial"},
+        "local": {
+            "submission_template": "templates/localhost_template.sub",
+            "submission_command": "sh"}
+    }}
+
+
+    @pytest.mark.parametrize(
+            argnames="explicit_null", argvalues=[False, True],
+            ids=lambda explicit_null: "explicit_null={}".format(explicit_null))
+    def test_no_default_env_settings_provided(
+            self, minimal_project_conf_path, explicit_null):
+        """ Project doesn't require default environment settings. """
+        kwargs = {"default_compute": None} if explicit_null else {}
+        project = Project(minimal_project_conf_path, **kwargs)
+        self._assert_null_compute_environment(project)
+
+
+    @pytest.mark.parametrize(
+            argnames="envconf_filename",
+            argvalues=["arbitrary-envconf.yaml",
+                       "nonexistent_environment.yaml"])
+    def test_nonexistent_env_settings_file(
+            self, tmpdir, minimal_project_conf_path,
+            env_config_filepath, envconf_filename):
+        """ Project doesn't require default environment settings. """
+
+        # Create name to nonexistent file based on true default file.
+        envconf_dirpath, _ = os.path.split(env_config_filepath)
+        misnamed_envconf = os.path.join(envconf_dirpath, envconf_filename)
+
+        # Create and add log message handler for expected errors.
+        logfile = tmpdir.join("project-error-messages.log").strpath
+        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
+        expected_error_message_handler.setLevel(logging.ERROR)
+        looper.models._LOGGER.handlers.append(expected_error_message_handler)
+
+        # Create Project, expecting to generate error messages.
+        project = Project(minimal_project_conf_path,
+                          default_compute=misnamed_envconf)
+
+        # Remove the temporary message handler.
+        del looper.models._LOGGER.handlers[-1]
+
+        # Ensure nulls for all relevant Project attributes.
+        self._assert_null_compute_environment(project)
+        # We should have two error messages, describing the exception caught
+        # during default environment parsing and that it couldn't be set.
+        with open(logfile, 'r') as messages:
+            exception_messages = messages.readlines()
+        try:
+            assert 2 == len(exception_messages)
+        except AssertionError:
+            print("Exception messages: {}".format(exception_messages))
+            raise
+
+
+    def test_project_environment_uses_default_environment_settings(
+            self, project, expected_environment):
+        """ Project updates environment settings if given extant file. """
+        assert expected_environment == project.environment
+
+
+    def test_project_compute_uses_default_environment_settings(
+            self, project, expected_environment):
+        """ Project parses out 'default' environment settings as 'compute'. """
+        assert project.compute == expected_environment["compute"]["default"]
+
+
+    @pytest.fixture(scope="function")
+    def project(self, tmpdir, minimal_project_conf_path):
+        """ Create a Project with base/default environment. """
+        # Write base/default environment data to disk.
+        env_config_filename = "env-conf.yaml"
+        env_config_filepath = tmpdir.join(env_config_filename).strpath
+        with open(env_config_filepath, 'w') as env_conf:
+            yaml.safe_dump(self.ENVIRONMENT_CONFIG_DATA, env_conf)
+        return Project(minimal_project_conf_path,
+                          default_compute=env_config_filepath)
+
+
+    @pytest.fixture(scope="function")
+    def expected_environment(self, tmpdir):
+        """ Derive Project's expected base/default environment. """
+        # Expand submission template paths in expected environment.
+        expected_environment = copy.deepcopy(self.ENVIRONMENT_CONFIG_DATA)
+        for envname, envdata in self.ENVIRONMENT_CONFIG_DATA[
+            "compute"].items():
+            base_submit_template = envdata["submission_template"]
+            expected_environment["compute"][envname]["submission_template"] = \
+                os.path.join(tmpdir.strpath, base_submit_template)
+        return expected_environment
+
+
+    @staticmethod
+    def _assert_null_compute_environment(project):
+        assert project.environment is None
+        assert project.environment_file is None
+        assert project.compute is None
 
 
 

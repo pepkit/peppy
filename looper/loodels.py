@@ -1,7 +1,6 @@
 """ Looper versions of NGS project models. """
 
 import os
-from pkg_resources import resource_filename
 from . import models
 
 
@@ -10,8 +9,7 @@ __email__ = "vreuter@virginia.edu"
 
 
 DEFAULT_PROJECT_COMPUTE_NAME = "default_looperenv.yaml"
-DEFAULT_PROJECT_COMPUTE_CONFIG = os.path.join(
-        "submit_templates", DEFAULT_PROJECT_COMPUTE_NAME)
+SUBMISSION_TEMPLATES_FOLDER = "submit_templates"
 
 
 
@@ -33,10 +31,13 @@ class Project(models.Project):
         :param dict kwargs: additional keyword arguments
         """
         if not default_compute:
-            default_compute = resource_filename(
-                    "looper", DEFAULT_PROJECT_COMPUTE_CONFIG)
+            looper_folder = os.path.dirname(__file__)
+            default_compute = os.path.join(looper_folder,
+                    SUBMISSION_TEMPLATES_FOLDER, DEFAULT_PROJECT_COMPUTE_NAME)
         super(Project, self).__init__(
-                config_file, default_compute, *args, **kwargs)
+                config_file, default_compute, *args,
+                no_environment_exception=RuntimeError,
+                no_compute_exception=RuntimeError, **kwargs)
 
 
     @property

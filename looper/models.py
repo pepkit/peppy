@@ -319,6 +319,15 @@ class Project(AttributeDict):
     :type file_checks: bool
     :param compute_env_file: Looperenv YAML file specifying compute settings.
     :type compute_env_file: str
+    :param no_environment_exception: type of exception to raise if environment
+        settings can't be established, optional; if null (the default),
+        a warning message will be logged, and no exception will be raised.
+    :type no_environment_exception: type
+    :param no_compute_exception: type of exception to raise if compute
+        settings can't be established, optional; if null (the default),
+        a warning message will be logged, and no exception will be raised.
+    :type no_compute_exception: type
+
 
     :Example:
 
@@ -326,14 +335,16 @@ class Project(AttributeDict):
 
         from models import Project
         prj = Project("config.yaml")
+    
     """
 
     DERIVED_COLUMNS_DEFAULT = [DATA_SOURCE_COLNAME]
 
 
-    def __init__(self, config_file, default_compute, 
+    def __init__(self, config_file, default_compute=None,
                  subproject=None, dry=False, permissive=True, 
-                 file_checks=False, compute_env_file=None):
+                 file_checks=False, compute_env_file=None,
+                 no_environment_exception=None, no_compute_exception=None):
 
         super(Project, self).__init__()
 
@@ -341,33 +352,45 @@ class Project(AttributeDict):
                           self.__class__.__name__, config_file)
 
         # Initialize local, serial compute as default (no cluster submission)
-        # Start with default compute settings.
+        # Start with default environment settings.
         _LOGGER.debug("Establishing default environment settings")
-        self.update_environment(default_compute)
+        self.environment, self.environment_file = None, None
+        if default_compute:
+            try:
+                self.update_environment(default_compute)
+            except Exception as e:
+                _LOGGER.error("Can't load environment config file '%s'",
+                              str(default_compute))
+                _LOGGER.error(str(type(e).__name__) + str(e))
         
-        # Ensure that update set environment attributes.
-        if self.environment is None or self.environment_file is None:
-            raise RuntimeError(
-                "Failed to establish environment settings from data in '{}'.".
-                format(default_compute))
+        self._handle_missing_env_attrs(
+                default_compute, when_missing=no_environment_exception)
 
         # Load settings from environment yaml for local compute infrastructure.
-        if not compute_env_file:
-            _LOGGER.info("Using default {envvar}. You may set environment "
-                              "variable {envvar} to configure environment "
-                              "settings.".format(envvar=self.compute_env_var))
-        else:
-            _LOGGER.debug("Updating environment settings based on file '%s'", 
+        if compute_env_file:
+            _LOGGER.debug("Updating environment settings based on file '%s'",
                           compute_env_file)
             self.update_environment(compute_env_file)
 
+        else:
+            _LOGGER.info("Using default {envvar}. You may set environment "
+                         "variable {envvar} to configure environment "
+                         "settings.".format(envvar=self.compute_env_var))
+
         # Initialize default compute settings.
         _LOGGER.debug("Establishing project compute settings")
+        self.compute = None
         self.set_compute("default")
-        if self.compute is None:
-            raise RuntimeError("Failed to establish project compute settings")
 
-        _LOGGER.debug("Compute: %s", str(self.compute))
+        # Either warn or raise exception if the compute is null.
+        if self.compute is None:
+            message = "Failed to establish project compute settings"
+            if no_compute_exception:
+                no_compute_exception(message)
+            else:
+                _LOGGER.warn(message)
+        else:
+            _LOGGER.debug("Compute: %s", str(self.compute))
 
         # optional configs
         self.permissive = permissive
@@ -480,6 +503,21 @@ class Project(AttributeDict):
         config_dirpath = _os.path.dirname(path_config_file)
         _, config_folder = _os.path.split(config_dirpath)
         return config_folder
+
+
+    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
+        """ Default environment settings aren't required; warn, though. """
+        missing_env_attrs = \
+            [attr for attr in ["environment", "environment_file"]
+             if not hasattr(self, attr) or getattr(self, attr) is None]
+        if not missing_env_attrs:
+            return
+        message = "'{}' lacks environment attributes: {}".\
+                format(env_settings_file, missing_env_attrs)
+        if when_missing is None:
+            _LOGGER.warn(message)
+        else:
+            when_missing(message)
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -622,9 +660,11 @@ class Project(AttributeDict):
                     _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
                     setattr(relative_vars, var, abs_path)
 
-        # compute.submission_template could have been reset by project config
-        # into a relative path; make sure it stays absolute.
-        if not _os.path.isabs(self.compute.submission_template):
+        # Project config may have made compute.submission_template relative.
+        # Make sure it's absolute.
+        if self.compute is None:
+            _LOGGER.debug("No compute, no submission template")
+        elif not _os.path.isabs(self.compute.submission_template):
             # Relative to environment config file.
             self.compute.submission_template = _os.path.join(
                     _os.path.dirname(self.environment_file),
@@ -665,38 +705,35 @@ class Project(AttributeDict):
         :param str env_settings_file: path to file with 
             new environment configuration data
         """
-        try:
-            with open(env_settings_file, 'r') as handle:
-                _LOGGER.info("Loading %s: %s",
-                             self.compute_env_var, env_settings_file)
-                env_settings = yaml.load(handle)
-                _LOGGER.debug("Parsed environment settings: %s", 
-                              str(env_settings))
+        if not env_settings_file:
+            return
 
-                # Any compute.submission_template variables should be made
-                # absolute, relative to current environment settings file.
-                y = env_settings["compute"]
-                for key, value in y.items():
-                    if type(y[key]) is dict:
-                        for key2, value2 in y[key].items():
-                            if key2 == "submission_template":
-                                if not _os.path.isabs(y[key][key2]):
-                                    y[key][key2] = _os.path.join(
-                                            _os.path.dirname(env_settings_file),
-                                            y[key][key2])
+        with open(env_settings_file, 'r') as handle:
+            _LOGGER.info("Loading %s: %s",
+                         self.compute_env_var, env_settings_file)
+            env_settings = yaml.load(handle)
+            _LOGGER.debug("Parsed environment settings: %s",
+                          str(env_settings))
 
-                env_settings["compute"] = y
-                if hasattr(self, "environment"):
-                    self.environment.add_entries(env_settings)
-                else:
-                    self.environment = AttributeDict(env_settings)
+            # Any compute.submission_template variables should be made
+            # absolute, relative to current environment settings file.
+            y = env_settings["compute"]
+            for key, value in y.items():
+                if type(y[key]) is dict:
+                    for key2, value2 in y[key].items():
+                        if key2 == "submission_template":
+                            if not _os.path.isabs(y[key][key2]):
+                                y[key][key2] = _os.path.join(
+                                        _os.path.dirname(env_settings_file),
+                                        y[key][key2])
 
-            self.environment_file = env_settings_file
+            env_settings["compute"] = y
+            if self.environment is None:
+                self.environment = AttributeDict(env_settings)
+            else:
+                self.environment.add_entries(env_settings)
 
-        except Exception as e:
-            _LOGGER.error("Can't load environment config file '%s'", 
-                          str(env_settings_file))
-            _LOGGER.error(str(type(e).__name__) + str(e))
+        self.environment_file = env_settings_file
 
 
     def make_project_dirs(self):
@@ -726,35 +763,46 @@ class Project(AttributeDict):
 
     def set_compute(self, setting):
         """
-        Sets the compute attributes according to the specified settings in the environment file
-        :param: setting	An option for compute settings as specified in the environment file.
+        Set the compute attributes according to the
+        specified settings in the environment file.
+
+        :param str setting:	name for non-resource compute bundle, the name of
+            a subsection in an environment configuration file
+        :return bool: success flag for attempt to establish compute settings
         """
 
-        if setting and \
-                hasattr(self, "environment") and \
-                hasattr(self.environment, "compute"):
-            _LOGGER.debug("Loading compute settings: '%s'", str(setting))
-            if hasattr(self, "compute"):
-                _LOGGER.debug("Adding compute entries for setting %s",
-                                   setting)
-                self.compute.add_entries(self.environment.compute[setting].__dict__)
+        success = False
+
+        try:
+            # Hope that environment & environment compute are present.
+            if setting and self.environment and "compute" in self.environment:
+
+                # Augment compute, creating it if needed
+                if self.compute is None:
+                    _LOGGER.debug("Creating Project compute")
+                    self.compute = AttributeDict()
+                    _LOGGER.debug("Adding entries for setting '%s'", setting)
+                self.compute.add_entries(self.environment.compute[setting])
+
+                # Ensure submission template is absolute.
+                if not _os.path.isabs(self.compute.submission_template):
+                    self.compute.submission_template = _os.path.join(
+                            _os.path.dirname(self.environment_file),
+                            self.compute.submission_template)
+                # Compute settings have been established.
+                success = True
+
             else:
-                _LOGGER.debug("Creating compute entries for setting '%s'",
-                                   setting)
-                self.compute = AttributeDict(self.environment.compute[setting].__dict__)
+                # Scenario in which environment and environment compute are
+                # both present but don't evaluate to True is fairly
+                # innocuous, even common if outside of the looper context.
+                _LOGGER.debug("Environment = {}".format(self.environment))
+        except AttributeError as e:
+            # Environment and environment compute should at least have been
+            # set as null-valued attributes, so execution here is an error.
+            _LOGGER.error(str(e))
 
-            _LOGGER.debug("%s: %s", str(setting),
-                               self.environment.compute[setting])
-            _LOGGER.debug("Compute: %s", str(self.environment.compute))
-
-            if not _os.path.isabs(self.compute.submission_template):
-                # Relative to environment config file.
-                self.compute.submission_template = _os.path.join(
-                        _os.path.dirname(self.environment_file),
-                        self.compute.submission_template)
-        else:
-            _LOGGER.warn("Cannot load compute settings: %s (%s)",
-                         setting, str(type(setting)))
+        return success
 
 
     def get_arg_string(self, pipeline_name):
@@ -2008,7 +2056,7 @@ class ProtocolInterfaces:
 
 
 @copy
-class ProtocolMapper(object):
+class ProtocolMapper(Mapping):
     """
     Map protocol/library name to pipeline(s). For example, "WGBS" --> wgbs.py.
     """
