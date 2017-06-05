@@ -70,6 +70,7 @@ from .utils import \
     parse_ftype, check_bam, check_fastq, get_file_size, partition
 
 
+DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
@@ -380,7 +381,7 @@ class Project(AttributeDict):
         # Initialize default compute settings.
         _LOGGER.debug("Establishing project compute settings")
         self.compute = None
-        self.set_compute("default")
+        self.set_compute(DEFAULT_COMPUTE_RESOURCES_NAME)
 
         # Either warn or raise exception if the compute is null.
         if self.compute is None:
@@ -831,7 +832,7 @@ class Project(AttributeDict):
             return " ".join(optargs_texts)
 
         default_argtext, pipeline_argtext = \
-                create_argtext("default"), create_argtext(pipeline_name)
+                create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME), create_argtext(pipeline_name)
 
         if not pipeline_argtext:
             # The project config may not have an entry for this pipeline;
@@ -1126,12 +1127,14 @@ class SampleSheet(object):
         return _pd.DataFrame([s.as_series() for s in self.samples])
 
 
-    def to_csv(self, path):
+    def write(self, path, sep=None):
         """
-        Saves a csv annotation sheet from the samples.
+        Saves an annotation sheet from the samples.
 
-        :param path: Path to csv file to be written.
+        :param path: Path to file to be written.
         :type path: str
+        :param sep: Delimiter to use in the file written.
+        :type sep: str
 
         :Example:
 
@@ -1139,11 +1142,25 @@ class SampleSheet(object):
 
             from models import SampleSheet
             sheet = SampleSheet("/projects/example/sheet.csv")
-            sheet.to_csv("~/projects/example/sheet2.csv")
+            sheet.write("~/projects/example/sheet2.csv")
         """
-        df = self.as_data_frame()
-        # TODO: decide which--if any--attributes to drop here.
-        df.to_csv(path, index=False)
+
+        valid_types = [".txt", ".tsv", ".csv"]
+
+        # Infer delimiter if needed.
+        if sep is None:
+            file_type = _os.path.splitext(path)[1].lower()
+            if file_type not in valid_types:
+                help_msg = "Provide an argument for parameter 'sep' or pass a " \
+                           "filepath with an extension in: {}".\
+                        format(valid_types)
+                raise ValueError(help_msg)
+            sep = "," if file_type == ".csv" else "\t"
+
+        # Convert to frame and write to disk.
+        with open(path, 'w') as sheetfile:
+            # TODO: decide which--if any--attributes to drop here.
+            self.as_data_frame().to_csv(sheetfile, sep=sep, index=False)
 
 
 
@@ -1728,6 +1745,7 @@ class PipelineInterface(object):
     arguments to be passed from the sample annotation metadata to the pipeline
     """
 
+
     def __init__(self, config):
         """
         Create PipelineInterface from mapping or filepath.
@@ -1745,83 +1763,45 @@ class PipelineInterface(object):
                 self.pipe_iface_config = yaml.load(f)
 
 
-    def uses_looper_args(self, pipeline_name):
-        """
-        Determine whether the indicated pipeline uses looper arguments.
-        
-        :param pipeline_name: name of a pipeline of interest
-        :type pipeline_name: str
-        :return: whether the indicated pipeline uses looper arguments
-        :rtype: bool
-        """
-        config = self._select_pipeline(pipeline_name)
-        return "looper_args" in config and config["looper_args"]
-
-
-    def get_pipeline_name(self, pipeline_name):
-        """
-        Translate a pipeline name (e.g., stripping file extension).
-        
-        :param pipeline_name: Name of pipeline.
-        :type pipeline_name: str
-        :return: translated pipeline name, as specified in config or by 
-            stripping the pipeline's file extension
-        :rtype: str: translated name for pipeline
-        """
-        config = self._select_pipeline(pipeline_name)
-        try:
-            return config["name"]
-        except KeyError:
-            return _os.path.splitext(pipeline_name)[0]
+    def __repr__(self):
+        return repr(self.pipe_iface_config)
 
 
     def choose_resource_package(self, pipeline_name, file_size):
         """
-        Given a pipeline name (pipeline_name) and a file size (size), 
-        return the resource configuration specified by the config file.
+        Select resource bundle for given input file size to given pipeline.
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
         :param file_size: Size of input data.
         :type file_size: float
+        :return: resource bundle appropriate for given pipeline,
+            for given input file size
+        :rtype: MutableMapping
         """
         config = self._select_pipeline(pipeline_name)
 
-        if "resources" not in config:
-            msg = "No resources found for '" + pipeline_name + "' in '" + self.pipe_iface_file + "'"
-            # Should I just use defaults or force you to define this?
-            raise IOError(msg)
+        try:
+            resources = config["resources"]
+        except KeyError:
+            _LOGGER.warn("No resources found for pipeline '%s' in file '%s'",
+                         pipeline_name, self.pipe_iface_file)
+            return {}
 
-        table = config['resources']
-        current_pick = "default"
+        # We want the minimal resource bundle sufficient for given file size.
+        selection = None
+        smallest_sufficient_file_size = float("inf")
+        for pack_name, pack_data in resources.items():
+            this_pack_file_size = float(pack_data["file_size"])
+            if file_size <= this_pack_file_size < smallest_sufficient_file_size:
+                selection = pack_name
+                smallest_sufficient_file_size = this_pack_file_size
 
-        for option in table:
-            if table[option]['file_size'] == "0":
-                continue
-            if file_size < float(table[option]['file_size']):
-                continue
-            elif float(table[option]['file_size']) > float(table[current_pick]['file_size']):
-                current_pick = option
-
-        return table[current_pick]
-
-
-    def get_attribute(self, pipeline_name, attribute_key):
-        """
-        Given a pipeline name and an attribute key, returns the value of that attribute.
-        """
-        config = self._select_pipeline(pipeline_name)
-
-        if attribute_key in config:
-            value = config[attribute_key]
-        else:
-            value = None
-
-        # Make it a list if the file had a string.
-        if type(value) is str:
-            value = [value]
-
-        return value
+        try:
+            return resources[selection or DEFAULT_COMPUTE_RESOURCES_NAME]
+        except KeyError:
+            raise InvalidResourceSpecificationException(
+                    "Pipeline resources specification lacks 'default' section")
 
 
     def get_arg_string(self, pipeline_name, sample):
@@ -1842,7 +1822,7 @@ class PipelineInterface(object):
                               pipeline_name, self.pipe_iface_file)
             return argstring
 
-        args = config['arguments']
+        args = config["arguments"]
 
         for key, value in args.iteritems():
             _LOGGER.debug("Script argument: '%s', sample attribute: '%s'",
@@ -1865,8 +1845,8 @@ class PipelineInterface(object):
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
-        if 'optional_arguments' in config:
-            args = config['optional_arguments']
+        if "optional_arguments" in config:
+            args = config["optional_arguments"]
             for key, value in args.iteritems():
                 _LOGGER.debug("%s, %s (optional)", key, value)
                 if value is None:
@@ -1875,7 +1855,7 @@ class PipelineInterface(object):
                     continue
                 try:
                     arg = getattr(sample, value)
-                except AttributeError as e:
+                except AttributeError:
                     _LOGGER.warn(
                         "> Note (missing attribute): '%s' requests "
                         "sample attribute '%s' for "
@@ -1889,21 +1869,69 @@ class PipelineInterface(object):
 
         return argstring
 
+
+    def get_attribute(self, pipeline_name, attribute_key):
+        """ Return value of given attribute for named pipeline. """
+        config = self._select_pipeline(pipeline_name)
+        try:
+            value = config[attribute_key]
+        except KeyError:
+            value = None
+        return [value] if isinstance(value, str) else value
+
+
+    def get_pipeline_name(self, pipeline):
+        """
+        Translate a pipeline name (e.g., stripping file extension).
+
+        :param pipeline: Pipeline name or script (top-level key in
+            pipeline interface mapping).
+        :type pipeline: str
+        :return: translated pipeline name, as specified in config or by
+            stripping the pipeline's file extension
+        :rtype: str: translated name for pipeline
+        """
+        config = self._select_pipeline(pipeline)
+        try:
+            return config["name"]
+        except KeyError:
+            _LOGGER.debug("No 'name' for pipeline '{}'".format(pipeline))
+            return _os.path.splitext(pipeline)[0]
+
+
+    def uses_looper_args(self, pipeline_name):
+        """
+        Determine whether the indicated pipeline uses looper arguments.
+
+        :param pipeline_name: name of a pipeline of interest
+        :type pipeline_name: str
+        :return: whether the indicated pipeline uses looper arguments
+        :rtype: bool
+        """
+        config = self._select_pipeline(pipeline_name)
+        return "looper_args" in config and config["looper_args"]
+
+
     def _select_pipeline(self, pipeline_name):
         """
         Check to make sure that pipeline has an entry and if so, return it.
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
+        :return: configuration data for pipeline indicated
+        :rtype: Mapping
+        :raises MissingPipelineConfigurationException: if there's no
+            configuration data for the indicated pipeline
         """
-        if pipeline_name not in self.pipe_iface_config:
+        try:
+            # For unmapped pipeline, Return empty config instead of None.
+            return self.pipe_iface_config[pipeline_name] or {}
+        except KeyError:
             _LOGGER.error(
                 "Missing pipeline description: '%s' not found in '%s'",
                 pipeline_name, self.pipe_iface_file)
-            # Should I just use defaults or force you to define this?
-            raise Exception("You need to teach looper about that pipeline")
-
-        return self.pipe_iface_config[pipeline_name]
+            # TODO: use defaults or force user to define this?
+            raise MissingPipelineConfigurationException(pipeline_name)
 
 
 
@@ -2141,6 +2169,13 @@ class ProtocolMapper(Mapping):
 
 
 
+class InvalidResourceSpecificationException(Exception):
+    """ Pipeline interface resources--if present--needs default. """
+    def __init__(self, reason):
+        super(InvalidResourceSpecificationException, self).__init__(reason)
+
+
+
 class MetadataOperationException(Exception):
     """ Illegal/unsupported operation, motivated by `AttributeDict`. """
 
@@ -2172,3 +2207,10 @@ class MissingMetadataException(Exception):
         if path_config_file:
             reason += "; used config file '{}'".format(path_config_file)
         super(MissingMetadataException, self).__init__(reason)
+
+
+
+class MissingPipelineConfigurationException(Exception):
+    """ A selected pipeline needs configuration data. """
+    def __init__(self, pipeline):
+        super(MissingPipelineConfigurationException, self).__init__(pipeline)

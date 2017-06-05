@@ -310,6 +310,7 @@ def run(prj, args, remaining_args, interface_manager):
                 skip_reasons.append(fail_message)
 
             # Project-level arguments (sample-agnostic) are handled separately.
+            argstring = argstring or ""    # Ensure that we have argstring.
             argstring += prj.get_arg_string(pl_id)
             cmd += argstring
 
@@ -338,10 +339,14 @@ def run(prj, args, remaining_args, interface_manager):
                             cmd += " -C " + pl_config_file
 
                 cmd += " -O " + prj.metadata.results_subdir
-                if submit_settings["cores"] > 1:
+                if submit_settings.setdefault("cores", 1) > 1:
                     cmd += " -P " + submit_settings["cores"]
-                if submit_settings["mem"] > 1:
-                    cmd += " -M " + submit_settings["mem"]
+                try:
+                    if submit_settings["mem"] > 1:
+                        cmd += " -M " + submit_settings["mem"]
+                except KeyError:
+                    _LOGGER.warn("Submission settings "
+                                 "lack memory specification")
 
             # Add the command string and job name to the submit_settings object
             submit_settings["JOBNAME"] = sample.sample_name + "_" + pl_id
