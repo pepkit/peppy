@@ -2105,30 +2105,30 @@ class ProtocolInterfaces:
             absolute path for pipeline script.
 
         """
-        # key may contain extra command-line flags; discard flags.
+        # key may contain extra command-line flags; split cmd from flags.
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
         if self.interface.get_attribute(strict_pipeline_key, "path"):
-            script_cmd = self.interface.get_attribute(
+            script_path_only = self.interface.get_attribute(
                     strict_pipeline_key, "path")[0]
-            script_path = " ".join([script_cmd, pipeline_key_args])
+            script_path_flags = " ".join([script_cmd, pipeline_key_args])
         else:
             # backwards compatibility w/ v0.5
-            script_cmd = strict_pipeline_key
-            script_path = pipeline_key 
+            script_path_only = strict_pipeline_key
+            script_path_flags = pipeline_key 
 
-        if _os.path.isabs(script_cmd):
-            if not _os.path.exists(script_cmd.strip()):
-                _LOGGER.warn("Missing script command: '{}'".format(script_cmd))
-            return strict_pipeline_key, script_path
+        if _os.path.isabs(script_path_only):
+            if not _os.path.exists(script_path_only.strip()):
+                _LOGGER.warn("Missing script command: '{}'".format(script_path_only))
+            return strict_pipeline_key, script_path_flags
         else:
-            abs_script_cmd = _os.path.join(self.pipelines_path, script_cmd)
-            abs_script_path = _os.path.join(self.pipelines_path, script_path)
+            abs_script_path_only = _os.path.join(self.pipelines_path, script_path_only)
+            abs_script_path_flags = _os.path.join(self.pipelines_path, script_path_flags)
 
-            if not _os.path.isfile(abs_script_cmd.strip()):
+            if not _os.path.isfile(abs_script_path_only.strip()):
                 _LOGGER.warn("Missing script command: '{}'".
-                             format(abs_script_cmd))
-            return strict_pipeline_key, abs_script_path
+                             format(abs_script_path_only))
+            return strict_pipeline_key, abs_script_path_flags
 
 
 @copy
