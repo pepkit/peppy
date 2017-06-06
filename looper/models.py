@@ -1405,12 +1405,12 @@ class Sample(object):
         try:
             self.genome = getattr(self.prj.genomes, self.organism)
         except AttributeError:
-            _LOGGER.warn("Project config lacks genome mapping for "
+            _LOGGER.debug("Project config lacks genome mapping for "
                               "organism '%s'", str(self.organism))
         try:
             self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
         except AttributeError:
-            _LOGGER.warn("Project config lacks transcriptome mapping for "
+            _LOGGER.debug("Project config lacks transcriptome mapping for "
                               "organism '%s'", str(self.organism))
 
 
