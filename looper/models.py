@@ -1565,6 +1565,7 @@ class Sample(object):
 
 
     def confirm_required_inputs(self, permissive=False):
+
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
             _LOGGER.warn("You must run set_pipeline_attributes "
@@ -1579,7 +1580,15 @@ class Sample(object):
         for file_attribute in self.required_inputs_attr:
             _LOGGER.debug("Checking '{}'".format(file_attribute))
             if not hasattr(self, file_attribute):
-                message = "Sample missing required input attribute '{}'".\
+                message = "Missing required input attribute '{}'".\
+                    format(file_attribute)
+                _LOGGER.warn(message)
+                if not permissive:
+                    raise IOError(message)
+                else:
+                    return False
+            if getattr(self, file_attribute) is "":
+                message = "Empty required input attribute '{}'".\
                     format(file_attribute)
                 _LOGGER.warn(message)
                 if not permissive:
@@ -1590,12 +1599,11 @@ class Sample(object):
         # Second, files
         missing_files = []
         for paths in self.required_inputs:
-            _LOGGER.debug("Checking paths")
             # There can be multiple, space-separated values here.
             for path in paths.split(" "):
                 _LOGGER.debug("Checking path: '{}'".format(path))
                 if not _os.path.exists(path):
-                    _LOGGER.debug("Missing: '{}'".format(path))
+                    _LOGGER.warn("Missing required input file: '{}'".format(path))
                     missing_files.append(path)
 
         if len(missing_files) > 0:
