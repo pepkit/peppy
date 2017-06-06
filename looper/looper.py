@@ -786,7 +786,7 @@ def main():
     _LOGGER.info("Command: {} (Looper version: {}".
                  format(args.command, __version__))
     # Initialize project
-    _LOGGER.debug("compute_env_file: " + getattr(args, 'env', None))
+    _LOGGER.debug("compute_env_file: " + str(getattr(args, 'env', None)))
     prj = Project(
         args.config_file, args.subproject,
         file_checks=args.file_checks,
