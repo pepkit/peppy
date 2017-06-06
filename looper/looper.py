@@ -279,7 +279,7 @@ def run(prj, args, remaining_args, interface_manager):
             try:
                 # Check for any required inputs before submitting.
                 _LOGGER.debug("Confirming required inputs")
-                missing_inputs = sample.confirm_required_inputs()
+                sample.confirm_required_inputs()
             except IOError:
                 # TODO: inform about WHICH missing file(s).
                 fail_message = "Required input file(s) not found."
