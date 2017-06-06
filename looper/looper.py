@@ -263,13 +263,11 @@ def run(prj, args, remaining_args, interface_manager):
             # pl_id is no longer necessarily script name, it's more flexible.
             pl_id = pipeline_key
 
-            _LOGGER.debug("Setting pipeline attributes for job '{}' (ID: '{}')".
+            _LOGGER.debug("Setting pipeline attributes for job '{}' (PL_ID: '{}')".
                           format(pipeline_job, pl_id))
 
             try:
                 # Add pipeline-specific attributes.
-                _LOGGER.debug("Setting pipeline attributes for: '%s'",
-                              str(pl_id))
                 sample.set_pipeline_attributes(
                         pipeline_interface, pipeline_name=pl_id)
             except AttributeError:
