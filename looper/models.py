@@ -1983,10 +1983,11 @@ class InterfaceManager(object):
                 this_protocol_pipelines = \
                         ifproto.protomap.mappings[protocol_name]
             except KeyError:
-                _LOGGER.debug("Protocol {} not in mappings file '{}'".
+                _LOGGER.debug("Protocol {} missing mapping in '{}'".
                               format(protocol_name, ifproto.protomaps_path))
             else:
                 # TODO: update once dependency-encoding logic is in place.
+                # REMARK NS: script_names is now a pipeline_key
                 script_names = this_protocol_pipelines.replace(";", ",")\
                                                       .strip(" ()\n")\
                                                       .split(",")
@@ -2015,8 +2016,8 @@ class InterfaceManager(object):
                               format(len(new_scripts), protocol_name,
                                      ifproto.pipedir, ", ".join(new_scripts)))
 
-                script_paths = [_os.path.join(ifproto.pipelines_path, script)
-                                for script in script_names]
+                script_paths = [ifproto.pipeline_key_to_path(pipeline_key)
+                                for pipeline_key in script_names]
                 jobs.append([(ifproto.interface, path)
                              for path in script_paths])
 
@@ -2085,6 +2086,31 @@ class ProtocolInterfaces:
                 _LOGGER.error(str(iface))
                 raise e
 
+    def pipeline_key_to_path(self, pipeline_key):
+        """
+        Given a pipeline_key, return the path to the script for that pipeline specified
+        in this pipeline interface config file.
+
+        :param str pipeline_key: the key in the pipeline interface yaml file used
+            for the protocol_mappings section. Previously was the script name.
+
+        """
+        # key may contain extra command-line flags; split out to strict key / flags
+        strict_pipeline_key, tmp, pipeline_key_args = pipeline_key.partition(' ')
+
+        if self.interface.get_attribute(strict_pipeline_key, "path"):
+            script_cmd = self.interface.get_attribute(strict_pipeline_key, "path")[0]
+            script_path = " ".join([script_cmd, pipeline_key_args])
+        else:
+            # backwards compatibility w/ v0.5
+            script_cmd = strict_pipeline_key
+            script_path = pipeline_key 
+
+        if _os.path.isabs(script_cmd):
+            return script_path
+        else:
+            abs_script_path = _os.path.join(self.pipelines_path, script_path)
+            return abs_script_path
 
 
 @copy
