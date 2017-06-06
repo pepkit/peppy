@@ -5,6 +5,7 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
+
 class ModelConstructionException(Exception):
     """ Error during construction of a looper ADT instance. """
 

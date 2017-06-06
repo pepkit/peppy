@@ -1,17 +1,16 @@
 """
-Models for NGS projects
+Project Models
 =======================
 
 Workflow explained:
-    - Project is created
-    - Add Sample sheet to project (spawns next)
+    - Create a Project object
         - Samples are created and added to project (automatically)
 
-In the process, stuff is checked:
-    - project structure (created if not existing)
-    - existence of csv sample sheet with minimal fields
+In the process, Models will check:
+    - Project structure (created if not existing)
+    - Existence of csv sample sheet with minimal fields
     - Constructing a path to a sample's input file and checking for its existence
-    - read type/length of samples (optionally)
+    - Read type/length of samples (optionally)
 
 Example:
 
@@ -19,10 +18,9 @@ Example:
 
     from models import Project
     prj = Project("config.yaml")
-    prj.add_sample_sheet()
     # that's it!
 
-Explore!
+Explore:
 
 .. code-block:: python
 
@@ -35,7 +33,7 @@ Explore!
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
-    prj.sheet.to_csv(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
+    prj.sheet.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
 
     # project options are read from the config file
     # but can be changed on the fly:
@@ -234,7 +232,7 @@ class AttributeDict(MutableMapping):
         :param str key: name of the key/attribute for which to establish value
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
-        :raises MetadataOperationException: if attempt is made
+        :raises _MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
         _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
@@ -270,7 +268,7 @@ class AttributeDict(MutableMapping):
 
     def __delitem__(self, item):
         if item in ATTRDICT_METADATA:
-            raise MetadataOperationException(self, item)
+            raise _MetadataOperationException(self, item)
         try:
             del self.__dict__[item]
         except KeyError:
@@ -676,7 +674,7 @@ class Project(AttributeDict):
 
         # Required variables check
         if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
-            raise MissingMetadataException(
+            raise _MissingMetadataException(
                     missing_section=SAMPLE_ANNOTATIONS_KEY, 
                     path_config_file=self.config_file)
 
@@ -1171,6 +1169,9 @@ class Sample(object):
     """
     Class to model Samples based on a pandas Series.
 
+    :param series: Sample's data.
+    :type series: pandas.core.series.Series
+
     :Example:
 
     .. code-block:: python
@@ -1187,12 +1188,6 @@ class Sample(object):
     # but complications with serializing and code maintenance
     # made me go back and implement it as a top-level object
     def __init__(self, series):
-        """
-        Instantiate `Sample` with data from given series.
-        
-        :param pandas.core.series.Series series: data for instance
-        :raises ValueError: if data lacks required attribute(s)
-        """
         super(Sample, self).__init__()
         self.merged_cols = {}
         self.derived_cols_done = []
@@ -1222,8 +1217,9 @@ class Sample(object):
         # Short hand for getting sample_name
         self.name = self.sample_name
 
-        # Default to no required paths
+        # Default to no required paths and no YAML file.
         self.required_paths = None
+        self.yaml_file = None
 
         # Sample dirs
         self.paths = Paths()
@@ -1233,8 +1229,10 @@ class Sample(object):
         # The SampleSheet object, after being added to a project, will
         # call Sample.set_file_paths().
 
+
     def __repr__(self):
         return "Sample '{}'".format(self.name)
+
 
     def __getitem__(self, item):
         """
@@ -1258,7 +1256,9 @@ class Sample(object):
         """
         Check provided sample annotation is valid.
 
-        It requires the field `sample_name` is existent and non-empty.
+        :param Iterable[str] required: collection of required sample attribute
+            names, optional; if unspecified, only a name is required.
+
         """
         lacking = defaultdict(list)
         for attr in required or [SAMPLE_NAME_COLNAME]:
@@ -1298,12 +1298,15 @@ class Sample(object):
             for all objects that might be attributes of self.
 
             :param object obj: what to serialize to write to YAML.
-            :param tuple[str] to_skip: names of attributes to ignore.
+            :param Iterable[str] to_skip: names of attributes to ignore.
 \            """
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip and (k not in ATTRDICT_METADATA or v != ATTRDICT_METADATA[k])}
+                return {k: obj2dict(v) for k, v in obj.__dict__.items()
+                        if k not in to_skip and
+                        (k not in ATTRDICT_METADATA or
+                         v != ATTRDICT_METADATA[k])}
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v)
                         for k, v in obj.items() if k not in to_skip}
@@ -1322,10 +1325,11 @@ class Sample(object):
 
         # If path is not specified, use default:
         # prj.metadata.submission_dir + sample_name + yaml
-        yaml_file = path or _os.path.join(self.prj.metadata.submission_subdir,
-                                          self.sample_name + ".yaml")
+        self.yaml_file = path or \
+                         _os.path.join(self.prj.metadata.submission_subdir,
+                                       self.sample_name + ".yaml")
         serial = obj2dict(self)
-        with open(yaml_file, 'w') as outfile:
+        with open(self.yaml_file, 'w') as outfile:
             outfile.write(yaml.safe_dump(serial, default_flow_style=False))
 
 
@@ -1350,7 +1354,7 @@ class Sample(object):
             variables that can also be used for variable replacement. 
             These extra variables are given a higher priority.
         :return str: regex expansion of data source specified in configuration,
-            with variable substitions made
+            with variable substitutions made
         """
 
         sources_section = "data_sources"
@@ -1407,12 +1411,12 @@ class Sample(object):
         try:
             self.genome = getattr(self.prj.genomes, self.organism)
         except AttributeError:
-            _LOGGER.warn("Project config lacks genome mapping for "
+            _LOGGER.debug("Project config lacks genome mapping for "
                               "organism '%s'", str(self.organism))
         try:
             self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
         except AttributeError:
-            _LOGGER.warn("Project config lacks transcriptome mapping for "
+            _LOGGER.debug("Project config lacks transcriptome mapping for "
                               "organism '%s'", str(self.organism))
 
 
@@ -1565,6 +1569,7 @@ class Sample(object):
 
 
     def confirm_required_inputs(self, permissive=False):
+
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
             _LOGGER.warn("You must run set_pipeline_attributes "
@@ -1579,7 +1584,15 @@ class Sample(object):
         for file_attribute in self.required_inputs_attr:
             _LOGGER.debug("Checking '{}'".format(file_attribute))
             if not hasattr(self, file_attribute):
-                message = "Sample missing required input attribute '{}'".\
+                message = "Missing required input attribute '{}'".\
+                    format(file_attribute)
+                _LOGGER.warn(message)
+                if not permissive:
+                    raise IOError(message)
+                else:
+                    return False
+            if getattr(self, file_attribute) is "":
+                message = "Empty required input attribute '{}'".\
                     format(file_attribute)
                 _LOGGER.warn(message)
                 if not permissive:
@@ -1590,12 +1603,11 @@ class Sample(object):
         # Second, files
         missing_files = []
         for paths in self.required_inputs:
-            _LOGGER.debug("Checking paths")
             # There can be multiple, space-separated values here.
             for path in paths.split(" "):
                 _LOGGER.debug("Checking path: '{}'".format(path))
                 if not _os.path.exists(path):
-                    _LOGGER.debug("Missing: '{}'".format(path))
+                    _LOGGER.warn("Missing required input file: '{}'".format(path))
                     missing_files.append(path)
 
         if len(missing_files) > 0:
@@ -1725,7 +1737,7 @@ class Sample(object):
             setattr(self, feature,
                     files[0][i] if len(set(f[i] for f in files)) == 1 else None)
 
-            if getattr(self, feature) is None:
+            if getattr(self, feature) is None and len(existing_files) > 0:
                 _LOGGER.warn("Not all input files agree on "
                              "feature '%s' for sample '%s'",
                              feature, self.name)
@@ -1739,21 +1751,22 @@ class PipelineInterface(object):
     specifies how to interact with each individual pipeline. This
     includes both resources to request for cluster job submission, as well as
     arguments to be passed from the sample annotation metadata to the pipeline
+
+    :param config: path to file from which to parse configuration data,
+        or pre-parsed configuration data.
+    :type config: str | Mapping
+
     """
-
-
     def __init__(self, config):
-        """
-        Create PipelineInterface from mapping or filepath.
-        
-        :param Mapping | str config: path to config file or parsed result
-        """
         if isinstance(config, Mapping):
+            _LOGGER.info("Creating %s with preparsed data",
+                         self.__class__.__name__)
             self.pipe_iface_file = None
             self.pipe_iface_config = config
+
         else:
-            _LOGGER.info("Creating %s from file '%s'",
-                              self.__class__.__name__, config)
+            _LOGGER.info("Parsing '%s' for %s config data",
+                         config, self.__class__.__name__)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)
@@ -1796,7 +1809,7 @@ class PipelineInterface(object):
         try:
             return resources[selection or DEFAULT_COMPUTE_RESOURCES_NAME]
         except KeyError:
-            raise InvalidResourceSpecificationException(
+            raise _InvalidResourceSpecificationException(
                     "Pipeline resources specification lacks 'default' section")
 
 
@@ -1821,8 +1834,6 @@ class PipelineInterface(object):
         args = config["arguments"]
 
         for key, value in args.iteritems():
-            _LOGGER.debug("Script argument: '%s', sample attribute: '%s'",
-                          key, value)
             if value is None:
                 _LOGGER.debug("Null value for opt arg key '%s'",
                                    str(key))
@@ -1837,7 +1848,7 @@ class PipelineInterface(object):
                     pipeline_name, value, key)
                 raise
 
-            _LOGGER.debug("Adding '{}' for '{}'".format(arg, key))
+            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".format(arg, value, key))
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
@@ -1916,7 +1927,7 @@ class PipelineInterface(object):
         :type pipeline_name: str
         :return: configuration data for pipeline indicated
         :rtype: Mapping
-        :raises MissingPipelineConfigurationException: if there's no
+        :raises _MissingPipelineConfigurationException: if there's no
             configuration data for the indicated pipeline
         """
         try:
@@ -1927,31 +1938,32 @@ class PipelineInterface(object):
                 "Missing pipeline description: '%s' not found in '%s'",
                 pipeline_name, self.pipe_iface_file)
             # TODO: use defaults or force user to define this?
-            raise MissingPipelineConfigurationException(pipeline_name)
+            raise _MissingPipelineConfigurationException(pipeline_name)
 
 
 
 @copy
 class InterfaceManager(object):
-    """ Aggregate PipelineInterface and ProtocolMapper objects so that a
-     Project can use pipelines distributed across multiple locations. """
+    """ Manage pipeline use for multiple locations and protocols.
 
+    This is done by aggregating protocol interface instances,
+    allowing one Project to use pipelines from multiple locations.
 
+    :param pipeline_dirs: locations containing pipelines and configuration
+        information; specifically, a directory with a 'pipelines' folder and
+        a 'config' folder, within which there is a pipeline interface file
+        and a protocol mappings file.
+    :type pipeline_dirs: Iterable[str]
+
+    """
     def __init__(self, pipeline_dirs):
-        """
-        Map protocol name to location to use for its pipeline(s).
-
-        :param collections.Iterable[str] pipeline_dirs: locations containing
-            pipelines and configuration information; specifically, a directory
-            with a 'pipelines' folder and a 'config' folder, within which
-            there is a pipeline interface file and a protocol mappings file
-        """
         # Collect interface/mappings pairs by protocol name.
         interfaces_and_protocols = \
                 [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs]
         self.ifproto_by_proto_name = defaultdict(list)
         for ifproto in interfaces_and_protocols:
             for proto_name in ifproto.protomap:
+                _LOGGER.debug("Protocol name: {}".format(proto_name))
                 self.ifproto_by_proto_name[proto_name].append(ifproto)
 
 
@@ -1962,8 +1974,10 @@ class InterfaceManager(object):
         :param str protocol_name: name for the protocol for which to build
             pipelines
         :param bool priority: should only the top priority mapping be used?
-        :return list[str]: sequence of jobs (script paths) to execute for
-            the given protocol
+        :return Sequence[(PipelineInterface, str, str)]: sequence of jobs
+            (script paths) to execute for the given protocol; if priority
+            flag is set (as is the default), this is a single-element list,
+            the sequence of jobs built is interpreted as descending priority
         """
 
         try:
@@ -1973,33 +1987,35 @@ class InterfaceManager(object):
             return []
 
         jobs = []
-        script_names_used = set()
+        pipeline_keys_used = set()
+        _LOGGER.debug("Building pipelines for {} PIs...".format(len(ifprotos)))
         for ifproto in ifprotos:
             try:
                 this_protocol_pipelines = \
                         ifproto.protomap.mappings[protocol_name]
             except KeyError:
-                _LOGGER.debug("Protocol {} not in mappings file '{}'".
+                _LOGGER.debug("Protocol {} missing mapping in '{}'".
                               format(protocol_name, ifproto.protomaps_path))
             else:
                 # TODO: update once dependency-encoding logic is in place.
-                script_names = this_protocol_pipelines.replace(";", ",")\
+                _LOGGER.debug("Protocol: {}".format(protocol_name))
+                pipeline_keys = this_protocol_pipelines.replace(";", ",")\
                                                       .strip(" ()\n")\
                                                       .split(",")
-                script_names = [sn.strip() for sn in script_names]
+                pipeline_keys = [pk.strip() for pk in pipeline_keys]
                 already_mapped, new_scripts = \
-                        partition(script_names,
-                                  partial(_is_member, items=script_names_used))
-                script_names_used |= set(script_names)
+                        partition(pipeline_keys,
+                                  partial(_is_member, items=pipeline_keys_used))
+                pipeline_keys_used |= set(pipeline_keys)
 
-                if len(script_names) != (len(already_mapped) + len(new_scripts)):
+                if len(pipeline_keys) != (len(already_mapped) + len(new_scripts)):
                     _LOGGER.error("{} --> {} + {}".format(
-                            script_names, already_mapped, new_scripts))
+                            pipeline_keys, already_mapped, new_scripts))
 
                     raise RuntimeError(
                             "Partitioned {} script names into allegedly "
                             "disjoint sets of {} and {} elements.".
-                            format(len(script_names),
+                            format(len(pipeline_keys),
                                    len(already_mapped),
                                    len(new_scripts)))
 
@@ -2011,15 +2027,11 @@ class InterfaceManager(object):
                               format(len(new_scripts), protocol_name,
                                      ifproto.pipedir, ", ".join(new_scripts)))
 
-                script_paths = [_os.path.join(ifproto.pipelines_path, script)
-                                for script in script_names]
-                jobs.append([(ifproto.interface, path)
-                             for path in script_paths])
+                jobs.append([(ifproto.interface, ) +
+                             ifproto.pipeline_key_to_path(pipeline_key)
+                             for pipeline_key in pipeline_keys])
 
-        if priority and len(jobs) > 1:
-            return jobs[0]
-
-        return list(itertools.chain(*jobs))
+        return jobs[0] if priority and len(jobs) > 1 else list(itertools.chain(*jobs))
 
 
 
@@ -2030,22 +2042,18 @@ def _is_member(item, items):
 
 # TODO: rename.
 class ProtocolInterfaces:
-    """ Pair of PipelineInterface and ProtocolMapper instances
-    based on a single pipelines_dir location. Also stores path
-    attributes to retain information about the location
-    from which the interface and mapper came. """
+    """ PipelineInterface and ProtocolMapper for a single pipelines location.
 
+    Instances of this class are used by InterfaceManager to facilitate
+    multi-location pipelines use by a single project. Here also are stored
+    path attributes to retain information about the location from which the
+    interface and mapper came.
 
+    :param pipedir: location (e.g., code repository) of pipelines
+    :type pipedir: str
+
+    """
     def __init__(self, pipedir):
-        """
-        The location at which to find pipeline interface and protocol
-        mapping information defines the instance.
-
-        :param str pipedir: path to location at which to find pipeline,
-            pipeline interface, and protocol mapping information,
-            nested within subfolders as required
-        """
-
         if _os.path.isdir(pipedir):
             self.pipedir = pipedir
             self.config_path = _os.path.join(pipedir, "config")
@@ -2082,26 +2090,61 @@ class ProtocolInterfaces:
                 raise e
 
 
+    def pipeline_key_to_path(self, pipeline_key):
+        """
+        Given a pipeline_key, return the path to the script for that pipeline
+        specified in this pipeline interface config file.
+
+        :param str pipeline_key: the key in the pipeline interface file used
+            for the protocol_mappings section. Previously was the script name.
+        :return (str, str): more restrictive version of input key, along with
+            absolute path for pipeline script.
+
+        """
+        # key may contain extra command-line flags; split key from flags.
+
+        strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
+
+        if self.interface.get_attribute(strict_pipeline_key, "path"):
+            script_path_only = self.interface.get_attribute(
+                    strict_pipeline_key, "path")[0]
+            script_path_with_flags = " ".join([script_path_only, pipeline_key_args])
+        else:
+            # backwards compatibility w/ v0.5
+            script_path_only = strict_pipeline_key
+            script_path_with_flags = pipeline_key 
+
+        if _os.path.isabs(script_path_only):
+            if not _os.path.exists(script_path_only.strip()):
+                _LOGGER.warn("Missing script command: '{}'".format(script_path_only))
+            return strict_pipeline_key, script_path_with_flags
+        else:
+            abs_script_path_only = _os.path.join(self.pipelines_path, script_path_only)
+            abs_script_path_with_flags = _os.path.join(self.pipelines_path, script_path_with_flags)
+
+            if not _os.path.isfile(abs_script_path_only.strip()):
+                _LOGGER.warn("Missing script command: '{}'".
+                             format(abs_script_path_only))
+            return strict_pipeline_key, abs_script_path_with_flags
+
 
 @copy
 class ProtocolMapper(Mapping):
     """
-    Map protocol/library name to pipeline(s). For example, "WGBS" --> wgbs.py.
-    """
+    Map protocol/library name to pipeline key(s). For example, "WGBS" --> wgbs.
 
+    :param mappings_input: data encoding correspondence between a protocol
+        name and pipeline(s)
+    :type mappings_input: str | Mapping
+
+    """
     def __init__(self, mappings_input):
-        """
-        Create ProtocolMapper from config file or parsed result.
-        
-        :param str | Mapping mappings_input: path to mappings file or 
-            result of parsing one
-        """
         if isinstance(mappings_input, Mapping):
+            # Pre-parsed mappings data
             self.mappings_file = None
             mappings = mappings_input
         else:
-            # mapping libraries to pipelines
-            # input was a file, parse then populate
+            # Parse file mapping protocols to pipeline(s).
             self.mappings_file = mappings_input
             with open(self.mappings_file, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
@@ -2165,14 +2208,14 @@ class ProtocolMapper(Mapping):
 
 
 
-class InvalidResourceSpecificationException(Exception):
+class _InvalidResourceSpecificationException(Exception):
     """ Pipeline interface resources--if present--needs default. """
     def __init__(self, reason):
-        super(InvalidResourceSpecificationException, self).__init__(reason)
+        super(_InvalidResourceSpecificationException, self).__init__(reason)
 
 
 
-class MetadataOperationException(Exception):
+class _MetadataOperationException(Exception):
     """ Illegal/unsupported operation, motivated by `AttributeDict`. """
 
     def __init__(self, obj, meta_item):
@@ -2191,22 +2234,22 @@ class MetadataOperationException(Exception):
             classname = obj.__name__
         explanation = "Attempted unsupported operation on {} item '{}'". \
                 format(classname, meta_item)
-        super(MetadataOperationException, self).__init__(explanation)
+        super(_MetadataOperationException, self).__init__(explanation)
 
 
 
-class MissingMetadataException(Exception):
+class _MissingMetadataException(Exception):
     """ Project needs certain metadata. """
     def __init__(self, missing_section, path_config_file=None):
         reason = "Project configuration lacks required metadata section {}".\
                 format(missing_section)
         if path_config_file:
             reason += "; used config file '{}'".format(path_config_file)
-        super(MissingMetadataException, self).__init__(reason)
+        super(_MissingMetadataException, self).__init__(reason)
 
 
 
-class MissingPipelineConfigurationException(Exception):
+class _MissingPipelineConfigurationException(Exception):
     """ A selected pipeline needs configuration data. """
     def __init__(self, pipeline):
-        super(MissingPipelineConfigurationException, self).__init__(pipeline)
+        super(_MissingPipelineConfigurationException, self).__init__(pipeline)

@@ -14,20 +14,21 @@ SUBMISSION_TEMPLATES_FOLDER = "submit_templates"
 
 
 class Project(models.Project):
-    """ Looper-specific NGS Project. """
+    """
+    Looper-specific NGS Project.
 
+    :param config_file: path to configuration file with data from
+        which Project is to be built
+    :type config_file: str
+    :param subproject: name indicating subproject to use, optional
+    :type subproject: str
+    :param default_compute: path to default compute environment
+        configuration data, optional
+    :type default_compute: str
+
+    """
     def __init__(self, config_file,
                  subproject=None, default_compute=None, **kwargs):
-        """
-        Create a new Project.
-        
-        :param str config_file: path to configuration file with data from 
-            which Project is to be built
-        :param str subproject: name indicating subproject to use, optional
-        :param str default_compute: path to default compute environment
-            configuration data, optional
-        :param dict kwargs: additional keyword arguments
-        """
         if not default_compute:
             looper_folder = os.path.dirname(__file__)
             default_compute = os.path.join(looper_folder,
