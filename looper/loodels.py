@@ -16,18 +16,16 @@ SUBMISSION_TEMPLATES_FOLDER = "submit_templates"
 class Project(models.Project):
     """ Looper-specific NGS Project. """
 
-    def __init__(
-            self, config_file,
-            default_compute=None,
-            *args, **kwargs):
+    def __init__(self, config_file,
+                 subproject=None, default_compute=None, **kwargs):
         """
         Create a new Project.
         
         :param str config_file: path to configuration file with data from 
             which Project is to be built
-        :param str default_compute: path to default compute environment 
-            configuration data
-        :param tuple args: additional positional arguments
+        :param str subproject: name indicating subproject to use, optional
+        :param str default_compute: path to default compute environment
+            configuration data, optional
         :param dict kwargs: additional keyword arguments
         """
         if not default_compute:
@@ -35,7 +33,8 @@ class Project(models.Project):
             default_compute = os.path.join(looper_folder,
                     SUBMISSION_TEMPLATES_FOLDER, DEFAULT_PROJECT_COMPUTE_NAME)
         super(Project, self).__init__(
-                config_file, default_compute, *args,
+                config_file, subproject=subproject, 
+                default_compute=default_compute,
                 no_environment_exception=RuntimeError,
                 no_compute_exception=RuntimeError, **kwargs)
 
