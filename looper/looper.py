@@ -253,6 +253,10 @@ def run(prj, args, remaining_args, interface_manager):
         # cannot be assigned (library/protocol missing).
         for pipeline_interface, pipeline_job in pipelines:
 
+            # The current sample is active.
+            # For each pipeline submission consideration, start fresh.
+            skip_reasons = []
+
             # Discard any arguments to get just the (complete) script name,
             # which is the key in the pipeline interface.
             pl_id = os.path.basename(str(pipeline_job).split(" ")[0])
@@ -262,18 +266,19 @@ def run(prj, args, remaining_args, interface_manager):
 
             try:
                 # Add pipeline-specific attributes.
-                sample.set_pipeline_attributes(pipeline_interface, pl_id)
-                _LOGGER.info("> Building submission for Pipeline: '{}' "
-                             "(input: {:.2f} Gb)".format(
-                        pipeline_job, sample.input_file_size))
+                _LOGGER.debug("Setting pipeline attributes for: '%s'",
+                              str(pl_id))
+                sample.set_pipeline_attributes(
+                        pipeline_interface, pipeline_name=pl_id)
             except AttributeError:
                 # TODO: inform about WHICH missing attribute(s).
                 fail_message = "Pipeline required attribute(s) missing."
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
 
-            # Check for any required inputs before submitting
             try:
+                # Check for any required inputs before submitting.
+                _LOGGER.debug("Confirming required inputs")
                 sample.confirm_required_inputs()
             except IOError:
                 # TODO: inform about WHICH missing file(s).
@@ -309,8 +314,16 @@ def run(prj, args, remaining_args, interface_manager):
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
 
+            if skip_reasons:
+                # Sample is active, but we've at least 1 pipeline skip reason.
+                failures.append([skip_reasons, sample.sample_name])
+                continue
+
+            _LOGGER.info("> Building submission for Pipeline: '{}' "
+                         "(input: {:.2f} Gb)".format(pipeline_job,
+                                                     sample.input_file_size))
+
             # Project-level arguments (sample-agnostic) are handled separately.
-            argstring = argstring or ""    # Ensure that we have argstring.
             argstring += prj.get_arg_string(pl_id)
             cmd += argstring
 
@@ -363,9 +376,6 @@ def run(prj, args, remaining_args, interface_manager):
                     remaining_args=remaining_args)
             if submitted:
                 submit_count += 1
-
-        if skip_reasons:
-            failures.append([skip_reasons, sample.sample_name])
 
     msg = "\nLooper finished. {} of {} job(s) submitted.".\
             format(submit_count, job_count)
