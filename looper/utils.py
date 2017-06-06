@@ -97,40 +97,37 @@ def partition(items, test):
 
 
 
+# TODO:
+# It appears that this isn't currently used.
+# It could be included as a validation stage in Project instantiation.
+# If Project instance being validated lacked specific relevant
+# configuration section the call here would either need to be skipped,
+# or this would need to pass in such a scenario. That would not be
+# a challenge, but it just needs to be noted.
+
+# TODO:
+# Test this with additional pipeline config file,
+# pointed to in relevant section of project config file:
+# http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config
 class CommandChecker(object):
     """
-    Validate call success of executables
-    associated with sections of a config file.
+    Validate PATH availability of executables referenced by a config file.
+
+    :param path_conf_file: path to configuration file with
+        sections detailing executable tools to validate
+    :type path_conf_file: str
+    :param sections_to_check: names of
+        sections of the given configuration file that are relevant;
+        optional, will default to all sections if not given, but some
+        may be excluded via another optional parameter
+    :type sections_to_check: Iterable[str]
+    :param sections_to_skip: analogous to
+        the check names parameter, but for specific sections to skip.
+    :type sections_to_skip: Iterable[str]
+    
     """
-
-    # TODO:
-    # It appears that this isn't currently used.
-    # It could be included as a validation stage in Project instantiation.
-    # If Project instance being validated lacked specific relevant
-    # configuration section the call here would either need to be skipped,
-    # or this would need to pass in such a scenario. That would not be
-    # a challenge, but it just needs to be noted.
-
-    # TODO:
-    # Test this with additional pipeline config file,
-    # pointed to in relevant section of project config file:
-    # http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config
-
     def __init__(self, path_conf_file,
                  sections_to_check=None, sections_to_skip=None):
-        """
-        The path to the configuration file, and perhaps names of
-        validation inclusion and exclusion sections define the instance.
-
-        :param str path_conf_file: path to configuration file with
-            sections detailing executable tools to validate
-        :param collections.abc.Iterable(str) sections_to_check: names of 
-            sections of the given configuration file that are relevant; 
-            optional, will default to all sections if not given, but some 
-            may be excluded via another optional parameter
-        :param collections.abc.Iterable(str) sections_to_skip: analogous to 
-            the check names parameter, but for specific sections to skip.
-        """
 
         super(CommandChecker, self).__init__()
 

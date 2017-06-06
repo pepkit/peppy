@@ -4,8 +4,8 @@ import itertools
 import pytest
 import yaml
 from looper.models import \
-    PipelineInterface, InvalidResourceSpecificationException, \
-    MissingPipelineConfigurationException, DEFAULT_COMPUTE_RESOURCES_NAME
+    PipelineInterface, _InvalidResourceSpecificationException, \
+    _MissingPipelineConfigurationException, DEFAULT_COMPUTE_RESOURCES_NAME
 
 
 __author__ = "Vince Reuter"
@@ -75,7 +75,7 @@ def test_unconfigured_pipeline_exception(
             if use_resources else basic_pipe_iface_data
     pi = PipelineInterface(pipe_iface_config)
     funcname, kwargs = funcname_and_kwargs
-    with pytest.raises(MissingPipelineConfigurationException):
+    with pytest.raises(_MissingPipelineConfigurationException):
         getattr(pi, funcname).__call__("missing-pipeline", **kwargs)
 
 
@@ -122,7 +122,7 @@ class PipelineInterfaceResourcePackageTests:
         pipe_iface_config = _add_resources(basic_pipe_iface_data, resources)
         pi = PipelineInterface(pipe_iface_config)
         for pipeline in pipe_iface_config.keys():
-            with pytest.raises(InvalidResourceSpecificationException):
+            with pytest.raises(_InvalidResourceSpecificationException):
                 pi.choose_resource_package(
                         pipeline, file_size=HUGE_RESOURCES["file_size"] + 1)
 

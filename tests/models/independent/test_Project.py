@@ -8,7 +8,7 @@ import pytest
 import yaml
 import looper
 from looper.models import \
-        Project, MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
+        Project, _MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
 
 
 __author__ = "Vince Reuter"
@@ -55,7 +55,7 @@ class ProjectRequirementsTests:
         # Write the config and assert the expected exception for Project ctor.
         conf_path = _write_project_config(
             project_config_data, dirpath=tmpdir.strpath)
-        with pytest.raises(MissingMetadataException):
+        with pytest.raises(_MissingMetadataException):
             Project(conf_path, default_compute=env_config_filepath)
 
 
