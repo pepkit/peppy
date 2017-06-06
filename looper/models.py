@@ -1538,9 +1538,6 @@ class Sample(object):
             found or otherwise cannot be read, default True
         """
 
-        _LOGGER.debug("Setting pipeline attributes for: '%s'",
-                      str(pipeline_name))
-
         # Settings ending in _attr are lists of attribute keys.
         # These attributes are then queried to populate values
         # for the primary entries.
@@ -1569,9 +1566,6 @@ class Sample(object):
 
     def confirm_required_inputs(self, permissive=False):
         # set_pipeline_attributes must be run first.
-
-        _LOGGER.debug("Confirming required inputs")
-
         if not hasattr(self, "required_inputs"):
             _LOGGER.warn("You must run set_pipeline_attributes "
                          "before confirm_required_inputs")
