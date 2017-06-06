@@ -1754,12 +1754,15 @@ class PipelineInterface(object):
         
         :param Mapping | str config: path to config file or parsed result
         """
-        _LOGGER.info("Creating %s from file '%s'",
-                          self.__class__.__name__, config)
         if isinstance(config, Mapping):
+            _LOGGER.info("Creating %s with preparsed data",
+                         self.__class__.__name__)
             self.pipe_iface_file = None
             self.pipe_iface_config = config
+
         else:
+            _LOGGER.info("Parsing '%s' for %s config data",
+                         config, self.__class__.__name__)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)
@@ -1967,8 +1970,10 @@ class InterfaceManager(object):
         :param str protocol_name: name for the protocol for which to build
             pipelines
         :param bool priority: should only the top priority mapping be used?
-        :return list[str]: sequence of jobs (script paths) to execute for
-            the given protocol
+        :return Sequence[(PipelineInterface, str, str)]: sequence of jobs
+            (script paths) to execute for the given protocol; if priority
+            flag is set (as is the default), this is a single-element list,
+            the sequence of jobs built is interpreted as descending priority
         """
 
         try:
@@ -2018,16 +2023,11 @@ class InterfaceManager(object):
                               format(len(new_scripts), protocol_name,
                                      ifproto.pipedir, ", ".join(new_scripts)))
 
-                script_paths = [ifproto.pipeline_key_to_path(pipeline_key)
-                                for pipeline_key in pipeline_keys]
+                jobs.append([(ifproto.interface, ) +
+                             ifproto.pipeline_key_to_path(pipeline_key)
+                             for pipeline_key in pipeline_keys])
 
-                jobs.append([(ifproto.interface, path[0], path[1])
-                             for path in script_paths])
-
-        if priority and len(jobs) > 1:
-            return jobs[0]
-
-        return list(itertools.chain(*jobs))
+        return jobs[0] if priority and len(jobs) > 1 else itertools.chain(*jobs)
 
 
 
