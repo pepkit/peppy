@@ -1320,10 +1320,10 @@ class Sample(object):
 
         # If path is not specified, use default:
         # prj.metadata.submission_dir + sample_name + yaml
-        yaml_file = path or _os.path.join(self.prj.metadata.submission_subdir,
+        self.yaml_file = path or _os.path.join(self.prj.metadata.submission_subdir,
                                           self.sample_name + ".yaml")
         serial = obj2dict(self)
-        with open(yaml_file, 'w') as outfile:
+        with open(self.yaml_file, 'w') as outfile:
             outfile.write(yaml.safe_dump(serial, default_flow_style=False))
 
 
@@ -2125,7 +2125,7 @@ class ProtocolInterfaces:
 @copy
 class ProtocolMapper(Mapping):
     """
-    Map protocol/library name to pipeline(s). For example, "WGBS" --> wgbs.py.
+    Map protocol/library name to pipeline key(s). For example, "WGBS" --> wgbs.
     """
 
     def __init__(self, mappings_input):
