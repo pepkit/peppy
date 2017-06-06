@@ -911,7 +911,7 @@ class Project(AttributeDict):
                                 _LOGGER.debug(
                                     "New row: {}, {}".format(row, merge_rows))
                                 # Update with derived columns
-                                row_dict = merge_rows.ix[row].to_dict()
+                                row_dict = merge_rows.iloc[row].to_dict()
                                 for col in merge_rows.columns:
                                     if col == SAMPLE_NAME_COLNAME or \
                                             col not in self.derived_columns:
@@ -1176,7 +1176,7 @@ class Sample(object):
         from models import Project, SampleSheet, Sample
         prj = Project("ngs")
         sheet = SampleSheet("~/projects/example/sheet.csv", prj)
-        s1 = Sample(sheet.ix[0])
+        s1 = Sample(sheet.iloc[0])
     """
 
     _FEATURE_ATTR_NAMES = ["read_length", "read_type", "paired"]
