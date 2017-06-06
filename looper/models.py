@@ -2032,7 +2032,7 @@ class InterfaceManager(object):
                              ifproto.pipeline_key_to_path(pipeline_key)
                              for pipeline_key in pipeline_keys])
 
-        return jobs[0] if priority and len(jobs) > 1 else itertools.chain(*jobs)
+        return jobs[0] if priority and len(jobs) > 1 else list(itertools.chain(*jobs))
 
 
 
@@ -2106,30 +2106,30 @@ class ProtocolInterfaces:
 
         """
         # key may contain extra command-line flags; split key from flags.
-        
+
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
         if self.interface.get_attribute(strict_pipeline_key, "path"):
             script_path_only = self.interface.get_attribute(
                     strict_pipeline_key, "path")[0]
-            script_path_flags = " ".join([script_path_only, pipeline_key_args])
+            script_path_with_flags = " ".join([script_path_only, pipeline_key_args])
         else:
             # backwards compatibility w/ v0.5
             script_path_only = strict_pipeline_key
-            script_path_flags = pipeline_key 
+            script_path_with_flags = pipeline_key 
 
         if _os.path.isabs(script_path_only):
             if not _os.path.exists(script_path_only.strip()):
                 _LOGGER.warn("Missing script command: '{}'".format(script_path_only))
-            return strict_pipeline_key, script_path_flags
+            return strict_pipeline_key, script_path_with_flags
         else:
             abs_script_path_only = _os.path.join(self.pipelines_path, script_path_only)
-            abs_script_path_flags = _os.path.join(self.pipelines_path, script_path_flags)
+            abs_script_path_with_flags = _os.path.join(self.pipelines_path, script_path_with_flags)
 
             if not _os.path.isfile(abs_script_path_only.strip()):
                 _LOGGER.warn("Missing script command: '{}'".
                              format(abs_script_path_only))
-            return strict_pipeline_key, abs_script_path_flags
+            return strict_pipeline_key, abs_script_path_with_flags
 
 
 @copy
