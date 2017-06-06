@@ -1220,8 +1220,9 @@ class Sample(object):
         # Short hand for getting sample_name
         self.name = self.sample_name
 
-        # Default to no required paths
+        # Default to no required paths and no YAML file.
         self.required_paths = None
+        self.yaml_file = None
 
         # Sample dirs
         self.paths = Paths()
@@ -1301,7 +1302,10 @@ class Sample(object):
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
-                return {k: obj2dict(v) for k, v in obj.__dict__.items() if k not in to_skip and (k not in ATTRDICT_METADATA or v != ATTRDICT_METADATA[k])}
+                return {k: obj2dict(v) for k, v in obj.__dict__.items()
+                        if k not in to_skip and
+                        (k not in ATTRDICT_METADATA or
+                         v != ATTRDICT_METADATA[k])}
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v)
                         for k, v in obj.items() if k not in to_skip}
@@ -1320,8 +1324,9 @@ class Sample(object):
 
         # If path is not specified, use default:
         # prj.metadata.submission_dir + sample_name + yaml
-        self.yaml_file = path or _os.path.join(self.prj.metadata.submission_subdir,
-                                          self.sample_name + ".yaml")
+        self.yaml_file = path or \
+                         _os.path.join(self.prj.metadata.submission_subdir,
+                                       self.sample_name + ".yaml")
         serial = obj2dict(self)
         with open(self.yaml_file, 'w') as outfile:
             outfile.write(yaml.safe_dump(serial, default_flow_style=False))
@@ -1348,7 +1353,7 @@ class Sample(object):
             variables that can also be used for variable replacement. 
             These extra variables are given a higher priority.
         :return str: regex expansion of data source specified in configuration,
-            with variable substitions made
+            with variable substitutions made
         """
 
         sources_section = "data_sources"
