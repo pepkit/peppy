@@ -1821,8 +1821,6 @@ class PipelineInterface(object):
         args = config["arguments"]
 
         for key, value in args.iteritems():
-            _LOGGER.debug("Script argument: '%s', sample attribute: '%s'",
-                          key, value)
             if value is None:
                 _LOGGER.debug("Null value for opt arg key '%s'",
                                    str(key))
@@ -1837,7 +1835,7 @@ class PipelineInterface(object):
                     pipeline_name, value, key)
                 raise
 
-            _LOGGER.debug("Adding '{}' for '{}'".format(arg, key))
+            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".format(arg, value, key))
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
@@ -1952,6 +1950,7 @@ class InterfaceManager(object):
         self.ifproto_by_proto_name = defaultdict(list)
         for ifproto in interfaces_and_protocols:
             for proto_name in ifproto.protomap:
+                _LOGGER.debug("Protocol name: {}".format(proto_name))
                 self.ifproto_by_proto_name[proto_name].append(ifproto)
 
 
@@ -1974,6 +1973,7 @@ class InterfaceManager(object):
 
         jobs = []
         pipeline_keys_used = set()
+        _LOGGER.debug("Building pipelines for {} PIs...".format(len(ifprotos)))
         for ifproto in ifprotos:
             try:
                 this_protocol_pipelines = \
@@ -1983,6 +1983,7 @@ class InterfaceManager(object):
                               format(protocol_name, ifproto.protomaps_path))
             else:
                 # TODO: update once dependency-encoding logic is in place.
+                _LOGGER.debug("Protocol: {}".format(protocol_name))
                 pipeline_keys = this_protocol_pipelines.replace(";", ",")\
                                                       .strip(" ()\n")\
                                                       .split(",")
