@@ -253,23 +253,18 @@ def run(prj, args, remaining_args, interface_manager):
         # cannot be assigned (library/protocol missing).
         for pipeline_interface, pipeline_key, pipeline_job in pipelines:
 
+            # pipeline_key (previously pl_id) is no longer necessarily script name, it's more flexible.
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
             skip_reasons = []
 
-            # Discard any arguments to get just the (complete) script name,
-            # which is the key in the pipeline interface.
-            pl_id = os.path.basename(str(pipeline_job).split(" ")[0])
-            # pl_id is no longer necessarily script name, it's more flexible.
-            pl_id = pipeline_key
-
             _LOGGER.debug("Setting pipeline attributes for job '{}' (PL_ID: '{}')".
-                          format(pipeline_job, pl_id))
+                          format(pipeline_job, pipeline_key))
 
             try:
                 # Add pipeline-specific attributes.
                 sample.set_pipeline_attributes(
-                        pipeline_interface, pipeline_name=pl_id)
+                        pipeline_interface, pipeline_name=pipeline_key)
             except AttributeError:
                 # TODO: inform about WHICH missing attribute(s).
                 fail_message = "Pipeline required attribute(s) missing."
@@ -288,7 +283,7 @@ def run(prj, args, remaining_args, interface_manager):
 
             # Identify cluster resources required for this submission.
             submit_settings = pipeline_interface.choose_resource_package(
-                    pl_id, sample.input_file_size)
+                    pipeline_key, sample.input_file_size)
 
             # Reset the partition if it was specified on the command-line.
             try:
@@ -297,7 +292,7 @@ def run(prj, args, remaining_args, interface_manager):
                 _LOGGER.debug("No partition to reset")
 
             # Pipeline name is the key used for flag checking.
-            pl_name = pipeline_interface.get_pipeline_name(pl_id)
+            pl_name = pipeline_interface.get_pipeline_name(pipeline_key)
 
             # Build basic command line string
             cmd = pipeline_job
@@ -305,7 +300,7 @@ def run(prj, args, remaining_args, interface_manager):
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
             try: 
-                argstring = pipeline_interface.get_arg_string(pl_id, sample)
+                argstring = pipeline_interface.get_arg_string(pipeline_key, sample)
                 argstring += " "
             except AttributeError:
                 # TODO: inform about which missing attribute(s).
@@ -324,20 +319,20 @@ def run(prj, args, remaining_args, interface_manager):
                                                      sample.input_file_size))
 
             # Project-level arguments (sample-agnostic) are handled separately.
-            argstring += prj.get_arg_string(pl_id)
+            argstring += prj.get_arg_string(pipeline_key)
             cmd += argstring
 
-            if pipeline_interface.uses_looper_args(pl_id):
+            if pipeline_interface.uses_looper_args(pipeline_key):
                 # These are looper_args, -C, -O, -M, and -P. If the pipeline 
                 # implements these arguments, then it lists looper_args=True, 
                 # and we add the arguments to the command string.
 
                 if hasattr(prj, "pipeline_config"):
-                    # Index with 'pl_id' instead of 'pipeline' 
+                    # Index with 'pipeline_key' instead of 'pipeline' 
                     # because we don't care about parameters here.
-                    if hasattr(prj.pipeline_config, pl_id):
+                    if hasattr(prj.pipeline_config, pipeline_key):
                         # First priority: pipeline config in project config
-                        pl_config_file = getattr(prj.pipeline_config, pl_id)
+                        pl_config_file = getattr(prj.pipeline_config, pipeline_key)
                         # Make sure it's a file (it could be provided as null.)
                         if pl_config_file:
                             if not os.path.isfile(pl_config_file):
@@ -347,7 +342,7 @@ def run(prj, args, remaining_args, interface_manager):
                                 raise IOError(pl_config_file)
                             _LOGGER.info("Found config file: %s",
                                          str(getattr(prj.pipeline_config,
-                                                     pl_id)))
+                                                     pipeline_key)))
                             # Append arg for config file if found
                             cmd += " -C " + pl_config_file
 
@@ -362,7 +357,7 @@ def run(prj, args, remaining_args, interface_manager):
                                  "lack memory specification")
 
             # Add the command string and job name to the submit_settings object
-            submit_settings["JOBNAME"] = sample.sample_name + "_" + pl_id
+            submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline_key
             submit_settings["CODE"] = cmd
 
             # Submit job!

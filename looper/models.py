@@ -1,17 +1,16 @@
 """
-Models for NGS projects
+Project Models
 =======================
 
 Workflow explained:
-    - Project is created
-    - Add Sample sheet to project (spawns next)
+    - Create a Project object
         - Samples are created and added to project (automatically)
 
-In the process, stuff is checked:
-    - project structure (created if not existing)
-    - existence of csv sample sheet with minimal fields
+In the process, Models will check:
+    - Project structure (created if not existing)
+    - Existence of csv sample sheet with minimal fields
     - Constructing a path to a sample's input file and checking for its existence
-    - read type/length of samples (optionally)
+    - Read type/length of samples (optionally)
 
 Example:
 
@@ -19,10 +18,9 @@ Example:
 
     from models import Project
     prj = Project("config.yaml")
-    prj.add_sample_sheet()
     # that's it!
 
-Explore!
+Explore:
 
 .. code-block:: python
 
@@ -35,7 +33,7 @@ Explore!
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
-    prj.sheet.to_csv(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
+    prj.sheet.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
 
     # project options are read from the config file
     # but can be changed on the fly:
