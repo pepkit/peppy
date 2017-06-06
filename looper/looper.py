@@ -251,11 +251,13 @@ def run(prj, args, remaining_args, interface_manager):
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"
         # cannot be assigned (library/protocol missing).
-        for pipeline_interface, pipeline_job in pipelines:
+        for pipeline_interface, pipeline_key, pipeline_job in pipelines:
 
             # Discard any arguments to get just the (complete) script name,
             # which is the key in the pipeline interface.
             pl_id = os.path.basename(str(pipeline_job).split(" ")[0])
+            # pl_id is no longer necessarily script name, it's more flexible.
+            pl_id = pipeline_key
 
             _LOGGER.debug("Setting pipeline attributes for job '{}' (ID: '{}')".
                           format(pipeline_job, pl_id))

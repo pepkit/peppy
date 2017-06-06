@@ -1752,12 +1752,12 @@ class PipelineInterface(object):
         
         :param Mapping | str config: path to config file or parsed result
         """
+        _LOGGER.info("Creating %s from file '%s'",
+                          self.__class__.__name__, config)
         if isinstance(config, Mapping):
             self.pipe_iface_file = None
             self.pipe_iface_config = config
         else:
-            _LOGGER.info("Creating %s from file '%s'",
-                              self.__class__.__name__, config)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)
@@ -1977,7 +1977,7 @@ class InterfaceManager(object):
             return []
 
         jobs = []
-        script_names_used = set()
+        pipeline_keys_used = set()
         for ifproto in ifprotos:
             try:
                 this_protocol_pipelines = \
@@ -1987,24 +1987,23 @@ class InterfaceManager(object):
                               format(protocol_name, ifproto.protomaps_path))
             else:
                 # TODO: update once dependency-encoding logic is in place.
-                # REMARK NS: script_names is now a pipeline_key
-                script_names = this_protocol_pipelines.replace(";", ",")\
+                pipeline_keys = this_protocol_pipelines.replace(";", ",")\
                                                       .strip(" ()\n")\
                                                       .split(",")
-                script_names = [sn.strip() for sn in script_names]
+                pipeline_keys = [pk.strip() for pk in pipeline_keys]
                 already_mapped, new_scripts = \
-                        partition(script_names,
-                                  partial(_is_member, items=script_names_used))
-                script_names_used |= set(script_names)
+                        partition(pipeline_keys,
+                                  partial(_is_member, items=pipeline_keys_used))
+                pipeline_keys_used |= set(pipeline_keys)
 
-                if len(script_names) != (len(already_mapped) + len(new_scripts)):
+                if len(pipeline_keys) != (len(already_mapped) + len(new_scripts)):
                     _LOGGER.error("{} --> {} + {}".format(
-                            script_names, already_mapped, new_scripts))
+                            pipeline_keys, already_mapped, new_scripts))
 
                     raise RuntimeError(
                             "Partitioned {} script names into allegedly "
                             "disjoint sets of {} and {} elements.".
-                            format(len(script_names),
+                            format(len(pipeline_keys),
                                    len(already_mapped),
                                    len(new_scripts)))
 
@@ -2017,8 +2016,9 @@ class InterfaceManager(object):
                                      ifproto.pipedir, ", ".join(new_scripts)))
 
                 script_paths = [ifproto.pipeline_key_to_path(pipeline_key)
-                                for pipeline_key in script_names]
-                jobs.append([(ifproto.interface, path)
+                                for pipeline_key in pipeline_keys]
+
+                jobs.append([(ifproto.interface, path[0], path[1])
                              for path in script_paths])
 
         if priority and len(jobs) > 1:
@@ -2107,10 +2107,10 @@ class ProtocolInterfaces:
             script_path = pipeline_key 
 
         if _os.path.isabs(script_cmd):
-            return script_path
+            return strict_pipeline_key, script_path
         else:
             abs_script_path = _os.path.join(self.pipelines_path, script_path)
-            return abs_script_path
+            return strict_pipeline_key, abs_script_path
 
 
 @copy
