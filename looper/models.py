@@ -305,6 +305,8 @@ class Project(AttributeDict):
 
     :param config_file: Project config file (YAML).
     :type config_file: str
+    :param subproject: Subproject to use within configuration file, optional
+    :type subproject: str
     :param default_compute: Configuration file (YAML) for 
         default compute settings.
     :type default_compute: str
@@ -342,9 +344,9 @@ class Project(AttributeDict):
     DERIVED_COLUMNS_DEFAULT = [DATA_SOURCE_COLNAME]
 
 
-    def __init__(self, config_file, default_compute=None,
-                 subproject=None, dry=False, permissive=True, 
-                 file_checks=False, compute_env_file=None,
+    def __init__(self, config_file, subproject=None,
+                 default_compute=None, dry=False,
+                 permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None):
 
         super(Project, self).__init__()
