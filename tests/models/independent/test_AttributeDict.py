@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import yaml
 from looper.models import \
-        AttributeDict, ATTRDICT_METADATA, MetadataOperationException
+        AttributeDict, ATTRDICT_METADATA, _MetadataOperationException
 from tests.conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from tests.utils import assert_entirely_equal
 
@@ -233,7 +233,7 @@ class AttributeDictUpdateTests:
                     "post-construction attempts to set metadata. It may "
                     "not even be desirable".format(AttributeDict.__name__))
             args += (dummy_value, )
-        with pytest.raises(MetadataOperationException):
+        with pytest.raises(_MetadataOperationException):
             touch.__call__(*args)
 
 

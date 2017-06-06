@@ -232,7 +232,7 @@ class AttributeDict(MutableMapping):
         :param str key: name of the key/attribute for which to establish value
         :param object value: value to which set the given key; if the value is
             a mapping-like object, other keys' values may be combined.
-        :raises MetadataOperationException: if attempt is made
+        :raises _MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
         _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
@@ -268,7 +268,7 @@ class AttributeDict(MutableMapping):
 
     def __delitem__(self, item):
         if item in ATTRDICT_METADATA:
-            raise MetadataOperationException(self, item)
+            raise _MetadataOperationException(self, item)
         try:
             del self.__dict__[item]
         except KeyError:
@@ -674,7 +674,7 @@ class Project(AttributeDict):
 
         # Required variables check
         if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
-            raise MissingMetadataException(
+            raise _MissingMetadataException(
                     missing_section=SAMPLE_ANNOTATIONS_KEY, 
                     path_config_file=self.config_file)
 
@@ -1169,6 +1169,9 @@ class Sample(object):
     """
     Class to model Samples based on a pandas Series.
 
+    :param series: Sample's data.
+    :type series: pandas.core.series.Series
+
     :Example:
 
     .. code-block:: python
@@ -1185,12 +1188,6 @@ class Sample(object):
     # but complications with serializing and code maintenance
     # made me go back and implement it as a top-level object
     def __init__(self, series):
-        """
-        Instantiate `Sample` with data from given series.
-        
-        :param pandas.core.series.Series series: data for instance
-        :raises ValueError: if data lacks required attribute(s)
-        """
         super(Sample, self).__init__()
         self.merged_cols = {}
         self.derived_cols_done = []
@@ -1232,8 +1229,10 @@ class Sample(object):
         # The SampleSheet object, after being added to a project, will
         # call Sample.set_file_paths().
 
+
     def __repr__(self):
         return "Sample '{}'".format(self.name)
+
 
     def __getitem__(self, item):
         """
@@ -1257,7 +1256,9 @@ class Sample(object):
         """
         Check provided sample annotation is valid.
 
-        It requires the field `sample_name` is existent and non-empty.
+        :param Iterable[str] required: collection of required sample attribute
+            names, optional; if unspecified, only a name is required.
+
         """
         lacking = defaultdict(list)
         for attr in required or [SAMPLE_NAME_COLNAME]:
@@ -1297,7 +1298,7 @@ class Sample(object):
             for all objects that might be attributes of self.
 
             :param object obj: what to serialize to write to YAML.
-            :param tuple[str] to_skip: names of attributes to ignore.
+            :param Iterable[str] to_skip: names of attributes to ignore.
 \            """
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
@@ -1750,15 +1751,13 @@ class PipelineInterface(object):
     specifies how to interact with each individual pipeline. This
     includes both resources to request for cluster job submission, as well as
     arguments to be passed from the sample annotation metadata to the pipeline
+
+    :param config: path to file from which to parse configuration data,
+        or pre-parsed configuration data.
+    :type config: str | Mapping
+
     """
-
-
     def __init__(self, config):
-        """
-        Create PipelineInterface from mapping or filepath.
-        
-        :param Mapping | str config: path to config file or parsed result
-        """
         if isinstance(config, Mapping):
             _LOGGER.info("Creating %s with preparsed data",
                          self.__class__.__name__)
@@ -1810,7 +1809,7 @@ class PipelineInterface(object):
         try:
             return resources[selection or DEFAULT_COMPUTE_RESOURCES_NAME]
         except KeyError:
-            raise InvalidResourceSpecificationException(
+            raise _InvalidResourceSpecificationException(
                     "Pipeline resources specification lacks 'default' section")
 
 
@@ -1928,7 +1927,7 @@ class PipelineInterface(object):
         :type pipeline_name: str
         :return: configuration data for pipeline indicated
         :rtype: Mapping
-        :raises MissingPipelineConfigurationException: if there's no
+        :raises _MissingPipelineConfigurationException: if there's no
             configuration data for the indicated pipeline
         """
         try:
@@ -1939,25 +1938,25 @@ class PipelineInterface(object):
                 "Missing pipeline description: '%s' not found in '%s'",
                 pipeline_name, self.pipe_iface_file)
             # TODO: use defaults or force user to define this?
-            raise MissingPipelineConfigurationException(pipeline_name)
+            raise _MissingPipelineConfigurationException(pipeline_name)
 
 
 
 @copy
 class InterfaceManager(object):
-    """ Aggregate PipelineInterface and ProtocolMapper objects so that a
-     Project can use pipelines distributed across multiple locations. """
+    """ Manage pipeline use for multiple locations and protocols.
 
+    This is done by aggregating protocol interface instances,
+    allowing one Project to use pipelines from multiple locations.
 
+    :param pipeline_dirs: locations containing pipelines and configuration
+        information; specifically, a directory with a 'pipelines' folder and
+        a 'config' folder, within which there is a pipeline interface file
+        and a protocol mappings file.
+    :type pipeline_dirs: Iterable[str]
+
+    """
     def __init__(self, pipeline_dirs):
-        """
-        Map protocol name to location to use for its pipeline(s).
-
-        :param collections.Iterable[str] pipeline_dirs: locations containing
-            pipelines and configuration information; specifically, a directory
-            with a 'pipelines' folder and a 'config' folder, within which
-            there is a pipeline interface file and a protocol mappings file
-        """
         # Collect interface/mappings pairs by protocol name.
         interfaces_and_protocols = \
                 [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs]
@@ -2043,22 +2042,18 @@ def _is_member(item, items):
 
 # TODO: rename.
 class ProtocolInterfaces:
-    """ Pair of PipelineInterface and ProtocolMapper instances
-    based on a single pipelines_dir location. Also stores path
-    attributes to retain information about the location
-    from which the interface and mapper came. """
+    """ PipelineInterface and ProtocolMapper for a single pipelines location.
 
+    Instances of this class are used by InterfaceManager to facilitate
+    multi-location pipelines use by a single project. Here also are stored
+    path attributes to retain information about the location from which the
+    interface and mapper came.
 
+    :param pipedir: location (e.g., code repository) of pipelines
+    :type pipedir: str
+
+    """
     def __init__(self, pipedir):
-        """
-        The location at which to find pipeline interface and protocol
-        mapping information defines the instance.
-
-        :param str pipedir: path to location at which to find pipeline,
-            pipeline interface, and protocol mapping information,
-            nested within subfolders as required
-        """
-
         if _os.path.isdir(pipedir):
             self.pipedir = pipedir
             self.config_path = _os.path.join(pipedir, "config")
@@ -2093,6 +2088,7 @@ class ProtocolInterfaces:
             except Exception as e:
                 _LOGGER.error(str(iface))
                 raise e
+
 
     def pipeline_key_to_path(self, pipeline_key):
         """
@@ -2136,21 +2132,19 @@ class ProtocolInterfaces:
 class ProtocolMapper(Mapping):
     """
     Map protocol/library name to pipeline key(s). For example, "WGBS" --> wgbs.
-    """
 
+    :param mappings_input: data encoding correspondence between a protocol
+        name and pipeline(s)
+    :type mappings_input: str | Mapping
+
+    """
     def __init__(self, mappings_input):
-        """
-        Create ProtocolMapper from config file or parsed result.
-        
-        :param str | Mapping mappings_input: path to mappings file or 
-            result of parsing one
-        """
         if isinstance(mappings_input, Mapping):
+            # Pre-parsed mappings data
             self.mappings_file = None
             mappings = mappings_input
         else:
-            # mapping libraries to pipelines
-            # input was a file, parse then populate
+            # Parse file mapping protocols to pipeline(s).
             self.mappings_file = mappings_input
             with open(self.mappings_file, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
@@ -2214,14 +2208,14 @@ class ProtocolMapper(Mapping):
 
 
 
-class InvalidResourceSpecificationException(Exception):
+class _InvalidResourceSpecificationException(Exception):
     """ Pipeline interface resources--if present--needs default. """
     def __init__(self, reason):
-        super(InvalidResourceSpecificationException, self).__init__(reason)
+        super(_InvalidResourceSpecificationException, self).__init__(reason)
 
 
 
-class MetadataOperationException(Exception):
+class _MetadataOperationException(Exception):
     """ Illegal/unsupported operation, motivated by `AttributeDict`. """
 
     def __init__(self, obj, meta_item):
@@ -2240,22 +2234,22 @@ class MetadataOperationException(Exception):
             classname = obj.__name__
         explanation = "Attempted unsupported operation on {} item '{}'". \
                 format(classname, meta_item)
-        super(MetadataOperationException, self).__init__(explanation)
+        super(_MetadataOperationException, self).__init__(explanation)
 
 
 
-class MissingMetadataException(Exception):
+class _MissingMetadataException(Exception):
     """ Project needs certain metadata. """
     def __init__(self, missing_section, path_config_file=None):
         reason = "Project configuration lacks required metadata section {}".\
                 format(missing_section)
         if path_config_file:
             reason += "; used config file '{}'".format(path_config_file)
-        super(MissingMetadataException, self).__init__(reason)
+        super(_MissingMetadataException, self).__init__(reason)
 
 
 
-class MissingPipelineConfigurationException(Exception):
+class _MissingPipelineConfigurationException(Exception):
     """ A selected pipeline needs configuration data. """
     def __init__(self, pipeline):
-        super(MissingPipelineConfigurationException, self).__init__(pipeline)
+        super(_MissingPipelineConfigurationException, self).__init__(pipeline)
