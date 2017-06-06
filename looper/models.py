@@ -2112,7 +2112,7 @@ class ProtocolInterfaces:
         if self.interface.get_attribute(strict_pipeline_key, "path"):
             script_path_only = self.interface.get_attribute(
                     strict_pipeline_key, "path")[0]
-            script_path_flags = " ".join([script_cmd, pipeline_key_args])
+            script_path_flags = " ".join([script_path_only, pipeline_key_args])
         else:
             # backwards compatibility w/ v0.5
             script_path_only = strict_pipeline_key
