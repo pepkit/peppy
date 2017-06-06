@@ -2091,18 +2091,21 @@ class ProtocolInterfaces:
 
     def pipeline_key_to_path(self, pipeline_key):
         """
-        Given a pipeline_key, return the path to the script for that pipeline specified
-        in this pipeline interface config file.
+        Given a pipeline_key, return the path to the script for that pipeline
+        specified in this pipeline interface config file.
 
-        :param str pipeline_key: the key in the pipeline interface yaml file used
+        :param str pipeline_key: the key in the pipeline interface file used
             for the protocol_mappings section. Previously was the script name.
+        :return (str, str): more restrictive version of input key, along with
+            absolute path for pipeline script.
 
         """
-        # key may contain extra command-line flags; split out to strict key / flags
-        strict_pipeline_key, tmp, pipeline_key_args = pipeline_key.partition(' ')
+        # key may contain extra command-line flags; discard flags.
+        strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
         if self.interface.get_attribute(strict_pipeline_key, "path"):
-            script_cmd = self.interface.get_attribute(strict_pipeline_key, "path")[0]
+            script_cmd = self.interface.get_attribute(
+                    strict_pipeline_key, "path")[0]
             script_path = " ".join([script_cmd, pipeline_key_args])
         else:
             # backwards compatibility w/ v0.5
@@ -2117,8 +2120,9 @@ class ProtocolInterfaces:
             abs_script_cmd = _os.path.join(self.pipelines_path, script_cmd)
             abs_script_path = _os.path.join(self.pipelines_path, script_path)
 
-            if not _os.path.exists(abs_script_cmd.strip()):
-                _LOGGER.warn("Missing script command: '{}'".format(abs_script_cmd))
+            if not _os.path.isfile(abs_script_cmd.strip()):
+                _LOGGER.warn("Missing script command: '{}'".
+                             format(abs_script_cmd))
             return strict_pipeline_key, abs_script_path
 
 
