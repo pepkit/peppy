@@ -1117,7 +1117,7 @@ class SampleSheet(object):
                     return Sample(data)
 
         for i in range(len(self.df)):
-            self.samples.append(make_sample(self.df.ix[i].dropna()))
+            self.samples.append(make_sample(self.df.iloc[i].dropna()))
 
 
     def as_data_frame(self):

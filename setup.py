@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
-import sys
 import os
+import sys
 
 
 # Additional keyword arguments for setup().
@@ -64,7 +64,7 @@ setup(
     package_data={'looper': ['submit_templates/*']},
     include_package_data=True,
     test_suite="tests",
-    tests_require=["pytest"],
+    tests_require=["mock", "pytest"],
     setup_requires=(["pytest-runner"]
                     if {"ptr", "test", "pytest"} & set(sys.argv)
                     else []),
