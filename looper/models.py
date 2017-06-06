@@ -2112,9 +2112,15 @@ class ProtocolInterfaces:
             script_path = pipeline_key 
 
         if _os.path.isabs(script_cmd):
+            if not _os.path.exists(script_cmd.strip()):
+                _LOGGER.warn("Missing script command: '{}'".format(script_cmd))
             return strict_pipeline_key, script_path
         else:
+            abs_script_cmd = _os.path.join(self.pipelines_path, script_cmd)
             abs_script_path = _os.path.join(self.pipelines_path, script_path)
+
+            if not _os.path.exists(abs_script_cmd.strip()):
+                _LOGGER.warn("Missing script command: '{}'".format(abs_script_cmd))
             return strict_pipeline_key, abs_script_path
 
 
