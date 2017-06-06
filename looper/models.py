@@ -2105,7 +2105,7 @@ class ProtocolInterfaces:
             absolute path for pipeline script.
 
         """
-        # key may contain extra command-line flags; discard flags.
+        # key may contain extra command-line flags; split key from flags.
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
         if self.interface.get_attribute(strict_pipeline_key, "path"):
