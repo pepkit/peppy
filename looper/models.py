@@ -1725,7 +1725,7 @@ class Sample(object):
             setattr(self, feature,
                     files[0][i] if len(set(f[i] for f in files)) == 1 else None)
 
-            if getattr(self, feature) is None:
+            if getattr(self, feature) is None and len(existing_files) > 0:
                 _LOGGER.warn("Not all input files agree on "
                              "feature '%s' for sample '%s'",
                              feature, self.name)
