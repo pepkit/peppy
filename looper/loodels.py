@@ -41,6 +41,17 @@ class Project(models.Project):
 
 
     @property
+    def compute_env_var(self):
+        """
+        Environment variable through which to access compute settings.
+
+        :return str: name of the environment variable to pointing to
+            compute settings
+        """
+        return "LOOPERENV"
+
+
+    @property
     def required_metadata(self):
         """ Which metadata attributes are required. """
         return ["output_dir"]
