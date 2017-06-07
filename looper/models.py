@@ -1759,13 +1759,13 @@ class PipelineInterface(object):
     """
     def __init__(self, config):
         if isinstance(config, Mapping):
-            _LOGGER.info("Creating %s with preparsed data",
+            _LOGGER.debug("Creating %s with preparsed data",
                          self.__class__.__name__)
             self.pipe_iface_file = None
             self.pipe_iface_config = config
 
         else:
-            _LOGGER.info("Parsing '%s' for %s config data",
+            _LOGGER.debug("Parsing '%s' for %s config data",
                          config, self.__class__.__name__)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
