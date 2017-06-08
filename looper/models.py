@@ -1803,6 +1803,7 @@ class PipelineInterface(object):
         for pack_name, pack_data in resources.items():
             this_pack_file_size = float(pack_data["file_size"])
             if file_size <= this_pack_file_size < smallest_sufficient_file_size:
+                _LOGGER.debug("Selected package {}. Size: {}. Limit: {}.".format(pack_name, file_size, this_pack_file_size))
                 selection = pack_name
                 smallest_sufficient_file_size = this_pack_file_size
 
