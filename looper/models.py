@@ -1772,8 +1772,22 @@ class PipelineInterface(object):
                 self.pipe_iface_config = yaml.load(f)
 
 
+    def __iter__(self):
+        return iter(self.pipe_iface_config.items())
+
+
     def __repr__(self):
         return repr(self.pipe_iface_config)
+
+
+    @property
+    def pipeline_names(self):
+        return self.pipe_iface_config.keys()
+
+
+    @property
+    def pipelines(self):
+        return self.pipe_iface_config.values()
 
 
     def choose_resource_package(self, pipeline_name, file_size):
@@ -1787,7 +1801,16 @@ class PipelineInterface(object):
         :return: resource bundle appropriate for given pipeline,
             for given input file size
         :rtype: MutableMapping
+        :raises ValueError: if indicated file size is negative, or if the
+            file size value specified for any resource package is negative
+        :raises _InvalidResourceSpecificationException: if no default
+            resource package specification is provided
         """
+
+        if file_size < 0:
+            raise ValueError("Attempted selection of resource package for "
+                             "negative file size: {}".format(file_size))
+
         try:
             resources = self._select_pipeline(pipeline_name)["resources"]
         except KeyError:
@@ -1802,8 +1825,14 @@ class PipelineInterface(object):
 
         # Parse min file size to trigger use of a resource package.
         def file_size_ante(package_data):
-            fsize = float(package_data.get("min_file_size") or
-                          package_data["file_size"])
+            # Retrieve this package's minimum file size.
+            # Retain backwards compatibility while enforcing key presence.
+            try:
+                fsize = package_data["min_file_size"]
+            except KeyError:
+                fsize = package_data["file_size"]
+            fsize = float(fsize)
+            # Negative file size is illogical and problematic for comparison.
             if fsize < 0:
                 raise ValueError("Negative file size threshold for "
                                  "resource package: {}".format(fsize))

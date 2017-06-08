@@ -27,6 +27,18 @@ HUGE_RESOURCES_NAME = "huge"
 
 
 
+def pytest_generate_tests(metafunc):
+    """ Customization specific to test cases in this module. """
+    try:
+        parameters = metafunc.cls.PARAMETERS
+    except AttributeError:
+        pass
+    else:
+        for name, values in parameters.items():
+            metafunc.parametrize(argnames=name, argvalues=values)
+
+
+
 @pytest.fixture(scope="function")
 def basic_pipe_iface_data(request):
     """ Minimal PipelineInterface configuration data. """
@@ -59,6 +71,27 @@ def test_constructor_input_types(tmpdir, from_file, basic_pipe_iface_data):
 
 
 
+@pytest.fixture(scope="function", autouse=True)
+def pi_with_resources(request, basic_pipe_iface_data, resources):
+    """ Add resource bundle data to each config section. """
+    if "modify_resources" in request.fixturenames:
+        modify_resources = request.getfixturevalue("modify_resources")
+        modify_resources(resources)
+    if "file_size_attr" in request.fixturenames:
+        file_size_name = request.getfixturevalue("file_size_attr")
+        for rp_data in resources.values():
+            size1 = rp_data.pop("file_size", None)
+            size2 = rp_data.pop("min_file_size", None)
+            size = size1 or size2
+            if size:
+                rp_data[file_size_name] = size
+    pipe_iface_config = PipelineInterface(basic_pipe_iface_data)
+    for pipe_data in pipe_iface_config.pipelines:
+        pipe_data["resources"] = resources
+    return pipe_iface_config
+
+
+
 @pytest.mark.parametrize(
         argnames="funcname_and_kwargs",
         argvalues=[("choose_resource_package", {"file_size": 4}),
@@ -69,11 +102,16 @@ def test_constructor_input_types(tmpdir, from_file, basic_pipe_iface_data):
                    ("uses_looper_args", {})])
 @pytest.mark.parametrize(argnames="use_resources", argvalues=[False, True])
 def test_unconfigured_pipeline_exception(
-        funcname_and_kwargs, resources, use_resources, basic_pipe_iface_data):
+        funcname_and_kwargs, use_resources, pi_with_resources):
     """ Each public function throws same exception given unmapped pipeline. """
-    pipe_iface_config = _add_resources(basic_pipe_iface_data, resources) \
-            if use_resources else basic_pipe_iface_data
-    pi = PipelineInterface(pipe_iface_config)
+    pi = pi_with_resources
+    if not use_resources:
+        for pipeline in pi.pipelines:
+            try:
+                del pipeline["resources"][DEFAULT_COMPUTE_RESOURCES_NAME]
+            except KeyError:
+                # Already no default resource package.
+                pass
     funcname, kwargs = funcname_and_kwargs
     with pytest.raises(_MissingPipelineConfigurationException):
         getattr(pi, funcname).__call__("missing-pipeline", **kwargs)
@@ -115,41 +153,94 @@ class PipelineInterfaceNameResolutionTests:
 class PipelineInterfaceResourcePackageTests:
     """ Tests for pipeline's specification of compute resources. """
 
+    PARAMETERS = {"file_size_attr": ["file_size", "min_file_size"]}
 
-    def test_no_default_no_sufficient(self, basic_pipe_iface_data, resources):
+
+    def test_requires_default(
+            self, file_size_attr, pi_with_resources):
         """ If provided, resources specification needs 'default.' """
-        del resources[DEFAULT_COMPUTE_RESOURCES_NAME]
-        pipe_iface_config = _add_resources(basic_pipe_iface_data, resources)
-        pi = PipelineInterface(pipe_iface_config)
-        for pipeline in pipe_iface_config.keys():
+        pi = pi_with_resources
+        for name, pipeline in pi:
+            try:
+                del pipeline["resources"][DEFAULT_COMPUTE_RESOURCES_NAME]
+            except KeyError:
+                # Already no default resource package.
+                pass
+            assert "default" not in pipeline["resources"]
             with pytest.raises(_InvalidResourceSpecificationException):
                 pi.choose_resource_package(
-                        pipeline, file_size=HUGE_RESOURCES["file_size"] + 1)
+                        name, file_size=HUGE_RESOURCES[file_size_attr] + 1)
 
 
-    @pytest.mark.parametrize(argnames="file_size", argvalues=[-1, 10, 101])
-    def test_resources_not_required(self, basic_pipe_iface_data, file_size):
+    def test_negative_file_size_request(
+            self, file_size_attr, pi_with_resources):
+        """ Negative file size is prohibited. """
+        import random
+        pi = pi_with_resources
+        for pipeline_name in pi.pipeline_names:
+            negative_file_size = -10 * random.random()
+            with pytest.raises(ValueError):
+                pi.choose_resource_package(
+                        pipeline_name, file_size=negative_file_size)
+
+
+    @pytest.mark.parametrize(argnames="file_size", argvalues=[0, 10, 101])
+    def test_resources_not_required(self, file_size_attr, file_size, pi_with_resources):
         """ Compute resource specification is optional. """
-        pi = PipelineInterface(basic_pipe_iface_data)
-        for pipeline in basic_pipe_iface_data.keys():
-            assert {} == pi.choose_resource_package(pipeline, int(file_size))
-            assert {} == pi.choose_resource_package(pipeline, float(file_size))
+        pi = pi_with_resources
+        for pipe_data in pi.pipelines:
+            del pipe_data["resources"]
+        for pipe_name in pi.pipeline_names:
+            assert {} == pi.choose_resource_package(pipe_name, int(file_size))
+            assert {} == pi.choose_resource_package(pipe_name, float(file_size))
 
 
     @pytest.mark.parametrize(
             argnames=["file_size", "expected_resources"],
             argvalues=[(0, DEFAULT_RESOURCES), (4, DEFAULT_RESOURCES),
                        (16, MIDSIZE_RESOURCES), (64, HUGE_RESOURCES)])
+    @pytest.mark.parametrize(
+            argnames="modify_resources",
+            argvalues=[lambda resources: resources.update(
+                    {"midsize": MIDSIZE_RESOURCES})])
     def test_selects_proper_resource_package(
-            self, resources, basic_pipe_iface_data,
+            self, file_size_attr, modify_resources, pi_with_resources,
             file_size, expected_resources):
         """ Minimal resource package sufficient for pipeline and file size. """
-        resources["midsize"] = MIDSIZE_RESOURCES
-        pipe_iface_config = _add_resources(basic_pipe_iface_data, resources)
-        pi = PipelineInterface(pipe_iface_config)
-        for pipeline in pipe_iface_config.keys():
-            assert expected_resources == \
-                   pi.choose_resource_package(pipeline, file_size)
+        for pipe_name in pi_with_resources.pipeline_names:
+            observed_resources = pi_with_resources.choose_resource_package(
+                    pipe_name, file_size)
+            assert expected_resources == observed_resources
+
+
+    @pytest.mark.parametrize(
+            argnames="modify_resources",
+            argvalues=[lambda resources:
+                       map(lambda package: package.update({"file_size": -5}),
+                           resources.values())])
+    def test_negative_file_size_prohibited(
+            self, file_size_attr, modify_resources, pi_with_resources):
+        """ Negative min file size in resource package spec is prohibited. """
+
+
+
+    @pytest.mark.skip("Not implemented")
+    def test_file_size_spec_not_required_for_default(self, file_size_attr):
+        """ Default package implies minimum file size of zero. """
+        pass
+
+
+    @pytest.mark.skip("Not implemented")
+    @pytest.mark.parametrize(
+            argnames="min_file_size", argvalues=[None, -1, 0, 1])
+    def test_default_package_enforces_zero_file_size(self, file_size_attr, min_file_size):
+        """ Default resource package sets minimum file size to zero. """
+        pass
+
+
+    @pytest.mark.skip("Not implemented")
+    def test_file_size_spec_required_for_non_default_packages(self, file_size_attr):
+        pass
 
 
 
@@ -164,11 +255,3 @@ class PipelineInterfaceArgstringTests:
 class PipelineInterfaceLooperArgsTests:
     """  """
     pass
-
-
-
-def _add_resources(pipe_iface_config, resources):
-    """ Add resource bundle data to each config section. """
-    for pipe_data in pipe_iface_config.values():
-        pipe_data["resources"] = resources
-    return pipe_iface_config
