@@ -138,8 +138,8 @@ class PipelineInterfaceResourcePackageTests:
 
     @pytest.mark.parametrize(
             argnames=["file_size", "expected_resources"],
-            argvalues=[(0, DEFAULT_RESOURCES), (4, MIDSIZE_RESOURCES),
-                       (16, HUGE_RESOURCES), (64, DEFAULT_RESOURCES)])
+            argvalues=[(0, DEFAULT_RESOURCES), (4, DEFAULT_RESOURCES),
+                       (16, MIDSIZE_RESOURCES), (64, HUGE_RESOURCES)])
     def test_selects_proper_resource_package(
             self, resources, basic_pipe_iface_data,
             file_size, expected_resources):

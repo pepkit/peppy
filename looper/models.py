@@ -1788,30 +1788,41 @@ class PipelineInterface(object):
             for given input file size
         :rtype: MutableMapping
         """
-        config = self._select_pipeline(pipeline_name)
-
         try:
-            resources = config["resources"]
+            resources = self._select_pipeline(pipeline_name)["resources"]
         except KeyError:
             _LOGGER.warn("No resources found for pipeline '%s' in file '%s'",
                          pipeline_name, self.pipe_iface_file)
             return {}
 
-        # We want the minimal resource bundle sufficient for given file size.
-        selection = None
-        smallest_sufficient_file_size = float("inf")
-        for pack_name, pack_data in resources.items():
-            this_pack_file_size = float(pack_data["file_size"])
-            if file_size <= this_pack_file_size < smallest_sufficient_file_size:
-                _LOGGER.debug("Selected package {}. Size: {}. Limit: {}.".format(pack_name, file_size, this_pack_file_size))
-                selection = pack_name
-                smallest_sufficient_file_size = this_pack_file_size
-
-        try:
-            return resources[selection or DEFAULT_COMPUTE_RESOURCES_NAME]
-        except KeyError:
+        # Require default resource package specification.
+        if DEFAULT_COMPUTE_RESOURCES_NAME not in resources:
             raise _InvalidResourceSpecificationException(
-                    "Pipeline resources specification lacks 'default' section")
+                "Pipeline resources specification lacks 'default' section")
+
+        # Parse min file size to trigger use of a resource package.
+        def file_size_ante(package_data):
+            fsize = float(package_data.get("min_file_size") or
+                          package_data["file_size"])
+            if fsize < 0:
+                raise ValueError("Negative file size threshold for "
+                                 "resource package: {}".format(fsize))
+            return fsize
+
+        # Enforce default package minimum of 0.
+        resources[DEFAULT_COMPUTE_RESOURCES_NAME]["min_file_size"] = 0
+        # Sort packages by descending file size minimum to return first
+        # package for which given file size satisfies the minimum.
+        resource_packages = sorted(resources.values(),
+                key=lambda data: file_size_ante(data), reverse=True)
+
+        # "Descend" packages by min file size, choosing minimally-sufficient.
+        for package in resource_packages:
+            size_ante = file_size_ante(package)
+            if file_size >= size_ante:
+                _LOGGER.debug("Selected package with min file size {} for {}.".
+                        format(size_ante, file_size))
+                return package
 
 
     def get_arg_string(self, pipeline_name, sample):
