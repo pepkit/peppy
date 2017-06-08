@@ -1819,9 +1819,13 @@ class PipelineInterface(object):
             return {}
 
         # Require default resource package specification.
-        if DEFAULT_COMPUTE_RESOURCES_NAME not in resources:
+        try:
+            default_resource_package = \
+                    resources[DEFAULT_COMPUTE_RESOURCES_NAME]
+        except KeyError:
             raise _InvalidResourceSpecificationException(
-                "Pipeline resources specification lacks 'default' section")
+                "Pipeline resources specification lacks '{}' section".
+                    format(DEFAULT_COMPUTE_RESOURCES_NAME))
 
         # Parse min file size to trigger use of a resource package.
         def file_size_ante(name, data):
@@ -1840,6 +1844,8 @@ class PipelineInterface(object):
             return fsize
 
         # Enforce default package minimum of 0.
+        if "file_size" in default_resource_package:
+            del default_resource_package["file_size"]
         resources[DEFAULT_COMPUTE_RESOURCES_NAME]["min_file_size"] = 0
         # Sort packages by descending file size minimum to return first
         # package for which given file size satisfies the minimum.

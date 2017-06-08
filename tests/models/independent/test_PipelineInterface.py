@@ -187,7 +187,8 @@ class PipelineInterfaceResourcePackageTests:
 
 
     @pytest.mark.parametrize(argnames="file_size", argvalues=[0, 10, 101])
-    def test_resources_not_required(self, use_new_file_size, file_size, pi_with_resources):
+    def test_resources_not_required(
+            self, use_new_file_size, file_size, pi_with_resources):
         """ Compute resource specification is optional. """
         pi = pi_with_resources
         for pipe_data in pi.pipelines:
@@ -211,7 +212,8 @@ class PipelineInterfaceResourcePackageTests:
         for pipe_name, pipe_data in pi_with_resources:
             observed_package = pi_with_resources.choose_resource_package(
                 pipe_name, file_size)
-            expected_package = copy.deepcopy(pipe_data["resources"][expected_package_name])
+            expected_package = copy.deepcopy(
+                    pipe_data["resources"][expected_package_name])
             assert expected_package == observed_package
 
 
@@ -265,17 +267,66 @@ class PipelineInterfaceResourcePackageTests:
                    pi.choose_resource_package(pipe_name, 0.001)
 
 
-    @pytest.mark.skip("Not implemented")
     @pytest.mark.parametrize(
-            argnames="min_file_size", argvalues=[None, -1, 0, 1])
-    def test_default_package_enforces_zero_file_size(self, use_new_file_size, min_file_size):
+            argnames="min_file_size", argvalues=[-1, 1])
+    def test_default_package_new_name_zero_size(
+            self, use_new_file_size, min_file_size, pi_with_resources):
         """ Default resource package sets minimum file size to zero. """
-        pass
+
+        for pipe_name, pipe_data in pi_with_resources:
+            # Establish faulty default package setting for file size.
+            default_resource_package = pipe_data["resources"]["default"]
+            if use_new_file_size:
+                if "file_size" in default_resource_package:
+                    del default_resource_package["file_size"]
+                default_resource_package["min_file_size"] = min_file_size
+            else:
+                if "min_file_size" in default_resource_package:
+                    del default_resource_package["min_file_size"]
+                default_resource_package["file_size"] = min_file_size
+
+            # Get the resource package to validate.
+            # Requesting file size of 0 should always trigger default package.
+            observed_resource_package = \
+                    pi_with_resources.choose_resource_package(pipe_name, 0)
+
+            # Default package is an early adopter of the new file size name.
+            expected_resource_package = copy.deepcopy(default_resource_package)
+            if "file_size" in expected_resource_package:
+                del expected_resource_package["file_size"]
+            # Default packages forces its file size value to 0.
+            expected_resource_package["min_file_size"] = 0
+
+            assert expected_resource_package == observed_resource_package
 
 
-    @pytest.mark.skip("Not implemented")
-    def test_file_size_spec_required_for_non_default_packages(self, use_new_file_size):
-        pass
+    def test_file_size_spec_required_for_non_default_packages(
+            self, use_new_file_size, basic_pipe_iface_data):
+        """ Resource packages besides default require file size. """
+
+        # Establish the resource specification.
+        resource_package_data = {
+                "default": copy.deepcopy(DEFAULT_RESOURCES),
+                "huge": copy.deepcopy(HUGE_RESOURCES)}
+
+        # Remove file size for non-default; set it for default.
+        del resource_package_data["huge"]["file_size"]
+        if use_new_file_size:
+            resource_package_data["default"]["min_file_size"] = \
+                    resource_package_data["default"].pop("file_size")
+
+        # Create the PipelineInterface.
+        for pipe_data in basic_pipe_iface_data.values():
+            pipe_data["resources"] = resource_package_data
+        pi = PipelineInterface(basic_pipe_iface_data)
+
+        # Attempt to select resource package should fail for each pipeline,
+        # regardless of the file size specification; restrict to nonnegative
+        # file size requests to avoid collision with ValueError that should
+        # arise if requesting resource package for a negative file size value.
+        for pipe_name in pi.pipeline_names:
+            with pytest.raises(KeyError):
+                pi.choose_resource_package(pipe_name, random.randrange(0, 10))
 
 
 
