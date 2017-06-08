@@ -1,8 +1,11 @@
 """ Tests for PipelineInterface ADT. """
 
 import itertools
+import random
+
 import pytest
 import yaml
+
 from looper.models import \
     PipelineInterface, _InvalidResourceSpecificationException, \
     _MissingPipelineConfigurationException, DEFAULT_COMPUTE_RESOURCES_NAME
@@ -175,7 +178,6 @@ class PipelineInterfaceResourcePackageTests:
     def test_negative_file_size_request(
             self, file_size_attr, pi_with_resources):
         """ Negative file size is prohibited. """
-        import random
         pi = pi_with_resources
         for pipeline_name in pi.pipeline_names:
             negative_file_size = -10 * random.random()
@@ -221,7 +223,11 @@ class PipelineInterfaceResourcePackageTests:
     def test_negative_file_size_prohibited(
             self, file_size_attr, modify_resources, pi_with_resources):
         """ Negative min file size in resource package spec is prohibited. """
-
+        for pipe_name in pi_with_resources.pipeline_names:
+            file_size_request = random.randrange(1, 11)
+            with pytest.raises(ValueError):
+                pi_with_resources.choose_resource_package(
+                        pipe_name, file_size_request)
 
 
     @pytest.mark.skip("Not implemented")
