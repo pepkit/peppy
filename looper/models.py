@@ -777,11 +777,8 @@ class Project(AttributeDict):
         :return bool: success flag for attempt to establish compute settings
         """
 
-        success = False
-
-        try:
-            # Hope that environment & environment compute are present.
-            if setting and self.environment and "compute" in self.environment:
+        # Hope that environment & environment compute are present.
+        if setting and self.environment and "compute" in self.environment:
 
                 # Augment compute, creating it if needed
                 if self.compute is None:
@@ -792,23 +789,24 @@ class Project(AttributeDict):
 
                 # Ensure submission template is absolute.
                 if not _os.path.isabs(self.compute.submission_template):
-                    self.compute.submission_template = _os.path.join(
-                            _os.path.dirname(self.environment_file),
-                            self.compute.submission_template)
-                # Compute settings have been established.
-                success = True
+                    try:
+                        self.compute.submission_template = _os.path.join(
+                                _os.path.dirname(self.environment_file),
+                                self.compute.submission_template)
+                    except AttributeError as e:
+                        # Environment and environment compute should at least have been
+                        # set as null-valued attributes, so execution here is an error.
+                        _LOGGER.error(str(e))
+                        # Compute settings have been established.
+                    else:
+                        return True
+        else:
+            # Scenario in which environment and environment compute are
+            # both present but don't evaluate to True is fairly
+            # innocuous, even common if outside of the looper context.
+            _LOGGER.debug("Environment = {}".format(self.environment))
 
-            else:
-                # Scenario in which environment and environment compute are
-                # both present but don't evaluate to True is fairly
-                # innocuous, even common if outside of the looper context.
-                _LOGGER.debug("Environment = {}".format(self.environment))
-        except AttributeError as e:
-            # Environment and environment compute should at least have been
-            # set as null-valued attributes, so execution here is an error.
-            _LOGGER.error(str(e))
-
-        return success
+        return False
 
 
     def get_arg_string(self, pipeline_name):
