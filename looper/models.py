@@ -934,11 +934,27 @@ class Project(AttributeDict):
                             # so we don't re-derive them later.
                             merged_cols = {
                                     key: "" for key in merge_rows.columns}
-                            for row in merge_rows.index:
+                            for row in range(len(merge_rows.index)):
                                 _LOGGER.debug(
                                     "New row: {}, {}".format(row, merge_rows))
+
                                 # Update with derived columns
-                                row_dict = merge_rows.iloc[row].to_dict()
+                                try:
+                                    row_dict = merge_rows.iloc[row].to_dict()
+                                except IndexError:
+                                    context = "Processing of sample {} " \
+                                              "attempted to access row {} in " \
+                                              "table with shape {}".\
+                                            format(sample.name, row,
+                                                   merge_rows.shape)
+                                    _LOGGER.error(context)
+                                    _LOGGER.error("Columns: {}".
+                                                  format(merge_table.columns))
+                                    _LOGGER.error("Full rows = {}, "
+                                                  "reduced rows = {}".format(
+                                        merge_table.index, merge_rows.index))
+                                    raise
+
                                 for col in merge_rows.columns:
                                     if col == SAMPLE_NAME_COLNAME or \
                                             col not in self.derived_columns:
