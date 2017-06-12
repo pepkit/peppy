@@ -745,8 +745,13 @@ class Project(AttributeDict):
             folder_path = self.metadata[folder_name]
             _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
             if not _os.path.exists(folder_path):
-                _LOGGER.debug("Creating: '%s'", folder_path)
-                _os.makedirs(folder_path)
+                _LOGGER.debug("Attempting to create project folder: '%s'",
+                              folder_path)
+                try:
+                    _os.makedirs(folder_path)
+                except OSError as e:
+                    _LOGGER.warn("Could not create project folder: '%s'",
+                                 str(e))
 
 
     def set_project_permissions(self):
