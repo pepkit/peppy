@@ -8,7 +8,8 @@ import pytest
 import yaml
 import looper
 from looper.models import \
-        Project, _MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
+        AttributeDict, Project, \
+        _MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
 
 
 __author__ = "Vince Reuter"
@@ -102,12 +103,36 @@ class ProjectDefaultEnvironmentSettingsTests:
     @pytest.mark.parametrize(
             argnames="explicit_null", argvalues=[False, True],
             ids=lambda explicit_null: "explicit_null={}".format(explicit_null))
+    @pytest.mark.parametrize(
+            argnames="compute_env_attname",
+            argvalues=["environment", "environment_file", "compute"],
+            ids=lambda attr: "attr={}".format(attr))
     def test_no_default_env_settings_provided(
-            self, minimal_project_conf_path, explicit_null):
+            self, minimal_project_conf_path,
+            explicit_null, compute_env_attname):
         """ Project doesn't require default environment settings. """
+
         kwargs = {"default_compute": None} if explicit_null else {}
         project = Project(minimal_project_conf_path, **kwargs)
-        self._assert_null_compute_environment(project)
+
+        observed_attribute = getattr(project, compute_env_attname)
+        expected_attribute = \
+                self.default_compute_settings(project)[compute_env_attname]
+
+        if compute_env_attname == "compute":
+            # 'compute' refers to a section in the default environment
+            # settings file and also to a Project attribute. A Project
+            # instance selects just one of the options in the 'compute'
+            # section of the file as the value for its 'compute' attribute.
+            expected_attribute = expected_attribute["default"]
+            observed_attribute = _compute_paths_to_names(observed_attribute)
+        elif compute_env_attname == "environment":
+            envs_with_reduced_filepaths = \
+                    _env_paths_to_names(observed_attribute["compute"])
+            observed_attribute = AttributeDict(
+                    {"compute": envs_with_reduced_filepaths})
+
+        assert expected_attribute == observed_attribute
 
 
     @pytest.mark.parametrize(
@@ -191,6 +216,16 @@ class ProjectDefaultEnvironmentSettingsTests:
         assert project.environment is None
         assert project.environment_file is None
         assert project.compute is None
+
+
+    @staticmethod
+    def default_compute_settings(project):
+        settings_filepath = project.default_cmpenv_file
+        with open(settings_filepath, 'r') as settings_data_file:
+            settings = yaml.safe_load(settings_data_file)
+        return {"environment": copy.deepcopy(settings),
+                "environment_file": settings_filepath,
+                "compute": copy.deepcopy(settings)["compute"]}
 
 
 
@@ -523,3 +558,51 @@ def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     with open(conf_file_path, 'w') as conf_file:
         yaml.safe_dump(config_data, conf_file)
     return conf_file_path
+
+
+
+def _env_paths_to_names(envs):
+    """
+    Convert filepath(s) in each environment to filename for assertion.
+
+    Project instance will ensure that filepaths are absolute, but we want
+    assertion logic here to be independent of that (unless that's under test).
+
+    :param Mapping[str, Mapping]: environment data by name
+    :return Mapping[str, Mapping]: same as the input,
+        but with conversion(s) performed
+    """
+    reduced = {}
+    for env_name, env_data in envs.items():
+        # DEBUG
+        print(env_name)
+        reduced[env_name] = _compute_paths_to_names(env_data)
+    return reduced
+
+
+
+def _compute_paths_to_names(env):
+    """
+    Single-environment version of conversion of filepath(s) to name(s).
+
+    This is similarly motivated by allowing tests' assertions about
+    equality between Mappings to be independent of Project instance's
+    effort to ensure that filepaths are absolute.
+
+    :param Mapping env: environment datum by name
+    :return Mapping: same as the input, but with conversion(s) performed
+    """
+    reduced = copy.deepcopy(env)
+    for pathvar in ["submission_template"]:
+
+        # DEBUG
+        try:
+            _, reduced[pathvar] = os.path.split(reduced[pathvar])
+        except KeyError:
+            print("REDUCED: {}".format(reduced))
+            print("ENV: {}".format(env))
+            print("KEYS: {}".format(reduced.keys()))
+            print("ENV KEYS: {}".format(env.keys()))
+            raise
+
+    return reduced

@@ -1,15 +1,10 @@
 """ Looper versions of NGS project models. """
 
-import os
 from . import models
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
-
-
-DEFAULT_PROJECT_COMPUTE_NAME = "default_looperenv.yaml"
-SUBMISSION_TEMPLATES_FOLDER = "submit_templates"
 
 
 
@@ -27,28 +22,11 @@ class Project(models.Project):
     :type default_compute: str
 
     """
-    def __init__(self, config_file,
-                 subproject=None, default_compute=None, **kwargs):
-        if not default_compute:
-            looper_folder = os.path.dirname(__file__)
-            default_compute = os.path.join(looper_folder,
-                    SUBMISSION_TEMPLATES_FOLDER, DEFAULT_PROJECT_COMPUTE_NAME)
+    def __init__(self, config_file, subproject=None, **kwargs):
         super(Project, self).__init__(
                 config_file, subproject=subproject, 
-                default_compute=default_compute,
                 no_environment_exception=RuntimeError,
                 no_compute_exception=RuntimeError, **kwargs)
-
-
-    @property
-    def compute_env_var(self):
-        """
-        Environment variable through which to access compute settings.
-
-        :return str: name of the environment variable to pointing to
-            compute settings
-        """
-        return "LOOPERENV"
 
 
     @property

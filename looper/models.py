@@ -68,6 +68,7 @@ from .utils import \
     parse_ftype, check_bam, check_fastq, get_file_size, partition
 
 
+COMPUTE_SETTINGS_VARNAME = "PEPENV"
 DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_NAME_COLNAME = "sample_name"
@@ -275,10 +276,20 @@ class AttributeDict(MutableMapping):
             _LOGGER.debug("No item {} to delete".format(item))
 
     def __eq__(self, other):
-        for k in iter(self):
-            if k in other and self.__dict__[k] == other[k]:
-                continue
+        try:
+            # Ensure target itself and any values are AttributeDict.
+            other = AttributeDict(other)
+        except Exception:
             return False
+        if len(self) != len(other):
+            # Ensure we don't have to worry about other containing self.
+            return False
+        for k, v in self.items():
+            try:
+                if v != other[k]:
+                    return False
+            except KeyError:
+                return  False
         return True
 
     def __ne__(self, other):
@@ -347,22 +358,23 @@ class Project(AttributeDict):
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None):
 
-        super(Project, self).__init__()
-
         _LOGGER.info("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
+        super(Project, self).__init__()
+
+        default_compute = default_compute or self.default_cmpenv_file
 
         # Initialize local, serial compute as default (no cluster submission)
         # Start with default environment settings.
         _LOGGER.debug("Establishing default environment settings")
         self.environment, self.environment_file = None, None
-        if default_compute:
-            try:
-                self.update_environment(default_compute)
-            except Exception as e:
-                _LOGGER.error("Can't load environment config file '%s'",
-                              str(default_compute))
-                _LOGGER.error(str(type(e).__name__) + str(e))
+
+        try:
+            self.update_environment(default_compute)
+        except Exception as e:
+            _LOGGER.error("Can't load environment config file '%s'",
+                          str(default_compute))
+            _LOGGER.error(str(type(e).__name__) + str(e))
         
         self._handle_missing_env_attrs(
                 default_compute, when_missing=no_environment_exception)
@@ -434,6 +446,18 @@ class Project(AttributeDict):
 
 
     @property
+    def default_cmpenv_file(self):
+        """ Path to default compute environment settings file. """
+        return _os.path.join(
+                self.templates_folder, "default_compute_settings.yaml")
+
+
+    @property
+    def templates_folder(self):
+        return _os.path.join(_os.path.dirname(__file__), "submit_templates")
+
+
+    @property
     def compute_env_var(self):
         """
         Environment variable through which to access compute settings.
@@ -441,7 +465,7 @@ class Project(AttributeDict):
         :return str: name of the environment variable to pointing to 
             compute settings
         """
-        return "COMPUTE_SETTINGS"
+        return COMPUTE_SETTINGS_VARNAME
 
 
     @property

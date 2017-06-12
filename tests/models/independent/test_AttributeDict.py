@@ -294,30 +294,35 @@ class AttributeDictCollisionTests:
                 self, name_setter_func, name_getter_func):
         """ During construction/insertion, KV pair mappings merge. """
 
+        # Create bare AttributeDict and select the parameterized get/set.
         attrdict = AttributeDict()
         raw_data = {}
         setter = getattr(attrdict, name_setter_func)
         getter = getattr(attrdict, name_getter_func)
 
+        # Add the JPA data.
         setter("JPA", self.WEST_COMPLEX_DATA)
         raw_data.update({"JPA": self.WEST_COMPLEX_DATA})
+        # Mappings are converted to AttributeDict when added.
         observed = getter("JPA")
         assert isinstance(observed, AttributeDict)
         assert self.WEST_COMPLEX_DATA == observed
 
+        # Perform the same sort of addition and assertions for the Lane data.
         setter("Lane", self.INITIAL_MR_DATA)
         raw_data.update({"Lane": self.INITIAL_MR_DATA})
         assert isinstance(getter("Lane"), AttributeDict)
         assert raw_data == attrdict
 
+        # Add Pinn data, also attributed to JPA. This should trigger a merge.
         setter("JPA", self.PINN_DATA)
         observed = getter("JPA")
-        assert isinstance(observed, AttributeDict)
         tempdict = deepcopy(self.WEST_COMPLEX_DATA)
-        tempdict.update(self.INITIAL_MR_DATA)
         tempdict.update(self.PINN_DATA)
-        assert tempdict == observed
+        assert isinstance(observed, AttributeDict)
+        assert AttributeDict(tempdict) == observed
 
+        tempdict.update(self.INITIAL_MR_DATA)
         setter("Lane", self.NEW_MR_DATA)
         higher_level_tempdict = {"JPA": self.WEST_COMPLEX_DATA}
         higher_level_tempdict["JPA"].update(self.PINN_DATA)
@@ -485,7 +490,7 @@ class AttributeDictSerializationTests:
 
         # Validate equivalence between original and restored versions.
         with open(filepath, 'rb') as pkl:
-            restored_attrdict = pickle.load(pkl)
+            restored_attrdict = AttributeDict(pickle.load(pkl))
         assert restored_attrdict == original_attrdict
 
 

@@ -12,8 +12,9 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, __version__, LOOPERENV_VARNAME
+from . import setup_looper_logger, LOGGING_LEVEL, __version__
 from .loodels import Project
+from .models import COMPUTE_SETTINGS_VARNAME
 from .utils import VersionInHelpParser
 
 try:
@@ -32,6 +33,8 @@ from colorama import Fore, Style
 
 SAMPLE_EXECUTION_TOGGLE = "toggle"
 
+# Descending by severity for correspondence with logic inversion.
+# That is, greater verbosity setting corresponds to lower logging level.
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
                        logging.INFO, logging.DEBUG]
 
@@ -96,7 +99,7 @@ def parse_arguments():
             help="YAML file with looper environment compute settings.")
     run_subparser.add_argument(
             "--env",
-            default=os.getenv("{}".format(LOOPERENV_VARNAME), ""),
+            default=os.getenv("{}".format(COMPUTE_SETTINGS_VARNAME), ""),
             help="Employ looper environment compute settings.")
     run_subparser.add_argument(
             "--limit",
