@@ -1,14 +1,14 @@
 #! /usr/bin/env python
 
-import sys
 import os
+import sys
 
 
 # Additional keyword arguments for setup().
 extra = {}
 
 DEPENDENCIES = []
-with open("requirements.txt", "r") as reqs_file:
+with open("requirements/requirements-all.txt", "r") as reqs_file:
     for line in reqs_file:
         if not line.strip():
             continue
@@ -26,11 +26,12 @@ except ImportError:
 
 # Additional files to include with package
 def get_static(name, condition=None):
-    static = [os.path.join(name, f) for f in os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), name))]
+    static = [os.path.join(name, f) for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), name))]
     if condition is None:
         return static
     else:
-        return filter(lambda x: eval(condition), static)
+        return [i for i in filter(lambda x: eval(condition), static)]
 
 # scripts to be added to the $PATH
 scripts = get_static("scripts", condition="'.' in x")
@@ -38,7 +39,6 @@ scripts = get_static("scripts", condition="'.' in x")
 with open("looper/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
-# setup
 setup(
     name="looper",
     packages=["looper"],
@@ -63,5 +63,10 @@ setup(
     scripts=scripts,
     package_data={'looper': ['submit_templates/*']},
     include_package_data=True,
+    test_suite="tests",
+    tests_require=["mock", "pytest"],
+    setup_requires=(["pytest-runner"]
+                    if {"ptr", "test", "pytest"} & set(sys.argv)
+                    else []),
     **extra
 )

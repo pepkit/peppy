@@ -16,29 +16,28 @@ You can download the latest version from the [releases page](https://github.com/
  * Source code: http://github.com/epigen/looper
 
 
-# Installing
-Looper supports Python 2.7 only and has been tested only in Linux.
+# Quick start
+Instructions for installation, usage, tutorials, and advanced options are available in the [Read the Docs documentation](http://looper.readthedocs.org/), and that's the best place to start. To get running quickly, you can install the latest release and put the `looper` executable in your `$PATH`: 
+
 
 ```
 pip install https://github.com/epigen/looper/zipball/master
-```
-
-To have the `looper` executable in your `$PATH`, add the following line to your .bashrc file:
-
-```
 export PATH=$PATH:~/.local/bin
 ```
 
-
-# Running pipelines
-
-`Looper` just requires a yaml format config file passed as an argument, which contains all the settings required. This can, for example, submit each job to SLURM (or SGE, or run them locally).
+Looper supports Python 2.7 only and has been tested only in Linux. To use looper with your project, you must define your project using [Looper’s standard project definition format](http://looper.readthedocs.io/en/latest/define-your-project.html), which is a `yaml` config file passed as an argument to looper:
 
 ```bash
 looper run project_config.yaml
 ```
 
+# Contributing
+- After adding tests in `tests` for a new feature or a bug fix, please run the test suite.
+- To do so, the only additional dependencies needed beyond those for the package can be 
+installed with:
 
-# Looper commands
+  ```pip install -r requirements/requirements-dev.txt```
+  
+- Once those are installed, the tests can be run with `pytest`. Alternatively, 
+`python setup.py test` can be used.
 
-Looper can do more than just run your samples through pipelines. Once a pipeline has been run (or is running), you can do some post-processing on the results. These commands help with monitoring running pipelines, summarizing pipeline outputs, etc. This includes `looper clean`, `looper destroy`, `looper summarize`, and more. You can find details about these in the **Commands** section of the documentation.

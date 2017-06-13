@@ -18,7 +18,8 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 
 from looper import setup_looper_logger
-from looper.models import PipelineInterface, Project
+from looper.models import PipelineInterface
+from looper.loodels import Project
 
 
 # TODO: needed for interactive mode, but may crush cmdl option for setup.
@@ -38,6 +39,14 @@ data_sources:
   src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
   src3: "{basedir}/data/{sample_name}.txt"
   src2: "{basedir}/data/{sample_name}-bamfile.bam"
+
+implied_columns:
+  sample_name:
+    a:
+      genome: hg38
+      phenome: hg72
+    b:
+      genome: hg38
 """.splitlines(True)
 # Will populate the corresponding string format entry in project config lines.
 DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
@@ -153,7 +162,7 @@ _ATTR_BY_TYPE = {
 # Provide some basic atomic-type data for models tests.
 _BASE_KEYS = ("epigenomics", "H3K", "ac", "EWS", "FLI1")
 _BASE_VALUES = \
-    ("topic", "marker", "acetylation", "RNA binding protein", "FLI1")
+    ("topic", "residue", "acetylation", "RNA binding protein", "FLI1")
 _SEASON_HIERARCHY = {
     "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
     "summer": {"June": 30, "July": 31, "August": 31},
@@ -164,14 +173,30 @@ COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
                         "keys", "values", "items"]
 
 
+
 def pytest_addoption(parser):
+    """ Facilitate command-line test behavior adjustment. """
     parser.addoption("--logging-level",
                      default="WARN",
                      help="Project root logger level to use for tests")
 
 
+
+def pytest_generate_tests(metafunc):
+    """ Centralize dynamic test case parameterization. """
+    if "empty_collection" in metafunc.fixturenames:
+        # Test case strives to validate expected behavior on empty container.
+        collection_types = [tuple, list, set, dict]
+        metafunc.parametrize(
+                "empty_collection",
+                argvalues=[ctype() for ctype in collection_types],
+                ids=[ctype.__name__ for ctype in collection_types])
+
+
+
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
+    """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
     setup_looper_logger(level=level, devmode=True)
     logging.getLogger("looper").info(
@@ -241,6 +266,7 @@ class _DataSourceFormatMapping(dict):
         return "{" + derived_column + "}"
 
 
+
 def _write_temp(lines, dirpath, fname):
     """
     Note that delete flag is a required argument since it's potentially
@@ -275,6 +301,7 @@ def _write_temp(lines, dirpath, fname):
         return tmpf.name
 
 
+
 @pytest.fixture(scope="class")
 def write_project_files(request):
     """
@@ -303,7 +330,8 @@ def write_project_files(request):
     shutil.rmtree(dirpath)
 
 
-# Placed here for data/use locality.
+
+# Placed here (rather than near top of file) for data/use locality.
 _TEST_DATA_FOLDER = "data"
 _BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
                              _TEST_DATA_FOLDER, "d-bamfile.bam")
@@ -311,6 +339,7 @@ _TEST_DATA_FILE_BASENAMES = ["a", "b1", "b2", "b3", "c", "d"]
 _TEST_DATA = {"{}.txt".format(name):
               "This is the content of test file {}.".format(name)
               for name in _TEST_DATA_FILE_BASENAMES}
+
 
 
 def _write_test_data_files(tempdir):
@@ -331,6 +360,7 @@ def _write_test_data_files(tempdir):
             testfile.write(data)
 
 
+
 @pytest.fixture(scope="class")
 def pipe_iface_config_file(request):
     """
@@ -340,45 +370,51 @@ def pipe_iface_config_file(request):
         this fixture
     :return str: path to the temporary file with configuration data
     """
+
+    # Write the config file and attach path as attribute on request's class.
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(
             PIPELINE_INTERFACE_CONFIG_LINES,
-            dirpath=dirpath, fname="pipeline_interface.yaml"
-    )
+            dirpath=dirpath, fname="pipeline_interface.yaml")
     request.cls.pipe_iface_config_file = path_conf_file
+
+    # Alternative mechanism to request.addfinalizer for tearDown behavior.
     yield path_conf_file
     shutil.rmtree(dirpath)
 
 
-def _req_cls_att(req, attr):
+
+def request_class_attribute(req, attr):
     """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
 
 
-def _create(request, wanted):
+
+def _create(request, data_type):
     """
-    Create instance of `wanted` type, using file in `request` class.
+    Create instance of desired type, using file in request class.
 
     :param _pytest.fixtures.FixtureRequest: test case that initiated the
         fixture request that triggered this call
-    :param type wanted: the data type to be created
+    :param type data_type: the data type to be created
     """
-    data_source = _req_cls_att(request, _ATTR_BY_TYPE[wanted])
+    request_class_attr_name = _ATTR_BY_TYPE[data_type]
+    data_source = request_class_attribute(request, request_class_attr_name)
     _LOGGER.debug("Using %s as source of data to build %s",
-                  data_source, wanted.__class__.__name__)
+                  data_source, data_type.__class__.__name__)
     try:
-        return wanted(data_source)
+        return data_type(data_source)
     except EmptyDataError:
         with open(data_source, 'r') as datafile:
             _LOGGER.error("File contents:\n{}".format(datafile.readlines()))
         raise
 
 
+
 @pytest.fixture(scope="function")
 def proj(request):
     """
-    Create `looper` `Project` instance using data from file
-    pointed to by class of `request`.
+    Create project instance using data from file pointed to by request class.
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
@@ -388,11 +424,12 @@ def proj(request):
     return _create(request, Project)
 
 
+
 @pytest.fixture(scope="function")
 def pipe_iface(request):
     """
-    Create `looper` `PipelineInterface` instance using data from file
-    pointed to by class of `request`.
+    Create pipeline interface instance using data from 
+    file pointed to by request class.
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
@@ -404,22 +441,13 @@ def pipe_iface(request):
 
 
 def basic_entries():
+    """ AttributeDict data that lack nested strcuture. """
     for k, v in zip(_BASE_KEYS, _BASE_VALUES):
         yield k, v
 
 
+
 def nested_entries():
+    """ AttributeDict data with some nesting going on. """
     for k, v in _SEASON_HIERARCHY.items():
         yield k, v
-
-
-
-def pytest_generate_tests(metafunc):
-    """ Centralize dynamic test case parameterization. """
-    if "empty_collection" in metafunc.fixturenames:
-        # Test case strives to validate expected behavior on empty container.
-        collection_types = [tuple, list, set, dict]
-        metafunc.parametrize(
-                "empty_collection",
-                argvalues=[ctype() for ctype in collection_types],
-                ids=[ctype.__name__ for ctype in collection_types])

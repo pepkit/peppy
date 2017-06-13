@@ -51,6 +51,23 @@ Example:
 For more details, see :ref:`advanced-derived-columns`.
 
 
+Project config section: implied_columns
+"""""""""""""""""""""""""""""""""""""""""""
+``implied_columns`` lets you infer additional attributes, which can be useful for pipeline arguments.
+
+Example:
+
+.. code-block:: yaml
+
+  implied_columns:
+    organism:
+      human:
+        genome: "hg38"
+        macs_genome_size: "hs"
+
+For more details, see :ref:`advanced-implied-columns`.
+
+
 Project config section: subprojects
 """""""""""""""""""""""""""""""""""""""""""""""
 
@@ -112,7 +129,7 @@ The above specification will now pass '--flavor=simple' and '--flag' whenever rr
 
 Project config section: compute
 """""""""""""""""""""""""""""""""""""""""""""""
-You can specify project-specific compute settings in a ``compute`` section. However, you're better off specifying this globally using a ``looperenv`` environment configuration. Instructions are at the `looperenv repository <https://github.com/epigen/looperenv>`_. If you do need project-specific control over compute settings (like submitting a certain project to a certain resource account), you can do this by specifying variables in a project config ``compute`` section, which will override global looperenv values for that project only.
+You can specify project-specific compute settings in a ``compute`` section. However, you're better off specifying this globally using a ``pepenv`` environment configuration. Instructions are at the `pepenv repository <https://github.com/pepkit/pepenv>`_. If you do need project-specific control over compute settings (like submitting a certain project to a certain resource account), you can do this by specifying variables in a project config ``compute`` section, which will override global pepenv values for that project only.
 
 
 .. code-block:: yaml

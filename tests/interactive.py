@@ -4,6 +4,7 @@
 # cd $CODEBASE/looper/tests
 # ipython
 
-import looper
 import conftest
+
+print("Establishing Project and PipelineInterface for testing and exploration")
 proj, pi = conftest.interactive()

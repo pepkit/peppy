@@ -1,11 +1,13 @@
 # ignore test results
-
 tests/test/*
+
+# toy/experimental files
+*.csv
+*.tsv
+*.pkl
 
 # ignore eggs
 .eggs/
-
-# ignore python backup files
 
 # ignore built docs
 doc/build/*

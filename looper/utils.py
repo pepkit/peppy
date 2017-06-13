@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess as sp
 import yaml
-from _version import __version__
+from ._version import __version__
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,6 +18,25 @@ class VersionInHelpParser(ArgumentParser):
         """ Add version information to help text. """
         return "version: {}\n".format(__version__) + \
                super(VersionInHelpParser, self).format_help()
+
+
+
+def fetch_package_classes(pkg, predicate=None):
+    """
+    Enable single-depth fetch of package's classes if not exported.
+    
+    :param module pkg: the package of interest.
+    :param function(type) -> bool predicate: condition each class must 
+        satisfy in order to be returned.
+    :return Iterable(type): classes one layer deep within the package, that 
+        satisfy the condition if given.
+    """
+    import inspect
+    import itertools
+    return list(itertools.chain(
+            *[inspect.getmembers(mod, predicate)
+              for mod in inspect.getmembers(
+                        pkg, lambda obj: inspect.ismodule(obj))]))
 
 
 
@@ -78,39 +97,37 @@ def partition(items, test):
 
 
 
+# TODO:
+# It appears that this isn't currently used.
+# It could be included as a validation stage in Project instantiation.
+# If Project instance being validated lacked specific relevant
+# configuration section the call here would either need to be skipped,
+# or this would need to pass in such a scenario. That would not be
+# a challenge, but it just needs to be noted.
+
+# TODO:
+# Test this with additional pipeline config file,
+# pointed to in relevant section of project config file:
+# http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config
 class CommandChecker(object):
     """
-    Validate call success of executables
-    associated with sections of a config file.
+    Validate PATH availability of executables referenced by a config file.
+
+    :param path_conf_file: path to configuration file with
+        sections detailing executable tools to validate
+    :type path_conf_file: str
+    :param sections_to_check: names of
+        sections of the given configuration file that are relevant;
+        optional, will default to all sections if not given, but some
+        may be excluded via another optional parameter
+    :type sections_to_check: Iterable[str]
+    :param sections_to_skip: analogous to
+        the check names parameter, but for specific sections to skip.
+    :type sections_to_skip: Iterable[str]
+    
     """
-
-    # TODO:
-    # It appears that this isn't currently used.
-    # It could be included as a validation stage in Project instantiation.
-    # If Project instance being validated lacked specific relevant
-    # configuration section the call here would either need to be skipped,
-    # or this would need to pass in such a scenario. That would not be
-    # a challenge, but it just needs to be noted.
-
-    # TODO:
-    # Test this with additional pipeline config file,
-    # pointed to in relevant section of project config file:
-    # http://looper.readthedocs.io/en/latest/define-your-project.html#project-config-section-pipeline-config
-
-    def __init__(self, path_conf_file, include=None, exclude=None):
-        """
-        The path to the configuration file, and perhaps names of
-        validation inclusion and exclusion sections define the instance.
-
-        :param str path_conf_file: path to configuration file with
-            sections detailing executable tools to validate
-        :param collections.abc.Iterable(str) include: names of sections
-            of the given configuration file that are relevant; optional, will
-            default to all sections if not given, but some may be excluded
-            via another optional parameter
-        :param collections.abc.Iterable(str) exclude: analogous to the
-            inclusion parameter, but for specific sections to exclude.
-        """
+    def __init__(self, path_conf_file,
+                 sections_to_check=None, sections_to_skip=None):
 
         super(CommandChecker, self).__init__()
 
@@ -121,12 +138,13 @@ class CommandChecker(object):
         # TODO: could also derive parsing behavior from extension.
         self.path = path_conf_file
         with open(self.path, 'r') as conf_file:
-            data = yaml.safe_load(conf_file)
+            conf_data = yaml.safe_load(conf_file)
 
         # Determine which sections to validate.
-        sections = {include} if isinstance(include, str) else \
-                   set(include or data.keys())
-        excl = {exclude} if isinstance(exclude, str) else set(exclude or [])
+        sections = {sections_to_check} if isinstance(sections_to_check, str) \
+                else set(sections_to_check or conf_data.keys())
+        excl = {sections_to_skip} if isinstance(sections_to_skip, str) \
+                else set(sections_to_skip or [])
         sections -= excl
 
         self._logger.info("Validating %d sections: %s",
@@ -142,7 +160,7 @@ class CommandChecker(object):
         for s in sections:
             # Fetch section data or skip.
             try:
-                section_data = data[s]
+                section_data = conf_data[s]
             except KeyError:
                 _LOGGER.info("No section '%s' in file '%s', skipping",
                              s, self.path)
@@ -160,7 +178,7 @@ class CommandChecker(object):
                                        "FAILURE" if failed else "SUCCESS")
             except AttributeError:
                 self._logger.debug("Processing section '%s' data as list", s)
-                commands_iter = data[s]
+                commands_iter = conf_data[s]
                 for cmd_item in commands_iter:
                     # Item is K-V pair?
                     try:
@@ -229,14 +247,13 @@ def is_command_callable(command, name=""):
 
 
 
-def bam_or_fastq(input_file):
+def parse_ftype(input_file):
     """
-    Checks if string endswith `bam` or `fastq`.
+    Checks determine filetype from extension.
 
     :param str input_file: String to check.
     :return str: filetype (extension without dot prefix)
-    :raises TypeError: if file does not appear of a supported type,
-        based on extension
+    :raises TypeError: if file does not appear of a supported type
     """
     if input_file.endswith(".bam"):
         return "bam"
@@ -260,12 +277,11 @@ def check_bam(bam, o):
     """
     try:
         p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
-
         # Count paired alignments
         paired = 0
         read_length = Counter()
         while o > 0:  # Count down number of lines
-            line = p.stdout.next().split("\t")
+            line = p.stdout.readline().decode().split("\t")
             flag = int(line[1])
             read_length[len(line[9])] += 1
             if 1 & flag:  # check decimal flag contains 1 (paired)
@@ -289,3 +305,25 @@ def check_fastq(fastq, o):
     raise NotImplementedError("Detection of read type/length for "
                               "fastq input is not yet implemented.")
 
+
+
+def get_file_size(filename):
+    """
+    Get size of all files in gigabytes (Gb).
+
+    :param str | collections.Iterable[str] filename: A space-separated
+        string or list of space-separated strings of absolute file paths.
+    :return float: size of file(s), in gigabytes.
+    """
+    if filename is None:
+        return float(0)
+    if type(filename) is list:
+        return float(sum([get_file_size(x) for x in filename]))
+    try:
+        total_bytes = sum([float(os.stat(f).st_size)
+                           for f in filename.split(" ") if f is not ''])
+    except OSError:
+        # File not found
+        return 0.0
+    else:
+        return float(total_bytes) / (1024 ** 3)

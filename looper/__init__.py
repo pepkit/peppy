@@ -10,14 +10,8 @@ local level, but this will at least provide a foundation.
 import logging
 import os
 from sys import stdout
-from _version import __version__
+from ._version import __version__
 
-
-LOOPERENV_VARNAME = "LOOPERENV"
-SUBMISSION_TEMPLATES_FOLDER = "submit_templates"
-DEFAULT_LOOPERENV_FILENAME = "default_looperenv.yaml"
-DEFAULT_LOOPERENV_CONFIG_RELATIVE = os.path.join(SUBMISSION_TEMPLATES_FOLDER,
-                                                 DEFAULT_LOOPERENV_FILENAME)
 
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
@@ -41,7 +35,6 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     :return logging.Logger: project-root logger
     """
 
-    logging.addLevelName(0, "EVERYTHING")
     logging.addLevelName(5, "VERY_FINE")
 
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
@@ -61,8 +54,8 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     try:
         LOOPER_LOGGER.setLevel(level)
     except Exception:
-        logging.error("Can's set logging level to %s; using %s",
-                      str(LOGGING_LEVEL))
+        logging.error("Can't set logging level to %s; instead using: '%s'",
+                      str(level), str(LOGGING_LEVEL))
         level = LOGGING_LEVEL
         LOOPER_LOGGER.setLevel(level)
 

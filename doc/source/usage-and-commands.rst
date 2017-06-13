@@ -2,16 +2,16 @@ Usage and commands
 ******************************
 
 
-Looper doesn't just run pipelines, it can also check and summarize the progress of your jobs, as well as remove all files created by them.
+Looper doesn't just run pipelines; it can also check and summarize the progress of your jobs, as well as remove all files created by them.
 
-Each task is controlled by one of the four main commands ``run``, ``summarize``, ``destroy``, ``check``, ``clean``: 
+Each task is controlled by one of the five main commands ``run``, ``summarize``, ``destroy``, ``check``, ``clean``:
 
 
 .. code-block:: bash
 
-  usage: looper [-h] [--version] {run,summarize,destroy,check,clean} ...
+  usage: looper [-h] [-V] {run,summarize,destroy,check,clean} ...
 
-  looper - Loops through samples and submits pipelines for them.
+  looper - Loop through samples and submit pipelines for them.
 
   positional arguments:
     {run,summarize,destroy,check,clean}
@@ -19,13 +19,14 @@ Each task is controlled by one of the four main commands ``run``, ``summarize``,
       summarize           Summarize statistics of project samples.
       destroy             Remove all files of the project.
       check               Checks flag status of current runs.
-      clean               Runs clean scripts to remove intermediate files of already processed jobs.
+      clean               Runs clean scripts to remove intermediate files of
+                          already processed jobs.
 
   optional arguments:
     -h, --help            show this help message and exit
-    --version             show program's version number and exit
+    -V, --version         show program's version number and exit
 
-  For command line options of each command, type: looper COMMAND -h
+  For subcommand-specific options, type: 'looper <subcommand> -h'
   https://github.com/epigen/looper
 
 
