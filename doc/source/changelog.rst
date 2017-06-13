@@ -19,6 +19,8 @@ Changelog
   
   - Changed
 
+    - Changed LOOPERENV environment variable to PEPENV, generalizing it to generic models
+
     - Changed name of ``run`` column to ``toggle``, since ``run`` can also refer to a sequencing run.
 
     - Relaxes many constraints (like resources sections, pipelines_dir columns), making project
