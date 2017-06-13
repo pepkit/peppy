@@ -934,27 +934,8 @@ class Project(AttributeDict):
                             # so we don't re-derive them later.
                             merged_cols = {
                                     key: "" for key in merge_rows.columns}
-                            for row in range(len(merge_rows.index)):
-                                _LOGGER.debug(
-                                    "New row: {}, {}".format(row, merge_rows))
-
-                                # Update with derived columns
-                                try:
-                                    row_dict = merge_rows.iloc[row].to_dict()
-                                except IndexError:
-                                    context = "Processing of sample {} " \
-                                              "attempted to access row {} in " \
-                                              "table with shape {}".\
-                                            format(sample.name, row,
-                                                   merge_rows.shape)
-                                    _LOGGER.error(context)
-                                    _LOGGER.error("Columns: {}".
-                                                  format(merge_table.columns))
-                                    _LOGGER.error("Full rows = {}, "
-                                                  "reduced rows = {}".format(
-                                        merge_table.index, merge_rows.index))
-                                    raise
-
+                            for _, row in merge_rows.iterrows():
+                                row_dict = row.to_dict()
                                 for col in merge_rows.columns:
                                     if col == SAMPLE_NAME_COLNAME or \
                                             col not in self.derived_columns:
@@ -968,22 +949,24 @@ class Project(AttributeDict):
 
                                 # Also add in any derived cols present.
                                 for col in self.derived_columns:
+                                    # Skip over attributes that the sample
+                                    # either lacks, and those covered by the
+                                    # data from the current (row's) data.
                                     if not hasattr(sample, col) or \
                                             col in row_dict:
-                                        # Unproblematic
                                         continue
-                                    _LOGGER.debug(
-                                        "PROBLEM adding derived column: '%s'",
-                                        str(col))
+                                    # Map column name key to sample's value
+                                    # for the attribute given by column name.
                                     col_key = col + COL_KEY_SUFFIX
                                     row_dict[col_key] = getattr(sample, col)
+                                    # Map the column name itself to the
+                                    # populated data source template string.
                                     row_dict[col] = sample.locate_data_source(
-                                        col, getattr(sample,col), row_dict)
+                                        col, getattr(sample, col), row_dict)
                                     _LOGGER.debug(
                                         "PROBLEM adding derived column: "
-                                        "'%s', %s, %s",
-                                        str(col), str(row_dict[col]),
-                                        str(getattr(sample, col)))
+                                        "{}, {}, {}".format(col,
+                                        row_dict[col], getattr(sample, col)))
 
                                 # Since we are now jamming multiple (merged)
                                 # entries into a single attribute, we have to
@@ -1159,8 +1142,8 @@ class SampleSheet(object):
                 except (AttributeError, KeyError):
                     return Sample(data)
 
-        for i in range(len(self.df)):
-            self.samples.append(make_sample(self.df.iloc[i].dropna()))
+        for _, row in self.df.iterrows():
+            self.samples.append(make_sample(row.dropna()))
 
 
     def as_data_frame(self):
