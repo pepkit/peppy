@@ -704,7 +704,7 @@ class Project(AttributeDict):
 
 
     def _ensure_absolute(self, maybe_relpath):
-        _LOGGER.debug("Ensuring absolute path for '%s'", maybe_relpath)
+        _LOGGER.debug("Ensuring absolute: '%s'", maybe_relpath)
         if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
             _LOGGER.debug("Already absolute")
             return maybe_relpath
@@ -1094,7 +1094,22 @@ class SampleSheet(object):
         Create samples (considering library) from annotation sheet,
         and add them to the project.
         """
+        create_sample = self.find_sample_subtypes()
+        for _, row in self.df.iterrows():
+            self.samples.append(create_sample(row.dropna()))
 
+
+    def find_sample_subtypes(self):
+        """
+        Determine how to create Sample instances.
+
+        Search modules for classes that extend Sample in order to find
+        those that are more specifically tailored to a particular
+        data or experiment type.
+
+        :return function(Mapping | pd.core.series.Series) -> Sample: function
+            that takes input data and creates a Sample (or perhaps a subclass).
+        """
         try:
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
@@ -1145,8 +1160,7 @@ class SampleSheet(object):
                 except (AttributeError, KeyError):
                     return Sample(data)
 
-        for _, row in self.df.iterrows():
-            self.samples.append(make_sample(row.dropna()))
+        return make_sample
 
 
     def as_data_frame(self):
@@ -1199,7 +1213,7 @@ class Sample(object):
     Class to model Samples based on a pandas Series.
 
     :param series: Sample's data.
-    :type series: pandas.core.series.Series
+    :type series: Mapping | pandas.core.series.Series
 
     :Example:
 

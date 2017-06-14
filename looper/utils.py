@@ -33,10 +33,11 @@ def fetch_package_classes(pkg, predicate=None):
     """
     import inspect
     import itertools
+    modules = [pkg] if inspect.ismodule(pkg) else \
+            [obj for obj in inspect.getmembers(
+                    pkg, lambda member: inspect.ismodule(member))]
     return list(itertools.chain(
-            *[inspect.getmembers(mod, predicate)
-              for mod in inspect.getmembers(
-                        pkg, lambda obj: inspect.ismodule(obj))]))
+            *[inspect.getmembers(mod, predicate) for mod in modules]))
 
 
 

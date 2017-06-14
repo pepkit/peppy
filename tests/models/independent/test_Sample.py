@@ -1,12 +1,13 @@
 """ Tests for the Sample. """
 
 import os
+import tempfile
 import mock
 import numpy as np
 from pandas import Series
 import pytest
 import looper
-from looper.models import Sample
+from looper.models import Sample, SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"
@@ -14,17 +15,24 @@ __email__ = "vreuter@virginia.edu"
 
 
 
+def pytest_generate_tests(metafunc):
+    """ Customization of this module's test cases. """
+    if metafunc.cls == CustomSampleTests and \
+                "subclass_attrname" in metafunc.fixturenames:
+        metafunc.parametrize(argnames="subclass_attrname",
+                             argvalues=["library", "protocol"])
+
+
+
 class ParseSampleImplicationsTests:
     """ Tests for appending columns/fields to a Sample based on a mapping. """
 
-    IMPLIER_NAME = "sample_name"
+    IMPLIER_NAME = SAMPLE_NAME_COLNAME
     IMPLIER_VALUES = ["a", "b"]
     SAMPLE_A_IMPLICATIONS = {"genome": "hg38", "phenome": "hg72"}
     SAMPLE_B_IMPLICATIONS = {"genome": "hg38"}
     IMPLICATIONS = [SAMPLE_A_IMPLICATIONS, SAMPLE_B_IMPLICATIONS]
-    IMPLICATIONS_MAP = {
-        IMPLIER_NAME: IMPLICATIONS
-    }
+    IMPLICATIONS_MAP = {IMPLIER_NAME: IMPLICATIONS}
 
 
     def test_project_lacks_implications(self, sample):
@@ -128,7 +136,7 @@ class ParseSampleImplicationsTests:
             data = request.getfixturevalue("data")
         else:
             data = {}
-        data.setdefault("sample_name", "test-sample")
+        data.setdefault(SAMPLE_NAME_COLNAME, "test-sample")
 
         # Mock the validation and return a new Sample.
         rubber_stamper = mock.MagicMock(return_value=[])
@@ -150,15 +158,99 @@ class SampleRequirementsTests:
         ids=lambda has_name: "has_name: {}".format(has_name))
     def test_requires_sample_name(self, has_name, data_type):
         data = {}
-        sample_name_key = "sample_name"
         sample_name = "test-sample"
         if has_name:
-            data[sample_name_key] = sample_name
+            data[SAMPLE_NAME_COLNAME] = sample_name
             sample = Sample(data_type(data))
-            assert sample_name == getattr(sample, sample_name_key)
+            assert sample_name == getattr(sample, SAMPLE_NAME_COLNAME)
         else:
             with pytest.raises(ValueError):
                 Sample(data_type(data))
+
+
+from looper.models import Sample
+class DummySampleSubclass(Sample):
+    """ Subclass shell to test ability of Project to find Sample subclass. """
+    __library__ = "arbitrary"
+    pass
+
+
+
+class CustomSampleTests:
+    """ Bespoke Sample creation tests. """
+
+
+    PROTOCOLS = ["WGBS", "RRBS", "ATAC-Seq", "RNA-seq"]
+
+
+    @pytest.mark.fixture(scope="function")
+    def sample_subclass_definition(self, tmpdir, request):
+        subclass_attrname = request.getfixturevalue("subclass_attrname")
+        pipelines_type = request.getfixturevalue("pipelines_type")
+        if "pipe_path" in request.fixturenames:
+            pipe_path = tmpdir.strpath
+        else:
+            pipe_path = request.getfixturevalue("pipe_path")
+        if pipelines_type == "module":
+            pipe_path = os.path.join(pipe_path, "pipelines.py")
+        elif pipelines_type == "package":
+            init_file = os.path.join(pipe_path, "__init__.py")
+            with open(init_file, 'w') as f:
+                pass
+            module_file = tempfile.NamedTemporaryFile(dir=pipe_path, suffix=".py", delete=False)
+            with open(module_file, 'w') as modfile:
+                # TODO: write out definition.
+                pass
+        else:
+            raise ValueError(
+                    "Unknown pipelines type: {}; module and package "
+                    "are supported".format(pipelines_type))
+
+        # TODO: ensure cleanup.
+        request.addfinalizer()
+
+
+    DATA_FOR_SAMPLES = {
+            SAMPLE_NAME_COLNAME: ["sample{}".format(i) for i in range(3)],
+            "arbitrary-value": list(np.random.randint(-1000, 1000, size=3))}
+
+
+    CLASS_DEFINITION_LINES = """\"\"\" Sample subclass test file.  \"\"\"
+    
+    from looper.models import Sample
+    
+    class DummySampleSubclass(Sample):
+        \"\"\" Subclass shell to test Project's Sample subclass seek sensitivity. \"\"\"
+        __{attribute_name}__ = {attribute_value}
+        pass
+        
+    class NotSampleSubclass(Sample):
+        \"\"\" Subclass shell to test Project's Sample subclass seek specificity. \"\"\"
+        __unrecognized__ = irrelevant
+    
+    """
+
+
+    def test_generic_sample_for_unfindable_subclass(self):
+        """ If no Sample subclass is found, a generic Sample is created. """
+        pass
+
+
+    @pytest.mark.parametrize(
+            argnames="pipelines_type", argvalues=["module", "package"])
+    def test_raw_pipelines_import_has_sample_subclass(self, subclass_attrname):
+        """ Project finds Sample subclass in pipelines package. """
+        pass
+
+
+    def test_project_pipelines_dir_has_sample_subclass(self, subclass_attrname):
+        """ Project finds Sample subclass in optional pipelines_dir. """
+        pass
+
+
+    def test_sample_subclass_messaging(self, subclass_attrname):
+        """ Sample subclass seek process provides info about procedure. """
+        pass
 
 
 
@@ -168,7 +260,7 @@ class SampleRequirementsTests:
 @pytest.mark.parametrize(argnames="data_type", argvalues=[dict, Series])
 def test_exception_type_matches_access_mode(data_type, accessor):
     """ Exception for attribute access failure reflects access mode. """
-    data = {"sample_name": "placeholder"}
+    data = {SAMPLE_NAME_COLNAME: "placeholder"}
     sample = Sample(data_type(data))
     if accessor == "attr":
         with pytest.raises(AttributeError):
@@ -191,6 +283,7 @@ def test_exception_type_matches_access_mode(data_type, accessor):
         argnames="preexists", argvalues=[False, True],
         ids=lambda exists: "preexists={}".format(exists))
 def test_make_sample_dirs(paths, preexists, tmpdir):
+    """ Existence guarantee Sample instance's folders is safe and valid. """
 
     # Derive full paths and assure nonexistence before creation.
     fullpaths = []
@@ -202,7 +295,7 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
         fullpaths.append(fullpath)
 
     # Make the sample and assure paths preexistence.
-    s = Sample({"sample_name": "placeholder"})
+    s = Sample({SAMPLE_NAME_COLNAME: "placeholder"})
     s.paths = fullpaths
 
     # Base the test's initial condition on the parameterization.
