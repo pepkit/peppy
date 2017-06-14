@@ -387,10 +387,9 @@ def run(prj, args, remaining_args, interface_manager):
         sample_by_reason = aggregate_exec_skip_reasons(failures)
         _LOGGER.info("{} unique reasons for submission failure: {}".format(
                 len(sample_by_reason),
-                ", ".join(sample_by_reason.keys())))
-        _LOGGER.info("Per-sample submission failure count for each reason:")
-        for reason, samples in sample_by_reason.items():
-            _LOGGER.info("{}: {}".format(reason, samples))
+                list(sample_by_reason.keys())))
+        _LOGGER.info("Per-sample submission failure count for "
+                     "each reason: {}".format(sample_by_reason))
 
 
 
