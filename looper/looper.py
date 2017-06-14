@@ -215,12 +215,12 @@ def run(prj, args, remaining_args, interface_manager):
 
         # Don't submit samples with duplicate names.
         if sample.sample_name in processed_samples:
-            skip_reasons.append("Duplicate sample name.")
+            skip_reasons.append("Duplicate sample name")
 
         # Check if sample should be run.
         if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
             if sample[SAMPLE_EXECUTION_TOGGLE] != "1":
-                skip_reasons.append("Column '{}' deselected.".format(SAMPLE_EXECUTION_TOGGLE))
+                skip_reasons.append("Column '{}' deselected".format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
         if hasattr(sample, _read_type):
@@ -228,7 +228,7 @@ def run(prj, args, remaining_args, interface_manager):
             sample.read_type = re.sub(
                     '[_\\-]?end$', '', str(sample.read_type)).lower()
             if sample.read_type not in valid_read_types:
-                skip_reasons.append("{} must be in {}.".\
+                skip_reasons.append("{} must be in {}".\
                     format(_read_type, valid_read_types))
 
         # Get the base protocol-to-pipeline mappings
@@ -237,9 +237,9 @@ def run(prj, args, remaining_args, interface_manager):
             pipelines = interface_manager.build_pipelines(protocol)
             if len(pipelines) == 0:
                 skip_reasons.append(
-                        "No pipeline found for protocol {}.".format(protocol))
+                        "No pipeline found for protocol {}".format(protocol))
         else:
-            skip_reasons.append("Missing '{}' attribute.".format(_protocol))
+            skip_reasons.append("Missing '{}' attribute".format(_protocol))
 
 
         if skip_reasons:
@@ -270,7 +270,7 @@ def run(prj, args, remaining_args, interface_manager):
                         pipeline_interface, pipeline_name=pipeline_key)
             except AttributeError:
                 # TODO: inform about WHICH missing attribute(s).
-                fail_message = "Pipeline required attribute(s) missing."
+                fail_message = "Pipeline required attribute(s) missing"
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
 
@@ -280,7 +280,7 @@ def run(prj, args, remaining_args, interface_manager):
                 sample.confirm_required_inputs()
             except IOError:
                 # TODO: inform about WHICH missing file(s).
-                fail_message = "Required input file(s) not found."
+                fail_message = "Required input file(s) not found"
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
 
@@ -308,7 +308,7 @@ def run(prj, args, remaining_args, interface_manager):
             except AttributeError:
                 # TODO: inform about which missing attribute(s).
                 fail_message = "Required attribute(s) missing " \
-                               "for pipeline arguments string."
+                               "for pipeline arguments string"
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
 
@@ -384,13 +384,13 @@ def run(prj, args, remaining_args, interface_manager):
 
     if failures:
         _LOGGER.info("%d sample(s) with submission failure.", len(failures))
-        sample_count_pairs_by_reason = aggregate_exec_skip_reasons(failures)
+        sample_by_reason = aggregate_exec_skip_reasons(failures)
         _LOGGER.info("{} unique reasons for submission failure: {}".format(
-                len(sample_count_pairs_by_reason),
-                sample_count_pairs_by_reason.keys()))
+                len(sample_by_reason),
+                ", ".join(sample_by_reason.keys())))
         _LOGGER.info("Per-sample submission failure count for each reason:")
-        for reason, sample_nfail_pairs in sample_count_pairs_by_reason.items():
-            _LOGGER.info("> {}: {}".format(reason, sample_nfail_pairs))
+        for reason, samples in sample_by_reason.items():
+            _LOGGER.info("{}: {}".format(reason, samples))
 
 
 
@@ -792,6 +792,8 @@ def main():
         args.config_file, args.subproject,
         file_checks=args.file_checks,
         compute_env_file=getattr(args, 'env', None))
+    prj.add_sample_sheet()
+    prj.finalize_pipelines_directory()
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
 
@@ -810,9 +812,14 @@ def main():
 
         if len(pipedirs) == 0:
             _LOGGER.error("Looper requires a metadata.pipelines_dir")   
-            raise AttributeError         
+            raise AttributeError("Project metadata has an empty "
+                                 "collection of pipeline locations.")
 
         interface_manager = InterfaceManager(prj.metadata.pipelines_dir)
+        if not interface_manager.ifproto_by_proto_name:
+            _LOGGER.error("Empty interface manager. Does your project point "
+                          "at least one pipelines location that exists?")
+            return
         try:
             run(prj, args, remaining_args, interface_manager=interface_manager)
         except IOError:

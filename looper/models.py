@@ -440,9 +440,6 @@ class Project(AttributeDict):
         # and adds default derived columns.
         self.sheet = None
         self.samples = list()
-        self.add_sample_sheet()
-
-        self.finalize_pipelines_directory()
 
 
     @property
@@ -874,7 +871,7 @@ class Project(AttributeDict):
             return pipeline_argtext
 
 
-    def add_sample_sheet(self, csv=None):
+    def add_sample_sheet(self, csv=None, sample_builder=None):
         """
         Build a `SampleSheet` object from a csv file and
         add it and its samples to the project.
@@ -894,7 +891,7 @@ class Project(AttributeDict):
 
         # Generate sample objects from annotation sheet.
         _LOGGER.debug("Creating samples from annotation sheet")
-        self.sheet.make_samples()
+        self.sheet.make_samples(sample_builder)
 
         # Add samples to Project
         for sample in self.sheet.samples:
@@ -1089,17 +1086,17 @@ class SampleSheet(object):
         return text.lower() if lower else text.upper()
 
 
-    def make_samples(self):
+    def make_samples(self, sample_builder=None):
         """
         Create samples (considering library) from annotation sheet,
         and add them to the project.
         """
-        create_sample = self.find_sample_subtypes()
+        create_sample = sample_builder or self._find_sample_subtypes()
         for _, row in self.df.iterrows():
             self.samples.append(create_sample(row.dropna()))
 
 
-    def find_sample_subtypes(self):
+    def _find_sample_subtypes(self):
         """
         Determine how to create Sample instances.
 
@@ -1161,6 +1158,46 @@ class SampleSheet(object):
                     return Sample(data)
 
         return make_sample
+
+
+
+    def protocol_to_subclass(self):
+        try:
+            import pipelines  # Use a pipelines package if installed.
+        except ImportError:
+            # pipelines_dir is optional.
+            pipeline_dirpaths = getattr(
+                    self.prj.metadata, "pipelines_dir", None)
+
+            if not pipeline_dirpaths:
+                _LOGGER.debug("No pipelines directories to add to import path")
+                return None
+
+            if isinstance(pipeline_dirpaths, str):
+                pipeline_dirpaths = [pipeline_dirpaths]
+            sys.path.extend(pipeline_dirpaths)
+            _LOGGER.debug(
+                "Added {} pipelines path(s) to sys.path: {}".
+                    format(len(pipeline_dirpaths), pipeline_dirpaths))
+
+            try:
+                import pipelines
+            except ImportError:
+                _LOGGER.debug("Could not import pipelines")
+                return None
+
+        _LOGGER.debug("Successfully imported pipelines")
+
+        # Get all pipelines package Sample subclasses.
+        import inspect
+        from utils import fetch_package_classes
+        sample_types = fetch_package_classes(pipelines,
+                lambda maybe_class: inspect.isclass(maybe_class)
+                                    and issubclass(maybe_class, Sample))
+
+        # TODO: perhaps modify or alter handling of need for __library__.
+        return {self.alpha_cased(sample_class.__library__): sample_class
+                for sample_type, sample_class in sample_types}
 
 
     def as_data_frame(self):
@@ -2058,7 +2095,8 @@ class InterfaceManager(object):
     def __init__(self, pipeline_dirs):
         # Collect interface/mappings pairs by protocol name.
         interfaces_and_protocols = \
-                [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs]
+                [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs
+                 if _os.path.exists(pipedir)]
         self.ifproto_by_proto_name = defaultdict(list)
         for ifproto in interfaces_and_protocols:
             for proto_name in ifproto.protomap:
@@ -2187,6 +2225,9 @@ class ProtocolInterfaces:
             except Exception as e:
                 _LOGGER.error(str(iface))
                 raise e
+        else:
+            raise ValueError("Alleged pipelines location '{}' exists neither "
+                             "as a file nor as a folder.".format(pipedir))
 
 
     def pipeline_key_to_path(self, pipeline_key):

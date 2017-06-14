@@ -25,8 +25,12 @@ DEV_LOGGING_FMT = "%(module)s:%(lineno)d [%(levelname)s] > %(message)s "
 
 def setup_looper_logger(level, additional_locations=None, devmode=False):
     """
-    Called by test configuration via `pytest`'s `conftest`.
-    All arguments are optional and have suitable defaults.
+    Establish a logger for a looper CLI program.
+
+    This configures a logger to provide information about a looper program's
+    execution. Verbosity, destination(s) for messages, and message text
+    format are controlled by the arguments' values. This is also used by
+    looper's test suite.
 
     :param int | str level: logging level
     :param tuple(str | FileIO[str]) additional_locations: supplementary
