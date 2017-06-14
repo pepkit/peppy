@@ -211,7 +211,7 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
                 iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
                 merge_table_lines = MERGE_TABLE_LINES,
                 sample_annotation_lines=SAMPLE_ANNOTATION_LINES,
-                project_kwargs=None):
+                loglevel=logging.DEBUG, project_kwargs=None):
     """
     Create Project and PipelineInterface instances from default or given data.
 
@@ -227,9 +227,19 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
         table file
     :param collections.Iterable[str] sample_annotation_lines: lines for a
         sample annotations file
+    :param str | int loglevel: level at which to attend to log messages
     :param dict project_kwargs: keyword arguments for Project constructor
     :return Project, PipelineInterface: one Project and one PipelineInterface,
     """
+
+    # Establish logging for interactive session
+    import logging, sys
+    h = logging.StreamHandler(sys.stdout)
+    h.setLevel(loglevel)
+    logging.root.setLevel(loglevel)
+    logging.root.addHandler(h)
+
+
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(

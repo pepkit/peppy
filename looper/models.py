@@ -1091,11 +1091,10 @@ class SampleSheet(object):
 
     def make_samples(self):
         """
-        Create samples from annotation sheet (considering library), 
-        and them to the project.
+        Create samples (considering library) from annotation sheet,
+        and add them to the project.
         """
 
-        found_pipelines = False
         try:
             import pipelines  # Use a pipelines package if installed.
         except ImportError:
@@ -1109,20 +1108,24 @@ class SampleSheet(object):
                 _LOGGER.debug(
                     "Added {} pipelines path(s) to sys.path: {}".
                         format(len(pipeline_dirpaths), pipeline_dirpaths))
+            else:
+                _LOGGER.debug("No pipelines directories to add to import path")
             try:
                 import pipelines
             except ImportError:
-                pass
+                found_pipelines = False
             else:
                 found_pipelines = True
         else:
             found_pipelines = True
 
         if not found_pipelines:
+            _LOGGER.debug("Could not import pipelines")
             # Just return a basic Sample for each of the sheet's rows.
             def make_sample(data):
                 return Sample(data)
         else:
+            _LOGGER.debug("Successfully imported pipelines")
             # Attempt creation of Sample subtype specific to protocol.
 
             # Get all pipelines package Sample subclasses.
