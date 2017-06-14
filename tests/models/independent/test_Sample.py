@@ -17,10 +17,14 @@ __email__ = "vreuter@virginia.edu"
 
 def pytest_generate_tests(metafunc):
     """ Customization of this module's test cases. """
-    if metafunc.cls == CustomSampleTests and \
-                "subclass_attrname" in metafunc.fixturenames:
-        metafunc.parametrize(argnames="subclass_attrname",
-                             argvalues=["library", "protocol"])
+    if metafunc.cls == CustomSampleTests:
+        if "subclass_attrname" in metafunc.fixturenames:
+            metafunc.parametrize(argnames="subclass_attrname",
+                                 argvalues=["library", "protocol"])
+        if "pipelines_type" in metafunc.fixturenames:
+            metafunc.parametrize(argnames="pipelines_type",
+                                 argvalues=["module", "package"])
+
 
 
 
@@ -168,14 +172,8 @@ class SampleRequirementsTests:
                 Sample(data_type(data))
 
 
-from looper.models import Sample
-class DummySampleSubclass(Sample):
-    """ Subclass shell to test ability of Project to find Sample subclass. """
-    __library__ = "arbitrary"
-    pass
 
-
-
+@pytest.mark.skip("Not implemented")
 class CustomSampleTests:
     """ Bespoke Sample creation tests. """
 
@@ -198,7 +196,8 @@ class CustomSampleTests:
             with open(init_file, 'w') as f:
                 pass
             module_file = tempfile.NamedTemporaryFile(dir=pipe_path, suffix=".py", delete=False)
-            with open(module_file, 'w') as modfile:
+            module_file.close()
+            with open(module_file.name, 'w') as modfile:
                 # TODO: write out definition.
                 pass
         else:
@@ -236,19 +235,20 @@ class CustomSampleTests:
         pass
 
 
-    @pytest.mark.parametrize(
-            argnames="pipelines_type", argvalues=["module", "package"])
-    def test_raw_pipelines_import_has_sample_subclass(self, subclass_attrname):
+    def test_raw_pipelines_import_has_sample_subclass(
+            self, pipelines_type, subclass_attrname):
         """ Project finds Sample subclass in pipelines package. """
         pass
 
 
-    def test_project_pipelines_dir_has_sample_subclass(self, subclass_attrname):
+    def test_project_pipelines_dir_has_sample_subclass(
+            self, pipelines_type, subclass_attrname):
         """ Project finds Sample subclass in optional pipelines_dir. """
         pass
 
 
-    def test_sample_subclass_messaging(self, subclass_attrname):
+    def test_sample_subclass_messaging(
+            self, pipelines_type, subclass_attrname):
         """ Sample subclass seek process provides info about procedure. """
         pass
 

@@ -403,7 +403,7 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     :return Mapping[str, Iterable[str]]: mapping from explanation to 
         collection of names of samples to which it pertains
     """
-    from collections import Counter, defaultdict
+    from collections import defaultdict
     samples_by_skip_reason = defaultdict(list)
     for skip_reasons, sample in skip_reasons_sample_pairs:
         for reason in set(skip_reasons):
@@ -802,22 +802,17 @@ def main():
 
         # TODO split here, spawning separate run process for each
         # pipelines directory in project metadata pipelines directory.
-        try:
-            pipedirs = prj.metadata.pipelines_dir
-            _LOGGER.info("Pipelines path(s): {}".format(pipedirs))
-        except AttributeError:
-            _LOGGER.error("Looper requires a metadata.pipelines_dir")
-            raise
 
-        if len(pipedirs) == 0:
-            _LOGGER.error("Looper requires a metadata.pipelines_dir")   
-            raise AttributeError("Project metadata has an empty "
-                                 "collection of pipeline locations.")
+        if not hasattr(prj.metadata, "pipelines_dir") or \
+                        len(prj.metadata.pipelines_dir) == 0:
+            raise AttributeError(
+                    "Looper requires at least one pipeline(s) location.")
 
         interface_manager = InterfaceManager(prj.metadata.pipelines_dir)
         if not interface_manager.ifproto_by_proto_name:
-            _LOGGER.error("Empty interface manager. Does your project point "
-                          "at least one pipelines location that exists?")
+            _LOGGER.error(
+                    "The interface manager is empty. Does your project point "
+                    "to at least one pipelines location that exists?")
             return
         try:
             run(prj, args, remaining_args, interface_manager=interface_manager)
