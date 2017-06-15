@@ -358,7 +358,7 @@ class Project(AttributeDict):
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None):
 
-        _LOGGER.info("Creating %s from file: '%s'",
+        _LOGGER.debug("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
         super(Project, self).__init__()
 
@@ -413,7 +413,7 @@ class Project(AttributeDict):
         self.config_file = _os.path.abspath(config_file)
 
         # Parse config file
-        _LOGGER.info("Parsing %s config file", self.__class__.__name__)
+        _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
         if subproject:
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
@@ -634,9 +634,10 @@ class Project(AttributeDict):
                     " pipeline_interfaces. See docs for details.")
             if "pipeline_interfaces" in self.metadata:
                 if "pipelines_dir" in self.metadata:
-                    _LOGGER.error("You defined both 'pipeline_interfaces' and"
-                    " 'pipelines_dir'. Please remove your 'pipelines_dir' definition.")
-                    raise AttributeError("Extra pipelines_dir attribute.")
+                    raise AttributeError(
+                            "You defined both 'pipeline_interfaces' and "
+                            "'pipelines_dir'. Please remove your "
+                            "'pipelines_dir' definition.")
                 else:
                     self.metadata.pipelines_dir = self.metadata.pipeline_interfaces
 
