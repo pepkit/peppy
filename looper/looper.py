@@ -350,10 +350,10 @@ def run(prj, args, remaining_args, interface_manager):
                             cmd += " -C " + pl_config_file
 
                 cmd += " -O " + prj.metadata.results_subdir
-                if submit_settings.setdefault("cores", 1) > 1:
+                if int(submit_settings.setdefault("cores", 1)) > 1:
                     cmd += " -P " + submit_settings["cores"]
                 try:
-                    if submit_settings["mem"] > 1:
+                    if float(submit_settings["mem"]) > 1:
                         cmd += " -M " + submit_settings["mem"]
                 except KeyError:
                     _LOGGER.warn("Submission settings "
