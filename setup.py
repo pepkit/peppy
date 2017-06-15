@@ -14,7 +14,8 @@ with open("requirements/requirements-all.txt", "r") as reqs_file:
     for line in reqs_file:
         if not line.strip():
             continue
-        DEPENDENCIES.append(line.split("=")[0].rstrip("<>"))
+        #DEPENDENCIES.append(line.split("=")[0].rstrip("<>"))
+        DEPENDENCIES.append(line)
 
 # numexpr for pandas
 try:
