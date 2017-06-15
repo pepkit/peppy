@@ -624,6 +624,27 @@ class Project(AttributeDict):
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
 
+        # In looper 0.6, we added pipeline_interfaces to metadata
+        # For backwards compatibility, merge it with pipelines_dir
+
+        if "metadata" in config:
+            if "pipelines_dir" in self.metadata:
+                _LOGGER.warning("Looper v0.6 suggests "
+                    "switching from pipelines_dir to "
+                    " pipeline_interfaces. See docs for details.")
+            if "pipeline_interfaces" in self.metadata:
+                if "pipelines_dir" in self.metadata:
+                    _LOGGER.error("You defined both 'pipeline_interfaces' and"
+                    " 'pipelines_dir'. Please remove your 'pipelines_dir' definition.")
+                    raise AttributeError("Extra pipelines_dir attribute.")
+                else:
+                    self.metadata.pipelines_dir = self.metadata.pipeline_interfaces
+
+                _LOGGER.debug("Adding pipeline_interfaces to "
+                    "pipelines_dir. New value: {}".
+                    format(self.metadata.pipelines_dir))
+
+
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
             if var not in self.metadata:
