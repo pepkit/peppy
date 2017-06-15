@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 
 import os
+from setuptools import setup
 import sys
 
 
 # Additional keyword arguments for setup().
 extra = {}
 
+# Ordinary dependencies
 DEPENDENCIES = []
 with open("requirements/requirements-all.txt", "r") as reqs_file:
     for line in reqs_file:
@@ -14,14 +16,20 @@ with open("requirements/requirements-all.txt", "r") as reqs_file:
             continue
         DEPENDENCIES.append(line.split("=")[0].rstrip("<>"))
 
+# numexpr for pandas
 try:
-    from setuptools import setup
-    if sys.version_info >= (3,):
-        extra["use_2to3"] = True
-    extra["install_requires"] = DEPENDENCIES
+    import numexpr
 except ImportError:
-    from distutils.core import setup
-    extra["requires"] = DEPENDENCIES
+    # No numexpr is OK for pandas.
+    pass
+else:
+    # pandas 0.20.2 needs updated numexpr; the claim is 2.4.6, but that failed.
+    DEPENDENCIES.append("numexpr==2.6.2")
+
+# 2to3
+if sys.version_info >= (3, ):
+    extra["use_2to3"] = True
+extra["install_requires"] = DEPENDENCIES
 
 
 # Additional files to include with package
@@ -64,9 +72,7 @@ setup(
     package_data={'looper': ['submit_templates/*']},
     include_package_data=True,
     test_suite="tests",
-    tests_require=["mock", "pytest"],
-    setup_requires=(["pytest-runner"]
-                    if {"ptr", "test", "pytest"} & set(sys.argv)
-                    else []),
+    tests_require=(["mock", "pytest"]),
+    setup_requires=(["pytest-runner"] if {"test", "pytest", "ptr"} & set(sys.argv) else []),
     **extra
 )
