@@ -1177,6 +1177,7 @@ class SampleSheet(object):
                 try:
                     return pairing[self.alpha_cased(data.library)](data)
                 except (AttributeError, KeyError):
+                    _LOGGER.debug("Error making child subclass")
                     return Sample(data)
 
         return make_sample
