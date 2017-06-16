@@ -1171,6 +1171,10 @@ class SampleSheet(object):
                     lambda maybe_class: inspect.isclass(maybe_class)
                                         and issubclass(maybe_class, Sample))
 
+            _LOGGER.debug("Sample subtypes: %s",
+                          ", ".join([subtype.__name__
+                                     for subtype in sample_types]))
+
             # TODO: perhaps modify or alter handling of need for __library__.
             pairing = {self.alpha_cased(sample_class.__library__): sample_class
                        for sample_type, sample_class in sample_types}
