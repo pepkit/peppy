@@ -106,8 +106,11 @@ def is_url(maybe_url):
 class Paths(object):
     """ A class to hold paths as attributes. """
 
-    def __str__(self):
-        return "Paths object."
+    def __getitem__(self, key):
+        """
+        Provides dict-style access to attributes
+        """
+        return getattr(self, key)
 
     def __iter__(self):
         """
@@ -120,11 +123,8 @@ class Paths(object):
         """
         return iter(self.__dict__.values())
 
-    def __getitem__(self, key):
-        """
-        Provides dict-style access to attributes
-        """
-        return getattr(self, key)
+    def __str__(self):
+        return "Paths object."
 
 
 
@@ -307,6 +307,26 @@ class AttributeDict(MutableMapping):
 
 
 
+def process_pipeline_interfaces(pipeline_interface_locations):
+    """
+    
+    :param pipeline_interface_locations: 
+    :return: 
+    """
+    ifproto_by_proto_name = defaultdict(list)
+    for pipe_iface_location in pipeline_interface_locations:
+        if not _os.path.exists(pipe_iface_location):
+            _LOGGER.warn("Ignoring nonexistent pipeline interface "
+                         "location '%s'", pipe_iface_location)
+            continue
+        proto_iface = ProtocolInterface(pipe_iface_location)
+        for proto_name in proto_iface.protomap:
+            _LOGGER.debug("Protocol name: {}".format(proto_name))
+            ifproto_by_proto_name[proto_name].append(proto_iface)
+    return ifproto_by_proto_name
+
+
+
 @copy
 class Project(AttributeDict):
     """
@@ -361,8 +381,6 @@ class Project(AttributeDict):
         _LOGGER.debug("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
         super(Project, self).__init__()
-
-        default_compute = default_compute or self.default_cmpenv_file
 
         # Initialize local, serial compute as default (no cluster submission)
         # Start with default environment settings.
@@ -435,36 +453,64 @@ class Project(AttributeDict):
         except AttributeError:
             self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
 
-        # Sheet will be set to non-null value by call to add_sample_sheet().
-        # That call also sets the samples (list) attribute for the instance
-        # and adds default derived columns.
-        self.sheet = None
-        self.samples = list()
+        # SampleSheet creation populates project's samples, adds the
+        # sheet itself, and adds any derived columns.
+        self.interfaces_by_protocol = \
+                process_pipeline_interfaces(self.metadata.pipelines_dir)
+        self.sheet = check_sheet(self.metadata.sample_annotation)
+        self.finalize_pipelines_directory()
 
-        self.add_sample_sheet()
-
-
-    @property
-    def default_cmpenv_file(self):
-        """ Path to default compute environment settings file. """
-        return _os.path.join(
-                self.templates_folder, "default_compute_settings.yaml")
-
-
-    @property
-    def templates_folder(self):
-        return _os.path.join(_os.path.dirname(__file__), "submit_templates")
+        # Defer Sample creation until needed.
+        self._samples_by_pipeline = {}
 
 
     @property
     def compute_env_var(self):
         """
         Environment variable through which to access compute settings.
-        
-        :return str: name of the environment variable to pointing to 
+
+        :return str: name of the environment variable to pointing to
             compute settings
         """
         return COMPUTE_SETTINGS_VARNAME
+
+
+    @property
+    def default_compute_envfile(self):
+        """ Path to default compute environment settings file. """
+        return _os.path.join(
+                self.templates_folder, "default_compute_settings.yaml")
+
+
+    @property
+    def output_dir(self):
+        """
+        Directory in which to place results and submissions folders.
+
+        By default, assume that the project's configuration file specifies
+        an output directory, and that this is therefore available within
+        the project metadata. If that assumption does not hold, though,
+        consider the folder in which the project configuration file lives
+        to be the project's output directory.
+
+        :return str: path to the project's output directory, either as
+            specified in the configuration file or the folder that contains
+            the project's configuration file.
+        """
+        try:
+            return self.metadata.output_dir
+        except AttributeError:
+            return _os.path.dirname(self.config_file)
+
+
+    @property
+    def project_folders(self):
+        """
+        Names of folders to nest within a project output directory.
+
+        :return Iterable[str]: names of output-nested folders
+        """
+        return ["results_subdir", "submission_subdir"]
 
 
     @property
@@ -483,34 +529,51 @@ class Project(AttributeDict):
 
 
     @property
-    def project_folders(self):
-        """
-        Names of folders to nest within a project output directory.
-        
-        :return Iterable[str]: names of output-nested folders
-        """
-        return ["results_subdir", "submission_subdir"]
+    def sample_names(self):
+        """ Names of samples of which this Project is aware. """
+        return iter(self.sheet[SAMPLE_NAME_COLNAME])
+
 
 
     @property
-    def output_dir(self):
+    def samples(self):
+        if self._samples is None:
+            self.create_base_samples()
+        return self._samples
+
+
+    def samples_for(self, pipeline=None):
         """
-        Directory in which to place results and submissions folders.
-        
-        By default, assume that the project's configuration file specifies
-        an output directory, and that this is therefore available within 
-        the project metadata. If that assumption does not hold, though, 
-        consider the folder in which the project configuration file lives 
-        to be the project's output directory. 
-        
-        :return str: path to the project's output directory, either as 
-            specified in the configuration file or the folder that contains
-            the project's configuration file.
+        Fetch each of this Project's Sample objects for given pipeline.
+
+        If Sample objects have not yet been created for this Project, create
+        them as needed. What is needed and what is returned are determined by
+        the argument to the pipeline parameter. If no argument is provided as
+        the desired pipeline, it's assumed that the desire is for all possible
+        Sample objects to be created and return based on the samples that and
+        pipelines of which this Project is aware, and the relationships
+        between them.
+
+        :param str pipeline: name of pipeline for which to fetch samples
+        :return Iterable[Sample]:
         """
-        try:
-            return self.metadata.output_dir
-        except AttributeError:
-            return _os.path.dirname(self.config_file)
+        if not self._samples_by_pipeline:
+            # TODO: also ensure that case of unknown pipeline is covered here.
+            self.create_samples(pipeline)
+        if pipeline is None:
+            return list(itertools.chain(*self._samples_by_pipeline.values()))
+        else:
+            try:
+                return self._samples_by_pipeline[pipeline]
+            except KeyError:
+                _LOGGER.error("Unknown pipeline: '%s'", pipeline)
+                return []
+
+
+    @property
+    def templates_folder(self):
+        """ Path to folder with default submission templates. """
+        return _os.path.join(_os.path.dirname(__file__), "submit_templates")
 
 
     @staticmethod
@@ -529,27 +592,112 @@ class Project(AttributeDict):
         return config_folder
 
 
-    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
-        """ Default environment settings aren't required; warn, though. """
-        missing_env_attrs = \
-            [attr for attr in ["environment", "environment_file"]
-             if not hasattr(self, attr) or getattr(self, attr) is None]
-        if not missing_env_attrs:
+    def build_pipelines(self, protocol, priority=True):
+        """
+        
+        
+        :param str protocol: 
+        :param bool priority: 
+        :return: 
+        """
+        
+        try:
+            protocol_interfaces = self.interfaces_by_protocol[protocol]
+        except KeyError:
+            _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
+            return []
+
+        jobs = []
+        pipeline_keys_used = set()
+        _LOGGER.debug("Building pipelines for {} PIs...".
+                      format(len(protocol_interfaces)))
+        for proto_iface in protocol_interfaces:
+            try:
+                this_protocol_pipelines = \
+                        proto_iface.protomap.mappings[protocol]
+            except KeyError:
+                _LOGGER.debug("Protocol '%s' lacks a mapping", protocol)
+                continue
+            
+            # TODO: update once dependency-encoding logic is in place.
+            _LOGGER.debug("Protocol: {}".format(protocol))
+            pipeline_keys = this_protocol_pipelines.replace(";", ",")\
+                                                  .strip(" ()\n")\
+                                                  .split(",")
+            pipeline_keys = [pk.strip() for pk in pipeline_keys]
+            already_mapped, new_scripts = \
+                    partition(pipeline_keys,
+                              partial(_is_member, items=pipeline_keys_used))
+            pipeline_keys_used |= set(pipeline_keys)
+
+            # Attempt to validate that partition yielded disjoint subsets.
+            try:
+                disjoint_partition_violation = \
+                        set(already_mapped) & set(new_scripts)
+            except TypeError:
+                _LOGGER.debug("Cannot validate partition")
+            else:
+                assert not disjoint_partition_violation, \
+                        "Partitioning {} with membership in {} as " \
+                        "predicate produced intersection: {}".format(
+                        pipeline_keys, pipeline_keys_used, 
+                        disjoint_partition_violation)
+
+            _LOGGER.debug("Skipping {} already-mapped script names: {}".
+                          format(len(already_mapped),
+                                 ", ".join(already_mapped)))
+            _LOGGER.debug("{} new scripts for protocol {} from "
+                          "pipelines warehouse '{}': {}".
+                          format(len(new_scripts), protocol,
+                                 proto_iface.pipedir, ", ".join(new_scripts)))
+
+            jobs.append([(proto_iface.interface, ) +
+                         proto_iface.pipeline_key_to_path(pipeline_key)
+                         for pipeline_key in pipeline_keys])
+
+        return jobs[0] if priority and len(jobs) > 1 else \
+                list(itertools.chain(*jobs))
+
+
+    def create_base_samples(self):
+        pass
+
+
+    def create_samples(self, pipeline=None):
+        """
+        Create Samples for this Project, for a particular pipeline if given.
+
+        If Sample(s) already exist for the given pipeline, nothing is done.
+        This ensures creation work isn't duplicated but assumes that samples
+        are not added to a project after it's constructed, or at least not
+        for a type for which Sample objects have already been created.
+
+        :param str pipeline: name of pipeline for which to create Samples
+        """
+        if self.merge_table is None:
+            try:
+                if _os.path.isfile(self.metadata.merge_table):
+                    self.merge_table = _pd.read_table(
+                            self.metadata.merge_table,
+                            sep=None, engine="python")
+                else:
+                    _LOGGER.debug("Alleged merge_table file does not exist: "
+                                  "'%s'", self.metadata.merge_table)
+            except AttributeError:
+                _LOGGER.debug("No merge table")
+        if pipeline in self._samples_by_pipeline:
+            _LOGGER.debug("Sample(s) already exist for pipeline '%s'",
+                          pipeline)
             return
-        message = "'{}' lacks environment attributes: {}".\
-                format(env_settings_file, missing_env_attrs)
-        if when_missing is None:
-            _LOGGER.warn(message)
-        else:
-            when_missing(message)
+
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
         Finalize the establishment of a path to this project's pipelines.
-        
-        With the passed argument, override anything already set. 
-        Otherwise, prefer path provided in this project's config, then 
+
+        With the passed argument, override anything already set.
+        Otherwise, prefer path provided in this project's config, then
         local pipelines folder, then a location set in project environment.
 
         :param str pipe_path: (absolute) path to pipelines
@@ -583,6 +731,64 @@ class Project(AttributeDict):
             pipe_path = []
 
         self.metadata.pipelines_dir = pipe_path
+
+
+    def get_arg_string(self, pipeline_name):
+        """
+        For this project, given a pipeline, return an argument string
+        specified in the project config file.
+        """
+
+        def make_optarg_text(opt, arg):
+            """ Transform flag/option into CLI-ready text version. """
+            return "{} {}".format(opt, _os.path.expandvars(arg)) \
+                    if arg else opt
+
+        def create_argtext(name):
+            """ Create command-line argstring text from config section. """
+            try:
+                optargs = getattr(self.pipeline_args, name)
+            except AttributeError:
+                return ""
+            # NS using __dict__ will add in the metadata from AttrDict (doh!)
+            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
+            optargs_texts = [make_optarg_text(opt, arg)
+                             for opt, arg in optargs.items()]
+            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
+            # TODO: may need to fix some spacing issues here.
+            return " ".join(optargs_texts)
+
+        default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
+        pipeline_argtext = create_argtext(pipeline_name)
+
+        if not pipeline_argtext:
+            # The project config may not have an entry for this pipeline;
+            # no problem! There are no pipeline-specific args. Return text
+            # from default arguments, whether empty or not.
+            return default_argtext
+        elif default_argtext:
+            # Non-empty pipeline-specific and default argtext
+            return " ".join([default_argtext, pipeline_argtext])
+        else:
+            # No default argtext, but non-empty pipeline-specific argtext
+            return pipeline_argtext
+
+
+    def make_project_dirs(self):
+        """
+        Creates project directory structure if it doesn't exist.
+        """
+        for folder_name in self.project_folders:
+            folder_path = self.metadata[folder_name]
+            _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
+            if not _os.path.exists(folder_path):
+                _LOGGER.debug("Attempting to create project folder: '%s'",
+                              folder_path)
+                try:
+                    _os.makedirs(folder_path)
+                except OSError as e:
+                    _LOGGER.warn("Could not create project folder: '%s'",
+                                 str(e))
 
 
     def parse_config_file(self, subproject=None):
@@ -724,92 +930,13 @@ class Project(AttributeDict):
                     path_config_file=self.config_file)
 
 
-    def _ensure_absolute(self, maybe_relpath):
-        _LOGGER.debug("Ensuring absolute: '%s'", maybe_relpath)
-        if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.debug("Already absolute")
-            return maybe_relpath
-        # Maybe we have env vars that make the path absolute?
-        expanded = _os.path.expandvars(maybe_relpath)
-        _LOGGER.debug("Expanded: '%s'", expanded)
-        if _os.path.isabs(expanded):
-            _LOGGER.debug("Expanded is absolute")
-            return expanded
-        _LOGGER.debug("Making non-absolute path '%s' be absolute",
-                      maybe_relpath)
-        # Set path to an absolute path, relative to project config.
-        config_dirpath = _os.path.dirname(self.config_file)
-        _LOGGER.debug("config_dirpath: %s", config_dirpath)
-        abs_path = _os.path.join(config_dirpath, maybe_relpath)
-        return abs_path
+    def pipelines_by_sample(self):
+        pass
 
 
-    def update_environment(self, env_settings_file):
-        """
-        Parse data from environment configuration file.
+    def samples_by_pipeline(self):
+        pass
 
-        :param str env_settings_file: path to file with 
-            new environment configuration data
-        """
-        if not env_settings_file:
-            return
-
-        with open(env_settings_file, 'r') as handle:
-            _LOGGER.info("Loading %s: %s",
-                         self.compute_env_var, env_settings_file)
-            env_settings = yaml.load(handle)
-            _LOGGER.debug("Parsed environment settings: %s",
-                          str(env_settings))
-
-            # Any compute.submission_template variables should be made
-            # absolute, relative to current environment settings file.
-            y = env_settings["compute"]
-            for key, value in y.items():
-                if type(y[key]) is dict:
-                    for key2, value2 in y[key].items():
-                        if key2 == "submission_template":
-                            if not _os.path.isabs(y[key][key2]):
-                                y[key][key2] = _os.path.join(
-                                        _os.path.dirname(env_settings_file),
-                                        y[key][key2])
-
-            env_settings["compute"] = y
-            if self.environment is None:
-                self.environment = AttributeDict(env_settings)
-            else:
-                self.environment.add_entries(env_settings)
-
-        self.environment_file = env_settings_file
-
-
-    def make_project_dirs(self):
-        """
-        Creates project directory structure if it doesn't exist.
-        """
-        for folder_name in self.project_folders:
-            folder_path = self.metadata[folder_name]
-            _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
-            if not _os.path.exists(folder_path):
-                _LOGGER.debug("Attempting to create project folder: '%s'",
-                              folder_path)
-                try:
-                    _os.makedirs(folder_path)
-                except OSError as e:
-                    _LOGGER.warn("Could not create project folder: '%s'",
-                                 str(e))
-
-
-    def set_project_permissions(self):
-        """
-        Makes the project's public_html folder executable.
-        """
-        for d in [self.trackhubs.trackhub_dir]:
-            try:
-                _os.chmod(d, 0o0755)
-            except OSError:
-                # This currently does not fail now
-                # ("cannot change folder's mode: %s" % d)
-                continue
 
 
     def set_compute(self, setting):
@@ -854,45 +981,52 @@ class Project(AttributeDict):
         return False
 
 
-    def get_arg_string(self, pipeline_name):
+    def set_project_permissions(self):
         """
-        For this project, given a pipeline, return an argument string
-        specified in the project config file.
+        Make the project's public_html folder executable.
+        """
+        try:
+            _os.chmod(self.trackhubs.trackhub_dir, 0o0755)
+        except OSError:
+            # This currently does not fail now
+            # ("cannot change folder's mode: %s" % d)
+            pass
+
+
+    def update_environment(self, env_settings_file):
+        """
+        Parse data from environment configuration file.
+
+        :param str env_settings_file: path to file with 
+            new environment configuration data
         """
 
-        def make_optarg_text(opt, arg):
-            """ Transform flag/option into CLI-ready text version. """
-            return "{} {}".format(opt, _os.path.expandvars(arg)) \
-                    if arg else opt
+        with open(env_settings_file or self.default_compute_envfile, 'r') as f:
+            _LOGGER.info("Loading %s: %s",
+                         self.compute_env_var, env_settings_file)
+            env_settings = yaml.load(f)
+            _LOGGER.debug("Parsed environment settings: %s",
+                          str(env_settings))
 
-        def create_argtext(name):
-            """ Create command-line argstring text from config section. """
-            try:
-                optargs = getattr(self.pipeline_args, name)
-            except AttributeError:
-                return ""
-            # NS using __dict__ will add in the metadata from AttrDict (doh!)
-            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
-            optargs_texts = [make_optarg_text(opt, arg)
-                             for opt, arg in optargs.items()]
-            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
-            # TODO: may need to fix some spacing issues here.
-            return " ".join(optargs_texts)
+            # Any compute.submission_template variables should be made
+            # absolute, relative to current environment settings file.
+            y = env_settings["compute"]
+            for key, value in y.items():
+                if type(y[key]) is dict:
+                    for key2, value2 in y[key].items():
+                        if key2 == "submission_template":
+                            if not _os.path.isabs(y[key][key2]):
+                                y[key][key2] = _os.path.join(
+                                        _os.path.dirname(env_settings_file),
+                                        y[key][key2])
 
-        default_argtext, pipeline_argtext = \
-                create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME), create_argtext(pipeline_name)
+            env_settings["compute"] = y
+            if self.environment is None:
+                self.environment = AttributeDict(env_settings)
+            else:
+                self.environment.add_entries(env_settings)
 
-        if not pipeline_argtext:
-            # The project config may not have an entry for this pipeline;
-            # no problem! There are no pipeline-specific args. Return text 
-            # from default arguments, whether empty or not.
-            return default_argtext
-        elif default_argtext:
-            # Non-empty pipeline-specific and default argtext
-            return " ".join([default_argtext, pipeline_argtext])
-        else:
-            # No default argtext, but non-empty pipeline-specific argtext
-            return pipeline_argtext
+        self.environment_file = env_settings_file
 
 
     def add_sample_sheet(self, csv=None, sample_builder=None):
@@ -902,6 +1036,8 @@ class Project(AttributeDict):
 
         :param csv: Path to csv file.
         :type csv: str
+        :param sample_builder: how to create single Sample from raw input data.
+        :type sample_builder: function(pandas.Series | dict) -> Sample
         """
 
         _LOGGER.debug("Adding sample sheet")
@@ -917,11 +1053,13 @@ class Project(AttributeDict):
         _LOGGER.debug("Creating samples from annotation sheet")
         self.sheet.make_samples(sample_builder)
 
-        # Add samples to Project
+        # Add samples to Project.
         for sample in self.sheet.samples:
             # Overwritten later if merged
             sample.merged = False
-            self.add_sample(sample)		# Appends sample to self.samples.
+            # Tie sample and project bilaterally
+            sample.prj = self
+            self.samples.append(sample)
 
         # Merge sample files (!) using merge table if provided:
         if hasattr(self.metadata, "merge_table"):
@@ -1027,19 +1165,62 @@ class Project(AttributeDict):
                               "data path assignment", sample.sample_name)
 
 
-    def add_sample(self, sample):
-        """
-        Adds a sample to the project's `samples`.
-        """
-        # Check sample is Sample object
-        if not isinstance(sample, Sample):
-            raise TypeError("Provided object is not a Sample object.")
+    def _ensure_absolute(self, maybe_relpath):
+        """ Ensure that a possibly relative path is absolute. """
+        _LOGGER.debug("Ensuring absolute: '%s'", maybe_relpath)
+        if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+            _LOGGER.debug("Already absolute")
+            return maybe_relpath
+        # Maybe we have env vars that make the path absolute?
+        expanded = _os.path.expandvars(maybe_relpath)
+        _LOGGER.debug("Expanded: '%s'", expanded)
+        if _os.path.isabs(expanded):
+            _LOGGER.debug("Expanded is absolute")
+            return expanded
+        _LOGGER.debug("Making non-absolute path '%s' be absolute",
+                      maybe_relpath)
+        # Set path to an absolute path, relative to project config.
+        config_dirpath = _os.path.dirname(self.config_file)
+        _LOGGER.debug("config_dirpath: %s", config_dirpath)
+        abs_path = _os.path.join(config_dirpath, maybe_relpath)
+        return abs_path
 
-        # Tie sample and project bilaterally
-        sample.prj = self
-        # Append
-        self.samples.append(sample)
 
+    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
+        """ Default environment settings aren't required; warn, though. """
+        missing_env_attrs = \
+            [attr for attr in ["environment", "environment_file"]
+             if not hasattr(self, attr) or getattr(self, attr) is None]
+        if not missing_env_attrs:
+            return
+        message = "'{}' lacks environment attributes: {}".\
+                format(env_settings_file, missing_env_attrs)
+        if when_missing is None:
+            _LOGGER.warn(message)
+        else:
+            when_missing(message)
+
+
+
+def check_sheet(sample_file, dtype=str):
+    """
+    Check if csv file exists and has all required columns.
+
+    :param str sample_file: path to sample annotations file.
+    :param type dtype: data type for CSV read.
+    :raises IOError: if given annotations file can't be read.
+    :raises ValueError: if required column(s) is/are missing.
+    """
+
+    df = _pd.read_table(sample_file, sep=None, dtype=dtype,
+                        index_col=False, engine="python")
+    req = [SAMPLE_NAME_COLNAME]
+    missing = set(req) - set(df.columns)
+    if len(missing) != 0:
+        raise ValueError(
+            "Annotation sheet ('{}') is missing column(s): {}; has: {}".
+                format(sample_file, missing, df.columns))
+    return df
 
 
 @copy
@@ -1073,28 +1254,6 @@ class SampleSheet(object):
                    (self.prj, len(self.df))
         else:
             return "SampleSheet with %i samples." % len(self.df)
-
-
-    @staticmethod
-    def check_sheet(sample_file, dtype):
-        """
-        Check if csv file exists and has all required columns.
-        
-        :param str sample_file: path to sample annotations file.
-        :param type dtype: data type for CSV read.
-        :raises IOError: if given annotations file can't be read.
-        :raises ValueError: if required column(s) is/are missing.
-        """
-
-        df = _pd.read_table(sample_file, sep=None, dtype=dtype,
-                            index_col=False, engine="python")
-        req = [SAMPLE_NAME_COLNAME]
-        missing = set(req) - set(df.columns)
-        if len(missing) != 0:
-            raise ValueError(
-                "Annotation sheet ('{}') is missing column(s): {}; has: {}".
-                format(sample_file, missing, df.columns))
-        return df
 
 
     @staticmethod
@@ -1180,10 +1339,17 @@ class SampleSheet(object):
                        for sample_type, sample_class in sample_types}
 
             def make_sample(data):
+                # Create the most specific Sample type possible.
                 try:
-                    return pairing[self.alpha_cased(data.library)](data)
-                except (AttributeError, KeyError):
-                    _LOGGER.debug("Error making child subclass")
+                    protocol = data.library
+                except AttributeError:
+                    _LOGGER.debug("Sample data lacks 'library' attribute")
+                    return Sample(data)
+                try:
+                    return pairing[self.alpha_cased(protocol)](data)
+                except KeyError:
+                    _LOGGER.debug("Unknown protocol: '{}'; known: {}".
+                                  format(protocol, pairing.keys()))
                     return Sample(data)
 
         return make_sample
@@ -2107,129 +2273,30 @@ class PipelineInterface(object):
 
 
 
-@copy
-class InterfaceManager(object):
-    """ Manage pipeline use for multiple locations and protocols.
-
-    This is done by aggregating protocol interface instances,
-    allowing one Project to use pipelines from multiple locations.
-
-    :param pipeline_dirs: locations containing pipelines and configuration
-        information; specifically, a directory with a 'pipelines' folder and
-        a 'config' folder, within which there is a pipeline interface file
-        and a protocol mappings file.
-    :type pipeline_dirs: Iterable[str]
-
-    """
-    def __init__(self, pipeline_dirs):
-        # Collect interface/mappings pairs by protocol name.
-        interfaces_and_protocols = \
-                [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs
-                 if _os.path.exists(pipedir)]
-        self.ifproto_by_proto_name = defaultdict(list)
-        for ifproto in interfaces_and_protocols:
-            for proto_name in ifproto.protomap:
-                _LOGGER.debug("Protocol name: {}".format(proto_name))
-                self.ifproto_by_proto_name[proto_name].append(ifproto)
-
-
-    def build_pipelines(self, protocol_name, priority=True):
-        """
-        Build up a sequence of scripts to execute for this protocol.
-
-        :param str protocol_name: name for the protocol for which to build
-            pipelines
-        :param bool priority: should only the top priority mapping be used?
-        :return Sequence[(PipelineInterface, str, str)]: sequence of jobs
-            (script paths) to execute for the given protocol; if priority
-            flag is set (as is the default), this is a single-element list,
-            the sequence of jobs built is interpreted as descending priority
-        """
-
-        try:
-            ifprotos = self.ifproto_by_proto_name[protocol_name]
-        except KeyError:
-            _LOGGER.warn("Unknown protocol: '{}'".format(protocol_name))
-            return []
-
-        jobs = []
-        pipeline_keys_used = set()
-        _LOGGER.debug("Building pipelines for {} PIs...".format(len(ifprotos)))
-        for ifproto in ifprotos:
-            try:
-                this_protocol_pipelines = \
-                        ifproto.protomap.mappings[protocol_name]
-            except KeyError:
-                _LOGGER.debug("Protocol {} missing mapping in '{}'".
-                              format(protocol_name, ifproto.protomaps_path))
-            else:
-                # TODO: update once dependency-encoding logic is in place.
-                _LOGGER.debug("Protocol: {}".format(protocol_name))
-                pipeline_keys = this_protocol_pipelines.replace(";", ",")\
-                                                      .strip(" ()\n")\
-                                                      .split(",")
-                pipeline_keys = [pk.strip() for pk in pipeline_keys]
-                already_mapped, new_scripts = \
-                        partition(pipeline_keys,
-                                  partial(_is_member, items=pipeline_keys_used))
-                pipeline_keys_used |= set(pipeline_keys)
-
-                if len(pipeline_keys) != (len(already_mapped) + len(new_scripts)):
-                    _LOGGER.error("{} --> {} + {}".format(
-                            pipeline_keys, already_mapped, new_scripts))
-
-                    raise RuntimeError(
-                            "Partitioned {} script names into allegedly "
-                            "disjoint sets of {} and {} elements.".
-                            format(len(pipeline_keys),
-                                   len(already_mapped),
-                                   len(new_scripts)))
-
-                _LOGGER.debug("Skipping {} already-mapped script names: {}".
-                              format(len(already_mapped),
-                                     ", ".join(already_mapped)))
-                _LOGGER.debug("{} new scripts for protocol {} from "
-                              "pipelines warehouse '{}': {}".
-                              format(len(new_scripts), protocol_name,
-                                     ifproto.pipedir, ", ".join(new_scripts)))
-
-                jobs.append([(ifproto.interface, ) +
-                             ifproto.pipeline_key_to_path(pipeline_key)
-                             for pipeline_key in pipeline_keys])
-
-        return jobs[0] if priority and len(jobs) > 1 else list(itertools.chain(*jobs))
-
-
-
-def _is_member(item, items):
-    return item in items
-
-
-
-# TODO: rename.
-class ProtocolInterfaces:
+class ProtocolInterface(object):
     """ PipelineInterface and ProtocolMapper for a single pipelines location.
 
-    Instances of this class are used by InterfaceManager to facilitate
-    multi-location pipelines use by a single project. Here also are stored
-    path attributes to retain information about the location from which the
-    interface and mapper came.
+    This class facilitates use of pipelines from multiple locations by a
+    single project. Also stored are path attributes with information about
+    the location(s) from which the PipelineInterface and ProtocolMapper came.
 
     :param pipedir: location (e.g., code repository) of pipelines
     :type pipedir: str
 
     """
     def __init__(self, pipedir):
+
+        super(ProtocolInterface, self).__init__()
+
         if _os.path.isdir(pipedir):
             self.pipedir = pipedir
             self.config_path = _os.path.join(pipedir, "config")
-            self.interface_path = _os.path.join(self.config_path,
-                                                "pipeline_interface.yaml")
-            self.protomaps_path = _os.path.join(self.config_path,
-                                                "protocol_mappings.yaml")
-            self.interface = PipelineInterface(self.interface_path)
-            self.protomap = ProtocolMapper(self.protomaps_path)
+            self.interface = PipelineInterface(_os.path.join(
+                    self.config_path, "pipeline_interface.yaml"))
+            self.protomap = ProtocolMapper(_os.path.join(
+                    self.config_path, "protocol_mappings.yaml"))
             self.pipelines_path = _os.path.join(pipedir, "pipelines")
+
         elif _os.path.isfile(pipedir):
             # Secondary version that passes combined yaml file directly,
             # instead of relying on separate hard-coded config names as above
@@ -2254,6 +2321,7 @@ class ProtocolInterfaces:
             except Exception as e:
                 _LOGGER.error(str(iface))
                 raise e
+
         else:
             raise ValueError("Alleged pipelines location '{}' exists neither "
                              "as a file nor as a folder.".format(pipedir))
@@ -2270,8 +2338,9 @@ class ProtocolInterfaces:
             absolute path for pipeline script.
 
         """
-        # key may contain extra command-line flags; split key from flags.
 
+        # The key may contain extra command-line flags; split key from flags.
+        # The strict key is the script name itself, something like "ATACseq.py"
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
         if self.interface.get_attribute(strict_pipeline_key, "path"):
@@ -2309,13 +2378,10 @@ class ProtocolMapper(Mapping):
     """
     def __init__(self, mappings_input):
         if isinstance(mappings_input, Mapping):
-            # Pre-parsed mappings data
-            self.mappings_file = None
             mappings = mappings_input
         else:
             # Parse file mapping protocols to pipeline(s).
-            self.mappings_file = mappings_input
-            with open(self.mappings_file, 'r') as mapfile:
+            with open(mappings_input, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
         self.mappings = {k.upper(): v for k, v in mappings.items()}
 
@@ -2348,7 +2414,6 @@ class ProtocolMapper(Mapping):
                 self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
         """
 
-    # TODO: incorporate into the InterfaceManager?
     def parse_parallel_jobs(self, job, dep):
         job = job.replace("(", "").replace(")", "")
         split_jobs = [x.strip() for x in job.split(',')]
@@ -2358,13 +2423,12 @@ class ProtocolMapper(Mapping):
         else:
             self.register_job(job, dep)
 
-    # TODO: incorporate into InterfaceManager?
     def register_job(self, job, dep):
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
 
 
-    def __getitem__(self, item):
-        return self.mappings[item]
+    def __getitem__(self, protocol_name):
+        return self.mappings[protocol_name]
 
     def __iter__(self):
         return iter(self.mappings)
@@ -2422,3 +2486,8 @@ class _MissingPipelineConfigurationException(Exception):
     """ A selected pipeline needs configuration data. """
     def __init__(self, pipeline):
         super(_MissingPipelineConfigurationException, self).__init__(pipeline)
+
+
+
+def _is_member(item, items):
+    return item in items

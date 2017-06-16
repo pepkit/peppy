@@ -18,14 +18,10 @@ from .models import COMPUTE_SETTINGS_VARNAME
 from .utils import VersionInHelpParser
 
 try:
-    from .models import \
-        InterfaceManager, PipelineInterface, \
-        ProtocolMapper
+    from .models import PipelineInterface, ProtocolMapper
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
-    from models import \
-        InterfaceManager, PipelineInterface, \
-        ProtocolMapper
+    from models import PipelineInterface, ProtocolMapper
 
 from colorama import init
 init()
@@ -131,7 +127,7 @@ def parse_arguments():
                 destroy_subparser, check_subparser, clean_subparser]:
         subparser.add_argument(
                 "config_file",
-                help="Project YAML config file.")
+                help="Project configuration file (YAML).")
         subparser.add_argument(
                 "--file-checks",
                 action="store_false",
@@ -140,11 +136,12 @@ def parse_arguments():
                 "-d",
                 "--dry-run",
                 action="store_true",
-                help="Don't actually submit.")
+                help="Don't actually submit the project/subproject.")
         subparser.add_argument(
                 "--sp",
                 dest="subproject",
-                help="Supply subproject")
+                help="Name of subproject to use, as designated in the "
+                     "project's configuration file")
 
     # To enable the loop to pass args directly on to the pipelines...
     args, remaining_args = parser.parse_known_args()
@@ -175,7 +172,7 @@ def parse_arguments():
 
 
 
-def run(prj, args, remaining_args, interface_manager):
+def run(prj, args, remaining_args):
     """
     Main Looper function: Submit jobs for samples in project.
 
@@ -184,15 +181,13 @@ def run(prj, args, remaining_args, interface_manager):
     :param Iterable[str] remaining_args: arguments given to this module's 
         parser that were not defined as options it should parse, 
         to be passed on to parser(s) elsewhere
-    :param InterfaceManager interface_manager: aggregator and manager of
-        pipeline interfaces and protocol mappings
     """
 
     # Easier change later, especially likely for library --> protocol.
     _read_type = "read_type"
     _protocol = "library"
 
-    _start_counter(len(prj.samples))
+    _start_counter(len(prj.samples()))
 
     valid_read_types = ["single", "paired"]
 
@@ -204,13 +199,13 @@ def run(prj, args, remaining_args, interface_manager):
     # Create a problem list so we can keep track and show them at the end.
     failures = []
 
-    for sample in prj.samples:
+    for sample in prj.samples():
         _LOGGER.debug(sample)
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
-        pipeline_outfolder = os.path.join(
+        sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
-        _LOGGER.debug("Pipeline output folder: '%s'", pipeline_outfolder)
+        _LOGGER.debug("Sample output folder: '%s'", sample_output_folder)
         skip_reasons = []
 
         # Don't submit samples with duplicate names.
@@ -220,7 +215,8 @@ def run(prj, args, remaining_args, interface_manager):
         # Check if sample should be run.
         if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
             if sample[SAMPLE_EXECUTION_TOGGLE] != "1":
-                skip_reasons.append("Column '{}' deselected".format(SAMPLE_EXECUTION_TOGGLE))
+                skip_reasons.append("Column '{}' deselected".
+                                    format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
         if hasattr(sample, _read_type):
@@ -234,7 +230,7 @@ def run(prj, args, remaining_args, interface_manager):
         # Get the base protocol-to-pipeline mappings
         if hasattr(sample, _protocol):
             protocol = sample.library.upper()
-            pipelines = interface_manager.build_pipelines(protocol)
+            pipelines = prj.build_pipelines(protocol)
             if len(pipelines) == 0:
                 skip_reasons.append(
                         "No pipeline found for protocol {}".format(protocol))
@@ -368,7 +364,7 @@ def run(prj, args, remaining_args, interface_manager):
             submitted = cluster_submit(
                     sample, prj.compute.submission_template,
                     prj.compute.submission_command, submit_settings,
-                    prj.metadata.submission_subdir, pipeline_outfolder, 
+                    prj.metadata.submission_subdir, sample_output_folder, 
                     pl_name, args.time_delay, submit=True, 
                     dry_run=args.dry_run,  ignore_flags=args.ignore_flags, 
                     remaining_args=remaining_args)
@@ -422,11 +418,11 @@ def summarize(prj):
     columns = []
     stats = []
 
-    _start_counter(len(prj.samples))
+    _start_counter(len(prj.samples()))
 
-    for sample in prj.samples:
+    for sample in prj.samples():
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(
+        sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
 
         # Grab the basic info from the annotation sheet for this sample.
@@ -434,7 +430,7 @@ def summarize(prj):
         sample_stats = sample.get_sheet_dict()
         columns.extend(sample_stats.keys())
         # Version 0.3 standardized all stats into a single file
-        stats_file = os.path.join(pipeline_outfolder, "stats.tsv")
+        stats_file = os.path.join(sample_output_folder, "stats.tsv")
         if os.path.isfile(stats_file):
             _LOGGER.info("Found stats file: '%s'", stats_file)
         else:
@@ -484,17 +480,17 @@ def destroy(prj, args, preview_flag=True):
 
     _LOGGER.info("Results to destroy:")
 
-    _start_counter(len(prj.samples))
+    _start_counter(len(prj.samples()))
 
-    for sample in prj.samples:
+    for sample in prj.samples():
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(
+        sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
             # Preview: Don't actually delete, just show files.
-            _LOGGER.info(str(pipeline_outfolder))
+            _LOGGER.info(str(sample_output_folder))
         else:
-            destroy_sample_results(pipeline_outfolder, args)
+            destroy_sample_results(sample_output_folder, args)
 
     if not preview_flag:
         _LOGGER.info("Destroy complete.")
@@ -521,13 +517,13 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
 
-    _start_counter(len(prj.samples))
+    _start_counter(len(prj.samples()))
 
-    for sample in prj.samples:
+    for sample in prj.samples():
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
-        pipeline_outfolder = os.path.join(prj.metadata.results_subdir,
-                                          sample.sample_name)
-        cleanup_files = glob.glob(os.path.join(pipeline_outfolder,
+        sample_output_folder = os.path.join(
+                prj.metadata.results_subdir, sample.sample_name)
+        cleanup_files = glob.glob(os.path.join(sample_output_folder,
                                                "*_cleanup.sh"))
         if preview_flag:
             # Preview: Don't actually clean, just show what will be cleaned.
@@ -597,7 +593,7 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 def cluster_submit(
     sample, submit_template, submission_command, variables_dict,
-    submission_folder, pipeline_outfolder, pipeline_name, time_delay,
+    submission_folder, sample_output_folder, pipeline_name, time_delay,
     submit=False, dry_run=False, ignore_flags=False, remaining_args=None):
     """
     Submit job to cluster manager.
@@ -610,7 +606,7 @@ def cluster_submit(
         the submission template
     :param str submission_folder: path to the folder in which to place 
         submission files
-    :param str pipeline_outfolder: path to folder into which the pipeline 
+    :param str sample_output_folder: path to folder into which the pipeline 
         will write file(s), and where to search for flag file to check 
         if a sample's already been submitted
     :param str pipeline_name: name of the pipeline that the job will run
@@ -660,7 +656,7 @@ def cluster_submit(
     # Check if job is already submitted (unless ignore_flags is set to True)
     if not ignore_flags:
         flag_files = glob.glob(os.path.join(
-                pipeline_outfolder, pipeline_name + "*.flag"))
+                sample_output_folder, pipeline_name + "*.flag"))
         if len(flag_files) > 0:
             flags = [os.path.basename(f) for f in flag_files]
             _LOGGER.info("> Not submitting, flag(s) found: {}".format(flags))
@@ -791,7 +787,6 @@ def main():
         args.config_file, args.subproject,
         file_checks=args.file_checks,
         compute_env_file=getattr(args, 'env', None))
-    prj.finalize_pipelines_directory()
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
 
@@ -807,14 +802,13 @@ def main():
             raise AttributeError(
                     "Looper requires at least one pipeline(s) location.")
 
-        interface_manager = InterfaceManager(prj.metadata.pipelines_dir)
-        if not interface_manager.ifproto_by_proto_name:
+        if not prj.interface_manager.ifproto_by_proto_name:
             _LOGGER.error(
                     "The interface manager is empty. Does your project point "
                     "to at least one pipelines location that exists?")
             return
         try:
-            run(prj, args, remaining_args, interface_manager=interface_manager)
+            run(prj, args, remaining_args)
         except IOError:
             _LOGGER.error("{} pipelines_dir: '{}'".format(
                     prj.__class__.__name__, prj.metadata.pipelines_dir))
