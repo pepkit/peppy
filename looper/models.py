@@ -441,6 +441,8 @@ class Project(AttributeDict):
         self.sheet = None
         self.samples = list()
 
+        self.add_sample_sheet()
+
 
     @property
     def default_cmpenv_file(self):

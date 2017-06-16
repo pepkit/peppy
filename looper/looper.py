@@ -791,7 +791,6 @@ def main():
         args.config_file, args.subproject,
         file_checks=args.file_checks,
         compute_env_file=getattr(args, 'env', None))
-    prj.add_sample_sheet()
     prj.finalize_pipelines_directory()
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
