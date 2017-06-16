@@ -432,7 +432,6 @@ def proj(request):
         data in file pointed to by `request` class
     """
     p = _create(request, Project)
-    p.add_sample_sheet()
     p.finalize_pipelines_directory()
     return p
 
