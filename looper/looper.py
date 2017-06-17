@@ -229,6 +229,8 @@ def run(prj, args, remaining_args):
             skip_reasons.append("Missing 'library' attribute")
         else:
             protocol = protocol.upper()
+            _LOGGER.debug("Building pipeline(s) for protocol: '{}'".
+                          format(protocol))
             pipelines = prj.build_pipelines(protocol)
             if len(pipelines) == 0:
                 skip_reasons.append(

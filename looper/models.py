@@ -595,11 +595,20 @@ class Project(AttributeDict):
 
     def build_pipelines(self, protocol, priority=True):
         """
+        Create pipelines to submit for each sample of a particular protocol.
+
+        With the argument (flag) to the priority parameter, there's control
+        over whether to submit pipeline(s) from only one of the project's
+        known pipeline locations with a match for the protocol, or whether to
+        submit pipelines created from all locations with a match for the
+        protocol.
         
-        
-        :param str protocol: 
-        :param bool priority: 
-        :return: 
+        :param str protocol: name of the protocol/library for which to
+            create pipeline(s)
+        :param bool priority: to only submit pipeline(s) from the first of the
+            pipelines location(s) (indicated in the project config file) that
+            has a match for the given protocol; optional, default True
+        :return Iterable[(PipelineInterface, str, str)]:
         """
 
         # TODO: called from looper.run; do the import and subclass search here
@@ -610,17 +619,31 @@ class Project(AttributeDict):
         # TODO: for Sample subclass(es), using one without __library__ as
         # TODO: presumptive default. Determine what to do about specificity.
 
+        # Pull out the collection of interfaces (potentially one from each of
+        # the locations indicated in the project configuration file) as a
+        # sort of pool of information about possible ways in which to submit
+        # pipeline(s) for sample(s) of the indicated protocol.
         try:
             protocol_interfaces = self.interfaces_by_protocol[protocol]
         except KeyError:
             _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
             return []
 
+        # Collect
         jobs = []
         pipeline_keys_used = set()
         _LOGGER.debug("Building pipelines for {} PIs...".
                       format(len(protocol_interfaces)))
         for proto_iface in protocol_interfaces:
+            # Short-circuit if we care only about the highest-priority match
+            # for pipeline submission. That is, if the intent is to submit
+            # pipeline(s) from a single location for each sample of the given
+            # protocol, we can stop searching the pool of pipeline interface
+            # information once we've found a match for the protocol.
+            if priority and 0 != len(jobs):
+                return jobs[0]
+
+
             try:
                 this_protocol_pipelines = \
                         proto_iface.protomap.mappings[protocol]
@@ -629,7 +652,6 @@ class Project(AttributeDict):
                 continue
             
             # TODO: update once dependency-encoding logic is in place.
-            _LOGGER.debug("Protocol: {}".format(protocol))
             pipeline_keys = this_protocol_pipelines.replace(";", ",")\
                                                   .strip(" ()\n")\
                                                   .split(",")
@@ -660,6 +682,9 @@ class Project(AttributeDict):
                           format(len(new_scripts), protocol,
                                  proto_iface.pipedir, ", ".join(new_scripts)))
 
+            # TODO: determine why comprehension here is over pipeline keys
+            # TODO: rather than over one of the disjoint subsets that results
+            # TODO: from the partition procedure based on mapping status.
             jobs.append([(proto_iface.interface, ) +
                          proto_iface.pipeline_key_to_path(pipeline_key)
                          for pipeline_key in pipeline_keys])
