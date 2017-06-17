@@ -183,12 +183,7 @@ def run(prj, args, remaining_args):
         to be passed on to parser(s) elsewhere
     """
 
-    # Easier change later, especially likely for library --> protocol.
-    _read_type = "read_type"
-    _protocol = "library"
-
-    _start_counter(len(prj.samples()))
-
+    _start_counter(len(prj.samples))
     valid_read_types = ["single", "paired"]
 
     # Keep track of how many jobs have been submitted.
@@ -199,7 +194,7 @@ def run(prj, args, remaining_args):
     # Create a problem list so we can keep track and show them at the end.
     failures = []
 
-    for sample in prj.samples():
+    for sample in prj.samples:
         _LOGGER.debug(sample)
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
@@ -219,24 +214,25 @@ def run(prj, args, remaining_args):
                                     format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
-        if hasattr(sample, _read_type):
+        if hasattr(sample, "read_type"):
             # Drop "-end", "_end", or just "end" from end of the column value.
             sample.read_type = re.sub(
                     '[_\\-]?end$', '', str(sample.read_type)).lower()
             if sample.read_type not in valid_read_types:
                 skip_reasons.append("{} must be in {}".\
-                    format(_read_type, valid_read_types))
+                    format("read_type", valid_read_types))
 
         # Get the base protocol-to-pipeline mappings
-        if hasattr(sample, _protocol):
-            protocol = sample.library.upper()
+        try:
+            protocol = sample.library
+        except AttributeError:
+            skip_reasons.append("Missing 'library' attribute")
+        else:
+            protocol = protocol.upper()
             pipelines = prj.build_pipelines(protocol)
             if len(pipelines) == 0:
                 skip_reasons.append(
                         "No pipeline found for protocol {}".format(protocol))
-        else:
-            skip_reasons.append("Missing '{}' attribute".format(_protocol))
-
 
         if skip_reasons:
             _LOGGER.warn("> Not submitted: {}".format(skip_reasons))
@@ -418,9 +414,9 @@ def summarize(prj):
     columns = []
     stats = []
 
-    _start_counter(len(prj.samples()))
+    _start_counter(len(prj.samples))
 
-    for sample in prj.samples():
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
@@ -480,9 +476,9 @@ def destroy(prj, args, preview_flag=True):
 
     _LOGGER.info("Results to destroy:")
 
-    _start_counter(len(prj.samples()))
+    _start_counter(len(prj.samples))
 
-    for sample in prj.samples():
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
@@ -517,9 +513,9 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
 
-    _start_counter(len(prj.samples()))
+    _start_counter(len(prj.samples))
 
-    for sample in prj.samples():
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)

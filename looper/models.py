@@ -534,12 +534,13 @@ class Project(AttributeDict):
         return iter(self.sheet[SAMPLE_NAME_COLNAME])
 
 
-
     @property
     def samples(self):
-        if self._samples is None:
-            self.create_base_samples()
-        return self._samples
+        # TODO: account for merge table; store or re-merge every time?
+        # TODO: is it more likely to have a bunch of samples, or that
+        # TODO: use of this and thus the need to re-merge is very frequent?
+        for _, row in self.sheet.df.iterrows():
+            yield Sample(row.dropna())
 
 
     def samples_for(self, pipeline=None):
@@ -600,7 +601,15 @@ class Project(AttributeDict):
         :param bool priority: 
         :return: 
         """
-        
+
+        # TODO: called from looper.run; do the import and subclass search here
+        # TODO: for the search, use something like subprocess with grep for
+        # TODO: checking for if __name__ == __main__ to determine whether it
+        # TODO: may run. If so, warn and skip. If not, import with something
+        # TODO: like imp.load_source, then use the inspect logic to search
+        # TODO: for Sample subclass(es), using one without __library__ as
+        # TODO: presumptive default. Determine what to do about specificity.
+
         try:
             protocol_interfaces = self.interfaces_by_protocol[protocol]
         except KeyError:
@@ -657,10 +666,6 @@ class Project(AttributeDict):
 
         return jobs[0] if priority and len(jobs) > 1 else \
                 list(itertools.chain(*jobs))
-
-
-    def create_base_samples(self):
-        pass
 
 
     def create_samples(self, pipeline=None):
