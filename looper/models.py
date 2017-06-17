@@ -652,9 +652,16 @@ class Project(AttributeDict):
                 continue
             
             # TODO: update once dependency-encoding logic is in place.
-            pipeline_keys = this_protocol_pipelines.replace(";", ",")\
-                                                  .strip(" ()\n")\
-                                                  .split(",")
+            # The proposed dependency-encoding format uses a semicolon
+            # between pipelines for which the dependency relationship is
+            # serial. For now, simply treat those as multiple independent
+            # pipelines by replacing the semicolon with a comma, which is the
+            # way in which multiple independent pipelines for a single protocol
+            # are represented in the mapping declaration.
+            pipeline_keys = \
+                    this_protocol_pipelines.replace(";", ",")\
+                                           .strip(" ()\n")\
+                                           .split(",")
             pipeline_keys = [pk.strip() for pk in pipeline_keys]
             already_mapped, new_scripts = \
                     partition(pipeline_keys,
@@ -666,7 +673,7 @@ class Project(AttributeDict):
                 disjoint_partition_violation = \
                         set(already_mapped) & set(new_scripts)
             except TypeError:
-                _LOGGER.debug("Cannot validate partition")
+                _LOGGER.debug("Unable to hash partitions for validation")
             else:
                 assert not disjoint_partition_violation, \
                         "Partitioning {} with membership in {} as " \
