@@ -311,9 +311,15 @@ class AttributeDict(MutableMapping):
 
 def process_pipeline_interfaces(pipeline_interface_locations):
     """
+    Create a ProtocolInteraface for each pipeline location given.
     
-    :param pipeline_interface_locations: 
-    :return: 
+    :param Iterable[str] pipeline_interface_locations: locations, each of
+        which should be either a directory path or a filepath, that specifies
+        pipeline interace and protocol mappings information. Each such file
+        should be have a pipelines section and a protocol mappings section
+        whereas each folder should have a file for each of those sections.
+    :return Mapping[str, ProtocolInterace]: mapping from protocol name to
+        interface(s) for which that protocol is mapped
     """
     ifproto_by_proto_name = defaultdict(list)
     for pipe_iface_location in pipeline_interface_locations:
@@ -553,10 +559,13 @@ class Project(AttributeDict):
 
         # SampleSheet creation populates project's samples, adds the
         # sheet itself, and adds any derived columns.
+        _LOGGER.debug("Processing {} pipeline location(s): {}".
+                      format(len(self.metadata.pipelines_dir),
+                             self.metadata.pipelines_dir))
+        self.finalize_pipelines_directory()
         self.interfaces_by_protocol = \
                 process_pipeline_interfaces(self.metadata.pipelines_dir)
         self.sheet = check_sheet(self.metadata.sample_annotation)
-        self.finalize_pipelines_directory()
 
         # Defer Sample creation until needed.
         self._samples_by_pipeline = {}
@@ -989,7 +998,8 @@ class Project(AttributeDict):
             if "pipelines_dir" in self.metadata:
                 _LOGGER.warning("Looper v0.6 suggests "
                     "switching from pipelines_dir to "
-                    " pipeline_interfaces. See docs for details.")
+                    "pipeline_interfaces. See docs for details: "
+                    "http://looper.readthedocs.io/en/latest/")
             if "pipeline_interfaces" in self.metadata:
                 if "pipelines_dir" in self.metadata:
                     raise AttributeError(
@@ -997,8 +1007,8 @@ class Project(AttributeDict):
                             "'pipelines_dir'. Please remove your "
                             "'pipelines_dir' definition.")
                 else:
-                    self.metadata.pipelines_dir = self.metadata.pipeline_interfaces
-
+                    self.metadata.pipelines_dir = \
+                            self.metadata.pipeline_interfaces
                 _LOGGER.debug("Adding pipeline_interfaces to "
                     "pipelines_dir. New value: {}".
                     format(self.metadata.pipelines_dir))
@@ -2300,8 +2310,8 @@ class PipelineInterface(object):
             self.pipe_iface_config = config
 
         else:
-            _LOGGER.debug("Parsing '%s' for %s config data",
-                         config, self.__class__.__name__)
+            _LOGGER.debug("Parsing '%s' for PipelineInterface config data",
+                         config)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)
