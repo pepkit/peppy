@@ -235,7 +235,7 @@ def run(prj, args, remaining_args):
             _LOGGER.debug("Building pipeline(s) for protocol: '{}'".
                           format(protocol))
             try:
-                pipelines = submission_bundle_by_protocol[protocol]
+                submission_bundles = submission_bundle_by_protocol[protocol]
             except KeyError:
                 skip_reasons.append(
                         "No pipeline found for protocol {}".format(protocol))
@@ -249,14 +249,21 @@ def run(prj, args, remaining_args):
         # Processing preconditions have been met.
         processed_samples.add(sample.sample_name)
         sample.to_yaml()
+        sample_data = sample.as_series().to_dict()
 
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"
         # cannot be assigned (library/protocol missing).
         for pipeline_interface, sample_subtype, pipeline_key, pipeline_job \
-                in pipelines:
+                in submission_bundles:
             # pipeline_key (previously pl_id) is no longer necessarily
             # script name, it's more flexible.
+
+            _LOGGER.debug("Creating %s instance for sample '%s'",
+                          sample_subtype.__name__, sample.sample_name)
+            sample = sample_subtype(sample_data)
+            pipeline_name, _ = os.path.splitext(pipeline_key)
+            sample.to_yaml(pipeline_name=pipeline_name)
 
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
