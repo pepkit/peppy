@@ -329,13 +329,22 @@ def process_pipeline_interfaces(pipeline_interface_locations):
 
 
 
+# Collect PipelineInterface, Sample type, pipeline path, and script with flags.
 SubmissionBundle = namedtuple(
         "SubmissionBundle",
-        field_names=["interface", "subtype", "pipeline", "command"])
+        field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
 
 
 
 def merge_sample(sample, merge_table, derived_columns):
+    """
+    Use merge table data to augment/modify Sample.
+
+    :param Sample sample: sample to modify via merge table data
+    :param merge_table: data with which to alter Sample
+    :param derived_columns: names of columns with data-derived value
+    :return Sample: updated input instance
+    """
 
     if SAMPLE_NAME_COLNAME not in merge_table.columns:
         raise KeyError(
@@ -1067,15 +1076,6 @@ class Project(AttributeDict):
             raise _MissingMetadataException(
                     missing_section=SAMPLE_ANNOTATIONS_KEY, 
                     path_config_file=self.config_file)
-
-
-    def pipelines_by_sample(self):
-        pass
-
-
-    def samples_by_pipeline(self):
-        pass
-
 
 
     def set_compute(self, setting):
