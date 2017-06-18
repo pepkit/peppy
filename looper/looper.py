@@ -194,6 +194,9 @@ def run(prj, args, remaining_args):
     # Create a problem list so we can keep track and show them at the end.
     failures = []
 
+    submission_bundle_by_protocol = \
+            {p: prj.build_pipelines(p) for p in prj.protocols}
+
     for sample in prj.samples:
         _LOGGER.debug(sample)
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
@@ -231,10 +234,9 @@ def run(prj, args, remaining_args):
             protocol = protocol.upper()
             _LOGGER.debug("Building pipeline(s) for protocol: '{}'".
                           format(protocol))
-            # TODO: this should be called just once per protocol, not
-            # TODO: for every Sample, as the call passes no Sample data.
-            pipelines = prj.build_pipelines(protocol)
-            if len(pipelines) == 0:
+            try:
+                pipelines = submission_bundle_by_protocol[protocol]
+            except KeyError:
                 skip_reasons.append(
                         "No pipeline found for protocol {}".format(protocol))
 
@@ -243,27 +245,25 @@ def run(prj, args, remaining_args):
             failures.append([skip_reasons, sample.sample_name])
             continue
 
+        # TODO: determine what to do with subtype(s) here.
         # Processing preconditions have been met.
         processed_samples.add(sample.sample_name)
         sample.to_yaml()
-
-        # TODO: determine whether it's before or after this point that the
-        # TODO: specific subtype should be created.
 
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"
         # cannot be assigned (library/protocol missing).
         for pipeline_interface, sample_subtype, pipeline_key, pipeline_job \
                 in pipelines:
+            # pipeline_key (previously pl_id) is no longer necessarily
+            # script name, it's more flexible.
 
-            # pipeline_key (previously pl_id) is no longer necessarily script name, it's more flexible.
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
             skip_reasons = []
 
             _LOGGER.debug("Setting pipeline attributes for job '{}' "
                           "(PL_ID: '{}')".format(pipeline_job, pipeline_key))
-
             try:
                 # Add pipeline-specific attributes.
                 sample.set_pipeline_attributes(

@@ -329,9 +329,90 @@ def process_pipeline_interfaces(pipeline_interface_locations):
 
 
 
-SampleSubmission = namedtuple(
-        "SampleSubmission",
+SubmissionBundle = namedtuple(
+        "SubmissionBundle",
         field_names=["interface", "subtype", "pipeline", "command"])
+
+
+
+def merge_sample(sample, merge_table, derived_columns):
+
+    if SAMPLE_NAME_COLNAME not in merge_table.columns:
+        raise KeyError(
+            "Merge table requires a column named '{}'.".
+            format(SAMPLE_NAME_COLNAME))
+
+    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
+                     getattr(sample, SAMPLE_NAME_COLNAME)
+    merge_rows = merge_table[sample_indexer]
+
+    if len(merge_rows) > 0:
+        # For each row in the merge table of this sample:
+        # 1) populate any derived columns
+        # 2) derived columns --> space-delimited strings
+        # 3) update the sample values with the merge table
+
+        # Keep track of merged cols,
+        # so we don't re-derive them later.
+        merged_cols = {
+            key: "" for key in merge_rows.columns}
+        for _, row in merge_rows.iterrows():
+            row_dict = row.to_dict()
+            for col in merge_rows.columns:
+                if col == SAMPLE_NAME_COLNAME or \
+                                col not in derived_columns:
+                    continue
+                # Initialize key in parent dict.
+                col_key = col + COL_KEY_SUFFIX
+                merged_cols[col_key] = ""
+                row_dict[col_key] = row_dict[col]
+                row_dict[col] = sample.locate_data_source(
+                    col, row_dict[col], row_dict)  # 1)
+
+            # Also add in any derived cols present.
+            for col in derived_columns:
+                # Skip over attributes that the sample
+                # either lacks, and those covered by the
+                # data from the current (row's) data.
+                if not hasattr(sample, col) or \
+                                col in row_dict:
+                    continue
+                # Map column name key to sample's value
+                # for the attribute given by column name.
+                col_key = col + COL_KEY_SUFFIX
+                row_dict[col_key] = getattr(sample, col)
+                # Map the column name itself to the
+                # populated data source template string.
+                row_dict[col] = sample.locate_data_source(
+                    col, getattr(sample, col), row_dict)
+                _LOGGER.debug("PROBLEM adding derived column: "
+                              "{}, {}, {}".format(col, row_dict[col],
+                                                  getattr(sample, col)))
+
+            # Since we are now jamming multiple (merged)
+            # entries into a single attribute, we have to
+            # join them into a space-delimited string
+            # and then set to sample attribute.
+            for key, val in row_dict.items():
+                if key == SAMPLE_NAME_COLNAME or not val:
+                    continue
+                _LOGGER.debug("merge: sample '%s'; %s=%s",
+                              str(sample.name),  str(key), str(val))
+                if not key in merged_cols:
+                    new_val = str(val).rstrip()
+                else:
+                    new_val = "{} {}".format(
+                        merged_cols[key], str(val)).strip()
+                merged_cols[key] = new_val  # 2)
+
+        # Don't update sample_name.
+        merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+
+        sample.update(merged_cols)  # 3)
+        sample.merged = True  # mark sample as merged
+        sample.merged_cols = merged_cols
+
+    return sample
 
 
 
@@ -522,6 +603,22 @@ class Project(AttributeDict):
 
 
     @property
+    def protocols(self):
+        """
+        Determine this Project's unique protocol names.
+
+        :return Set[str]: collection of this Project's unique protocol names
+        """
+        protos = set()
+        for s in self.samples:
+            try:
+                protos.add(s.library)
+            except AttributeError:
+                _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
+        return protos
+
+
+    @property
     def required_metadata(self):
         """
         Names of metadata fields that must be present for a valid project.
@@ -544,39 +641,49 @@ class Project(AttributeDict):
 
     @property
     def samples(self):
+        """
+        Generic/base Sample instance for each of this Project's samples.
+
+        :return generator[Sample]: Sample instance for each
+            of this Project's samples
+        """
         # TODO: account for merge table; store or re-merge every time?
         # TODO: is it more likely to have a bunch of samples, or that
         # TODO: use of this and thus the need to re-merge is very frequent?
-        for _, row in self.sheet.df.iterrows():
-            yield Sample(row.dropna())
-
-
-    def samples_for(self, pipeline=None):
-        """
-        Fetch each of this Project's Sample objects for given pipeline.
-
-        If Sample objects have not yet been created for this Project, create
-        them as needed. What is needed and what is returned are determined by
-        the argument to the pipeline parameter. If no argument is provided as
-        the desired pipeline, it's assumed that the desire is for all possible
-        Sample objects to be created and return based on the samples that and
-        pipelines of which this Project is aware, and the relationships
-        between them.
-
-        :param str pipeline: name of pipeline for which to fetch samples
-        :return Iterable[Sample]:
-        """
-        if not self._samples_by_pipeline:
-            # TODO: also ensure that case of unknown pipeline is covered here.
-            self.create_samples(pipeline)
-        if pipeline is None:
-            return list(itertools.chain(*self._samples_by_pipeline.values()))
+        if hasattr(self.metadata, "merge_table"):
+            if self.merge_table is None:
+                if _os.path.isfile(self.metadata.merge_table):
+                    self.merge_table = _pd.read_table(
+                            self.metadata.merge_table,
+                            sep=None, engine="python")
+                else:
+                    _LOGGER.debug("Alleged path to merge table data is not "
+                                  "a file: '%s'", self.metadata.merge_table)
+            else:
+                _LOGGER.debug("Already parsed merge table")
         else:
+            _LOGGER.debug("No merge table")
+
+        if self.merge_table is None:
+            def merge(s):
+                return s
+        else:
+            def merge(s):
+                return merge_sample(s, self.merge_table, self.derived_columns)
+
+        for _, row in self.sheet.df.iterrows():
+            sample = Sample(row.dropna())
+            if hasattr(sample, "organism"):
+                sample.get_genome_transcriptome()
+            sample.set_file_paths()
+            # Hack for backwards-compatibility
+            # Pipelines should now use `data_source`)
             try:
-                return self._samples_by_pipeline[pipeline]
-            except KeyError:
-                _LOGGER.error("Unknown pipeline: '%s'", pipeline)
-                return []
+                sample.data_path = sample.data_source
+            except AttributeError:
+                _LOGGER.debug("Sample '%s' lacks data source --> skipping "
+                              "data path assignment", sample.sample_name)
+            yield merge(sample)
 
 
     @property
@@ -640,8 +747,7 @@ class Project(AttributeDict):
             _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
             return []
 
-        # Collect
-        jobs = []
+        job_submission_bundles = []
         pipeline_keys_used = set()
         _LOGGER.debug("Building pipelines for {} PIs...".
                       format(len(protocol_interfaces)))
@@ -651,8 +757,8 @@ class Project(AttributeDict):
             # pipeline(s) from a single location for each sample of the given
             # protocol, we can stop searching the pool of pipeline interface
             # information once we've found a match for the protocol.
-            if priority and len(jobs) > 0:
-                return jobs[0]
+            if priority and len(job_submission_bundles) > 0:
+                return job_submission_bundles[0]
 
             try:
                 this_protocol_pipelines = \
@@ -706,50 +812,23 @@ class Project(AttributeDict):
 
             new_jobs = []
             for pipeline_key in new_scripts:
-                strict_pipe_key, full_pipe_path, cmd = \
+                strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
                         proto_iface.pipeline_key_to_path(pipeline_key)
                 sample_subtype = Sample.select_sample_subtype(
                         full_pipe_path, protocol)
-                submission = SampleSubmission(
+                submission_bundle = SubmissionBundle(
                         proto_iface.interface, sample_subtype,
-                        strict_pipe_key, cmd)
-                new_jobs.append(submission)
+                        strict_pipe_key, full_pipe_path_with_flags)
+                new_jobs.append(submission_bundle)
 
-            jobs.append(new_jobs)
+            job_submission_bundles.append(new_jobs)
 
         # Repeat logic check of short-circuit conditional to account for
         # edge case in which it's satisfied during the final iteration.
-        return jobs[0] if priority and len(jobs) > 1 else \
-                list(itertools.chain(*jobs))
-
-
-    def create_samples(self, pipeline=None):
-        """
-        Create Samples for this Project, for a particular pipeline if given.
-
-        If Sample(s) already exist for the given pipeline, nothing is done.
-        This ensures creation work isn't duplicated but assumes that samples
-        are not added to a project after it's constructed, or at least not
-        for a type for which Sample objects have already been created.
-
-        :param str pipeline: name of pipeline for which to create Samples
-        """
-        if self.merge_table is None:
-            try:
-                if _os.path.isfile(self.metadata.merge_table):
-                    self.merge_table = _pd.read_table(
-                            self.metadata.merge_table,
-                            sep=None, engine="python")
-                else:
-                    _LOGGER.debug("Alleged merge_table file does not exist: "
-                                  "'%s'", self.metadata.merge_table)
-            except AttributeError:
-                _LOGGER.debug("No merge table")
-        if pipeline in self._samples_by_pipeline:
-            _LOGGER.debug("Sample(s) already exist for pipeline '%s'",
-                          pipeline)
-            return
-
+        if priority and len(job_submission_bundles) > 1:
+            return job_submission_bundles[0]
+        else:
+            return list(itertools.chain(*job_submission_bundles))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -1089,6 +1168,7 @@ class Project(AttributeDict):
         self.environment_file = env_settings_file
 
 
+    # TODO: remove once confident in replacement.
     def add_sample_sheet(self, csv=None, sample_builder=None):
         """
         Build a `SampleSheet` object from a csv file and
