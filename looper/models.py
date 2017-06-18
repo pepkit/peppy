@@ -49,7 +49,8 @@ Explore:
 # TODO: the examples changes would involve library and output_dir.
 
 from collections import \
-    defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
+    defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
+    OrderedDict as _OrderedDict
 from functools import partial
 import glob
 import itertools
@@ -325,6 +326,12 @@ def process_pipeline_interfaces(pipeline_interface_locations):
             _LOGGER.debug("Protocol name: {}".format(proto_name))
             ifproto_by_proto_name[proto_name].append(proto_iface)
     return ifproto_by_proto_name
+
+
+
+SampleSubmission = namedtuple(
+        "SampleSubmission",
+        field_names=["interface", "subtype", "pipeline", "command"])
 
 
 
@@ -697,9 +704,18 @@ class Project(AttributeDict):
                           format(len(new_scripts), protocol,
                                  proto_iface.pipedir, ", ".join(new_scripts)))
 
-            jobs.append([(proto_iface.interface, ) +
-                         proto_iface.pipeline_key_to_path(pipeline_key)
-                         for pipeline_key in new_scripts])
+            new_jobs = []
+            for pipeline_key in new_scripts:
+                strict_pipe_key, full_pipe_path, cmd = \
+                        proto_iface.pipeline_key_to_path(pipeline_key)
+                sample_subtype = Sample.select_sample_subtype(
+                        full_pipe_path, protocol)
+                submission = SampleSubmission(
+                        proto_iface.interface, sample_subtype,
+                        strict_pipe_key, cmd)
+                new_jobs.append(submission)
+
+            jobs.append(new_jobs)
 
         # Repeat logic check of short-circuit conditional to account for
         # edge case in which it's satisfied during the final iteration.
@@ -2121,28 +2137,43 @@ class Sample(object):
         _LOGGER.debug("%d sample subtype(s): %s", len(sample_subtypes), 
                       ", ".join([subtype.__name__ 
                                  for subtype in sample_subtypes]))
-        
-        # Attempt to match protocol to subtype.
-        protocol_key = alpha_cased(protocol)
-        matched_subtypes = [subtype for subtype in sample_subtypes if 
-                            protocol_key == alpha_cased(subtype.__library__)]
+
+        # Match all subtypes for null protocol; use __library__ for non-null.
+        if protocol is None:
+            _LOGGER.debug("Null protocol, matching every subtypes...")
+            matched_subtypes = sample_subtypes
+        else:
+            protocol_key = alpha_cased(protocol)
+            matched_subtypes = \
+                    [subtype for subtype in sample_subtypes 
+                     if protocol_key == alpha_cased(subtype.__library__)]
+
+        # Helpful for messages about protocol name for each subtype
         subtype_by_protocol_text = \
                 ", ".join(["'{}' ({})".format(subtype.__library, subtype) 
                            for subtype in sample_subtypes])
+
+        # Select subtype based on match count.
         if 0 == len(matched_subtypes):
-            _LOGGER.debug("No known Sample subtype for protocol '%s'; "
-                          "known: %s", protocol, subtype_by_protocol_text)
-            return Sample
+            # Fall back to base Sample if we have no matches.
+            _LOGGER.debug(
+                    "No known Sample subtype for protocol '{}' in '{}'; "
+                    "known: {}".format(protocol, pipeline_filepath,
+                                       subtype_by_protocol_text))
+            return cls
         elif 1 == len(matched_subtypes):
+            # Use the single match if there's exactly one.
             subtype = matched_subtypes[0]
-            _LOGGER.info("Matched protocol '%s' to Sample subtype %s", 
-                         protocol, subtype.__name__)
+            _LOGGER.info("Matched protocol '{}' to Sample subtype {}".
+                         format(protocol, subtype.__name__))
             return subtype
         else:
-            _LOGGER.debug("Unable to choose from %d Sample subtype matches "
-                          "for protocol '%s': %s", len(matched_subtypes),
-                          protocol, subtype_by_protocol_text)
-            return Sample
+            # Throw up our hands and fall back to base Sample for multi-match.
+            _LOGGER.debug("Unable to choose from {} Sample subtype matches "
+                          "for protocol '{}' in '{}': {}".format(
+                    len(matched_subtypes), protocol,
+                    pipeline_filepath, subtype_by_protocol_text))
+            return cls
 
 
 
@@ -2461,8 +2492,8 @@ class ProtocolInterface(object):
 
         :param str pipeline_key: the key in the pipeline interface file used
             for the protocol_mappings section. Previously was the script name.
-        :return (str, str): more restrictive version of input key, along with
-            absolute path for pipeline script.
+        :return (str, str, str): more precise version of input key, along with
+            absolute path for pipeline script, and full script path + options
 
         """
 
@@ -2472,25 +2503,24 @@ class ProtocolInterface(object):
 
         if self.interface.get_attribute(strict_pipeline_key, "path"):
             script_path_only = self.interface.get_attribute(
-                    strict_pipeline_key, "path")[0]
-            script_path_with_flags = " ".join([script_path_only, pipeline_key_args])
+                    strict_pipeline_key, "path")[0].strip()
+            script_path_with_flags = \
+                    " ".join([script_path_only, pipeline_key_args])
         else:
             # backwards compatibility w/ v0.5
             script_path_only = strict_pipeline_key
             script_path_with_flags = pipeline_key 
 
-        if _os.path.isabs(script_path_only):
-            if not _os.path.exists(script_path_only.strip()):
-                _LOGGER.warn("Missing script command: '{}'".format(script_path_only))
-            return strict_pipeline_key, script_path_with_flags
-        else:
-            abs_script_path_only = _os.path.join(self.pipelines_path, script_path_only)
-            abs_script_path_with_flags = _os.path.join(self.pipelines_path, script_path_with_flags)
+        if not _os.path.isabs(script_path_only):
+            script_path_only = _os.path.join(
+                    self.pipelines_path, script_path_only)
+            script_path_with_flags = _os.path.join(
+                    self.pipelines_path, script_path_with_flags)
+        if not _os.path.exists(script_path_only):
+            _LOGGER.warn(
+                    "Missing script command: '{}'".format(script_path_only))
+        return strict_pipeline_key, script_path_only, script_path_with_flags
 
-            if not _os.path.isfile(abs_script_path_only.strip()):
-                _LOGGER.warn("Missing script command: '{}'".
-                             format(abs_script_path_only))
-            return strict_pipeline_key, abs_script_path_with_flags
 
 
 @copy

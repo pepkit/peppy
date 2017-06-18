@@ -248,7 +248,8 @@ def run(prj, args, remaining_args):
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"
         # cannot be assigned (library/protocol missing).
-        for pipeline_interface, pipeline_key, pipeline_job in pipelines:
+        for pipeline_interface, sample_subtype, pipeline_key, pipeline_job \
+                in pipelines:
 
             # pipeline_key (previously pl_id) is no longer necessarily script name, it's more flexible.
             # The current sample is active.
