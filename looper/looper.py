@@ -231,6 +231,8 @@ def run(prj, args, remaining_args):
             protocol = protocol.upper()
             _LOGGER.debug("Building pipeline(s) for protocol: '{}'".
                           format(protocol))
+            # TODO: this should be called just once per protocol, not
+            # TODO: for every Sample, as the call passes no Sample data.
             pipelines = prj.build_pipelines(protocol)
             if len(pipelines) == 0:
                 skip_reasons.append(
@@ -245,6 +247,9 @@ def run(prj, args, remaining_args):
         processed_samples.add(sample.sample_name)
         sample.to_yaml()
 
+        # TODO: determine whether it's before or after this point that the
+        # TODO: specific subtype should be created.
+
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"
         # cannot be assigned (library/protocol missing).
@@ -256,8 +261,8 @@ def run(prj, args, remaining_args):
             # For each pipeline submission consideration, start fresh.
             skip_reasons = []
 
-            _LOGGER.debug("Setting pipeline attributes for job '{}' (PL_ID: '{}')".
-                          format(pipeline_job, pipeline_key))
+            _LOGGER.debug("Setting pipeline attributes for job '{}' "
+                          "(PL_ID: '{}')".format(pipeline_job, pipeline_key))
 
             try:
                 # Add pipeline-specific attributes.
