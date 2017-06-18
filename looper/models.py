@@ -65,7 +65,8 @@ import pandas as _pd
 import yaml
 
 from .utils import \
-    parse_ftype, check_bam, check_fastq, get_file_size, partition
+    alpha_cased, check_bam, check_fastq, get_file_size, \
+    import_from_source, parse_ftype, partition
 
 
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
@@ -609,6 +610,9 @@ class Project(AttributeDict):
             pipelines location(s) (indicated in the project config file) that
             has a match for the given protocol; optional, default True
         :return Iterable[(PipelineInterface, str, str)]:
+        :raises AssertionError: if there's a failure in the attempt to
+            partition an interface's pipeline scripts into disjoint subsets of
+            those already mapped and those not yet mapped
         """
 
         # TODO: called from looper.run; do the import and subclass search here
@@ -640,9 +644,8 @@ class Project(AttributeDict):
             # pipeline(s) from a single location for each sample of the given
             # protocol, we can stop searching the pool of pipeline interface
             # information once we've found a match for the protocol.
-            if priority and 0 != len(jobs):
+            if priority and len(jobs) > 0:
                 return jobs[0]
-
 
             try:
                 this_protocol_pipelines = \
@@ -662,7 +665,12 @@ class Project(AttributeDict):
                     this_protocol_pipelines.replace(";", ",")\
                                            .strip(" ()\n")\
                                            .split(",")
+            # These cleaned pipeline keys are what's used to resolve the path
+            # to the pipeline to run. Essentially, each pipeline key is a
+            # pointer to the fully-qualified location of a pipeline
             pipeline_keys = [pk.strip() for pk in pipeline_keys]
+
+            # Skip over pipelines already been mapped by another location.
             already_mapped, new_scripts = \
                     partition(pipeline_keys,
                               partial(_is_member, items=pipeline_keys_used))
@@ -689,13 +697,12 @@ class Project(AttributeDict):
                           format(len(new_scripts), protocol,
                                  proto_iface.pipedir, ", ".join(new_scripts)))
 
-            # TODO: determine why comprehension here is over pipeline keys
-            # TODO: rather than over one of the disjoint subsets that results
-            # TODO: from the partition procedure based on mapping status.
             jobs.append([(proto_iface.interface, ) +
                          proto_iface.pipeline_key_to_path(pipeline_key)
-                         for pipeline_key in pipeline_keys])
+                         for pipeline_key in new_scripts])
 
+        # Repeat logic check of short-circuit conditional to account for
+        # edge case in which it's satisfied during the final iteration.
         return jobs[0] if priority and len(jobs) > 1 else \
                 list(itertools.chain(*jobs))
 
@@ -2053,6 +2060,89 @@ class Sample(object):
                 _LOGGER.warn("Not all input files agree on "
                              "feature '%s' for sample '%s'",
                              feature, self.name)
+
+
+    @classmethod
+    def select_sample_subtype(cls, pipeline_filepath, protocol=None):
+        """
+        From a pipeline module, select Sample subtype for a particular protocol.
+
+        The indicated file needs to be a Python module that can be imported.
+        Critically, it must be written such that importing it does not run it
+        as a script. That is, its workflow logic should be bundled into
+        function(s), or at least nested under a "if __name__ == '__main__'"
+        conditional.
+
+        :param str pipeline_filepath: path to file defining a pipeline
+        :param str protocol: name of protocol for which to select Sample subtype
+        :return type: Sample type most tailored to indicated protocol and defined
+            within the module indicated by the given filepath, optional; if
+            unspecified, or if the indicated file cannot be imported, then the
+            base Sample type is returned. Critically, the indicated
+        """
+
+        if not _os.path.isfile(pipeline_filepath):
+            _LOGGER.debug("Alleged pipeline module path is not a file: '%s'", 
+                          pipeline_filepath)
+            return cls
+
+        # Determine whether it appears safe to import the pipeline module, 
+        # and return a generic, base Sample if not.
+        import subprocess
+        def file_has_pattern(pattern, filepath):
+            try:
+                with open(_os.devnull, 'w') as devnull:
+                    return subprocess.call(
+                            ["grep", pattern, filepath], stdout=devnull)
+            except Exception:
+                return False
+        safety_lines = ["if __name__ == '__main__'",
+                        "if __name__ == \"__main__\""]
+        safe_to_import = \
+                any(map(partial(file_has_pattern,
+                                filepath=pipeline_filepath),
+                        safety_lines))
+        if not safe_to_import:
+            _LOGGER.debug("Attempt to import '{}' may run code so is refused.".
+                          format(pipeline_filepath))
+            return cls
+
+        # Import pipeline module and find Sample subtypes.
+        _, modname = _os.path.split(pipeline_filepath)
+        modname, _ = _os.path.splitext(modname)
+        pipeline_module = import_from_source(
+                name=modname, module_filepath=pipeline_filepath)
+        _LOGGER.debug("Successfully imported pipeline module '%s', "
+                      "naming it '%s'", pipeline_filepath, 
+                      pipeline_module.__name__)
+        import inspect
+        sample_subtypes = inspect.getmembers(
+                pipeline_module, lambda obj: isinstance(obj, Sample))
+        _LOGGER.debug("%d sample subtype(s): %s", len(sample_subtypes), 
+                      ", ".join([subtype.__name__ 
+                                 for subtype in sample_subtypes]))
+        
+        # Attempt to match protocol to subtype.
+        protocol_key = alpha_cased(protocol)
+        matched_subtypes = [subtype for subtype in sample_subtypes if 
+                            protocol_key == alpha_cased(subtype.__library__)]
+        subtype_by_protocol_text = \
+                ", ".join(["'{}' ({})".format(subtype.__library, subtype) 
+                           for subtype in sample_subtypes])
+        if 0 == len(matched_subtypes):
+            _LOGGER.debug("No known Sample subtype for protocol '%s'; "
+                          "known: %s", protocol, subtype_by_protocol_text)
+            return Sample
+        elif 1 == len(matched_subtypes):
+            subtype = matched_subtypes[0]
+            _LOGGER.info("Matched protocol '%s' to Sample subtype %s", 
+                         protocol, subtype.__name__)
+            return subtype
+        else:
+            _LOGGER.debug("Unable to choose from %d Sample subtype matches "
+                          "for protocol '%s': %s", len(matched_subtypes),
+                          protocol, subtype_by_protocol_text)
+            return Sample
 
 
 
