@@ -183,7 +183,7 @@ def run(prj, args, remaining_args):
         to be passed on to parser(s) elsewhere
     """
 
-    _start_counter(len(prj.samples))
+    _start_counter(prj.num_samples)
     valid_read_types = ["single", "paired"]
 
     # Keep track of how many jobs have been submitted.
@@ -429,7 +429,7 @@ def summarize(prj):
     columns = []
     stats = []
 
-    _start_counter(len(prj.samples))
+    _start_counter(prj.num_samples)
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
@@ -491,7 +491,7 @@ def destroy(prj, args, preview_flag=True):
 
     _LOGGER.info("Results to destroy:")
 
-    _start_counter(len(prj.samples))
+    _start_counter(prj.num_samples)
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
@@ -528,7 +528,7 @@ def clean(prj, args, preview_flag=True):
 
     _LOGGER.info("Files to clean:")
 
-    _start_counter(len(prj.samples))
+    _start_counter(prj.num_samples)
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
@@ -813,9 +813,9 @@ def main():
             raise AttributeError(
                     "Looper requires at least one pipeline(s) location.")
 
-        if not prj.interface_manager.ifproto_by_proto_name:
+        if not prj.interfaces_by_protocol:
             _LOGGER.error(
-                    "The interface manager is empty. Does your project point "
+                    "The Project knows no protocols. Does it point "
                     "to at least one pipelines location that exists?")
             return
         try:

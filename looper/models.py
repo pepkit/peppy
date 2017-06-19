@@ -104,6 +104,12 @@ def is_url(maybe_url):
 
 
 
+def include_in_repr(attr, klazz):
+    return attr not in \
+           {"Project": ["sheet", "interfaces_by_protocol"]}[klazz.__name__]
+
+
+
 @copy
 class Paths(object):
     """ A class to hold paths as attributes. """
@@ -187,8 +193,7 @@ class AttributeDict(MutableMapping):
 
     def __getattr__(self, item, default=None):
         """
-        Fetch the value associated with the provided identifier. Unlike an
-        ordinary object, `AttributeDict` supports fetching
+        Fetch the value associated with the provided identifier.
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
@@ -200,6 +205,10 @@ class AttributeDict(MutableMapping):
             anyway. More specifically, respect attribute naming that appears
             to be indicative of the intent of protection.
         """
+        try:
+            return super(AttributeDict, self).__getattribute__(item)
+        except AttributeError:
+            pass
         try:
             # Fundamentally, this is still a mapping;
             # route object notation access pattern accordingly.
@@ -311,7 +320,7 @@ class AttributeDict(MutableMapping):
 
 def process_pipeline_interfaces(pipeline_interface_locations):
     """
-    Create a ProtocolInteraface for each pipeline location given.
+    Create a ProtocolInterface for each pipeline location given.
     
     :param Iterable[str] pipeline_interface_locations: locations, each of
         which should be either a directory path or a filepath, that specifies
@@ -566,9 +575,12 @@ class Project(AttributeDict):
         self.interfaces_by_protocol = \
                 process_pipeline_interfaces(self.metadata.pipelines_dir)
         self.sheet = check_sheet(self.metadata.sample_annotation)
+        self.merge_table = None
 
-        # Defer Sample creation until needed.
-        self._samples_by_pipeline = {}
+
+    def __repr__(self):
+        include = partial(include_in_repr, klazz=self.__class__)
+        return repr({k: v for k, v in self.__dict__.items() if include(k)})
 
 
     @property
@@ -587,6 +599,12 @@ class Project(AttributeDict):
         """ Path to default compute environment settings file. """
         return _os.path.join(
                 self.templates_folder, "default_compute_settings.yaml")
+
+
+    @property
+    def num_samples(self):
+        """ Number of samples available in this Project. """
+        return sum(1 for _ in self.samples)
 
 
     @property
@@ -2595,6 +2613,10 @@ class ProtocolInterface(object):
         else:
             raise ValueError("Alleged pipelines location '{}' exists neither "
                              "as a file nor as a folder.".format(pipedir))
+
+
+    def __repr__(self):
+        return repr(self.__dict__)
 
 
     def pipeline_key_to_path(self, pipeline_key):
