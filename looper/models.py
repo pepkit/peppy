@@ -529,7 +529,8 @@ class Project(AttributeDict):
         self.environment, self.environment_file = None, None
 
         try:
-            self.update_environment(default_compute)
+            self.update_environment(
+                    default_compute or self.default_compute_envfile)
         except Exception as e:
             _LOGGER.error("Can't load environment config file '%s'",
                           str(default_compute))
@@ -1148,27 +1149,26 @@ class Project(AttributeDict):
 
         # Hope that environment & environment compute are present.
         if setting and self.environment and "compute" in self.environment:
+            # Augment compute, creating it if needed.
+            if self.compute is None:
+                _LOGGER.debug("Creating Project compute")
+                self.compute = AttributeDict()
+                _LOGGER.debug("Adding entries for setting '%s'", setting)
+            self.compute.add_entries(self.environment.compute[setting])
 
-                # Augment compute, creating it if needed
-                if self.compute is None:
-                    _LOGGER.debug("Creating Project compute")
-                    self.compute = AttributeDict()
-                    _LOGGER.debug("Adding entries for setting '%s'", setting)
-                self.compute.add_entries(self.environment.compute[setting])
-
-                # Ensure submission template is absolute.
-                if not _os.path.isabs(self.compute.submission_template):
-                    try:
-                        self.compute.submission_template = _os.path.join(
-                                _os.path.dirname(self.environment_file),
-                                self.compute.submission_template)
-                    except AttributeError as e:
-                        # Environment and environment compute should at least have been
-                        # set as null-valued attributes, so execution here is an error.
-                        _LOGGER.error(str(e))
-                        # Compute settings have been established.
-                    else:
-                        return True
+            # Ensure submission template is absolute.
+            if not _os.path.isabs(self.compute.submission_template):
+                try:
+                    self.compute.submission_template = _os.path.join(
+                            _os.path.dirname(self.environment_file),
+                            self.compute.submission_template)
+                except AttributeError as e:
+                    # Environment and environment compute should at least have been
+                    # set as null-valued attributes, so execution here is an error.
+                    _LOGGER.error(str(e))
+                    # Compute settings have been established.
+                else:
+                    return True
         else:
             # Scenario in which environment and environment compute are
             # both present but don't evaluate to True is fairly
@@ -1198,7 +1198,7 @@ class Project(AttributeDict):
             new environment configuration data
         """
 
-        with open(env_settings_file or self.default_compute_envfile, 'r') as f:
+        with open(env_settings_file, 'r') as f:
             _LOGGER.info("Loading %s: %s",
                          self.compute_env_var, env_settings_file)
             env_settings = yaml.load(f)
