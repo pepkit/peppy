@@ -707,8 +707,9 @@ class Project(AttributeDict):
             def merge(s):
                 return merge_sample(s, self.merge_table, self.derived_columns)
 
-        for _, row in self.sheet.df.iterrows():
+        for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna())
+            sample.prj = self
             if hasattr(sample, "organism"):
                 sample.get_genome_transcriptome()
             sample.set_file_paths()
@@ -720,7 +721,6 @@ class Project(AttributeDict):
                 _LOGGER.debug("Sample '%s' lacks data source --> skipping "
                               "data path assignment", sample.sample_name)
             sample = merge(sample)
-            sample.prj = self
             yield sample
 
 
