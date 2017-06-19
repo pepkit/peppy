@@ -604,7 +604,7 @@ class Project(AttributeDict):
     @property
     def num_samples(self):
         """ Number of samples available in this Project. """
-        return sum(1 for _ in self.samples)
+        return sum(1 for _ in self.sample_names)
 
 
     @property
