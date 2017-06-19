@@ -76,6 +76,7 @@ DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
+DATA_SOURCES_SECTION = "data_sources"
 COL_KEY_SUFFIX = "_key"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
@@ -110,6 +111,32 @@ def include_in_repr(attr, klazz):
 
 
 
+class PepYamlRepresenter(yaml.representer.Representer):
+    """ Should object's YAML representation fail, get additional info. """
+
+    def represent_data(self, data):
+        """
+        Supplement PyYAML's context info in case of representation failure.
+
+        :param object data: same as superclass
+        :return object: same as superclass
+        """
+        try:
+            return super(PepYamlRepresenter, self).represent_data(data)
+        except yaml.representer.RepresenterError:
+            _LOGGER.error("YAML representation error: {} ({})".
+                          format(data, type(data)))
+            raise
+
+
+# Bespoke YAML dumper, using the custom data/object Representer.
+PepYamlDumper = type("PepYamlDumper",
+                     (yaml.emitter.Emitter, yaml.serializer.Serializer,
+                      PepYamlRepresenter, yaml.resolver.Resolver),
+                     dict(yaml.dumper.Dumper.__dict__))
+
+
+
 @copy
 class Paths(object):
     """ A class to hold paths as attributes. """
@@ -131,7 +158,7 @@ class Paths(object):
         """
         return iter(self.__dict__.values())
 
-    def __str__(self):
+    def __repr__(self):
         return "Paths object."
 
 
@@ -351,10 +378,11 @@ SubmissionBundle = namedtuple(
 
 
 
-def merge_sample(sample, merge_table, derived_columns):
+def merge_sample(data_sources, sample, merge_table, derived_columns):
     """
     Use merge table data to augment/modify Sample.
 
+    :param Mapping data_sources: collection of named paths to data locations
     :param Sample sample: sample to modify via merge table data
     :param merge_table: data with which to alter Sample
     :param derived_columns: names of columns with data-derived value
@@ -391,7 +419,7 @@ def merge_sample(sample, merge_table, derived_columns):
                 merged_cols[col_key] = ""
                 row_dict[col_key] = row_dict[col]
                 row_dict[col] = sample.locate_data_source(
-                    col, row_dict[col], row_dict)  # 1)
+                        data_sources, col, row_dict[col], row_dict)  # 1)
 
             # Also add in any derived cols present.
             for col in derived_columns:
@@ -408,7 +436,7 @@ def merge_sample(sample, merge_table, derived_columns):
                 # Map the column name itself to the
                 # populated data source template string.
                 row_dict[col] = sample.locate_data_source(
-                    col, getattr(sample, col), row_dict)
+                        data_sources, col, getattr(sample, col), row_dict)
                 _LOGGER.debug("PROBLEM adding derived column: "
                               "{}, {}, {}".format(col, row_dict[col],
                                                   getattr(sample, col)))
@@ -709,10 +737,10 @@ class Project(AttributeDict):
 
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna())
-            sample.prj = self
-            if hasattr(sample, "organism"):
-                sample.get_genome_transcriptome()
-            sample.set_file_paths()
+            sample.set_genome(self.genomes)
+            sample.set_transcriptome(self.transcriptomes)
+
+            sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
             try:
@@ -846,7 +874,7 @@ class Project(AttributeDict):
             _LOGGER.debug("{} new scripts for protocol {} from "
                           "pipelines warehouse '{}': {}".
                           format(len(new_scripts), protocol,
-                                 proto_iface.pipedir, ", ".join(new_scripts)))
+                                 proto_iface.location, ", ".join(new_scripts)))
 
             new_jobs = []
             for pipeline_key in new_scripts:
@@ -1198,143 +1226,6 @@ class Project(AttributeDict):
         self.environment_file = env_settings_file
 
 
-    # TODO: remove once confident in replacement.
-    def add_sample_sheet(self, csv=None, sample_builder=None):
-        """
-        Build a `SampleSheet` object from a csv file and
-        add it and its samples to the project.
-
-        :param csv: Path to csv file.
-        :type csv: str
-        :param sample_builder: how to create single Sample from raw input data.
-        :type sample_builder: function(pandas.Series | dict) -> Sample
-        """
-
-        _LOGGER.debug("Adding sample sheet")
-
-        # Make SampleSheet object
-        # By default read sample_annotation, but allow explict CSV arg.
-        self.sheet = SampleSheet(csv or self.metadata.sample_annotation)
-
-        # Pair project and sheet.
-        self.sheet.prj = self
-
-        # Generate sample objects from annotation sheet.
-        _LOGGER.debug("Creating samples from annotation sheet")
-        self.sheet.make_samples(sample_builder)
-
-        # Add samples to Project.
-        for sample in self.sheet.samples:
-            # Overwritten later if merged
-            sample.merged = False
-            # Tie sample and project bilaterally
-            sample.prj = self
-            self.samples.append(sample)
-
-        # Merge sample files (!) using merge table if provided:
-        if hasattr(self.metadata, "merge_table"):
-            if self.metadata.merge_table is not None:
-                if _os.path.isfile(self.metadata.merge_table):
-                    # read in merge table
-
-                    merge_table = _pd.read_table(
-                            self.metadata.merge_table,
-                            sep=None, index_col=False, engine="python")
-
-                    if SAMPLE_NAME_COLNAME not in merge_table.columns:
-                        raise KeyError(
-                                "Merge table requires a column named '{}'.".
-                                format(SAMPLE_NAME_COLNAME))
-
-                    for sample in self.sheet.samples:
-                        sample_indexer = \
-                                merge_table[SAMPLE_NAME_COLNAME] == sample.name
-                        merge_rows = merge_table[sample_indexer]
-
-                        # Check if there are rows in the
-                        # merge table for this sample:
-                        if len(merge_rows) > 0:
-                            # For each row in the merge table of this sample:
-                            # 1) populate any derived columns
-                            # 2) derived columns --> space-delimited strings
-                            # 3) update the sample values with the merge table
-
-                            # Keep track of merged cols,
-                            # so we don't re-derive them later.
-                            merged_cols = {
-                                    key: "" for key in merge_rows.columns}
-                            for _, row in merge_rows.iterrows():
-                                row_dict = row.to_dict()
-                                for col in merge_rows.columns:
-                                    if col == SAMPLE_NAME_COLNAME or \
-                                            col not in self.derived_columns:
-                                        continue
-                                    # Initialize key in parent dict.
-                                    col_key = col + COL_KEY_SUFFIX
-                                    merged_cols[col_key] = ""
-                                    row_dict[col_key] = row_dict[col]
-                                    row_dict[col] = sample.locate_data_source(
-                                        col, row_dict[col], row_dict)  # 1)
-
-                                # Also add in any derived cols present.
-                                for col in self.derived_columns:
-                                    # Skip over attributes that the sample
-                                    # either lacks, and those covered by the
-                                    # data from the current (row's) data.
-                                    if not hasattr(sample, col) or \
-                                            col in row_dict:
-                                        continue
-                                    # Map column name key to sample's value
-                                    # for the attribute given by column name.
-                                    col_key = col + COL_KEY_SUFFIX
-                                    row_dict[col_key] = getattr(sample, col)
-                                    # Map the column name itself to the
-                                    # populated data source template string.
-                                    row_dict[col] = sample.locate_data_source(
-                                        col, getattr(sample, col), row_dict)
-                                    _LOGGER.debug(
-                                        "PROBLEM adding derived column: "
-                                        "{}, {}, {}".format(col,
-                                        row_dict[col], getattr(sample, col)))
-
-                                # Since we are now jamming multiple (merged)
-                                # entries into a single attribute, we have to
-                                # join them into a space-delimited string
-                                # and then set to sample attribute.
-                                for key, val in row_dict.items():
-                                    if key == SAMPLE_NAME_COLNAME or not val:
-                                        continue
-                                    _LOGGER.debug("merge: sample '%s'; %s=%s",
-                                                  str(sample.name), 
-                                                  str(key), str(val))
-                                    if not key in merged_cols:
-                                        new_val = str(val).rstrip()
-                                    else:
-                                        new_val = "{} {}".format(
-                                            merged_cols[key], str(val)).strip()
-                                    merged_cols[key] = new_val    # 2)
-
-                            # Don't update sample_name.
-                            merged_cols.pop(SAMPLE_NAME_COLNAME, None)
-
-                            sample.update(merged_cols)    # 3)
-                            sample.merged = True    # mark sample as merged
-                            sample.merged_cols = merged_cols
-
-        # With all samples, prepare file paths.
-        for sample in self.sheet.samples:
-            if hasattr(sample, "organism"):
-                sample.get_genome_transcriptome()
-            sample.set_file_paths()
-            # Hack for backwards-compatibility
-            # Pipelines should now use `data_source`)
-            try:
-                sample.data_path = sample.data_source
-            except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks data source --> skipping "
-                              "data path assignment", sample.sample_name)
-
-
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
         _LOGGER.debug("Ensuring absolute: '%s'", maybe_relpath)
@@ -1391,221 +1282,6 @@ def check_sheet(sample_file, dtype=str):
             "Annotation sheet ('{}') is missing column(s): {}; has: {}".
                 format(sample_file, missing, df.columns))
     return df
-
-
-@copy
-class SampleSheet(object):
-    """
-    Class to model a sample annotation sheet.
-
-    :param path: Path to sample file.
-    :type path: str
-    :param dtype: Data type to read sample file as. Default is str.
-    :type dtype: type
-
-    :Example:
-
-    .. code-block:: python
-
-        from models import Project, SampleSheet
-        prj = Project("config.yaml")
-        sheet = SampleSheet("sheet.csv")
-    """
-
-    def __init__(self, path, dtype=str):
-        super(SampleSheet, self).__init__()
-        self.df = self.check_sheet(path, dtype)
-        self.path = path
-        self.samples = list()
-
-    def __repr__(self):
-        if hasattr(self, "prj"):
-            return "SampleSheet for project '%s' with %i samples." % \
-                   (self.prj, len(self.df))
-        else:
-            return "SampleSheet with %i samples." % len(self.df)
-
-
-    @staticmethod
-    def alpha_cased(text, lower=False):
-        """
-        Filter text to just letters and homogenize case.
-        
-        :param str text: what to filter and homogenize.
-        :param bool lower: whether to convert to lowercase; default uppercase.
-        :return str: input filtered to just letters, with homogenized case.
-        """
-        text = "".join(filter(lambda c: c.isalpha(), text))
-        return text.lower() if lower else text.upper()
-
-
-    def make_samples(self, sample_builder=None):
-        """
-        Create samples (considering library) from annotation sheet,
-        and add them to the project.
-        """
-        create_sample = sample_builder or self._find_sample_subtypes()
-        for _, row in self.df.iterrows():
-            self.samples.append(create_sample(row.dropna()))
-
-
-    def _find_sample_subtypes(self):
-        """
-        Determine how to create Sample instances.
-
-        Search modules for classes that extend Sample in order to find
-        those that are more specifically tailored to a particular
-        data or experiment type.
-
-        :return function(Mapping | pd.core.series.Series) -> Sample: function
-            that takes input data and creates a Sample (or perhaps a subclass).
-        """
-        try:
-            import pipelines  # Use a pipelines package if installed.
-        except ImportError:
-            # pipelines_dir is optional.
-            pipeline_dirpaths = getattr(
-                    self.prj.metadata, "pipelines_dir", None)
-            if pipeline_dirpaths:
-                if isinstance(pipeline_dirpaths, str):
-                    pipeline_dirpaths = [pipeline_dirpaths]
-                sys.path.extend(pipeline_dirpaths)
-                _LOGGER.debug(
-                    "Added {} pipelines path(s) to sys.path: {}".
-                        format(len(pipeline_dirpaths), pipeline_dirpaths))
-            else:
-                _LOGGER.debug("No pipelines directories to add to import path")
-            try:
-                import pipelines
-            except ImportError:
-                found_pipelines = False
-            else:
-                found_pipelines = True
-        else:
-            found_pipelines = True
-
-        if not found_pipelines:
-            _LOGGER.debug("Could not import pipelines")
-            # Just return a basic Sample for each of the sheet's rows.
-            def make_sample(data):
-                return Sample(data)
-        else:
-            _LOGGER.debug("Successfully imported pipelines")
-            # Attempt creation of Sample subtype specific to protocol.
-
-            # Get all pipelines package Sample subclasses.
-            import inspect
-            from utils import fetch_package_classes
-            sample_types = fetch_package_classes(pipelines,
-                    lambda maybe_class: inspect.isclass(maybe_class)
-                                        and issubclass(maybe_class, Sample))
-
-            _LOGGER.debug("Sample subtypes: %s",
-                          ", ".join([subtype.__name__
-                                     for subtype in sample_types]))
-
-            # TODO: perhaps modify or alter handling of need for __library__.
-            pairing = {self.alpha_cased(sample_class.__library__): sample_class
-                       for sample_type, sample_class in sample_types}
-
-            def make_sample(data):
-                # Create the most specific Sample type possible.
-                try:
-                    protocol = data.library
-                except AttributeError:
-                    _LOGGER.debug("Sample data lacks 'library' attribute")
-                    return Sample(data)
-                try:
-                    return pairing[self.alpha_cased(protocol)](data)
-                except KeyError:
-                    _LOGGER.debug("Unknown protocol: '{}'; known: {}".
-                                  format(protocol, pairing.keys()))
-                    return Sample(data)
-
-        return make_sample
-
-
-
-    def protocol_to_subclass(self):
-        try:
-            import pipelines  # Use a pipelines package if installed.
-        except ImportError:
-            # pipelines_dir is optional.
-            pipeline_dirpaths = getattr(
-                    self.prj.metadata, "pipelines_dir", None)
-
-            if not pipeline_dirpaths:
-                _LOGGER.debug("No pipelines directories to add to import path")
-                return None
-
-            if isinstance(pipeline_dirpaths, str):
-                pipeline_dirpaths = [pipeline_dirpaths]
-            sys.path.extend(pipeline_dirpaths)
-            _LOGGER.debug(
-                "Added {} pipelines path(s) to sys.path: {}".
-                    format(len(pipeline_dirpaths), pipeline_dirpaths))
-
-            try:
-                import pipelines
-            except ImportError:
-                _LOGGER.debug("Could not import pipelines")
-                return None
-
-        _LOGGER.debug("Successfully imported pipelines")
-
-        # Get all pipelines package Sample subclasses.
-        import inspect
-        from utils import fetch_package_classes
-        sample_types = fetch_package_classes(pipelines,
-                lambda maybe_class: inspect.isclass(maybe_class)
-                                    and issubclass(maybe_class, Sample))
-
-        # TODO: perhaps modify or alter handling of need for __library__.
-        return {self.alpha_cased(sample_class.__library__): sample_class
-                for sample_type, sample_class in sample_types}
-
-
-    def as_data_frame(self):
-        """
-        Returns a `pandas.DataFrame` representation of self.
-        """
-        return _pd.DataFrame([s.as_series() for s in self.samples])
-
-
-    def write(self, path, sep=None):
-        """
-        Saves an annotation sheet from the samples.
-
-        :param path: Path to file to be written.
-        :type path: str
-        :param sep: Delimiter to use in the file written.
-        :type sep: str
-
-        :Example:
-
-        .. code-block:: python
-
-            from models import SampleSheet
-            sheet = SampleSheet("/projects/example/sheet.csv")
-            sheet.write("~/projects/example/sheet2.csv")
-        """
-
-        valid_types = [".txt", ".tsv", ".csv"]
-
-        # Infer delimiter if needed.
-        if sep is None:
-            file_type = _os.path.splitext(path)[1].lower()
-            if file_type not in valid_types:
-                help_msg = "Provide an argument for parameter 'sep' or pass a " \
-                           "filepath with an extension in: {}".\
-                        format(valid_types)
-                raise ValueError(help_msg)
-            sep = "," if file_type == ".csv" else "\t"
-
-        # Convert to frame and write to disk.
-        with open(path, 'w') as sheetfile:
-            # TODO: decide which--if any--attributes to drop here.
-            self.as_data_frame().to_csv(sheetfile, sep=sep, index=False)
 
 
 
@@ -1804,24 +1480,6 @@ class Sample(object):
                 for attr in attribute_list]
 
 
-    def get_genome_transcriptome(self):
-        """
-        Get genome and transcriptome, based on project config file.
-        If not available (matching config), genome and transcriptome
-        will be set to sample.organism.
-        """
-        try:
-            self.genome = getattr(self.prj.genomes, self.organism)
-        except AttributeError:
-            _LOGGER.debug("Project config lacks genome mapping for "
-                              "organism '%s'", str(self.organism))
-        try:
-            self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
-        except AttributeError:
-            _LOGGER.debug("Project config lacks transcriptome mapping for "
-                              "organism '%s'", str(self.organism))
-
-
     def get_sheet_dict(self):
         """
         Create a K-V pairs for items originally passed in via the sample sheet.
@@ -1837,7 +1495,7 @@ class Sample(object):
                              for k in self.sheet_attributes])
 
 
-    def infer_columns(self):
+    def infer_columns(self, implications):
         """
         Infer value for additional field(s) from other field(s).
 
@@ -1845,16 +1503,16 @@ class Sample(object):
         that the sample's project defines as indicative of implications for
         additional data elements for the sample.
 
+        :param Mapping implications: Project's implied columns data
         :return None: this function mutates state and is strictly for effect
         """
-        if not hasattr(self.prj, IMPLICATIONS_DECLARATION):
-            return
-
-        impliers = self.prj[IMPLICATIONS_DECLARATION]
 
         _LOGGER.debug(
-            "Sample variable(s) that can imply others: %s", str(impliers))
-        for implier_name, implied in impliers.items():
+            "Sample variable(s) that can imply others: %s", str(implications))
+        if not implications:
+            return
+
+        for implier_name, implied in implications.items():
             _LOGGER.debug(
                 "Setting Sample variable(s) implied by '%s'", implier_name)
             try:
@@ -1878,13 +1536,15 @@ class Sample(object):
                     implier_name, implier_value)
 
 
-    def locate_data_source(self, column_name=DATA_SOURCE_COLNAME,
+    def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
         """
         Uses the template path provided in the project config section
         "data_sources" to piece together an actual path by substituting
         variables (encoded by "{variable}"") with sample attributes.
 
+        :param Mapping data_sources: mapping from key name (as a value in
+            a cell of a tabular data structure) to, e.g., filepath
         :param str column_name: Name of sample attribute
             (equivalently, sample sheet column) specifying a derived column.
         :param str source_key: The key of the data_source,
@@ -1900,9 +1560,12 @@ class Sample(object):
             These extra variables are given a higher priority.
         :return str: regex expansion of data source specified in configuration,
             with variable substitutions made
+        :raises ValueError: if argument to data_sources parameter is null/empty
         """
 
-        sources_section = "data_sources"
+        if not data_sources:
+            # TODO: should this be a null/empty-string return, or actual error?
+            raise ValueError("No data sources")
 
         if not source_key:
             try:
@@ -1911,11 +1574,11 @@ class Sample(object):
                 reason = "'{attr}': to locate sample's data source, provide " \
                          "the name of a key from '{sources}' or ensure " \
                          "sample has attribute '{attr}'".format(
-                         attr=column_name, sources=sources_section)
+                         attr=column_name, sources=DATA_SOURCES_SECTION)
                 raise AttributeError(reason)
 
         try:
-            regex = self.prj[sources_section][source_key]
+            regex = data_sources[source_key]
         except KeyError:
             _LOGGER.warn(
                     "Config lacks entry for data_source key: '{}' "
@@ -1957,14 +1620,16 @@ class Sample(object):
                 _os.makedirs(path)
 
 
-    def set_file_paths(self):
+    def set_file_paths(self, project):
         """
         Sets the paths of all files for this sample.
+
+        :param Project project: object with pointers to data paths and such
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
 
-        for col in self.prj.derived_columns:
+        for col in project.derived_columns:
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if hasattr(self, col) and col not in self.merged_cols \
@@ -1972,28 +1637,52 @@ class Sample(object):
                 # Set a variable called {col}_key, so the
                 # original source can also be retrieved.
                 setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
-                setattr(self, col, self.locate_data_source(col))
+                setattr(self, col, self.locate_data_source(
+                        data_sources=project.get(DATA_SOURCES_SECTION),
+                        column_name=col))
                 self.derived_cols_done.append(col)
 
-        self.infer_columns()
+        self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
 
         # Parent
-        self.results_subdir = self.prj.metadata.results_subdir
+        self.results_subdir = project.metadata.results_subdir
         self.paths.sample_root = _os.path.join(
-                self.prj.metadata.results_subdir, self.sample_name)
+                project.metadata.results_subdir, self.sample_name)
 
         # Track url
         bigwig_filename = self.name + ".bigWig"
         try:
             # Project's public_html folder
             self.bigwig = _os.path.join(
-                    self.prj.trackhubs.trackhub_dir, bigwig_filename)
+                    project.trackhubs.trackhub_dir, bigwig_filename)
             self.track_url = \
-                    "{}/{}".format(self.prj.trackhubs.url, bigwig_filename)
+                    "{}/{}".format(project.trackhubs.url, bigwig_filename)
         except:
             _LOGGER.debug("No trackhub/URL")
             pass
 
+    
+    def set_genome(self, genomes):
+        self._set_assembly("genome", genomes)
+        
+        
+    def set_transcriptome(self, transcriptomes):
+        self._set_assembly("transcriptome", transcriptomes)
+        
+        
+    def _set_assembly(self, ome, assemblies):
+        try:
+            assembly = assemblies[self.organism]
+        except AttributeError:
+            _LOGGER.debug("Sample '%s' lacks organism attribute", self.name)
+            assembly = None
+        except KeyError:
+            _LOGGER.debug("Unknown {} value: '{}'".format(ome, self.organism))
+            assembly = None
+        _LOGGER.debug("Setting {} as {} on sample '{}'".
+                      format(assembly, ome, self.name))
+        setattr(self, ome, assembly)
+        
 
     def set_pipeline_attributes(
             self, pipeline_interface, pipeline_name, permissive=True):
@@ -2136,17 +1825,38 @@ class Sample(object):
                              feature, self.name)
 
 
-    def to_yaml(self, path=None, pipeline_name=None):
+    def to_yaml(self, path=None, subs_folder_path=None, pipeline_name=None):
         """
         Serializes itself in YAML format.
 
-        :param str path: A file path to write yaml to.
+        :param str path: A file path to write yaml to; provide this or
+            the subs_folder_path
         :param str pipeline_name: name of a pipeline to which this particular
             Sample instance pertains (i.e., perhaps the name of a module
             that defined a Sample subclass of which this is an instance)
+        :param str subs_folder_path: path to folder in which to place file
+            that's being written; provide this or a full filepath
         :return str: filepath used (same as input if given, otherwise the
             path value that was inferred)
+        :raises ValueError: if neither full filepath nor path to extant
+            parent directory is provided.
         """
+
+        # Determine filepath, prioritizing anything given, then falling
+        # back to a default using this Sample's Project's submission_subdir.
+        # Use the sample name and YAML extension as the file name,
+        # interjecting a pipeline name as a subfolder within the Project's
+        # submission_subdir if such a pipeline name is provided.
+        if not path:
+            if not subs_folder_path:
+                raise ValueError(
+                    "To represent {} on disk, provide a full path or a path "
+                    "to a parent (submissions) folder".
+                    format(self.__class__.__name__))
+            filename = "{}.{}.yaml".format(self.sample_name, pipeline_name) \
+                if pipeline_name else "{}.yaml".format(self.sample_name)
+            path = _os.path.join(subs_folder_path, filename)
+        self.yaml_file = path
 
 
         def obj2dict(obj,
@@ -2182,22 +1892,13 @@ class Sample(object):
             else:
                 return obj
 
-
-        # Determine filepath, prioritizing anything given, then falling
-        # back to a default using this Sample's Project's submission_subdir.
-        # Use the sample name and YAML extension as the file name,
-        # interjecting a pipeline name as a subfolder within the Project's
-        # submission_subdir if such a pipeline name is provided.
-        if not path:
-            submission_dirpath = self.prj.metadata.submission_subdir
-            filename = "{}.{}.yaml".format(self.sample_name, pipeline_name) \
-                if pipeline_name else "{}.yaml".format(self.sample_name)
-            path = _os.path.join(submission_dirpath, filename)
-        self.yaml_file = path
-
+        _LOGGER.debug("Converting Sample '%s' to dictionary", self.name)
         serial = obj2dict(self)
         with open(self.yaml_file, 'w') as outfile:
-            outfile.write(yaml.safe_dump(serial, default_flow_style=False))
+            _LOGGER.debug("Converting '%s' dictionary to YAML data", self.name)
+            yaml_data = yaml.safe_dump(serial, default_flow_style=False)
+            #yaml_data = yaml.dump(serial, Dumper=PepYamlDumper, default_flow_style=False)
+            outfile.write(yaml_data)
 
 
     def update(self, newdata):
@@ -2256,8 +1957,14 @@ class Sample(object):
         # Import pipeline module and find Sample subtypes.
         _, modname = _os.path.split(pipeline_filepath)
         modname, _ = _os.path.splitext(modname)
-        pipeline_module = import_from_source(
-                name=modname, module_filepath=pipeline_filepath)
+        try:
+            pipeline_module = import_from_source(
+                    name=modname, module_filepath=pipeline_filepath)
+        except ImportError as e:
+            _LOGGER.warn("Using base Sample because of failure in attempt to "
+                         "import pipeline module: {}".format(e))
+            return cls
+
         _LOGGER.debug("Successfully imported pipeline module '%s', "
                       "naming it '%s'", pipeline_filepath, 
                       pipeline_module.__name__)
@@ -2340,7 +2047,11 @@ class PipelineInterface(object):
 
 
     def __repr__(self):
-        return repr(self.pipe_iface_config)
+        source = self.pipe_iface_file or "mapping"
+        num_pipelines = len(self.pipe_iface_config)
+        pipelines = ", ".join(self.pipe_iface_config.keys())
+        return "{} from {}, with {} pipeline(s): {}".format(
+                self.__class__.__name__, source, num_pipelines, pipelines)
 
 
     @property
@@ -2467,7 +2178,8 @@ class PipelineInterface(object):
                     pipeline_name, value, key)
                 raise
 
-            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".format(arg, value, key))
+            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".
+                          format(arg, value, key))
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
@@ -2568,32 +2280,31 @@ class ProtocolInterface(object):
     single project. Also stored are path attributes with information about
     the location(s) from which the PipelineInterface and ProtocolMapper came.
 
-    :param pipedir: location (e.g., code repository) of pipelines
-    :type pipedir: str
+    :param location: location (e.g., code repository) of pipelines
+    :type location: str
 
     """
-    def __init__(self, pipedir):
+    def __init__(self, location):
 
         super(ProtocolInterface, self).__init__()
 
-        if _os.path.isdir(pipedir):
-            self.pipedir = pipedir
-            self.config_path = _os.path.join(pipedir, "config")
-            self.interface = PipelineInterface(_os.path.join(
-                    self.config_path, "pipeline_interface.yaml"))
+        if _os.path.isdir(location):
+            self.location = location
+            self.interface_path = _os.path.join(
+                    location, "config", "pipeline_interface.yaml")
+            self.interface = PipelineInterface(self.interface_path)
             self.protomap = ProtocolMapper(_os.path.join(
-                    self.config_path, "protocol_mappings.yaml"))
-            self.pipelines_path = _os.path.join(pipedir, "pipelines")
+                    location, "config", "protocol_mappings.yaml"))
+            self.pipelines_path = _os.path.join(location, "pipelines")
 
-        elif _os.path.isfile(pipedir):
+        elif _os.path.isfile(location):
             # Secondary version that passes combined yaml file directly,
             # instead of relying on separate hard-coded config names as above
-            self.pipedir = None
-            self.interface_file = pipedir
+            self.location = None
+            self.interface_path = location
+            self.pipelines_path = _os.path.dirname(location)
 
-            self.pipelines_path = _os.path.dirname(pipedir)
-
-            with open(self.interface_file, 'r') as interface_file:
+            with open(location, 'r') as interface_file:
                 iface = yaml.load(interface_file)
             try:
                 if "protocol_mapping" in iface:
@@ -2612,11 +2323,11 @@ class ProtocolInterface(object):
 
         else:
             raise ValueError("Alleged pipelines location '{}' exists neither "
-                             "as a file nor as a folder.".format(pipedir))
+                             "as a file nor as a folder.".format(location))
 
 
     def __repr__(self):
-        return repr(self.__dict__)
+        return "ProtocolInterface from '{}'".format(self.location)
 
 
     def pipeline_key_to_path(self, pipeline_key):
@@ -2670,11 +2381,31 @@ class ProtocolMapper(Mapping):
     def __init__(self, mappings_input):
         if isinstance(mappings_input, Mapping):
             mappings = mappings_input
+            self.filepath = None
         else:
             # Parse file mapping protocols to pipeline(s).
             with open(mappings_input, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
+            self.filepath = mappings_input
         self.mappings = {k.upper(): v for k, v in mappings.items()}
+
+
+    def __getitem__(self, protocol_name):
+        return self.mappings[protocol_name]
+
+    def __iter__(self):
+        return iter(self.mappings)
+
+    def __len__(self):
+        return len(self.mappings)
+
+
+    def __repr__(self):
+        source = self.filepath or "mapping"
+        num_protocols = len(self.mappings)
+        protocols = ", ".join(self.mappings.keys())
+        return "{} from {}, with {} protocol(s): {}".format(
+                self.__class__.__name__, source, num_protocols, protocols)
 
 
     def build_pipeline(self, protocol):
@@ -2716,19 +2447,6 @@ class ProtocolMapper(Mapping):
 
     def register_job(self, job, dep):
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
-
-
-    def __getitem__(self, protocol_name):
-        return self.mappings[protocol_name]
-
-    def __iter__(self):
-        return iter(self.mappings)
-
-    def __len__(self):
-        return len(self.mappings)
-
-    def __repr__(self):
-        return repr(self.__dict__)
 
 
 

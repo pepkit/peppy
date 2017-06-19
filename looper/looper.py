@@ -14,7 +14,7 @@ import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, __version__
 from .loodels import Project
-from .models import COMPUTE_SETTINGS_VARNAME
+from .models import Sample, COMPUTE_SETTINGS_VARNAME
 from .utils import VersionInHelpParser
 
 try:
@@ -248,7 +248,9 @@ def run(prj, args, remaining_args):
         # TODO: determine what to do with subtype(s) here.
         # Processing preconditions have been met.
         processed_samples.add(sample.sample_name)
-        sample.to_yaml()
+        _LOGGER.debug("Writing base Sample representation to disk: '%s'",
+                      sample.sample_name)
+        sample.to_yaml(subs_folder_path=prj.metadata.submission_subdir)
         sample_data = sample.as_series().to_dict()
 
         # Go through all pipelines to submit for this protocol.
@@ -262,8 +264,13 @@ def run(prj, args, remaining_args):
             _LOGGER.debug("Creating %s instance for sample '%s'",
                           sample_subtype.__name__, sample.sample_name)
             sample = sample_subtype(sample_data)
-            pipeline_name, _ = os.path.splitext(pipeline_key)
-            sample.to_yaml(pipeline_name=pipeline_name)
+            if sample_subtype != Sample:
+                # Only rewrite the file if we have a proper subtype.
+                pipeline_name, _ = os.path.splitext(pipeline_key)
+                _LOGGER.debug("Representing sample '%s' on disk as %s",
+                              sample.sample_name, sample_subtype.__name__)
+                sample.to_yaml(subs_folder_path=prj.metadata.submission_subdir,
+                               pipeline_name=pipeline_name)
 
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
@@ -662,7 +669,9 @@ def cluster_submit(
         handle.write(filedata)
 
     # Prepare and write sample yaml object
-    sample.to_yaml()
+    _LOGGER.debug("Writing sample '%s' representation to disk",
+                  sample.sample_name)
+    sample.to_yaml(subs_folder_path=submission_folder)
 
     # Check if job is already submitted (unless ignore_flags is set to True)
     if not ignore_flags:

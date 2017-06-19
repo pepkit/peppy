@@ -125,8 +125,14 @@ def import_from_source(name, module_filepath):
     :param str module_filepath: path to the file that constitutes the module
         to import
     :return module: module imported from the given location, named as indicated
+    :raises ValueError: if path provided does not point to an extant file
+    :raises ImportError: if path provided is indeed an existing file, but the
     """
     import sys
+
+    if not os.path.exists(module_filepath):
+        raise ValueError("Path to alleged module file doesn't point to an "
+                         "extant file: '{}'".format(module_filepath))
 
     if sys.version_info >= (3, 5):
         from importlib import util as _il_util
@@ -139,8 +145,9 @@ def import_from_source(name, module_filepath):
         mod = imp.load_source(name, module_filepath)
     else:
         # 3.3 or 3.4
-        from importlib import machinery
-        mod = machinery.SourceFileLoader(name, module_filepath)
+        from importlib import machinery as _il_mach
+        loader = _il_mach.SourceFileLoader(name, module_filepath)
+        mod = loader.load_module()
 
     return mod
 
