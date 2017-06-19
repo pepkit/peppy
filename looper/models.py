@@ -1853,7 +1853,7 @@ class Sample(object):
                     "To represent {} on disk, provide a full path or a path "
                     "to a parent (submissions) folder".
                     format(self.__class__.__name__))
-            filename = "{}.{}.yaml".format(self.sample_name, pipeline_name) \
+            filename = "{}_{}.yaml".format(self.sample_name, pipeline_name) \
                 if pipeline_name else "{}.yaml".format(self.sample_name)
             path = _os.path.join(subs_folder_path, filename)
         self.yaml_file = path
