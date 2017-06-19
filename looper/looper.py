@@ -222,8 +222,8 @@ def run(prj, args, remaining_args):
             sample.read_type = re.sub(
                     '[_\\-]?end$', '', str(sample.read_type)).lower()
             if sample.read_type not in valid_read_types:
-                skip_reasons.append("{} must be in {}".\
-                    format("read_type", valid_read_types))
+                skip_reasons.append(
+                        "read_type must be in {}".format(valid_read_types))
 
         # Get the base protocol-to-pipeline mappings
         try:
