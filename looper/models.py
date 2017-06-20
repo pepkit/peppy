@@ -77,6 +77,7 @@ SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
 DATA_SOURCES_SECTION = "data_sources"
+SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
@@ -1449,6 +1450,26 @@ class Sample(object):
         return True
 
 
+    def is_dormant(self):
+        """
+        Determine whether this Sample is inactive.
+
+        By default, a Sample is regarded as active. That is, if it lacks an
+        indication about activation status, it's assumed to be active. If,
+        however, and there's an indication of such status, it must be '1'
+        in order to be considered switched 'on.'
+
+        :return bool: whether this Sample's been designated as dormant
+        """
+        try:
+            flag = self[SAMPLE_EXECUTION_TOGGLE]
+        except KeyError:
+            # Regard default Sample state as active.
+            return False
+        # If specified, the activation flag must be set to '1'.
+        return flag != "1"
+
+
     def generate_name(self):
         """
         Generate name for the sample by joining some of its attribute strings.
@@ -1508,7 +1529,7 @@ class Sample(object):
         """
 
         _LOGGER.debug(
-            "Sample variable(s) that can imply others: %s", str(implications))
+            "Sample attribute implications: {}".format(implications))
         if not implications:
             return
 
@@ -1892,10 +1913,12 @@ class Sample(object):
             else:
                 return obj
 
-        _LOGGER.debug("Converting Sample '%s' to dictionary", self.name)
+        _LOGGER.debug("Serializing %s: '%s'",
+                      self.__class__.__name__, self.name)
         serial = obj2dict(self)
         with open(self.yaml_file, 'w') as outfile:
-            _LOGGER.debug("Converting '%s' dictionary to YAML data", self.name)
+            _LOGGER.debug("Generating YAML data for %s: '%s'",
+                          self.__class__.__name__, self.name)
             yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             #yaml_data = yaml.dump(serial, Dumper=PepYamlDumper, default_flow_style=False)
             outfile.write(yaml_data)

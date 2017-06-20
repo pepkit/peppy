@@ -14,8 +14,8 @@ import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, __version__
 from .loodels import Project
-from .models import Sample, COMPUTE_SETTINGS_VARNAME
-from .utils import VersionInHelpParser
+from .models import Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE
+from .utils import alpha_cased, VersionInHelpParser
 
 try:
     from .models import PipelineInterface, ProtocolMapper
@@ -26,8 +26,6 @@ except:
 from colorama import init
 init()
 from colorama import Fore, Style
-
-SAMPLE_EXECUTION_TOGGLE = "toggle"
 
 # Descending by severity for correspondence with logic inversion.
 # That is, greater verbosity setting corresponds to lower logging level.
@@ -195,10 +193,9 @@ def run(prj, args, remaining_args):
     failures = []
 
     submission_bundle_by_protocol = \
-            {p: prj.build_pipelines(p) for p in prj.protocols}
+            {alpha_cased(p): prj.build_pipelines(p) for p in prj.protocols}
 
     for sample in prj.samples:
-        _LOGGER.debug(sample)
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
 
         sample_output_folder = os.path.join(
@@ -211,10 +208,9 @@ def run(prj, args, remaining_args):
             skip_reasons.append("Duplicate sample name")
 
         # Check if sample should be run.
-        if hasattr(sample, SAMPLE_EXECUTION_TOGGLE):
-            if sample[SAMPLE_EXECUTION_TOGGLE] != "1":
-                skip_reasons.append("Column '{}' deselected".
-                                    format(SAMPLE_EXECUTION_TOGGLE))
+        if sample.is_dormant():
+            skip_reasons.append("Inactive status (via {})".
+                                format(SAMPLE_EXECUTION_TOGGLE))
 
         # Check if single_or_paired value is recognized.
         if hasattr(sample, "read_type"):
@@ -227,18 +223,20 @@ def run(prj, args, remaining_args):
 
         # Get the base protocol-to-pipeline mappings
         try:
-            protocol = sample.library
+            protocol = alpha_cased(sample.library)
         except AttributeError:
             skip_reasons.append("Missing 'library' attribute")
         else:
             protocol = protocol.upper()
-            _LOGGER.debug("Building pipeline(s) for protocol: '{}'".
+            _LOGGER.debug("Fetching pipeline(s) for protocol: '{}'".
                           format(protocol))
             try:
                 submission_bundles = submission_bundle_by_protocol[protocol]
             except KeyError:
                 skip_reasons.append(
-                        "No pipeline found for protocol {}".format(protocol))
+                        "No pipeline found for protocol {}; known: {}".
+                        format(protocol,
+                               list(submission_bundle_by_protocol.keys())))
 
         if skip_reasons:
             _LOGGER.warn("> Not submitted: {}".format(skip_reasons))
@@ -264,9 +262,9 @@ def run(prj, args, remaining_args):
             _LOGGER.debug("Creating %s instance for sample '%s'",
                           sample_subtype.__name__, sample.sample_name)
             sample = sample_subtype(sample_data)
+            pipeline_name, _ = os.path.splitext(pipeline_key)
             if sample_subtype != Sample:
                 # Only rewrite the file if we have a proper subtype.
-                pipeline_name, _ = os.path.splitext(pipeline_key)
                 _LOGGER.debug("Representing sample '%s' on disk as %s",
                               sample.sample_name, sample_subtype.__name__)
                 sample.to_yaml(subs_folder_path=prj.metadata.submission_subdir,
@@ -379,6 +377,8 @@ def run(prj, args, remaining_args):
 
             # Submit job!
             job_count += 1
+            _LOGGER.debug("Attempting job submission: '%s' ('%s')",
+                          sample.sample_name, pipeline_name)
             submitted = cluster_submit(
                     sample, prj.compute.submission_template,
                     prj.compute.submission_command, submit_settings,
@@ -387,9 +387,12 @@ def run(prj, args, remaining_args):
                     dry_run=args.dry_run,  ignore_flags=args.ignore_flags, 
                     remaining_args=remaining_args)
             if submitted:
+                _LOGGER.debug("SUCCESS: submitted")
                 submit_count += 1
+            else:
+                _LOGGER.debug("FAILURE: not submitted")
 
-    msg = "\nLooper finished. {} of {} job(s) submitted.".\
+    msg = "Looper finished. {} of {} job(s) submitted.".\
             format(submit_count, job_count)
     if args.dry_run:
         msg += " Dry run. No jobs were actually submitted."
@@ -678,8 +681,7 @@ def cluster_submit(
         flag_files = glob.glob(os.path.join(
                 sample_output_folder, pipeline_name + "*.flag"))
         if len(flag_files) > 0:
-            flags = [os.path.basename(f) for f in flag_files]
-            _LOGGER.info("> Not submitting, flag(s) found: {}".format(flags))
+            _LOGGER.info("> Not submitting, flag(s) found: {}".format(flag_files))
             submit = False
         else:
             pass

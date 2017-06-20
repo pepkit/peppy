@@ -19,7 +19,7 @@ LOGGING_LOCATIONS = (stdout, )
 # Default user logging format is simple
 DEFAULT_LOGGING_FMT = "%(message)s"
 # Developer logger format is more information-rich
-DEV_LOGGING_FMT = "%(module)s:%(lineno)d [%(levelname)s] > %(message)s "
+DEV_LOGGING_FMT = "%(module)s:%(lineno)d (%(funcName)s) [%(levelname)s] > %(message)s "
 
 
 
