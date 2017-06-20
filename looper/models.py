@@ -379,13 +379,13 @@ SubmissionBundle = namedtuple(
 
 
 
-def merge_sample(data_sources, sample, merge_table, derived_columns):
+def merge_sample(sample, merge_table, data_sources, derived_columns):
     """
     Use merge table data to augment/modify Sample.
 
-    :param Mapping data_sources: collection of named paths to data locations
     :param Sample sample: sample to modify via merge table data
     :param merge_table: data with which to alter Sample
+    :param Mapping data_sources: collection of named paths to data locations
     :param derived_columns: names of columns with data-derived value
     :return Sample: updated input instance
     """
@@ -501,6 +501,10 @@ class Project(AttributeDict):
         settings can't be established, optional; if null (the default),
         a warning message will be logged, and no exception will be raised.
     :type no_compute_exception: type
+    :param defer_sample_construction: whether to wait to build this Project's
+        Sample objects until they're needed, optional; by default, the basic
+        Sample is created during Project construction
+    :type defer_sample_construction: bool
 
 
     :Example:
@@ -518,7 +522,8 @@ class Project(AttributeDict):
     def __init__(self, config_file, subproject=None,
                  default_compute=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
-                 no_environment_exception=None, no_compute_exception=None):
+                 no_environment_exception=None, no_compute_exception=None,
+                 defer_sample_construction=False):
 
         _LOGGER.debug("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
@@ -606,6 +611,7 @@ class Project(AttributeDict):
                 process_pipeline_interfaces(self.metadata.pipelines_dir)
         self.sheet = check_sheet(self.metadata.sample_annotation)
         self.merge_table = None
+        self._samples = None if defer_sample_construction else self.samples
 
 
     def __repr__(self):
@@ -713,9 +719,16 @@ class Project(AttributeDict):
         :return generator[Sample]: Sample instance for each
             of this Project's samples
         """
-        # TODO: account for merge table; store or re-merge every time?
-        # TODO: is it more likely to have a bunch of samples, or that
-        # TODO: use of this and thus the need to re-merge is very frequent?
+        if hasattr(self, "_samples") and self._samples is not None:
+            _LOGGER.debug("%s has %d basic Sample(s)",
+                          len(self._samples), self.__class__.__name__)
+            return self._samples
+        else:
+            _LOGGER.debug("Building basic Sample(s) for %s",
+                          self.__class__.__name__)
+
+        # This should be executed just once, establishing the Project's
+        # base Sample objects if they don't already exist.
         if hasattr(self.metadata, "merge_table"):
             if self.merge_table is None:
                 if _os.path.isfile(self.metadata.merge_table):
@@ -723,20 +736,25 @@ class Project(AttributeDict):
                             self.metadata.merge_table,
                             sep=None, engine="python")
                 else:
-                    _LOGGER.debug("Alleged path to merge table data is not "
-                                  "a file: '%s'", self.metadata.merge_table)
+                    _LOGGER.debug(
+                            "Alleged path to merge table data is not a "
+                            "file: '%s'", self.metadata.merge_table)
             else:
                 _LOGGER.debug("Already parsed merge table")
         else:
             _LOGGER.debug("No merge table")
 
+        # Define merge behavior based on presence of merge table.
         if self.merge_table is None:
             def merge(s):
                 return s
         else:
             def merge(s):
-                return merge_sample(s, self.merge_table, self.derived_columns)
+                return merge_sample(s, self.merge_table, self.data_sources,
+                                    self.derived_columns)
 
+        # Create the Sample(s).
+        samples = []
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna())
             sample.set_genome(self.genomes)
@@ -751,7 +769,10 @@ class Project(AttributeDict):
                 _LOGGER.debug("Sample '%s' lacks data source --> skipping "
                               "data path assignment", sample.sample_name)
             sample = merge(sample)
-            yield sample
+            samples.append(sample)
+
+        self._samples = samples
+        return self._samples
 
 
     @property
@@ -1700,7 +1721,7 @@ class Sample(object):
         except KeyError:
             _LOGGER.debug("Unknown {} value: '{}'".format(ome, self.organism))
             assembly = None
-        _LOGGER.debug("Setting {} as {} on sample '{}'".
+        _LOGGER.debug("Setting {} as {} on sample: '{}'".
                       format(assembly, ome, self.name))
         setattr(self, ome, assembly)
         
@@ -1984,16 +2005,19 @@ class Sample(object):
         _, modname = _os.path.split(pipeline_filepath)
         modname, _ = _os.path.splitext(modname)
         try:
+            _LOGGER.debug("Attempting to import module defined by {}, "
+                          "calling it {}".format(pipeline_filepath, modname))
             pipeline_module = import_from_source(
                     name=modname, module_filepath=pipeline_filepath)
         except ImportError as e:
             _LOGGER.warn("Using base Sample because of failure in attempt to "
                          "import pipeline module: {}".format(e))
             return cls
-
-        _LOGGER.debug("Successfully imported pipeline module '%s', "
-                      "naming it '%s'", pipeline_filepath, 
+        else:
+            _LOGGER.debug("Successfully imported pipeline module '%s', "
+                          "naming it '%s'", pipeline_filepath,
                       pipeline_module.__name__)
+
         import inspect
         sample_subtypes = inspect.getmembers(
                 pipeline_module, lambda obj: isinstance(obj, Sample))
