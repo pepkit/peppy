@@ -358,7 +358,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
     :return Mapping[str, ProtocolInterface]: mapping from protocol name to
         interface(s) for which that protocol is mapped
     """
-    ifproto_by_proto_name = defaultdict(list)
+    interface_by_protocol = defaultdict(list)
     for pipe_iface_location in pipeline_interface_locations:
         if not _os.path.exists(pipe_iface_location):
             _LOGGER.warn("Ignoring nonexistent pipeline interface "
@@ -367,8 +367,8 @@ def process_pipeline_interfaces(pipeline_interface_locations):
         proto_iface = ProtocolInterface(pipe_iface_location)
         for proto_name in proto_iface.protomap:
             _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
-            ifproto_by_proto_name[alpha_cased(proto_name)].append(proto_iface)
-    return ifproto_by_proto_name
+            interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
+    return interface_by_protocol
 
 
 
@@ -717,7 +717,7 @@ class Project(AttributeDict):
         """
         Generic/base Sample instance for each of this Project's samples.
 
-        :return generator[Sample]: Sample instance for each
+        :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
         if hasattr(self, "_samples") and self._samples is not None:
@@ -767,7 +767,7 @@ class Project(AttributeDict):
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks data source --> skipping "
+                _LOGGER.debug("Sample '%s' lacks data source; skipping "
                               "data path assignment", sample.sample_name)
             sample = merge(sample)
             samples.append(sample)
@@ -778,7 +778,11 @@ class Project(AttributeDict):
 
     @property
     def templates_folder(self):
-        """ Path to folder with default submission templates. """
+        """
+        Path to folder with default submission templates.
+
+        :return str: path to folder with default submission templates
+        """
         return _os.path.join(_os.path.dirname(__file__), "submit_templates")
 
 
@@ -798,7 +802,7 @@ class Project(AttributeDict):
         return config_folder
 
 
-    def build_pipelines(self, protocol, priority=True):
+    def build_submission_bundles(self, protocol, priority=True):
         """
         Create pipelines to submit for each sample of a particular protocol.
 
@@ -984,6 +988,30 @@ class Project(AttributeDict):
         else:
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
+
+
+    def build_sheet(self, *protocols):
+        """
+        Create all Sample object for this project for the given protocol(s).
+
+        :return pandas.core.frame.DataFrame: DataFrame with from base version
+            of each of this Project's samples, for indicated protocol(s) if
+            given, else all of this Project's samples
+        """
+        # Use all protocols if none are explicitly specified.
+        protocols = set(protocols or self.protocols)
+        if protocols:
+            protocols = set(protocols)
+            def include(sample):
+                try:
+                    return sample.library in protocols
+                except AttributeError:
+                    return False
+        else:
+            def include(_):
+                return True
+
+        return _pd.DataFrame([s for s in self.samples if include(s)])
 
 
     def make_project_dirs(self):
@@ -1350,12 +1378,9 @@ class Sample(object):
         self.yaml_file = None
 
         # Sample dirs
-        self.paths = Paths()
         # Only when sample is added to project, can paths be added -
         # This is because sample-specific files will be created in a
-        # data root directory dependent on the project.
-        # The SampleSheet object, after being added to a project, will
-        # call Sample.set_file_paths().
+        self.paths = Paths()
 
 
     def __getitem__(self, item):

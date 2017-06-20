@@ -196,9 +196,9 @@ def run(prj, args, remaining_args):
 
     _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
                  format(list(prj.protocols)))
-    submission_bundle_by_protocol = \
-            {alpha_cased(p): prj.build_pipelines(alpha_cased(p))
-             for p in prj.protocols}
+    submission_bundle_by_protocol = {
+            alpha_cased(p): prj.build_submission_bundles(
+            alpha_cased(p)) for p in prj.protocols}
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
