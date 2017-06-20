@@ -192,6 +192,7 @@ def run(prj, args, remaining_args):
     # Create a problem list so we can keep track and show them at the end.
     failures = []
 
+    _LOGGER.info("Building pipelines")
     submission_bundle_by_protocol = \
             {alpha_cased(p): prj.build_pipelines(p) for p in prj.protocols}
 
@@ -219,8 +220,8 @@ def run(prj, args, remaining_args):
             skip_reasons.append("Missing 'library' attribute")
         else:
             protocol = protocol.upper()
-            _LOGGER.debug("Fetching pipeline(s) for protocol: '{}'".
-                          format(protocol))
+            _LOGGER.debug("Protocol: '%s'", protocol)
+            _LOGGER.debug("Fetching submission bundle")
             try:
                 submission_bundles = submission_bundle_by_protocol[protocol]
             except KeyError:
@@ -247,7 +248,7 @@ def run(prj, args, remaining_args):
             # pipeline_key (previously pl_id) is no longer necessarily
             # script name, it's more flexible.
 
-            _LOGGER.debug("Creating %s instance for sample '%s'",
+            _LOGGER.debug("Creating %s instance: '%s'",
                           sample_subtype.__name__, sample.sample_name)
             sample = sample_subtype(sample_data)
             pipeline_name, _ = os.path.splitext(pipeline_key)

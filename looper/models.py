@@ -280,21 +280,21 @@ class AttributeDict(MutableMapping):
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
-                _LOGGER.debug("Updating key: '{}'".format(key))
+                _LOGGER.log(5, "Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            _LOGGER.debug("'{}' now has keys {}".
+            _LOGGER.log(5, "'{}' now has keys {}".
                           format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
             _LOGGER.log(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
-            _LOGGER.debug("Not setting {k} to {v}; _force_nulls: {nulls}".
-                          format(k=key, v=value,
-                                 nulls=self.__dict__["_force_nulls"]))
+            _LOGGER.log(5, "Not setting {k} to {v}; _force_nulls: {nulls}".
+                        format(k=key, v=value,
+                               nulls=self.__dict__["_force_nulls"]))
 
 
     def __getitem__(self, item):
@@ -366,7 +366,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
             continue
         proto_iface = ProtocolInterface(pipe_iface_location)
         for proto_name in proto_iface.protomap:
-            _LOGGER.debug("Protocol name: {}".format(proto_name))
+            _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
             ifproto_by_proto_name[proto_name].append(proto_iface)
     return ifproto_by_proto_name
 
@@ -721,7 +721,7 @@ class Project(AttributeDict):
         """
         if hasattr(self, "_samples") and self._samples is not None:
             _LOGGER.debug("%s has %d basic Sample(s)",
-                          len(self._samples), self.__class__.__name__)
+                          self.__class__.__name__, len(self._samples))
             return self._samples
         else:
             _LOGGER.debug("Building basic Sample(s) for %s",
@@ -883,26 +883,17 @@ class Project(AttributeDict):
                         pipeline_keys, pipeline_keys_used, 
                         disjoint_partition_violation)
 
-            _LOGGER.debug("Skipping {} already-mapped script names: {}".
-                          format(len(already_mapped),
-                                 ", ".join(already_mapped)))
+            if len(already_mapped) > 0:
+                _LOGGER.debug("Skipping {} already-mapped script name(s): {}".
+                              format(len(already_mapped), already_mapped))
             _LOGGER.debug("{} new scripts for protocol {} from "
-                          "pipelines warehouse '{}': {}".
+                          "pipeline(s) location '{}': {}".
                           format(len(new_scripts), protocol,
-                                 proto_iface.location, ", ".join(new_scripts)))
+                                 proto_iface.location, new_scripts))
 
             new_jobs = [proto_iface.create_submission_bundle(pipeline_key,
                                                              protocol)
                         for pipeline_key in new_scripts]
-            for pipeline_key in new_scripts:
-                strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
-                        proto_iface.pipeline_key_to_path(pipeline_key)
-                sample_subtype = proto_iface.select_sample_subtype(protocol)
-                submission_bundle = SubmissionBundle(
-                        proto_iface.pipe_iface, sample_subtype,
-                        strict_pipe_key, full_pipe_path_with_flags)
-                new_jobs.append(submission_bundle)
-
             job_submission_bundles.append(new_jobs)
 
         # Repeat logic check of short-circuit conditional to account for
@@ -1110,12 +1101,12 @@ class Project(AttributeDict):
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
             if not hasattr(self, sect):
-                _LOGGER.debug("%s lacks relative section '%s', skipping",
-                                   self.__class__.__name__, sect)
+                _LOGGER.log(5, "%s lacks relative section '%s', skipping",
+                            self.__class__.__name__, sect)
                 continue
             relative_vars = getattr(self, sect)
             if not relative_vars:
-                _LOGGER.debug("No relative variables, continuing")
+                _LOGGER.log(5, "No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
                 if not hasattr(relative_vars, var) or \
@@ -1126,18 +1117,17 @@ class Project(AttributeDict):
                 _LOGGER.debug("Ensuring absolute path(s) for '%s'", var)
                 # Parsed from YAML, so small space of possible datatypes.
                 if isinstance(relpath, list):
-                    setattr(relative_vars, var,
-                            [self._ensure_absolute(maybe_relpath)
-                             for maybe_relpath in relpath])
+                    absolute = [self._ensure_absolute(maybe_relpath)
+                                for maybe_relpath in relpath]
                 else:
-                    abs_path = self._ensure_absolute(relpath)
-                    _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
-                    setattr(relative_vars, var, abs_path)
+                    absolute = self._ensure_absolute(relpath)
+                _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
+                setattr(relative_vars, var, absolute)
 
         # Project config may have made compute.submission_template relative.
         # Make sure it's absolute.
         if self.compute is None:
-            _LOGGER.debug("No compute, no submission template")
+            _LOGGER.log(5, "No compute, no submission template")
         elif not _os.path.isabs(self.compute.submission_template):
             # Relative to environment config file.
             self.compute.submission_template = _os.path.join(
@@ -1243,21 +1233,21 @@ class Project(AttributeDict):
 
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
-        _LOGGER.debug("Ensuring absolute: '%s'", maybe_relpath)
+        _LOGGER.log(5, "Ensuring absolute: '%s'", maybe_relpath)
         if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.debug("Already absolute")
+            _LOGGER.log(5, "Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
         expanded = _os.path.expandvars(maybe_relpath)
-        _LOGGER.debug("Expanded: '%s'", expanded)
+        _LOGGER.log(5, "Expanded: '%s'", expanded)
         if _os.path.isabs(expanded):
-            _LOGGER.debug("Expanded is absolute")
+            _LOGGER.log(5, "Expanded is absolute")
             return expanded
-        _LOGGER.debug("Making non-absolute path '%s' be absolute",
+        _LOGGER.log(5, "Making non-absolute path '%s' be absolute",
                       maybe_relpath)
         # Set path to an absolute path, relative to project config.
         config_dirpath = _os.path.dirname(self.config_file)
-        _LOGGER.debug("config_dirpath: %s", config_dirpath)
+        _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
         abs_path = _os.path.join(config_dirpath, maybe_relpath)
         return abs_path
 
@@ -1542,8 +1532,8 @@ class Sample(object):
         :return None: this function mutates state and is strictly for effect
         """
 
-        _LOGGER.debug(
-            "Sample attribute implications: {}".format(implications))
+        _LOGGER.log(5, "Sample attribute implications: {}".
+                    format(implications))
         if not implications:
             return
 
@@ -1712,10 +1702,11 @@ class Sample(object):
             _LOGGER.debug("Sample '%s' lacks organism attribute", self.name)
             assembly = None
         except KeyError:
-            _LOGGER.debug("Unknown {} value: '{}'".format(ome, self.organism))
+            _LOGGER.log(5, "Unknown {} value: '{}'".
+                    format(ome, self.organism))
             assembly = None
-        _LOGGER.debug("Setting {} as {} on sample: '{}'".
-                      format(assembly, ome, self.name))
+        _LOGGER.log(5, "Setting {} as {} on sample: '{}'".
+                format(assembly, ome, self.name))
         setattr(self, ome, assembly)
         
 
@@ -2085,6 +2076,14 @@ class PipelineInterface(object):
                 self.pipe_iface_config = yaml.load(f)
 
 
+    def __getitem__(self, item):
+        try:
+            return self._select_pipeline(item)
+        except _MissingPipelineConfigurationException:
+            raise KeyError("{} is not a known pipeline; known: {}".
+                           format(item, self.pipe_iface_config.keys()))
+
+
     def __iter__(self):
         return iter(self.pipe_iface_config.items())
 
@@ -2421,6 +2420,7 @@ class ProtocolInterface(object):
         # subtype_name is defined if and only if subtype remained null.
         subtype = subtype or \
                   _import_sample_subtype(full_pipe_path, subtype_name)
+        _LOGGER.debug("Using Sample subtype: %s", subtype.__name__)
         return SubmissionBundle(self.pipe_iface, subtype,
                                 strict_pipe_key, full_pipe_path_with_flags)
 
@@ -2497,7 +2497,7 @@ def _import_sample_subtype(pipeline_filepath, subtype_name):
     import inspect
     def class_names(cs):
         return ", ".join([c.__name__ for c in cs])
-    
+
     classes = inspect.getmembers(
             pipeline_module, lambda obj: inspect.isclass(obj))
     _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))

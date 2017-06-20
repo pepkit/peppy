@@ -216,15 +216,15 @@ def partition(items, test):
     assume that the argument is not terribly large and that the function is
     cheap to compute and use a simpler single-pass approach.
 
-    :param collections.Iterable[object] items: items to partition
+    :param Sized[object] items: items to partition
     :param function(object) -> bool test: test to apply to each item to
         perform the partitioning procedure
     :return: list[object], list[object]: partitioned items sequences
     """
     passes, fails = [], []
-    _LOGGER.debug("Testing {} items: {}".format(len(items), items))
+    _LOGGER.log(5, "Testing {} items: {}".format(len(items), items))
     for item in items:
-        _LOGGER.debug("Testing item {}".format(item))
+        _LOGGER.log(5, "Testing item {}".format(item))
         group = passes if test(item) else fails
         group.append(item)
     return passes, fails
