@@ -192,9 +192,11 @@ def run(prj, args, remaining_args):
     # Create a problem list so we can keep track and show them at the end.
     failures = []
 
-    _LOGGER.info("Building pipelines")
+    _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
+                 format(list(prj.protocols)))
     submission_bundle_by_protocol = \
-            {alpha_cased(p): prj.build_pipelines(p) for p in prj.protocols}
+            {alpha_cased(p): prj.build_pipelines(alpha_cased(p))
+             for p in prj.protocols}
 
     for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
@@ -220,15 +222,14 @@ def run(prj, args, remaining_args):
             skip_reasons.append("Missing 'library' attribute")
         else:
             protocol = protocol.upper()
-            _LOGGER.debug("Protocol: '%s'", protocol)
             _LOGGER.debug("Fetching submission bundle")
             try:
+                _LOGGER.debug("Using '%s' as protocol key", protocol)
                 submission_bundles = submission_bundle_by_protocol[protocol]
             except KeyError:
-                skip_reasons.append(
-                        "No pipeline found for protocol {}; known: {}".
-                        format(protocol,
-                               list(submission_bundle_by_protocol.keys())))
+                skip_reasons.append("No pipeline found for protocol")
+            if not submission_bundles:
+                skip_reasons.append("No submission bundle for protocol")
 
         if skip_reasons:
             _LOGGER.warn("> Not submitted: {}".format(skip_reasons))
@@ -403,8 +404,7 @@ def run(prj, args, remaining_args):
         _LOGGER.info("{} unique reasons for submission failure: {}".format(
                 len(sample_by_reason),
                 list(sample_by_reason.keys())))
-        _LOGGER.info("Per-sample submission failure count for "
-                     "each reason: {}".format(sample_by_reason))
+        _LOGGER.info("Samples by failure: {}".format(dict(sample_by_reason)))
 
 
 
@@ -687,7 +687,8 @@ def cluster_submit(
     if not submit:
         return False
     if dry_run:
-        _LOGGER.info("> DRY RUN: I would have submitted this")
+        _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
+                     submit_script)
     else:
         subprocess.call(submission_command + " " + submit_script, shell=True)
         time.sleep(time_delay)    # Delay next job's submission.

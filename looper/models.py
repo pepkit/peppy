@@ -367,7 +367,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
         proto_iface = ProtocolInterface(pipe_iface_location)
         for proto_name in proto_iface.protomap:
             _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
-            ifproto_by_proto_name[proto_name].append(proto_iface)
+            ifproto_by_proto_name[alpha_cased(proto_name)].append(proto_iface)
     return ifproto_by_proto_name
 
 
@@ -823,7 +823,8 @@ class Project(AttributeDict):
         # sort of pool of information about possible ways in which to submit
         # pipeline(s) for sample(s) of the indicated protocol.
         try:
-            protocol_interfaces = self.interfaces_by_protocol[protocol]
+            protocol_interfaces = \
+                    self.interfaces_by_protocol[protocol]
         except KeyError:
             _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
             return []
@@ -841,12 +842,10 @@ class Project(AttributeDict):
             if priority and len(job_submission_bundles) > 0:
                 return job_submission_bundles[0]
 
-            try:
-                this_protocol_pipelines = \
-                        proto_iface.protomap.mappings[protocol]
-            except KeyError:
-                _LOGGER.debug("No mapping for protocol '%s' in '%s', skipping",
-                              protocol, proto_iface.location)
+            this_protocol_pipelines = proto_iface.fetch(protocol)
+            if not this_protocol_pipelines:
+                _LOGGER.warn("No mapping for protocol '%s' in '%s', skipping",
+                             protocol, proto_iface.location)
                 continue
             
             # TODO: update once dependency-encoding logic is in place.
@@ -2425,6 +2424,18 @@ class ProtocolInterface(object):
                                 strict_pipe_key, full_pipe_path_with_flags)
 
 
+    def fetch(self, protocol):
+        """
+        Fetch the mapping for a particular protocol, null if unmapped.
+
+        :param str protocol:
+        :return str | Iterable[str] | NoneType: pipeline(s) to which the given
+            protocol is mapped, otherwise null
+        """
+        return self.protomap.mappings.get(alpha_cased(protocol))
+
+
+
     def pipeline_key_to_path(self, pipeline_key):
         """
         Given a pipeline_key, return the path to the script for that pipeline
@@ -2534,7 +2545,7 @@ class ProtocolMapper(Mapping):
             with open(mappings_input, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
             self.filepath = mappings_input
-        self.mappings = {k.upper(): v for k, v in mappings.items()}
+        self.mappings = {alpha_cased(k): v for k, v in mappings.items()}
 
 
     def __getitem__(self, protocol_name):
