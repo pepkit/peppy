@@ -88,6 +88,28 @@ if not logging.getLogger().handlers:
 
 
 
+def check_sheet(sample_file, dtype=str):
+    """
+    Check if csv file exists and has all required columns.
+
+    :param str sample_file: path to sample annotations file.
+    :param type dtype: data type for CSV read.
+    :raises IOError: if given annotations file can't be read.
+    :raises ValueError: if required column(s) is/are missing.
+    """
+
+    df = _pd.read_table(sample_file, sep=None, dtype=dtype,
+                        index_col=False, engine="python")
+    req = [SAMPLE_NAME_COLNAME]
+    missing = set(req) - set(df.columns)
+    if len(missing) != 0:
+        raise ValueError(
+            "Annotation sheet ('{}') is missing column(s): {}; has: {}".
+                format(sample_file, missing, df.columns))
+    return df
+
+
+
 def copy(obj):
     def copy(self):
         """
@@ -101,40 +123,153 @@ def copy(obj):
 
 
 
+def include_in_repr(attr, klazz):
+    """
+    Determine whether to include attribute in an object's text representation.
+
+    :param str attr: attribute to include/exclude from object's representation
+    :param str | type klazz: name of type or type itself of which the object
+        to be represented is an instance
+    :return bool: whether to include attribute in an object's
+        text representation
+    """
+    classname = klazz.__name__ if isinstance(klazz, type) else klazz
+    return attr not in \
+           {"Project": ["sheet", "interfaces_by_protocol"]}[classname]
+
+
+
 def is_url(maybe_url):
+    """
+    Determine whether a path is a URL.
+
+    :param str maybe_url: path to investigate as URL
+    :return bool: whether path appears to be a URL
+    """
     return urlparse(maybe_url).scheme != ""
 
 
 
-def include_in_repr(attr, klazz):
-    return attr not in \
-           {"Project": ["sheet", "interfaces_by_protocol"]}[klazz.__name__]
+def merge_sample(sample, merge_table, data_sources, derived_columns):
+    """
+    Use merge table data to augment/modify Sample.
+
+    :param Sample sample: sample to modify via merge table data
+    :param merge_table: data with which to alter Sample
+    :param Mapping data_sources: collection of named paths to data locations
+    :param derived_columns: names of columns with data-derived value
+    :return Sample: updated input instance
+    """
+
+    if SAMPLE_NAME_COLNAME not in merge_table.columns:
+        raise KeyError(
+            "Merge table requires a column named '{}'.".
+                format(SAMPLE_NAME_COLNAME))
+
+    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
+                     getattr(sample, SAMPLE_NAME_COLNAME)
+    merge_rows = merge_table[sample_indexer]
+
+    if len(merge_rows) > 0:
+        # For each row in the merge table of this sample:
+        # 1) populate any derived columns
+        # 2) derived columns --> space-delimited strings
+        # 3) update the sample values with the merge table
+
+        # Keep track of merged cols,
+        # so we don't re-derive them later.
+        merged_cols = {
+            key: "" for key in merge_rows.columns}
+        for _, row in merge_rows.iterrows():
+            row_dict = row.to_dict()
+            for col in merge_rows.columns:
+                if col == SAMPLE_NAME_COLNAME or \
+                                col not in derived_columns:
+                    continue
+                # Initialize key in parent dict.
+                col_key = col + COL_KEY_SUFFIX
+                merged_cols[col_key] = ""
+                row_dict[col_key] = row_dict[col]
+                row_dict[col] = sample.locate_data_source(
+                    data_sources, col, row_dict[col], row_dict)  # 1)
+
+            # Also add in any derived cols present.
+            for col in derived_columns:
+                # Skip over attributes that the sample
+                # either lacks, and those covered by the
+                # data from the current (row's) data.
+                if not hasattr(sample, col) or \
+                                col in row_dict:
+                    continue
+                # Map column name key to sample's value
+                # for the attribute given by column name.
+                col_key = col + COL_KEY_SUFFIX
+                row_dict[col_key] = getattr(sample, col)
+                # Map the column name itself to the
+                # populated data source template string.
+                row_dict[col] = sample.locate_data_source(
+                    data_sources, col, getattr(sample, col), row_dict)
+                _LOGGER.debug("PROBLEM adding derived column: "
+                              "{}, {}, {}".format(col, row_dict[col],
+                                                  getattr(sample, col)))
+
+            # Since we are now jamming multiple (merged)
+            # entries into a single attribute, we have to
+            # join them into a space-delimited string
+            # and then set to sample attribute.
+            for key, val in row_dict.items():
+                if key == SAMPLE_NAME_COLNAME or not val:
+                    continue
+                _LOGGER.debug("merge: sample '%s'; %s=%s",
+                              str(sample.name), str(key), str(val))
+                if not key in merged_cols:
+                    new_val = str(val).rstrip()
+                else:
+                    new_val = "{} {}".format(
+                        merged_cols[key], str(val)).strip()
+                merged_cols[key] = new_val  # 2)
+
+        # Don't update sample_name.
+        merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+
+        sample.update(merged_cols)  # 3)
+        sample.merged = True  # mark sample as merged
+        sample.merged_cols = merged_cols
+
+    return sample
 
 
 
-class PepYamlRepresenter(yaml.representer.Representer):
-    """ Should object's YAML representation fail, get additional info. """
+def process_pipeline_interfaces(pipeline_interface_locations):
+    """
+    Create a ProtocolInterface for each pipeline location given.
 
-    def represent_data(self, data):
-        """
-        Supplement PyYAML's context info in case of representation failure.
+    :param Iterable[str] pipeline_interface_locations: locations, each of
+        which should be either a directory path or a filepath, that specifies
+        pipeline interface and protocol mappings information. Each such file
+        should be have a pipelines section and a protocol mappings section
+        whereas each folder should have a file for each of those sections.
+    :return Mapping[str, ProtocolInterface]: mapping from protocol name to
+        interface(s) for which that protocol is mapped
+    """
+    interface_by_protocol = defaultdict(list)
+    for pipe_iface_location in pipeline_interface_locations:
+        if not _os.path.exists(pipe_iface_location):
+            _LOGGER.warn("Ignoring nonexistent pipeline interface "
+                         "location '%s'", pipe_iface_location)
+            continue
+        proto_iface = ProtocolInterface(pipe_iface_location)
+        for proto_name in proto_iface.protomap:
+            _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
+            interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
+    return interface_by_protocol
 
-        :param object data: same as superclass
-        :return object: same as superclass
-        """
-        try:
-            return super(PepYamlRepresenter, self).represent_data(data)
-        except yaml.representer.RepresenterError:
-            _LOGGER.error("YAML representation error: {} ({})".
-                          format(data, type(data)))
-            raise
 
 
-# Bespoke YAML dumper, using the custom data/object Representer.
-PepYamlDumper = type("PepYamlDumper",
-                     (yaml.emitter.Emitter, yaml.serializer.Serializer,
-                      PepYamlRepresenter, yaml.resolver.Resolver),
-                     dict(yaml.dumper.Dumper.__dict__))
+# Collect PipelineInterface, Sample type, pipeline path, and script with flags.
+SubmissionBundle = namedtuple(
+    "SubmissionBundle",
+    field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
 
 
 
@@ -343,129 +478,6 @@ class AttributeDict(MutableMapping):
 
     def __repr__(self):
         return repr(self.__dict__)
-
-
-
-def process_pipeline_interfaces(pipeline_interface_locations):
-    """
-    Create a ProtocolInterface for each pipeline location given.
-    
-    :param Iterable[str] pipeline_interface_locations: locations, each of
-        which should be either a directory path or a filepath, that specifies
-        pipeline interface and protocol mappings information. Each such file
-        should be have a pipelines section and a protocol mappings section
-        whereas each folder should have a file for each of those sections.
-    :return Mapping[str, ProtocolInterface]: mapping from protocol name to
-        interface(s) for which that protocol is mapped
-    """
-    interface_by_protocol = defaultdict(list)
-    for pipe_iface_location in pipeline_interface_locations:
-        if not _os.path.exists(pipe_iface_location):
-            _LOGGER.warn("Ignoring nonexistent pipeline interface "
-                         "location '%s'", pipe_iface_location)
-            continue
-        proto_iface = ProtocolInterface(pipe_iface_location)
-        for proto_name in proto_iface.protomap:
-            _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
-            interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
-    return interface_by_protocol
-
-
-
-# Collect PipelineInterface, Sample type, pipeline path, and script with flags.
-SubmissionBundle = namedtuple(
-        "SubmissionBundle",
-        field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
-
-
-
-def merge_sample(sample, merge_table, data_sources, derived_columns):
-    """
-    Use merge table data to augment/modify Sample.
-
-    :param Sample sample: sample to modify via merge table data
-    :param merge_table: data with which to alter Sample
-    :param Mapping data_sources: collection of named paths to data locations
-    :param derived_columns: names of columns with data-derived value
-    :return Sample: updated input instance
-    """
-
-    if SAMPLE_NAME_COLNAME not in merge_table.columns:
-        raise KeyError(
-            "Merge table requires a column named '{}'.".
-            format(SAMPLE_NAME_COLNAME))
-
-    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
-                     getattr(sample, SAMPLE_NAME_COLNAME)
-    merge_rows = merge_table[sample_indexer]
-
-    if len(merge_rows) > 0:
-        # For each row in the merge table of this sample:
-        # 1) populate any derived columns
-        # 2) derived columns --> space-delimited strings
-        # 3) update the sample values with the merge table
-
-        # Keep track of merged cols,
-        # so we don't re-derive them later.
-        merged_cols = {
-            key: "" for key in merge_rows.columns}
-        for _, row in merge_rows.iterrows():
-            row_dict = row.to_dict()
-            for col in merge_rows.columns:
-                if col == SAMPLE_NAME_COLNAME or \
-                                col not in derived_columns:
-                    continue
-                # Initialize key in parent dict.
-                col_key = col + COL_KEY_SUFFIX
-                merged_cols[col_key] = ""
-                row_dict[col_key] = row_dict[col]
-                row_dict[col] = sample.locate_data_source(
-                        data_sources, col, row_dict[col], row_dict)  # 1)
-
-            # Also add in any derived cols present.
-            for col in derived_columns:
-                # Skip over attributes that the sample
-                # either lacks, and those covered by the
-                # data from the current (row's) data.
-                if not hasattr(sample, col) or \
-                                col in row_dict:
-                    continue
-                # Map column name key to sample's value
-                # for the attribute given by column name.
-                col_key = col + COL_KEY_SUFFIX
-                row_dict[col_key] = getattr(sample, col)
-                # Map the column name itself to the
-                # populated data source template string.
-                row_dict[col] = sample.locate_data_source(
-                        data_sources, col, getattr(sample, col), row_dict)
-                _LOGGER.debug("PROBLEM adding derived column: "
-                              "{}, {}, {}".format(col, row_dict[col],
-                                                  getattr(sample, col)))
-
-            # Since we are now jamming multiple (merged)
-            # entries into a single attribute, we have to
-            # join them into a space-delimited string
-            # and then set to sample attribute.
-            for key, val in row_dict.items():
-                if key == SAMPLE_NAME_COLNAME or not val:
-                    continue
-                _LOGGER.debug("merge: sample '%s'; %s=%s",
-                              str(sample.name),  str(key), str(val))
-                if not key in merged_cols:
-                    new_val = str(val).rstrip()
-                else:
-                    new_val = "{} {}".format(
-                        merged_cols[key], str(val)).strip()
-                merged_cols[key] = new_val  # 2)
-
-        # Don't update sample_name.
-        merged_cols.pop(SAMPLE_NAME_COLNAME, None)
-
-        sample.update(merged_cols)  # 3)
-        sample.merged = True  # mark sample as merged
-        sample.merged_cols = merged_cols
-
-    return sample
 
 
 
@@ -1296,28 +1308,6 @@ class Project(AttributeDict):
 
 
 
-def check_sheet(sample_file, dtype=str):
-    """
-    Check if csv file exists and has all required columns.
-
-    :param str sample_file: path to sample annotations file.
-    :param type dtype: data type for CSV read.
-    :raises IOError: if given annotations file can't be read.
-    :raises ValueError: if required column(s) is/are missing.
-    """
-
-    df = _pd.read_table(sample_file, sep=None, dtype=dtype,
-                        index_col=False, engine="python")
-    req = [SAMPLE_NAME_COLNAME]
-    missing = set(req) - set(df.columns)
-    if len(missing) != 0:
-        raise ValueError(
-            "Annotation sheet ('{}') is missing column(s): {}; has: {}".
-                format(sample_file, missing, df.columns))
-    return df
-
-
-
 @copy
 class Sample(object):
     """
@@ -1713,10 +1703,21 @@ class Sample(object):
 
     
     def set_genome(self, genomes):
+        """
+        Set the genome for this Sample.
+
+        :param Mapping[str, str] genomes: genome assembly by organism name
+        """
         self._set_assembly("genome", genomes)
         
         
     def set_transcriptome(self, transcriptomes):
+        """
+        Set the transcriptome for this Sample.
+
+        :param Mapping[str, str] transcriptomes: trascriptome assembly by
+            organism name
+        """
         self._set_assembly("transcriptome", transcriptomes)
         
         
@@ -1953,7 +1954,6 @@ class Sample(object):
             _LOGGER.debug("Generating YAML data for %s: '%s'",
                           self.__class__.__name__, self.name)
             yaml_data = yaml.safe_dump(serial, default_flow_style=False)
-            #yaml_data = yaml.dump(serial, Dumper=PepYamlDumper, default_flow_style=False)
             outfile.write(yaml_data)
 
 
@@ -1963,113 +1963,6 @@ class Sample(object):
         """
         for key, value in newdata.items():
             setattr(self, key, value)
-
-
-    @classmethod
-    def select_sample_subtype(cls, pipeline_filepath, protocol=None):
-        """
-        From a pipeline module, select Sample subtype for a particular protocol.
-
-        The indicated file needs to be a Python module that can be imported.
-        Critically, it must be written such that importing it does not run it
-        as a script. That is, its workflow logic should be bundled into
-        function(s), or at least nested under a "if __name__ == '__main__'"
-        conditional.
-
-        :param str pipeline_filepath: path to file defining a pipeline
-        :param str protocol: name of protocol for which to select Sample subtype
-        :return type: Sample type most tailored to indicated protocol and
-            defined within the module indicated by the given filepath,
-            optional; if unspecified, or if the indicated file cannot be
-            imported, then the base Sample type is returned.
-        """
-
-        if not _os.path.isfile(pipeline_filepath):
-            _LOGGER.debug("Alleged pipeline module path is not a file: '%s'", 
-                          pipeline_filepath)
-            return cls
-
-        # Determine whether it appears safe to import the pipeline module, 
-        # and return a generic, base Sample if not.
-        import subprocess
-        def file_has_pattern(pattern, filepath):
-            try:
-                with open(_os.devnull, 'w') as devnull:
-                    return subprocess.call(
-                            ["grep", pattern, filepath], stdout=devnull)
-            except Exception:
-                return False
-        safety_lines = ["if __name__ == '__main__'",
-                        "if __name__ == \"__main__\""]
-        safe_to_import = \
-                any(map(partial(file_has_pattern,
-                                filepath=pipeline_filepath),
-                        safety_lines))
-        if not safe_to_import:
-            _LOGGER.debug("Attempt to import '{}' may run code so is refused.".
-                          format(pipeline_filepath))
-            return cls
-
-        # Import pipeline module and find Sample subtypes.
-        _, modname = _os.path.split(pipeline_filepath)
-        modname, _ = _os.path.splitext(modname)
-        try:
-            _LOGGER.debug("Attempting to import module defined by {}, "
-                          "calling it {}".format(pipeline_filepath, modname))
-            pipeline_module = import_from_source(
-                    name=modname, module_filepath=pipeline_filepath)
-        except ImportError as e:
-            _LOGGER.warn("Using base Sample because of failure in attempt to "
-                         "import pipeline module: {}".format(e))
-            return cls
-        else:
-            _LOGGER.debug("Successfully imported pipeline module '%s', "
-                          "naming it '%s'", pipeline_filepath,
-                      pipeline_module.__name__)
-
-        import inspect
-        sample_subtypes = inspect.getmembers(
-                pipeline_module, lambda obj: isinstance(obj, Sample))
-        _LOGGER.debug("%d sample subtype(s): %s", len(sample_subtypes), 
-                      ", ".join([subtype.__name__ 
-                                 for subtype in sample_subtypes]))
-
-        # Match all subtypes for null protocol; use __library__ for non-null.
-        if protocol is None:
-            _LOGGER.debug("Null protocol, matching every subtypes...")
-            matched_subtypes = sample_subtypes
-        else:
-            protocol_key = alpha_cased(protocol)
-            matched_subtypes = \
-                    [subtype for subtype in sample_subtypes 
-                     if protocol_key == alpha_cased(subtype.__library__)]
-
-        # Helpful for messages about protocol name for each subtype
-        subtype_by_protocol_text = \
-                ", ".join(["'{}' ({})".format(subtype.__library, subtype) 
-                           for subtype in sample_subtypes])
-
-        # Select subtype based on match count.
-        if 0 == len(matched_subtypes):
-            # Fall back to base Sample if we have no matches.
-            _LOGGER.debug(
-                    "No known Sample subtype for protocol '{}' in '{}'; "
-                    "known: {}".format(protocol, pipeline_filepath,
-                                       subtype_by_protocol_text))
-            return cls
-        elif 1 == len(matched_subtypes):
-            # Use the single match if there's exactly one.
-            subtype = matched_subtypes[0]
-            _LOGGER.info("Matched protocol '{}' to Sample subtype {}".
-                         format(protocol, subtype.__name__))
-            return subtype
-        else:
-            # Throw up our hands and fall back to base Sample for multi-match.
-            _LOGGER.debug("Unable to choose from {} Sample subtype matches "
-                          "for protocol '{}' in '{}': {}".format(
-                    len(matched_subtypes), protocol,
-                    pipeline_filepath, subtype_by_protocol_text))
-            return cls
 
 
 
@@ -2123,11 +2016,22 @@ class PipelineInterface(object):
 
     @property
     def pipeline_names(self):
+        """
+        Names of pipelines about which this interface is aware.
+
+        :return Iterable[str]: names of pipelines about which this
+            interface is aware
+        """
         return self.pipe_iface_config.keys()
 
 
     @property
     def pipelines(self):
+        """
+        Keyed collection of pipeline interface data.
+
+        :return Mapping: pipeline interface configuration data
+        """
         return self.pipe_iface_config.values()
 
 
@@ -2500,58 +2404,6 @@ class ProtocolInterface(object):
 
 
 
-def _import_sample_subtype(pipeline_filepath, subtype_name):
-    """
-    Import a particular Sample subclass from a Python module.
-
-    :param str pipeline_filepath: path to file to regard as Python module
-    :param str subtype_name: name of the target class; this must derive from
-        the base Sample class.
-    :return type: the imported class, defaulting to base Sample in case of
-        failure with the import or other logic
-    :raises _UndefinedSampleSubtypeException: if the module is imported but
-        type indicated by subtype_name is not found as a class
-    """
-    base_type = Sample
-
-    _, modname = _os.path.split(pipeline_filepath)
-    modname, _ = _os.path.splitext(modname)
-
-    try:
-        _LOGGER.debug("Attempting to import module defined by {}, "
-                      "calling it {}".format(pipeline_filepath, modname))
-        pipeline_module = import_from_source(
-            name=modname, module_filepath=pipeline_filepath)
-    except ImportError as e:
-        _LOGGER.warn("Using base %s because of failure in attempt to "
-                     "import pipeline module: %s", base_type.__name__, e)
-        return base_type
-    else:
-        _LOGGER.debug("Successfully imported pipeline module '%s', "
-                      "naming it '%s'", pipeline_filepath,
-                      pipeline_module.__name__)
-
-    import inspect
-    def class_names(cs):
-        return ", ".join([c.__name__ for c in cs])
-
-    classes = inspect.getmembers(
-            pipeline_module, lambda obj: inspect.isclass(obj))
-    _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
-    sample_subtypes = filter(lambda c: issubclass(c, base_type), classes)
-    _LOGGER.debug("%d %s subtype(s): %s", len(sample_subtypes),
-                  base_type.__name__, class_names(sample_subtypes))
-
-    for st in sample_subtypes:
-        if st.__name__ == subtype_name:
-            _LOGGER.debug("Successfully imported %s from '%s'",
-                          subtype_name, pipeline_filepath)
-            return st
-    raise _UndefinedSampleSubtypeException(
-            subtype_name=subtype_name, pipeline_filepath=pipeline_filepath)
-
-
-
 @copy
 class ProtocolMapper(Mapping):
     """
@@ -2620,6 +2472,7 @@ class ProtocolMapper(Mapping):
                 self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
         """
 
+
     def parse_parallel_jobs(self, job, dep):
         job = job.replace("(", "").replace(")", "")
         split_jobs = [x.strip() for x in job.split(',')]
@@ -2628,6 +2481,7 @@ class ProtocolMapper(Mapping):
                 self.register_job(s, dep)
         else:
             self.register_job(job, dep)
+
 
     def register_job(self, job, dep):
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
@@ -2688,6 +2542,59 @@ class _UndefinedSampleSubtypeException(Exception):
         reason = "Sample subtype {} cannot be imported from '{}'".\
                 format(subtype_name, pipeline_filepath)
         super(_UndefinedSampleSubtypeException, self).__init__(reason)
+
+
+
+def _import_sample_subtype(pipeline_filepath, subtype_name):
+    """
+    Import a particular Sample subclass from a Python module.
+
+    :param str pipeline_filepath: path to file to regard as Python module
+    :param str subtype_name: name of the target class; this must derive from
+        the base Sample class.
+    :return type: the imported class, defaulting to base Sample in case of
+        failure with the import or other logic
+    :raises _UndefinedSampleSubtypeException: if the module is imported but
+        type indicated by subtype_name is not found as a class
+    """
+    base_type = Sample
+
+    _, modname = _os.path.split(pipeline_filepath)
+    modname, _ = _os.path.splitext(modname)
+
+    try:
+        _LOGGER.debug("Attempting to import module defined by {}, "
+                      "calling it {}".format(pipeline_filepath, modname))
+        pipeline_module = import_from_source(
+            name=modname, module_filepath=pipeline_filepath)
+    except ImportError as e:
+        _LOGGER.warn("Using base %s because of failure in attempt to "
+                     "import pipeline module: %s", base_type.__name__, e)
+        return base_type
+    else:
+        _LOGGER.debug("Successfully imported pipeline module '%s', "
+                      "naming it '%s'", pipeline_filepath,
+                      pipeline_module.__name__)
+
+    import inspect
+    def class_names(cs):
+        return ", ".join([c.__name__ for c in cs])
+
+    classes = inspect.getmembers(
+            pipeline_module, lambda obj: inspect.isclass(obj))
+    _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
+    sample_subtypes = filter(lambda c: issubclass(c, base_type), classes)
+    _LOGGER.debug("%d %s subtype(s): %s", len(sample_subtypes),
+                  base_type.__name__, class_names(sample_subtypes))
+
+    for st in sample_subtypes:
+        if st.__name__ == subtype_name:
+            _LOGGER.debug("Successfully imported %s from '%s'",
+                          subtype_name, pipeline_filepath)
+            return st
+    raise _UndefinedSampleSubtypeException(
+            subtype_name=subtype_name, pipeline_filepath=pipeline_filepath)
+
 
 
 def _is_member(item, items):
