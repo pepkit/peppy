@@ -35,27 +35,17 @@ class ParseSampleImplicationsTests:
     IMPLIER_VALUES = ["a", "b"]
     SAMPLE_A_IMPLICATIONS = {"genome": "hg38", "phenome": "hg72"}
     SAMPLE_B_IMPLICATIONS = {"genome": "hg38"}
-    IMPLICATIONS = [SAMPLE_A_IMPLICATIONS, SAMPLE_B_IMPLICATIONS]
+    IMPLICATIONS = {"a": SAMPLE_A_IMPLICATIONS, "b": SAMPLE_B_IMPLICATIONS}
     IMPLICATIONS_MAP = {IMPLIER_NAME: IMPLICATIONS}
 
-    # TODO: now what's passed to the function is a Project instance.
-    # TODO: it's still the Sample itself that's responsible for USING the
-    # TODO: project instance passed in order to do column inference.
 
-
-    def test_project_lacks_implications(self, sample):
+    @pytest.mark.parametrize(argnames="implications", argvalues=[None, {}, []])
+    def test_project_no_implications(self, sample, implications):
         """ With no implications mapping, sample is unmodified. """
         before_inference = sample.__dict__
-        sample.infer_columns(None)
+        sample.infer_columns(implications)
         after_inference = sample.__dict__
         assert before_inference == after_inference
-
-
-    def test_empty_implications(self, sample):
-        """ Empty implications mapping --> unmodified sample. """
-        before_inference = sample.__dict__
-        sample.infer_columns({})
-        assert before_inference == sample.__dict__
 
 
     def test_null_intersection_between_sample_and_implications(self, sample):
@@ -67,7 +57,7 @@ class ParseSampleImplicationsTests:
 
     @pytest.mark.parametrize(
         argnames=["implier_value", "implications"],
-        argvalues=zip(IMPLIER_VALUES, IMPLICATIONS),
+        argvalues=IMPLICATIONS.items(),
         ids=lambda implier_and_implications:
         "implier='{}', implications={}".format(
             implier_and_implications[0], str(implier_and_implications[1])))
@@ -81,11 +71,7 @@ class ParseSampleImplicationsTests:
 
         # Set the parameterized value for the implications source field.
         setattr(sample, self.IMPLIER_NAME, implier_value)
-
-        # Perform column inference based on mocked implications.
-        implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
-        with mock.patch.object(sample, "prj", create=True, new=implications):
-            sample.infer_columns(self.IMPLICATIONS_MAP)
+        sample.infer_columns(self.IMPLICATIONS_MAP)
 
         # Validate updates to sample based on column implications & inference.
         for implied_name, implied_value in implications.items():
@@ -95,29 +81,18 @@ class ParseSampleImplicationsTests:
     @pytest.mark.parametrize(
         argnames="unmapped_implier_value",
         argvalues=["totally-wacky-value", 62, None, np.nan])
-    @pytest.mark.parametrize(
-        argnames="implications", argvalues=IMPLICATIONS,
-        ids=lambda implications: "implied={}".format(str(implications)))
     def test_sample_has_unmapped_value_for_implication(
-            self, sample, unmapped_implier_value, implications):
+            self, sample, unmapped_implier_value):
         """ Unknown value in implier field --> null inference. """
-
 
         # Negative control pre-/post-test.
         def no_implied_values():
             assert all([not hasattr(sample, implied_field_name)
-                        for implied_field_name in implications.keys()])
-
+                        for implied_field_name in self.IMPLICATIONS.keys()])
 
         no_implied_values()
-
-        # Set the parameterized value for the implications source field.
         setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
-
-        # Perform column inference based on mocked implications.
-        implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
-        with mock.patch.object(sample, "prj", create=True, new=implications):
-            sample.infer_columns()
+        sample.infer_columns(self.IMPLICATIONS_MAP)
         no_implied_values()
 
 
