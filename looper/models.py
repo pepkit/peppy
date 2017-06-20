@@ -601,12 +601,13 @@ class Project(AttributeDict):
         except AttributeError:
             self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
 
+        self.finalize_pipelines_directory()
+
         # SampleSheet creation populates project's samples, adds the
         # sheet itself, and adds any derived columns.
         _LOGGER.debug("Processing {} pipeline location(s): {}".
                       format(len(self.metadata.pipelines_dir),
                              self.metadata.pipelines_dir))
-        self.finalize_pipelines_directory()
         self.interfaces_by_protocol = \
                 process_pipeline_interfaces(self.metadata.pipelines_dir)
         self.sheet = check_sheet(self.metadata.sample_annotation)

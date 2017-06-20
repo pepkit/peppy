@@ -181,12 +181,14 @@ def run(prj, args, remaining_args):
         to be passed on to parser(s) elsewhere
     """
 
-    _start_counter(prj.num_samples)
+    num_samples = prj.num_samples
+    _start_counter(num_samples)
     valid_read_types = ["single", "paired"]
 
     # Keep track of how many jobs have been submitted.
-    submit_count = 0
-    job_count = 0
+    num_job_templates = 0    # Each sample can have multiple jobs.
+    job_count = 0            # Some job templates will be skipped.
+    submit_count = 0         # Some jobs won't be submitted.
     processed_samples = set()
 
     # Create a problem list so we can keep track and show them at the end.
@@ -244,10 +246,11 @@ def run(prj, args, remaining_args):
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"
         # cannot be assigned (library/protocol missing).
+        # pipeline_key (previously pl_id) is no longer necessarily
+        # script name, it's more flexible.
         for pipeline_interface, sample_subtype, pipeline_key, pipeline_job \
                 in submission_bundles:
-            # pipeline_key (previously pl_id) is no longer necessarily
-            # script name, it's more flexible.
+            num_job_templates += 1
 
             _LOGGER.debug("Creating %s instance: '%s'",
                           sample_subtype.__name__, sample.sample_name)
@@ -314,7 +317,8 @@ def run(prj, args, remaining_args):
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
             try: 
-                argstring = pipeline_interface.get_arg_string(pipeline_key, sample)
+                argstring = pipeline_interface.get_arg_string(
+                        pipeline_key, sample)
                 argstring += " "
             except AttributeError:
                 # TODO: inform about which missing attribute(s).
@@ -346,7 +350,8 @@ def run(prj, args, remaining_args):
                     # because we don't care about parameters here.
                     if hasattr(prj.pipeline_config, pipeline_key):
                         # First priority: pipeline config in project config
-                        pl_config_file = getattr(prj.pipeline_config, pipeline_key)
+                        pl_config_file = getattr(prj.pipeline_config,
+                                                 pipeline_key)
                         # Make sure it's a file (it could be provided as null.)
                         if pl_config_file:
                             if not os.path.isfile(pl_config_file):
@@ -371,7 +376,8 @@ def run(prj, args, remaining_args):
                                  "lack memory specification")
 
             # Add the command string and job name to the submit_settings object
-            submit_settings["JOBNAME"] = sample.sample_name + "_" + pipeline_key
+            submit_settings["JOBNAME"] = \
+                    sample.sample_name + "_" + pipeline_key
             submit_settings["CODE"] = cmd
 
             # Submit job!
@@ -391,8 +397,11 @@ def run(prj, args, remaining_args):
             else:
                 _LOGGER.debug("FAILURE: not submitted")
 
-    msg = "Looper finished. {} of {} job(s) submitted.".\
-            format(submit_count, job_count)
+    msg = "Looper finished. {} of {} sample(s) generated job template(s); " \
+          "{} of {} job template(s) were considered for submission, and " \
+          "{} of those were actually submitted.".format(
+            len(processed_samples), num_samples,
+            job_count, num_job_templates, submit_count)
     if args.dry_run:
         msg += " Dry run. No jobs were actually submitted."
 
