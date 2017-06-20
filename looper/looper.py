@@ -212,15 +212,6 @@ def run(prj, args, remaining_args):
             skip_reasons.append("Inactive status (via {})".
                                 format(SAMPLE_EXECUTION_TOGGLE))
 
-        # Check if single_or_paired value is recognized.
-        if hasattr(sample, "read_type"):
-            # Drop "-end", "_end", or just "end" from end of the column value.
-            sample.read_type = re.sub(
-                    '[_\\-]?end$', '', str(sample.read_type)).lower()
-            if sample.read_type not in valid_read_types:
-                skip_reasons.append(
-                        "read_type must be in {}".format(valid_read_types))
-
         # Get the base protocol-to-pipeline mappings
         try:
             protocol = alpha_cased(sample.library)
@@ -246,9 +237,6 @@ def run(prj, args, remaining_args):
         # TODO: determine what to do with subtype(s) here.
         # Processing preconditions have been met.
         processed_samples.add(sample.sample_name)
-        _LOGGER.debug("Writing base Sample representation to disk: '%s'",
-                      sample.sample_name)
-        sample.to_yaml(subs_folder_path=prj.metadata.submission_subdir)
         sample_data = sample.as_series().to_dict()
 
         # Go through all pipelines to submit for this protocol.
@@ -295,6 +283,15 @@ def run(prj, args, remaining_args):
                 fail_message = "Required input file(s) not found"
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
+
+            # Check if single_or_paired value is recognized.
+            if hasattr(sample, "read_type"):
+                # Drop "-end", "_end", or just "end" from end of the column value.
+                sample.read_type = re.sub(
+                    '[_\\-]?end$', '', str(sample.read_type)).lower()
+                if sample.read_type not in valid_read_types:
+                    skip_reasons.append(
+                        "read_type must be in {}".format(valid_read_types))
 
             # Identify cluster resources required for this submission.
             submit_settings = pipeline_interface.choose_resource_package(

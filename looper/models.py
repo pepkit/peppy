@@ -1735,10 +1735,13 @@ class Sample(object):
                 pipeline_name, "all_input_files")
 
         if self.ngs_inputs_attr:
+            _LOGGER.debug("Handling NGS input attributes: '%s'", self.name)
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
             self.set_read_type(permissive=permissive)
+        else:
+            _LOGGER.debug("No NGS inputs: '%s'", self.name)
 
         # input_size
         if not self.all_inputs_attr:
