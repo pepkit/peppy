@@ -23,7 +23,7 @@ def project_config_data():
         "metadata": {
             SAMPLE_ANNOTATIONS_KEY: "sample-anns-filler.csv",
             "output_dir": "$HOME/sequencing/output",
-            "pipelines_dir": "${CODE}/pipelines"},
+            "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
         "genomes": {"human": "hg19", "mouse": "mm10"},
         "transcriptomes": {"human": "hg19_cdna", "mouse": "mm10_cdna"}}
@@ -489,7 +489,7 @@ class ProjectPipelineArgstringTests:
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
 
         # Subvert requirement for sample annotations file.
-        with mock.patch("looper.models.Project.add_sample_sheet"):
+        with mock.patch("looper.models.check_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
 
         argstring = project.get_arg_string(pipeline)

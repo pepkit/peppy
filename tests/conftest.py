@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger("looper")
 PROJECT_CONFIG_LINES = """metadata:
   sample_annotation: samples.csv
   output_dir: test
-  pipelines_dir: pipelines
+  pipeline_interfaces: pipelines
   merge_table: merge.csv
 
 derived_columns: [{derived_column_names}]
