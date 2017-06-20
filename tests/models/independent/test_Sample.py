@@ -38,12 +38,15 @@ class ParseSampleImplicationsTests:
     IMPLICATIONS = [SAMPLE_A_IMPLICATIONS, SAMPLE_B_IMPLICATIONS]
     IMPLICATIONS_MAP = {IMPLIER_NAME: IMPLICATIONS}
 
+    # TODO: now what's passed to the function is a Project instance.
+    # TODO: it's still the Sample itself that's responsible for USING the
+    # TODO: project instance passed in order to do column inference.
+
 
     def test_project_lacks_implications(self, sample):
         """ With no implications mapping, sample is unmodified. """
         before_inference = sample.__dict__
-        with mock.patch.object(sample, "prj", create=True):
-            sample.infer_columns()
+        sample.infer_columns(None)
         after_inference = sample.__dict__
         assert before_inference == after_inference
 
@@ -51,18 +54,14 @@ class ParseSampleImplicationsTests:
     def test_empty_implications(self, sample):
         """ Empty implications mapping --> unmodified sample. """
         before_inference = sample.__dict__
-        implications = mock.MagicMock(implied_columns={})
-        with mock.patch.object(sample, "prj", create=True, new=implications):
-            sample.infer_columns()
+        sample.infer_columns({})
         assert before_inference == sample.__dict__
 
 
     def test_null_intersection_between_sample_and_implications(self, sample):
         """ Sample with none of implications' fields --> no change. """
         before_inference = sample.__dict__
-        implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
-        with mock.patch.object(sample, "prj", create=True, new=implications):
-            sample.infer_columns()
+        sample.infer_columns(self.IMPLICATIONS_MAP)
         assert before_inference == sample.__dict__
 
 
@@ -86,7 +85,7 @@ class ParseSampleImplicationsTests:
         # Perform column inference based on mocked implications.
         implications = mock.MagicMock(implied_columns=self.IMPLICATIONS_MAP)
         with mock.patch.object(sample, "prj", create=True, new=implications):
-            sample.infer_columns()
+            sample.infer_columns(self.IMPLICATIONS_MAP)
 
         # Validate updates to sample based on column implications & inference.
         for implied_name, implied_value in implications.items():

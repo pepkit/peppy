@@ -1715,7 +1715,7 @@ class Sample(object):
         """
         Set the transcriptome for this Sample.
 
-        :param Mapping[str, str] transcriptomes: trascriptome assembly by
+        :param Mapping[str, str] transcriptomes: transcriptome assembly by
             organism name
         """
         self._set_assembly("transcriptome", transcriptomes)

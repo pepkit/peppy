@@ -24,7 +24,7 @@ PATH_BY_TYPE = {
 
 
 
-class ProjectSampleInteractionTests:
+class SampleFolderCreationTests:
     """ Tests for interaction between Project and Sample. """
 
     CONFIG_DATA_PATHS_HOOK = "uses_paths_section"
