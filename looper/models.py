@@ -624,7 +624,8 @@ class Project(AttributeDict):
                 process_pipeline_interfaces(self.metadata.pipelines_dir)
         self.sheet = check_sheet(self.metadata.sample_annotation)
         self.merge_table = None
-        self._samples = None if defer_sample_construction else self.samples
+        self._samples = None if defer_sample_construction \
+                else self._make_basic_samples()
 
 
     def __repr__(self):
@@ -732,59 +733,12 @@ class Project(AttributeDict):
         :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
-        if hasattr(self, "_samples") and self._samples is not None:
-            _LOGGER.debug("%s has %d basic Sample(s)",
-                          self.__class__.__name__, len(self._samples))
-            return self._samples
-        else:
+        if self._samples is None:
             _LOGGER.debug("Building basic Sample(s) for %s",
                           self.__class__.__name__)
-
-        # This should be executed just once, establishing the Project's
-        # base Sample objects if they don't already exist.
-        if hasattr(self.metadata, "merge_table"):
-            if self.merge_table is None:
-                if _os.path.isfile(self.metadata.merge_table):
-                    self.merge_table = _pd.read_table(
-                            self.metadata.merge_table,
-                            sep=None, engine="python")
-                else:
-                    _LOGGER.debug(
-                            "Alleged path to merge table data is not a "
-                            "file: '%s'", self.metadata.merge_table)
-            else:
-                _LOGGER.debug("Already parsed merge table")
-        else:
-            _LOGGER.debug("No merge table")
-
-        # Define merge behavior based on presence of merge table.
-        if self.merge_table is None:
-            def merge(s):
-                return s
-        else:
-            def merge(s):
-                return merge_sample(s, self.merge_table, self.data_sources,
-                                    self.derived_columns)
-
-        # Create the Sample(s).
-        samples = []
-        for _, row in self.sheet.iterrows():
-            sample = Sample(row.dropna())
-            sample.set_genome(self.genomes)
-            sample.set_transcriptome(self.transcriptomes)
-
-            sample.set_file_paths(self)
-            # Hack for backwards-compatibility
-            # Pipelines should now use `data_source`)
-            try:
-                sample.data_path = sample.data_source
-            except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks data source; skipping "
-                              "data path assignment", sample.sample_name)
-            sample = merge(sample)
-            samples.append(sample)
-
-        self._samples = samples
+            self._samples = self._make_basic_samples()
+        _LOGGER.debug("%s has %d basic Sample(s)",
+                      self.__class__.__name__, len(self._samples))
         return self._samples
 
 
@@ -1041,6 +995,56 @@ class Project(AttributeDict):
                 except OSError as e:
                     _LOGGER.warn("Could not create project folder: '%s'",
                                  str(e))
+
+
+    def _make_basic_samples(self):
+        """ Build the base Sample objects from the annotations sheet data. """
+
+        # This should be executed just once, establishing the Project's
+        # base Sample objects if they don't already exist.
+        if hasattr(self.metadata, "merge_table"):
+            if self.merge_table is None:
+                if _os.path.isfile(self.metadata.merge_table):
+                    self.merge_table = _pd.read_table(
+                        self.metadata.merge_table,
+                        sep=None, engine="python")
+                else:
+                    _LOGGER.debug(
+                        "Alleged path to merge table data is not a "
+                        "file: '%s'", self.metadata.merge_table)
+            else:
+                _LOGGER.debug("Already parsed merge table")
+        else:
+            _LOGGER.debug("No merge table")
+
+        # Define merge behavior based on presence of merge table.
+        if self.merge_table is None:
+            def merge(s):
+                return s
+        else:
+            def merge(s):
+                return merge_sample(s, self.merge_table, self.data_sources,
+                                    self.derived_columns)
+
+        # Create the Sample(s).
+        samples = []
+        for _, row in self.sheet.iterrows():
+            sample = Sample(row.dropna())
+            sample.set_genome(self.get("genomes"))
+            sample.set_transcriptome(self.get("transcriptomes"))
+
+            sample.set_file_paths(self)
+            # Hack for backwards-compatibility
+            # Pipelines should now use `data_source`)
+            try:
+                sample.data_path = sample.data_source
+            except AttributeError:
+                _LOGGER.debug("Sample '%s' lacks data source; skipping "
+                              "data path assignment", sample.sample_name)
+            sample = merge(sample)
+            samples.append(sample)
+
+        return samples
 
 
     def parse_config_file(self, subproject=None):
@@ -1722,6 +1726,10 @@ class Sample(object):
         
         
     def _set_assembly(self, ome, assemblies):
+        if not assemblies:
+            _LOGGER.debug("Empty/null assemblies mapping: {} ({})".
+                          format(assemblies, type(assemblies)))
+            return
         try:
             assembly = assemblies[self.organism]
         except AttributeError:

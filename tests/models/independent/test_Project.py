@@ -220,7 +220,7 @@ class ProjectDefaultEnvironmentSettingsTests:
 
     @staticmethod
     def default_compute_settings(project):
-        settings_filepath = project.default_cmpenv_file
+        settings_filepath = project.default_compute_envfile
         with open(settings_filepath, 'r') as settings_data_file:
             settings = yaml.safe_load(settings_data_file)
         return {"environment": copy.deepcopy(settings),
@@ -276,7 +276,7 @@ class DerivedColumnsTests:
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
-        with mock.patch("looper.models.Project.add_sample_sheet"):
+        with mock.patch("looper.models.check_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
         return expected_derived_columns, project
 
