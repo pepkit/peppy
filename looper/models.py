@@ -235,6 +235,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
         sample.update(merged_cols)  # 3)
         sample.merged = True  # mark sample as merged
         sample.merged_cols = merged_cols
+        sample.merged = True
 
     return sample
 
@@ -1371,6 +1372,9 @@ class Sample(object):
         # Default to no required paths and no YAML file.
         self.required_paths = None
         self.yaml_file = None
+
+        # Not yet merged, potentially toggled when merge step is considered.
+        self.merged = False
 
         # Sample dirs
         # Only when sample is added to project, can paths be added -

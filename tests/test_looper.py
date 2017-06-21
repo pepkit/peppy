@@ -94,29 +94,13 @@ class ProjectConstructorTest:
         assert not proj.samples[sample_index].merged_cols
 
 
-    @pytest.mark.parametrize(argnames="sample_index",
-                             argvalues=range(NUM_SAMPLES))
-    def test_multiple_add_sample_sheet_calls_no_rederivation(self, proj,
-                                                             sample_index):
-        """ Don't rederive `derived_columns` for multiple calls. """
-        expected_files = FILE_BY_SAMPLE[sample_index]
-        def _observed(p):
-            return [os.path.basename(f)
-                    for f in p.samples[sample_index].file.split(" ")]
-        assert expected_files == _observed(proj)
-        proj.add_sample_sheet()
-        proj.add_sample_sheet()
-        assert expected_files == _observed(proj)
-        proj.add_sample_sheet()
-        assert expected_files == _observed(proj)
-
-
     def test_duplicate_derived_columns_still_derived(self, proj):
         sample_index = 2
         observed_nonmerged_col_basename = \
             os.path.basename(proj.samples[sample_index].nonmerged_col)
         assert "c.txt" == observed_nonmerged_col_basename
-        assert "" == proj.samples[sample_index].locate_data_source('file')
+        assert "" == proj.samples[sample_index].locate_data_source(
+                proj.data_sources, 'file')
 
 
 
@@ -220,102 +204,6 @@ class SampleWrtProjectCtorTests:
         """ Test looper args usage flag. """
         observed = pipe_iface.uses_looper_args(pipeline)
         assert (expected and observed) or not (observed or expected)
-
-
-
-@pytest.mark.usefixtures("write_project_files")
-class SampleRoundtripTests:
-    """ Test equality of objects written to and from YAML files. """
-
-
-    def test_default_behavioral_metadata_retention(self, tmpdir, proj):
-        """ With default metadata, writing to file and restoring is OK. """
-        tempfolder = str(tmpdir)
-        sample_tempfiles = []
-        for sample in proj.samples:
-            path_sample_tempfile = os.path.join(tempfolder,
-                                                "{}.yaml".format(sample.name))
-            sample.to_yaml(path_sample_tempfile)
-            sample_tempfiles.append(path_sample_tempfile)
-        for original_sample, temp_sample_path in zip(proj.samples,
-                                                     sample_tempfiles):
-            with open(temp_sample_path, 'r') as sample_file:
-                restored_sample_data = yaml.load(sample_file)
-            ad = AttributeDict(restored_sample_data)
-            self._metadata_equality(original_sample.prj, ad)
-
-
-    def test_modified_behavioral_metadata_preservation(self, tmpdir, proj):
-        """ Behavior metadata modifications are preserved to/from disk. """
-        tempfolder = str(tmpdir)
-        sample_tempfiles = []
-        samples = proj.samples
-        assert 1 < len(samples), "Too few samples: {}".format(len(samples))
-
-        # TODO: note that this may fail if metadata
-        # modification prohibition is implemented.
-        samples[0].prj.__dict__["_force_nulls"] = True
-        samples[1].prj.__dict__["_attribute_identity"] = True
-
-        for sample in proj.samples[:2]:
-            path_sample_tempfile = os.path.join(tempfolder,
-                                                "{}.yaml".format(sample.name))
-            sample.to_yaml(path_sample_tempfile)
-            sample_tempfiles.append(path_sample_tempfile)
-
-        with open(sample_tempfiles[0], 'r') as f:
-            sample_0_data = yaml.load(f)
-        assert AttributeDict(sample_0_data).prj._force_nulls is True
-
-        with open(sample_tempfiles[1], 'r') as f:
-            sample_1_data = yaml.load(f)
-        sample_1_restored_attrdict =  AttributeDict(sample_1_data)
-        assert sample_1_restored_attrdict.prj.does_not_exist == "does_not_exist"
-
-
-    def _check_nested_metadata(self, original, restored):
-        """
-        Check equality for metadata items, accounting for nesting within
-        instances of AttributeDict and its child classes.
-
-        :param AttributeDict original: original AttributeDict (or child) object
-        :param AttributeDict restored: instance restored from writing
-            original object to file, then reparsing and constructing
-            AttributeDict instance
-        :return bool: whether metadata items are equivalent between objects
-            at all nesting levels
-        """
-        for key, data in original.items():
-            if key not in restored:
-                return False
-            equal_level = self._metadata_equality(original, restored)
-            if not equal_level:
-                return False
-            if isinstance(original, AttributeDict):
-                return isinstance(restored, AttributeDict) and \
-                       self._check_nested_metadata(data, restored[key])
-            else:
-                return True
-
-
-    @staticmethod
-    def _metadata_equality(original, restored):
-        """
-        Check nested levels of metadata equality.
-
-        :param AttributeDict original: a raw AttributeDict or an
-            instance of a child class that was serialized and written to disk
-        :param AttributeDict restored: an AttributeDict instance created by
-            parsing the file associated with the original object
-        :return bool: whether all metadata keys/items have equal value
-            when comparing original object to restored version
-        """
-        for metadata_item in ATTRDICT_METADATA:
-            if metadata_item not in original or \
-                    metadata_item not in restored or \
-                    original[metadata_item] != restored[metadata_item]:
-                return False
-        return True
 
 
 
