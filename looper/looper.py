@@ -186,7 +186,6 @@ def run(prj, args, remaining_args):
     valid_read_types = ["single", "paired"]
 
     # Keep track of how many jobs have been submitted.
-    num_job_templates = 0    # Each sample can have multiple jobs.
     job_count = 0            # Some job templates will be skipped.
     submit_count = 0         # Some jobs won't be submitted.
     processed_samples = set()
@@ -250,7 +249,7 @@ def run(prj, args, remaining_args):
         # script name, it's more flexible.
         for pipeline_interface, sample_subtype, pipeline_key, pipeline_job \
                 in submission_bundles:
-            num_job_templates += 1
+            job_count += 1
 
             _LOGGER.debug("Creating %s instance: '%s'",
                           sample_subtype.__name__, sample.sample_name)
@@ -381,7 +380,6 @@ def run(prj, args, remaining_args):
             submit_settings["CODE"] = cmd
 
             # Submit job!
-            job_count += 1
             _LOGGER.debug("Attempting job submission: '%s' ('%s')",
                           sample.sample_name, pipeline_name)
             submitted = cluster_submit(
@@ -392,21 +390,18 @@ def run(prj, args, remaining_args):
                     dry_run=args.dry_run,  ignore_flags=args.ignore_flags, 
                     remaining_args=remaining_args)
             if submitted:
-                _LOGGER.debug("SUCCESS: submitted")
+                _LOGGER.debug("SUBMITTED")
                 submit_count += 1
             else:
-                _LOGGER.debug("FAILURE: not submitted")
+                _LOGGER.debug("NOT SUBMITTED")
 
-    msg = "Looper finished. {} of {} sample(s) generated job template(s); " \
-          "{} of {} job template(s) were considered for submission, and " \
-          "{} of those were actually submitted.".format(
-            len(processed_samples), num_samples,
-            job_count, num_job_templates, submit_count)
+    # Report what went down.
+    _LOGGER.info("Looper finished")
+    _LOGGER.info("Samples generating jobs: %d of %d",
+                 len(processed_samples), num_samples)
+    _LOGGER.info("Jobs submitted: %d of %d", submit_count, job_count)
     if args.dry_run:
-        msg += " Dry run. No jobs were actually submitted."
-
-    _LOGGER.info(msg)
-
+        _LOGGER.info("Dry run. No jobs were actually submitted.")
     if failures:
         _LOGGER.info("%d sample(s) with submission failure.", len(failures))
         sample_by_reason = aggregate_exec_skip_reasons(failures)
