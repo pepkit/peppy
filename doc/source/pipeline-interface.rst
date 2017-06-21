@@ -17,7 +17,7 @@ The ``pipelines`` section specifies to looper which command-line arguments to pa
 	- ``-P``: cores (the number of cores specified by the resource package chosen)
 	- ``-M``: mem (the memory limit)
 
-- ``resources`` (recommended): A section outlining how much memory, CPU, and clock time to request, modulated by input file size (details below). If the ``resources`` section is missing, looper will only be able to run the pipeline locally (not submit it to a cluster resource manager). If you provide a ``resources`` section, you must define at least 1 option named 'default' with ``file_size: 0``. Add as many additional resource sets as you want, with any names. Looper will determine which resource package to use based on the ``file_size`` of the input file. It will select the lowest resource package whose ``file_size`` attribute does not exceed the size of the input file.
+- ``resources`` (recommended): A section outlining how much memory, CPU, and clock time to request, modulated by input file size. If the ``resources`` section is missing, looper will only be able to run the pipeline locally (not submit it to a cluster resource manager). If you provide a ``resources`` section, you must define at least 1 option named 'default' with ``file_size: "0"``. Then, you define as many more resource "package" as you want. The ``resources`` section can be a bit confusing. Think of it like a group of steps of increasing size. The first step (default) starts at 0, and this step will catch any files that aren't big enough to get to the next level. Each successive step is larger. Looper determines the size of your input file, and then iterates over the resource packages until it can't go any further; that is, the ``file_size`` of the package is bigger than the input file size of the sample. At this point, iteration stops and looper has selected the best-fit resource package for that sample -- the smallest package that is still big enough. Add as many additional resource sets as you want, with any names. Looper will determine which resource package to use based on the ``file_size`` of the input file. It will select the lowest resource package whose ``file_size`` attribute does not exceed the size of the input file. Becuase the partition or queue name is relative to your environment, we don't usually specify this in the ``resources`` section, but rather, in the ``pepenv`` config. 
 
 
 Example:
@@ -37,15 +37,11 @@ Example:
 	      cores: "4"
 	      mem: "6000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 	    resource_package_name:
-	      file_size: "0"
+	      file_size: "2"
 	      cores: "4"
 	      mem: "6000"
 	      time: "2-00:00:00"
-	      partition: "longq"
-
-
 
 
 Full example:
@@ -66,13 +62,11 @@ Full example:
 	      cores: "4"
 	      mem: "4000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 	    high:
 	      file_size: "4"
 	      cores: "6"
 	      mem: "4000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 
 	rnaBitSeq.py:
 	  looper_args: True
@@ -87,7 +81,6 @@ Full example:
 	      cores: "6"
 	      mem: "6000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 
 	atacseq.py:
 	  arguments:
@@ -101,4 +94,3 @@ Full example:
 	      cores: "4"
 	      mem: "8000"
 	      time: "08:00:00"
-	      partition: "shortq"

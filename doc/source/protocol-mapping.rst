@@ -6,9 +6,9 @@ The ``protocol_mapping`` section explains how looper should map from a sample pr
 
 - **Case 1:** one protocol maps to one pipeline. Example: ``RNA-seq: rnaseq.py``
 
-Any samples that list "RNA-seq" under ``library`` will be run using the ``rnaseq.py`` pipeline. You can list as many library types as you like in the protocol mappings, mapping to as many pipelines as you configure in your ``pipelines`` section.
+Any samples that list "RNA-seq" under ``library`` will be run using the ``rnaseq.py`` pipeline. You can list as many library types as you like in the protocol mapping, mapping to as many pipelines as you configure in your ``pipelines`` section.
 
-Example ``protocol_mappings`` section:
+Example ``protocol_mapping`` section:
 
 .. code-block:: yaml
 
@@ -28,7 +28,7 @@ Example ``protocol_mappings`` section:
 
 You can map multiple pipelines to a single protocol if you want samples of a type to kick off more than one pipeline run.
 
-Example ``protocol_mappings`` section:
+Example ``protocol_mapping`` section:
 
 .. code-block:: yaml
 
@@ -44,7 +44,7 @@ Example ``protocol_mappings`` section:
 
 The basic format for pipelines run simultaneously is: ``PROTOCOL: pipeline1 [, pipeline2, ...]``. Use semi-colons to indicate dependency.
 
-Example ``protocol_mappings`` section:
+Example ``protocol_mapping`` section:
 
 .. code-block:: yaml
 

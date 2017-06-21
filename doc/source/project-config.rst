@@ -87,6 +87,7 @@ For example:
 
 This project would specify 2 subprojects that have almost the exact same settings, but change only their ``metadata.sample_annotation`` parameter (so, each subproject points to a different sample annotation sheet). Rather than defining two 99% identical project config files, you can use a subproject. 
 
+.. _pipeline-config-section:
 
 Project config section: pipeline_config
 """""""""""""""""""""""""""""""""""""""""""
