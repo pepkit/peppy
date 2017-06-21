@@ -38,7 +38,7 @@ Example:
 	      mem: "6000"
 	      time: "2-00:00:00"
 	    resource_package_name:
-	      file_size: "0"
+	      file_size: "2"
 	      cores: "4"
 	      mem: "6000"
 	      time: "2-00:00:00"
