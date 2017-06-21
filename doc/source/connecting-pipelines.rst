@@ -9,7 +9,7 @@ Looper can connect samples to any pipeline, as long as it runs on the command li
 
 Regardless of what pipelines you use, you will need to tell looper how to interface with your pipeline. You do that by specifying a **pipeline interface file**. The **pipeline interface** is a ``yaml`` file with two subsections:
 
-1. ``protocol_mappings`` - maps sample ``protocol`` (aka ``library``) to one or more pipeline scripts.
+1. ``protocol_mapping`` - maps sample ``protocol`` (aka ``library``) to one or more pipeline scripts.
 2. ``pipelines`` -  describes the arguments and resources required by each pipeline script.
 
 Let's start with a very simple example. A basic ``pipeline_interface.yaml`` file may look like this:
