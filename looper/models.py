@@ -1423,37 +1423,45 @@ class Sample(object):
         return lacking
 
 
-    def confirm_required_inputs(self, permissive=False):
+    def determine_missing_requirements(self):
+        """
+        Determine which of this Sample's required attributes/files are missing.
+
+        :return (type, str): hypothetical exception type along with message
+            about what's missing; null and empty if nothing exceptional
+            is detected
+        """
 
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
             _LOGGER.warn("You must run set_pipeline_attributes "
-                         "before confirm_required_inputs")
-            return True
+                         "before determine_missing_requirements")
+            return None, ""
 
         if not self.required_inputs:
             _LOGGER.debug("No required inputs")
-            return True
+            return None, ""
 
         # First, attributes
+        missing, empty = [], []
         for file_attribute in self.required_inputs_attr:
             _LOGGER.debug("Checking '{}'".format(file_attribute))
-            if not hasattr(self, file_attribute):
-                message = "Missing required input attribute '{}'".\
-                    format(file_attribute)
-                _LOGGER.warn(message)
-                if not permissive:
-                    raise IOError(message)
-                else:
-                    return False
-            if getattr(self, file_attribute) is "":
-                message = "Empty required input attribute '{}'".\
-                    format(file_attribute)
-                _LOGGER.warn(message)
-                if not permissive:
-                    raise IOError(message)
-                else:
-                    return False
+            try:
+                attval = getattr(self, file_attribute)
+            except AttributeError:
+                _LOGGER.debug("Missing required input attribute '%s'",
+                             file_attribute)
+                missing.append(file_attribute)
+                continue
+            if attval == "":
+                _LOGGER.debug("Empty required input attribute '%s'",
+                             file_attribute)
+                empty.append(file_attribute)
+
+        if missing or empty:
+            return AttributeError, \
+                   "Missing attributes: {}. Empty attributes: {}".\
+                    format(missing, empty)
 
         # Second, files
         missing_files = []
@@ -1462,20 +1470,16 @@ class Sample(object):
             for path in paths.split(" "):
                 _LOGGER.debug("Checking path: '{}'".format(path))
                 if not _os.path.exists(path):
-                    _LOGGER.warn("Missing required input file: '{}'".format(path))
+                    _LOGGER.debug("Missing required input file: '{}'".
+                                  format(path))
                     missing_files.append(path)
 
-        if len(missing_files) > 0:
-            message = "Missing/unreadable file(s): {}".\
-                    format(", ".join(["'{}'".format(path)
-                                      for path in missing_files]))
-            if not permissive:
-                raise IOError(message)
-            else:
-                _LOGGER.error(message)
-                return False
-
-        return True
+        if not missing_files:
+            return None, ""
+        else:
+            missing_message = \
+                    "Missing file(s): {}".format(", ".join(missing_files))
+            return IOError, missing_message
 
 
     def is_dormant(self):
@@ -1510,14 +1514,13 @@ class Sample(object):
         Get value corresponding to each given attribute.
 
         :param str attrlist: name of an attribute storing a list of attr names
-        :return list: value (or empty string) corresponding to each named attr
+        :return list | NoneType: value (or empty string) corresponding to
+            each named attribute; null if this Sample's value for the
+            attribute given by the argument to the "attrlist" parameter is
+            empty/null, or if this Sample lacks the indicated attribute
         """
-        if not hasattr(self, attrlist):
-            return None
-
-        attribute_list = getattr(self, attrlist)
-
         # If attribute is None, then value is also None.
+        attribute_list = getattr(self, attrlist, None)
         if not attribute_list:
             return None
 
@@ -1525,8 +1528,7 @@ class Sample(object):
             attribute_list = [attribute_list]
 
         # Strings contained here are appended later so shouldn't be null.
-        return [getattr(self, attr) if hasattr(self, attr) else ""
-                for attr in attribute_list]
+        return [getattr(self, attr, "") for attr in attribute_list]
 
 
     def get_sheet_dict(self):
@@ -1775,9 +1777,11 @@ class Sample(object):
                 pipeline_name, "ngs_input_files")
         self.required_inputs_attr = pipeline_interface.get_attribute(
                 pipeline_name, "required_input_files")
+        # Ensure input_size is present.
         self.all_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "all_input_files")
+                pipeline_name, "all_input_files") or self.required_inputs_attr
 
+        # Convert attribute keys into values
         if self.ngs_inputs_attr:
             _LOGGER.debug("Handling NGS input attributes: '%s'", self.name)
             # NGS data inputs exit, so we can add attributes like
@@ -1786,14 +1790,9 @@ class Sample(object):
             self.set_read_type(permissive=permissive)
         else:
             _LOGGER.debug("No NGS inputs: '%s'", self.name)
-
-        # input_size
-        if not self.all_inputs_attr:
-            self.all_inputs_attr = self.required_inputs_attr
-
-        # Convert attribute keys into values
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
+
         self.input_file_size = get_file_size(self.all_inputs)
 
 
@@ -2192,14 +2191,19 @@ class PipelineInterface(object):
         return argstring
 
 
-    def get_attribute(self, pipeline_name, attribute_key):
-        """ Return value of given attribute for named pipeline. """
+    def get_attribute(self, pipeline_name, attribute_key, path_as_list=True):
+        """
+        Return value of given attribute for named pipeline.
+
+        :param str pipeline_name: name of the pipeline of interest
+        :param str attribute_key: name of the attribute of interest
+        :param bool path_as_list: whether to ensure that a string attribute
+            is returned as a list; this is useful for safe iteration over
+            the returned value.
+        """
         config = self._select_pipeline(pipeline_name)
-        try:
-            value = config[attribute_key]
-        except KeyError:
-            value = None
-        return [value] if isinstance(value, str) else value
+        value = config.get(attribute_key)
+        return [value] if isinstance(value, str) and path_as_list else value
 
 
     def get_pipeline_name(self, pipeline):

@@ -278,15 +278,17 @@ def run(prj, args, remaining_args):
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
 
-            try:
-                # Check for any required inputs before submitting.
-                _LOGGER.debug("Confirming required inputs")
-                sample.confirm_required_inputs()
-            except IOError:
-                # TODO: inform about WHICH missing file(s).
-                fail_message = "Required input file(s) not found"
-                _LOGGER.warn("> Not submitted: %s", fail_message)
-                skip_reasons.append(fail_message)
+            # Check for any missing requirements before submitting.
+            _LOGGER.debug("Determining missing requirements")
+            error_type, missing_reqs_msg = \
+                    sample.determine_missing_requirements()
+            if missing_reqs_msg:
+                if prj.permissive:
+                    _LOGGER.warn(missing_reqs_msg)
+                else:
+                    raise error_type(missing_reqs_msg)
+                _LOGGER.warn("> Not submitted: %s", missing_reqs_msg)
+                skip_reasons.append(missing_reqs_msg)
 
             # Check if single_or_paired value is recognized.
             if hasattr(sample, "read_type"):
