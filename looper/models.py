@@ -1485,24 +1485,22 @@ class Sample(object):
             return IOError, missing_message
 
 
-    def is_dormant(self):
+    def generate_filename(self, delimiter="_"):
         """
-        Determine whether this Sample is inactive.
+        Create a name for file in which to represent this Sample.
 
-        By default, a Sample is regarded as active. That is, if it lacks an
-        indication about activation status, it's assumed to be active. If,
-        however, and there's an indication of such status, it must be '1'
-        in order to be considered switched 'on.'
+        This uses knowledge of the instance's subtype, sandwiching a delimiter
+        between the name of this Sample and the name of the subtype before the
+        extension. If the instance is a base Sample type, then the filename
+        is simply the sample name with an extension.
 
-        :return bool: whether this Sample's been designated as dormant
+        :param str delimiter: what to place between sample name and name of
+            subtype; this is only relevant if the instance is of a subclass
+        :return str: name for file with which to represent this Sample on disk
         """
-        try:
-            flag = self[SAMPLE_EXECUTION_TOGGLE]
-        except KeyError:
-            # Regard default Sample state as active.
-            return False
-        # If specified, the activation flag must be set to '1'.
-        return flag != "1"
+        base = self.name if type(self) is Sample else \
+            "{}{}{}".format(self.name, delimiter, self.__class__.__name__)
+        return "{}.yaml".format(base)
 
 
     def generate_name(self):
@@ -1588,6 +1586,26 @@ class Sample(object):
                 _LOGGER.log(
                     5, "Unknown implied value for implier '%s' = '%s'",
                     implier_name, implier_value)
+
+
+    def is_dormant(self):
+        """
+        Determine whether this Sample is inactive.
+
+        By default, a Sample is regarded as active. That is, if it lacks an
+        indication about activation status, it's assumed to be active. If,
+        however, and there's an indication of such status, it must be '1'
+        in order to be considered switched 'on.'
+
+        :return bool: whether this Sample's been designated as dormant
+        """
+        try:
+            flag = self[SAMPLE_EXECUTION_TOGGLE]
+        except KeyError:
+            # Regard default Sample state as active.
+            return False
+        # If specified, the activation flag must be set to '1'.
+        return flag != "1"
 
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
@@ -1895,17 +1913,16 @@ class Sample(object):
                              feature, self.name)
 
 
-    def to_yaml(self, path=None, subs_folder_path=None, pipeline_name=None):
+    def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
         """
         Serializes itself in YAML format.
 
         :param str path: A file path to write yaml to; provide this or
             the subs_folder_path
-        :param str pipeline_name: name of a pipeline to which this particular
-            Sample instance pertains (i.e., perhaps the name of a module
-            that defined a Sample subclass of which this is an instance)
         :param str subs_folder_path: path to folder in which to place file
             that's being written; provide this or a full filepath
+        :param str delimiter: text to place between the sample name and the
+            suffix within the filename; irrelevant if there's no suffix
         :return str: filepath used (same as input if given, otherwise the
             path value that was inferred)
         :raises ValueError: if neither full filepath nor path to extant
@@ -1923,9 +1940,14 @@ class Sample(object):
                     "To represent {} on disk, provide a full path or a path "
                     "to a parent (submissions) folder".
                     format(self.__class__.__name__))
-            filename = "{}_{}.yaml".format(self.sample_name, pipeline_name) \
-                if pipeline_name else "{}.yaml".format(self.sample_name)
+            _LOGGER.debug("Creating filename for %s: '%s'",
+                          self.__class__.__name__, self.name)
+            filename = self.generate_filename(delimiter=delimiter)
+            _LOGGER.debug("Filename: '%s'", filename)
             path = _os.path.join(subs_folder_path, filename)
+
+        _LOGGER.debug("Setting %s filepath: '%s'",
+                      self.__class__.__name__, path)
         self.yaml_file = path
 
 
@@ -2129,14 +2151,27 @@ class PipelineInterface(object):
                 return rp_data
 
 
-    def get_arg_string(self, pipeline_name, sample):
+    def get_arg_string(self, pipeline_name, sample,
+                       submission_folder_path="", **null_replacements):
         """
         For a given pipeline and sample, return the argument string
 
         :param str pipeline_name: Name of pipeline.
         :param Sample sample: current sample for which job is being built
+        :param str submission_folder_path: path to folder in which files
+            related to submission of this sample will be placed.
+        :param dict null_replacements: mapping from name of Sample attribute
+            name to value to use in arg string if Sample attribute's value
+            is null
         :return str: command-line argument string for pipeline
         """
+
+        # It's undesirable to put a null value in the argument string.
+        default_filepath = _os.path.join(
+                submission_folder_path, sample.generate_filename())
+        _LOGGER.debug("Default sample filepath: '%s'", default_filepath)
+        proxies = {"yaml_file": default_filepath}
+        proxies.update(null_replacements)
 
         _LOGGER.debug("Building arguments string")
         config = self._select_pipeline(pipeline_name)
@@ -2151,8 +2186,7 @@ class PipelineInterface(object):
 
         for key, value in args.iteritems():
             if value is None:
-                _LOGGER.debug("Null value for opt arg key '%s'",
-                                   str(key))
+                _LOGGER.debug("Null value for opt arg key '%s'", str(key))
                 continue
             try:
                arg = getattr(sample, value)
@@ -2163,6 +2197,18 @@ class PipelineInterface(object):
                     "for argument '%s'",
                     pipeline_name, value, key)
                 raise
+
+            # It's undesirable to put a null value in the argument string.
+            if arg is None:
+                _LOGGER.debug("Sample is null for attribute: '%s'", value)
+                try:
+                    arg = proxies[value]
+                except KeyError:
+                    errmsg = "Can't add null Sample attribute to pipeline " \
+                             "argument string: '{}'".format(value)
+                    raise ValueError(errmsg)
+                _LOGGER.debug("Found default for '{}': '{}'".
+                              format(value, arg))
 
             _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".
                           format(arg, value, key))
