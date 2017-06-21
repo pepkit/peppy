@@ -1006,10 +1006,13 @@ class Project(AttributeDict):
         # base Sample objects if they don't already exist.
         if hasattr(self.metadata, "merge_table"):
             if self.merge_table is None:
-                if _os.path.isfile(self.metadata.merge_table):
+                if self.metadata.merge_table and \
+                        _os.path.isfile(self.metadata.merge_table):
                     self.merge_table = _pd.read_table(
                         self.metadata.merge_table,
                         sep=None, engine="python")
+                    _LOGGER.debug("Merge table shape: {}".
+                                  format(self.merge_table.shape))
                 else:
                     _LOGGER.debug(
                         "Alleged path to merge table data is not a "
