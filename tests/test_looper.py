@@ -71,7 +71,9 @@ class ProjectConstructorTest:
         )
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
-        assert set(DERIVED_COLNAMES) == set(merged_columns)
+        expected = set(DERIVED_COLNAMES)
+        observed = set(merged_columns)
+        assert expected == observed
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -123,7 +125,8 @@ class SampleWrtProjectCtorTests:
         observed_required_inputs = [os.path.basename(f)
                                     for f in sample.required_inputs]
         assert expected_required_inputs == observed_required_inputs
-        assert sample.confirm_required_inputs()
+        error_type, error_message = sample.determine_missing_requirements()
+        assert error_type is None and not error_message
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -138,7 +141,8 @@ class SampleWrtProjectCtorTests:
                                                   [sample_index][0])
         observed_required_input_basename = \
             os.path.basename(sample.required_inputs[0])
-        assert sample.confirm_required_inputs()
+        error_type, error_message = sample.determine_missing_requirements()
+        assert error_type is None and not error_message
         assert 1 == len(sample.required_inputs)
         assert expected_required_input_basename == \
                observed_required_input_basename
