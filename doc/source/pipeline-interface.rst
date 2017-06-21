@@ -66,13 +66,11 @@ Full example:
 	      cores: "4"
 	      mem: "4000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 	    high:
 	      file_size: "4"
 	      cores: "6"
 	      mem: "4000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 
 	rnaBitSeq.py:
 	  looper_args: True
@@ -87,7 +85,6 @@ Full example:
 	      cores: "6"
 	      mem: "6000"
 	      time: "2-00:00:00"
-	      partition: "longq"
 
 	atacseq.py:
 	  arguments:
@@ -101,4 +98,3 @@ Full example:
 	      cores: "4"
 	      mem: "8000"
 	      time: "08:00:00"
-	      partition: "shortq"
