@@ -241,7 +241,7 @@ def run(prj, args, remaining_args):
         # TODO: determine what to do with subtype(s) here.
         # Processing preconditions have been met.
         processed_samples.add(sample.sample_name)
-        sample_data = sample.as_series().to_dict()
+        sample_data = sample.as_series()
 
         # Go through all pipelines to submit for this protocol.
         # Note: control flow doesn't reach this point if variable "pipelines"

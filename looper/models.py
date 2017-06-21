@@ -2340,9 +2340,10 @@ class ProtocolInterface(object):
         try:
             subtypes = this_pipeline_data[self.SUBTYPE_MAPPING_SECTION]
         except KeyError:
-            _LOGGER.debug("%s from '%s' doesn't define section '%s'",
-                          self.pipe_iface.__class__.__name__,
-                          self.location, self.SUBTYPE_MAPPING_SECTION)
+            _LOGGER.debug("%s from '%s' doesn't define section '%s' "
+                          "for pipeline '%s'",
+                          self.pipe_iface.__class__.__name__, self.location,
+                          self.SUBTYPE_MAPPING_SECTION, strict_pipe_key)
             subtype = Sample
         else:
             if isinstance(subtypes, str):
@@ -2352,12 +2353,16 @@ class ProtocolInterface(object):
                               strict_pipe_key, self.location)
             else:
                 try:
-                    subtype_name = subtypes[protocol]
+                    temp_subtypes = {alpha_cased(p): st
+                                     for p, st in subtypes.items()}
+                    subtype_name = temp_subtypes[alpha_cased(protocol)]
                 except KeyError:
                     subtype = Sample
-                    _LOGGER.debug("No %s subtype specified for pipeline '%s' "
-                                  "in interface from '%s'", subtype.__name__,
-                                  strict_pipe_key, self.location)
+                    _LOGGER.debug("No %s subtype specified in interface from "
+                                  "'%s': '%s', '%s'; known: %s",
+                                  subtype.__name__, self.location,
+                                  strict_pipe_key, protocol,
+                                  ", ".join(temp_subtypes.keys()))
 
         # subtype_name is defined if and only if subtype remained null.
         subtype = subtype or \
@@ -2595,6 +2600,7 @@ def _import_sample_subtype(pipeline_filepath, subtype_name):
 
     classes = inspect.getmembers(
             pipeline_module, lambda obj: inspect.isclass(obj))
+    classes = [klazz for _, klazz in classes]
     _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
     sample_subtypes = filter(lambda c: issubclass(c, base_type), classes)
     _LOGGER.debug("%d %s subtype(s): %s", len(sample_subtypes),
