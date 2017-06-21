@@ -370,7 +370,8 @@ class AttributeDict(MutableMapping):
         """
         try:
             return super(AttributeDict, self).__getattribute__(item)
-        except AttributeError:
+        except (AttributeError, TypeError):
+            # Handle potential property and non-string failures.
             pass
         try:
             # Fundamentally, this is still a mapping;
