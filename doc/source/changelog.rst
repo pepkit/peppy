@@ -9,9 +9,7 @@ Changelog
 
     - Add support for Python 3
 
-    - Merges pipeline interface and protocol mappings. This means we now allow direct pointers
-    to ``pipeline_interface.yaml`` files, increasing flexibility, so this relaxes the specified 
-    folder structure that was previously used for ``pipelines_dir`` (with ``config`` subfolder).
+    - Merges pipeline interface and protocol mappings. This means we now allow direct pointers to ``pipeline_interface.yaml`` files, increasing flexibility, so this relaxes the specified folder structure that was previously used for ``pipelines_dir`` (with ``config`` subfolder).
 
     - Allow URLs as paths to sample sheets.
 
@@ -23,9 +21,7 @@ Changelog
 
     - Changed name of ``run`` column to ``toggle``, since ``run`` can also refer to a sequencing run.
 
-    - Relaxes many constraints (like resources sections, pipelines_dir columns), making project
-    configuration files useful outside looper. This moves us closer to dividing models from looper,
-    and improves flexibility.
+    - Relaxes many constraints (like resources sections, pipelines_dir columns), making project configuration files useful outside looper. This moves us closer to dividing models from looper, and improves flexibility.
 
     - Various small bug fixes and dev improvements.
 
