@@ -293,12 +293,12 @@ def run(prj, args, remaining_args):
 
             # Check if single_or_paired value is recognized.
             if hasattr(sample, "read_type"):
-                # Drop "-end", "_end", or just "end" from end of the column value.
+                # Drop "-end", "_end", or "end" from end of the column value.
                 sample.read_type = re.sub(
                     '[_\\-]?end$', '', str(sample.read_type)).lower()
                 if sample.read_type not in valid_read_types:
-                    skip_reasons.append(
-                        "read_type must be in {}".format(valid_read_types))
+                    skip_reasons.append("read_type must be in {}".
+                                        format(valid_read_types))
 
             # Identify cluster resources required for this submission.
             submit_settings = pipeline_interface.choose_resource_package(

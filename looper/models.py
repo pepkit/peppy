@@ -158,89 +158,101 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     :param merge_table: data with which to alter Sample
     :param Mapping data_sources: collection of named paths to data locations
     :param derived_columns: names of columns with data-derived value
-    :return Sample: updated input instance
+    :return Set[str]: names of columns that were merged
     """
+
+    merged_cols = {}
+
+    if not merge_table:
+        _LOGGER.debug("No data for sample merge, skipping")
+        return merged_cols
 
     if SAMPLE_NAME_COLNAME not in merge_table.columns:
         raise KeyError(
             "Merge table requires a column named '{}'.".
                 format(SAMPLE_NAME_COLNAME))
 
+    _LOGGER.debug("Merging Sample with data sources: {}".
+                  format(data_sources))
+    _LOGGER.debug("Merging Sample with derived columns: {}".
+                  format(derived_columns))
+
     sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
                      getattr(sample, SAMPLE_NAME_COLNAME)
     merge_rows = merge_table[sample_indexer]
 
+    if len(merge_rows) == 0:
+        _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
+        return merged_cols
+
     _LOGGER.log(5, "%d rows to merge", len(merge_rows))
-    if len(merge_rows) > 0:
-        # For each row in the merge table of this sample:
-        # 1) populate any derived columns
-        # 2) derived columns --> space-delimited strings
-        # 3) update the sample values with the merge table
 
-        # Keep track of merged cols,
-        # so we don't re-derive them later.
-        merged_cols = {
-            key: "" for key in merge_rows.columns}
-        for _, row in merge_rows.iterrows():
-            row_dict = row.to_dict()
-            for col in merge_rows.columns:
-                if col == SAMPLE_NAME_COLNAME or \
-                                col not in derived_columns:
-                    _LOGGER.log(5, "Skipping column: '%s'", col)
-                    continue
-                # Initialize key in parent dict.
-                col_key = col + COL_KEY_SUFFIX
-                merged_cols[col_key] = ""
-                row_dict[col_key] = row_dict[col]
-                row_dict[col] = sample.locate_data_source(
-                    data_sources, col, row_dict[col], row_dict)  # 1)
+    # For each row in the merge table of this sample:
+    # 1) populate any derived columns
+    # 2) derived columns --> space-delimited strings
+    # 3) update the sample values with the merge table
+    # Keep track of merged cols,
+    # so we don't re-derive them later.
+    merged_cols = {key: "" for key in merge_rows.columns}
+    for _, row in merge_rows.iterrows():
+        row_dict = row.to_dict()
+        for col in merge_rows.columns:
+            if col == SAMPLE_NAME_COLNAME or \
+                            col not in derived_columns:
+                _LOGGER.log(5, "Skipping column: '%s'", col)
+                continue
+            # Initialize key in parent dict.
+            col_key = col + COL_KEY_SUFFIX
+            merged_cols[col_key] = ""
+            row_dict[col_key] = row_dict[col]
+            row_dict[col] = sample.locate_data_source(
+                data_sources, col, row_dict[col], row_dict)  # 1)
 
-            _LOGGER.log(5, "Adding derived columns")
-            # Also add in any derived cols present.
-            for col in derived_columns:
-                # Skip over attributes that the sample
-                # either lacks, and those covered by the
-                # data from the current (row's) data.
-                if not hasattr(sample, col) or \
-                                col in row_dict:
-                    _LOGGER.log(5, "Skipping column: '%s'", col)
-                    continue
-                # Map column name key to sample's value
-                # for the attribute given by column name.
-                col_key = col + COL_KEY_SUFFIX
-                row_dict[col_key] = getattr(sample, col)
-                # Map the column name itself to the
-                # populated data source template string.
-                row_dict[col] = sample.locate_data_source(
-                    data_sources, col, getattr(sample, col), row_dict)
-                _LOGGER.debug("PROBLEM adding derived column: "
-                              "{}, {}, {}".format(col, row_dict[col],
-                                                  getattr(sample, col)))
+        _LOGGER.log(5, "Adding derived columns")
+        # Also add in any derived cols present.
+        for col in derived_columns:
+            # Skip over attributes that the sample
+            # either lacks, and those covered by the
+            # data from the current (row's) data.
+            if not hasattr(sample, col) or \
+                            col in row_dict:
+                _LOGGER.log(5, "Skipping column: '%s'", col)
+                continue
+            # Map column name key to sample's value
+            # for the attribute given by column name.
+            col_key = col + COL_KEY_SUFFIX
+            row_dict[col_key] = getattr(sample, col)
+            # Map the column name itself to the
+            # populated data source template string.
+            row_dict[col] = sample.locate_data_source(
+                data_sources, col, getattr(sample, col), row_dict)
+            _LOGGER.debug("PROBLEM adding derived column: "
+                          "{}, {}, {}".format(col, row_dict[col],
+                                              getattr(sample, col)))
 
-            # Since we are now jamming multiple (merged)
-            # entries into a single attribute, we have to
-            # join them into a space-delimited string
-            # and then set to sample attribute.
-            for key, val in row_dict.items():
-                if key == SAMPLE_NAME_COLNAME or not val:
-                    _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
-                    continue
-                _LOGGER.log(5, "merge: sample '%s'; %s=%s",
-                              str(sample.name), str(key), str(val))
-                if not key in merged_cols:
-                    new_val = str(val).rstrip()
-                else:
-                    new_val = "{} {}".format(
-                        merged_cols[key], str(val)).strip()
-                merged_cols[key] = new_val  # 2)
+        # Since we are now jamming multiple (merged)
+        # entries into a single attribute, we have to
+        # join them into a space-delimited string
+        # and then set to sample attribute.
+        for key, val in row_dict.items():
+            if key == SAMPLE_NAME_COLNAME or not val:
+                _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
+                continue
+            _LOGGER.log(5, "merge: sample '%s'; %s=%s",
+                          str(sample.name), str(key), str(val))
+            if not key in merged_cols:
+                new_val = str(val).rstrip()
+            else:
+                new_val = "{} {}".format(
+                    merged_cols[key], str(val)).strip()
+            merged_cols[key] = new_val  # 2)
 
-        # Don't update sample_name.
-        merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+    # Don't update sample_name.
+    merged_cols.pop(SAMPLE_NAME_COLNAME, None)
 
-        sample.update(merged_cols)  # 3)
-        sample.merged = True  # mark sample as merged
-        sample.merged_cols = merged_cols
-        sample.merged = True
+    sample.update(merged_cols)  # 3)
+    sample.merged_cols = merged_cols
+    sample.merged = True
 
     return sample
 
@@ -1027,16 +1039,6 @@ class Project(AttributeDict):
         else:
             _LOGGER.debug("No merge table")
 
-        # Define merge behavior based on presence of merge table.
-        if self.merge_table is None:
-            def merge(s):
-                return s
-        else:
-            def merge(s):
-                _LOGGER.log(5, "Doing column merge: '%s'", s.sample_name)
-                return merge_sample(s, self.merge_table, self.data_sources,
-                                    self.derived_columns)
-
         # Create the Sample(s).
         samples = []
         for _, row in self.sheet.iterrows():
@@ -1044,15 +1046,19 @@ class Project(AttributeDict):
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
+            sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
+            _LOGGER.debug("Setting sample's data path")
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
                 _LOGGER.debug("Sample '%s' lacks data source; skipping "
                               "data path assignment", sample.sample_name)
-            sample = merge(sample)
-            sample.set_file_paths(self)
+            else:
+                _LOGGER.debug("Path to sample data: '%s'", sample.data_source)
+            merge_sample(sample, self.merge_table,
+                         self.data_sources, self.derived_columns)
             samples.append(sample)
 
         return samples
@@ -1454,18 +1460,21 @@ class Sample(object):
         # First, attributes
         missing, empty = [], []
         for file_attribute in self.required_inputs_attr:
-            _LOGGER.debug("Checking '{}'".format(file_attribute))
+            _LOGGER.log(5, "Checking '{}'".format(file_attribute))
             try:
                 attval = getattr(self, file_attribute)
             except AttributeError:
-                _LOGGER.debug("Missing required input attribute '%s'",
+                _LOGGER.log(5, "Missing required input attribute '%s'",
                              file_attribute)
                 missing.append(file_attribute)
                 continue
             if attval == "":
-                _LOGGER.debug("Empty required input attribute '%s'",
+                _LOGGER.log(5, "Empty required input attribute '%s'",
                              file_attribute)
                 empty.append(file_attribute)
+            else:
+                _LOGGER.log(5, "'{}' is valid: '{}'".
+                              format(file_attribute, attval))
 
         if missing or empty:
             return AttributeError, \
@@ -1475,11 +1484,12 @@ class Sample(object):
         # Second, files
         missing_files = []
         for paths in self.required_inputs:
+            _LOGGER.log(5, "Text to split and check paths: '%s'", paths)
             # There can be multiple, space-separated values here.
             for path in paths.split(" "):
-                _LOGGER.debug("Checking path: '{}'".format(path))
+                _LOGGER.log(5, "Checking path: '{}'".format(path))
                 if not _os.path.exists(path):
-                    _LOGGER.debug("Missing required input file: '{}'".
+                    _LOGGER.log(5, "Missing required input file: '{}'".
                                   format(path))
                     missing_files.append(path)
 
@@ -1801,26 +1811,34 @@ class Sample(object):
         # Settings ending in _attr are lists of attribute keys.
         # These attributes are then queried to populate values
         # for the primary entries.
-        self.ngs_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "ngs_input_files")
-        self.required_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "required_input_files")
-        # Ensure input_size is present.
-        self.all_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "all_input_files") or self.required_inputs_attr
+        req_attr_names = [("ngs_input_files", "ngs_inputs_attr"),
+                          ("required_input_files", "required_inputs_attr"),
+                          ("all_input_files", "all_inputs_attr")]
+        for name_src_attr, name_dst_attr in req_attr_names:
+            _LOGGER.log(5, "Value of '%s' will be assigned to '%s'",
+                        name_src_attr, name_dst_attr)
+            value = pipeline_interface.get_attribute(
+                    pipeline_name, name_src_attr)
+            _LOGGER.log(5, "Assigning '{}': {}".format(name_dst_attr, value))
+            setattr(self, name_dst_attr, value)
 
-        # Convert attribute keys into values
+        # Post-processing of input attribute assignments.
+        # Ensure that there's a valid all_inputs_attr.
+        if not self.all_inputs_attr:
+            self.all_inputs_attr = self.required_inputs_attr
+        # Convert attribute keys into values.
         if self.ngs_inputs_attr:
-            _LOGGER.debug("Handling NGS input attributes: '%s'", self.name)
+            _LOGGER.log(5, "Handling NGS input attributes: '%s'", self.name)
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
             self.set_read_type(permissive=permissive)
         else:
-            _LOGGER.debug("No NGS inputs: '%s'", self.name)
+            _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
+
+        # Assign values for actual inputs attributes.
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
-
         self.input_file_size = get_file_size(self.all_inputs)
 
 
@@ -2207,13 +2225,12 @@ class PipelineInterface(object):
 
             # It's undesirable to put a null value in the argument string.
             if arg is None:
-                _LOGGER.debug("Sample is null for attribute: '%s'", value)
+                _LOGGER.debug("Null value for Sample attribute: '%s'", value)
                 try:
                     arg = proxies[value]
                 except KeyError:
-                    errmsg = "Can't add null Sample attribute to pipeline " \
-                             "argument string: '{}'".format(value)
-                    raise ValueError(errmsg)
+                    raise ValueError("No default for null "
+                                     "Sample attribute: '{}'".format(value))
                 _LOGGER.debug("Found default for '{}': '{}'".
                               format(value, arg))
 
