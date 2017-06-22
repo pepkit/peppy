@@ -1044,7 +1044,6 @@ class Project(AttributeDict):
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
-            sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
             try:
@@ -1053,6 +1052,7 @@ class Project(AttributeDict):
                 _LOGGER.debug("Sample '%s' lacks data source; skipping "
                               "data path assignment", sample.sample_name)
             sample = merge(sample)
+            sample.set_file_paths(self)
             samples.append(sample)
 
         return samples
