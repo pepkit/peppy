@@ -240,6 +240,14 @@ def run(prj, args, remaining_args):
         # TODO: determine what to do with subtype(s) here.
         # Processing preconditions have been met.
         processed_samples.add(sample.sample_name)
+
+        # At this point, we have a generic Sample; write that to disk
+        # for reuse in case of many jobs (pipelines) using base Sample.
+        # Do a single overwrite here, then any subsequent Sample can be sure
+        # that the file is fresh, with respect to this run of looper.
+        sample.to_yaml(subs_folder_path=prj.metadata.submission_subdir)
+
+        # Store the base Sample data for reuse in creating subtype(s).
         sample_data = sample.as_series()
 
         # Go through all pipelines to submit for this protocol.
@@ -254,13 +262,6 @@ def run(prj, args, remaining_args):
             _LOGGER.debug("Creating %s instance: '%s'",
                           sample_subtype.__name__, sample.sample_name)
             sample = sample_subtype(sample_data)
-            pipeline_name, _ = os.path.splitext(pipeline_key)
-            if sample_subtype != Sample:
-                # Only rewrite the file if we have a proper subtype.
-                _LOGGER.debug("Representing sample '%s' on disk as %s",
-                              sample.sample_name, sample_subtype.__name__)
-                sample.to_yaml(subs_folder_path=prj.metadata.submission_subdir,
-                               pipeline_name=pipeline_name)
 
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
@@ -319,14 +320,16 @@ def run(prj, args, remaining_args):
             # Sample-level arguments are handled by the pipeline interface.
             try: 
                 argstring = pipeline_interface.get_arg_string(
-                        pipeline_key, sample)
-                argstring += " "
+                        pipeline_name=pipeline_key, sample=sample,
+                        submission_folder_path=prj.metadata.submission_subdir)
             except AttributeError:
                 # TODO: inform about which missing attribute(s).
                 fail_message = "Required attribute(s) missing " \
                                "for pipeline arguments string"
                 _LOGGER.warn("> Not submitted: %s", fail_message)
                 skip_reasons.append(fail_message)
+            else:
+                argstring += " "
 
             if skip_reasons:
                 # Sample is active, but we've at least 1 pipeline skip reason.
@@ -383,7 +386,7 @@ def run(prj, args, remaining_args):
 
             # Submit job!
             _LOGGER.debug("Attempting job submission: '%s' ('%s')",
-                          sample.sample_name, pipeline_name)
+                          sample.sample_name, pl_name)
             submitted = cluster_submit(
                     sample, prj.compute.submission_template,
                     prj.compute.submission_command, submit_settings,
@@ -617,13 +620,13 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 
 def cluster_submit(
-    sample, submit_template, submission_command, variables_dict,
-    submission_folder, sample_output_folder, pipeline_name, time_delay,
-    submit=False, dry_run=False, ignore_flags=False, remaining_args=None):
+        sample, submit_template, submission_command, variables_dict,
+        submission_folder, sample_output_folder, pipeline_name, time_delay,
+        submit=False, dry_run=False, ignore_flags=False, remaining_args=None):
     """
-    Submit job to cluster manager.
-    
-    :param models.Sample sample: the sample object for submission
+    Write cluster submission script to disk and submit job for given Sample.
+
+    :param models.Sample sample: the Sample object for submission
     :param str submit_template: path to submission script template
     :param str submission_command: actual command with which to execute the 
         submission of the cluster job for the given sample
@@ -662,12 +665,10 @@ def cluster_submit(
     if not os.path.exists(submit_script_dirpath):
         os.makedirs(submit_script_dirpath)
 
+    # Add additional arguments, populate template fields, and write to disk.
     with open(submit_template, 'r') as handle:
         filedata = handle.read()
-
-    # Update variable dict with any additional arguments.
     variables_dict["CODE"] += " " + str(" ".join(remaining_args or []))
-    # Fill in submit_template with variables.
     for key, value in variables_dict.items():
         # Here we add brackets around the key names and use uppercase because
         # this is how they are encoded as variables in the submit templates.
@@ -675,17 +676,32 @@ def cluster_submit(
     with open(submit_script, 'w') as handle:
         handle.write(filedata)
 
-    # Prepare and write sample yaml object
-    _LOGGER.debug("Writing sample '%s' representation to disk",
-                  sample.sample_name)
-    sample.to_yaml(subs_folder_path=submission_folder)
+    # Ensure existence of on-disk representation of this sample.
+    if type(sample) is Sample:
+        # run() writes base Sample to disk for each non-skipped sample.
+        expected_filepath = os.path.join(
+                submission_folder, "{}.yaml".format(sample.name))
+        _LOGGER.debug("Base Sample, to reuse file: '%s'",
+                      expected_filepath)
+        if not os.path.exists(expected_filepath):
+            _LOGGER.warn("Missing expected Sample file; creating")
+            sample.to_yaml(subs_folder_path=submission_folder)
+        else:
+            _LOGGER.debug("Base Sample file exists")
+    else:
+        # Serialize Sample, generate data for disk, and write.
+        name_sample_subtype = sample.__class__.__name__
+        _LOGGER.debug("Writing %s representation to disk: '%s'",
+                      name_sample_subtype, sample.name)
+        sample.to_yaml(subs_folder_path=submission_folder)
 
     # Check if job is already submitted (unless ignore_flags is set to True)
     if not ignore_flags:
         flag_files = glob.glob(os.path.join(
                 sample_output_folder, pipeline_name + "*.flag"))
         if len(flag_files) > 0:
-            _LOGGER.info("> Not submitting, flag(s) found: {}".format(flag_files))
+            _LOGGER.info("> Not submitting, flag(s) found: {}".
+                         format(flag_files))
             submit = False
         else:
             pass

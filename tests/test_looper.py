@@ -67,8 +67,7 @@ class ProjectConstructorTest:
         merged_columns = filter(
                 lambda col_key: (col_key != "col_modifier") and
                                 not col_key.endswith(COL_KEY_SUFFIX),
-                proj.samples[sample_index].merged_cols.keys()
-        )
+                proj.samples[sample_index].merged_cols.keys())
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
         expected = set(DERIVED_COLNAMES)
