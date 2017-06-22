@@ -19,13 +19,13 @@ Here is an example ``compute_config.yaml`` file that works with a SLURM environm
 
    compute:
      default:
-       submission_template: pipelines/templates/local_template.sub
+       submission_template: templates/local_template.sub
        submission_command: sh
      local:
-       submission_template: pipelines/templates/local_template.sub
+       submission_template: templates/local_template.sub
        submission_command: sh    
      slurm:
-       submission_template: pipelines/templates/slurm_template.sub
+       submission_template: templates/slurm_template.sub
        submission_command: sbatch
        partition: queue_name
 

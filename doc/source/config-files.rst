@@ -23,7 +23,7 @@ Pipeline developers
 
 If you want to add a new pipeline to looper, tweak the way looper interacts with a pipeline for a given project, or change the default cluster resources requested by a pipeline, then you need to know about a configuration file that coordinates linking your pipeline in to your looper project.
 
--	:doc:`pipeline interface file <connecting-pipelines>`: Has two sections: 1) ``protocol_mapping`` tells looper which pipelines exist, and how to map each protocol (sample data type) to its pipelines; 2) ``pipelines`` links looper to the pipelines by describing variables, options and paths that the pipeline needs to know to run and outlines resource requirements for cluster managers.
+-	:doc:`pipeline interface file <connecting-pipelines>`: Has two sections: 1) ``protocol_mapping`` tells looper which pipelines exist, and how to map each protocol (sample data type) to its pipelines; 2) ``pipelines`` links looper to the pipelines by describing options, arguments, and compute resources that the pipeline needs to run.
 
 Finally, if you're using Pypiper to develop pipelines, it uses a pipeline-specific configuration file (detailed in the Pypiper documentation):
 
