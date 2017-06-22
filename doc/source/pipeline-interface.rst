@@ -1,12 +1,13 @@
+.. _pipeline-interface-pipelines:
 
 Pipeline interface section: pipelines 
 **************************************************
 
-The ``pipelines`` section specifies to looper which command-line arguments to pass to the pipeline. In addition, if you're using a cluster resource manager, it also specifies which compute resources to request. For each pipeline, you specify variables (some optional and some required). The possible attributes to specify for each pipeline include:
+The ``pipelines`` section specifies command-line arguments required by the pipeline. In addition, if you're using a cluster resource manager, it also specifies which compute resources to request. For each pipeline, you specify variables (some optional and some required). The possible attributes to specify for each pipeline include:
 
 - ``name`` (recommended): Name of the pipeline. This is used to assess pipeline flags (if your pipeline employs them, like pypiper pipelines).
-- ``arguments`` (required): List of key-value pairs of arguments, and attribute sources to pass to the pipeline. The key corresponds verbatim to the string that will be passed on the command line to the pipeline. The value corresponds to an attribute of the sample, which will be derived from the sample_annotation csv file (in other words, it's a column name of your sample annotation sheet).
-- ``path`` (required): Absolute or relative path to the script for this pipeline. Relative paths are considered relative to your **pipeline_interface file**.
+- ``arguments`` (required): List of key-value pairs of arguments, and attribute sources to pass to the pipeline. The key corresponds verbatim to the string that will be passed on the command line to the pipeline. The value corresponds to an attribute of the sample, which will be derived from the sample_annotation csv file (in other words, it's a column name of your sample annotation sheet). For flag-like arguments that lack a value, you may specify `null` as the value (e.g. `"--quiet-mode": null`).
+- ``path`` (required): Absolute or relative path to the script for this pipeline. Relative paths are considered relative to your **pipeline_interface file**. We strongly recommend using relative paths where possible to keep your pipeline interface file portable. You may also use environment variables (like ``${HOME}``) in the ``path``.
 - ``required_input_files`` (optional): A list of sample attributes (annotation sheets column names) that will point to input files that must exist.
 - ``all_input_files`` (optional): A list of sample attributes (annotation sheet column names) that will point to input files that are not required, but if they exist, should be counted in the total size calculation for requesting resources.
 - ``ngs_input_files`` (optional): For pipelines using sequencing data, provide a list of sample attributes (annotation sheet column names) that will point to input files to be used for automatic detection of ``read_length`` and ``read_type`` sample attributes.
