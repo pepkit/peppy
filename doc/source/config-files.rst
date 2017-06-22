@@ -2,7 +2,7 @@
 Configuration files
 =========================
 
-Looper uses `YAML <http://www.yaml.org/>`_ configuration files to describe a project. Looper is a very modular system, so there are few different YAML files. Since it's easy to confuse what the different configuration files are used for, here's an explanation of each. Which ones you need to know about will depend on whether you're a pipeline user (running pipelines on your project) or a pipeline developer (building your own pipeline).
+Looper uses `YAML <http://www.yaml.org/>`_ configuration files for several purposes. Looper is designed to be organized, modular, and very configurable, so there are several configuration files. We've organized the configuration files so they each handle a different level of infrastructure: environment, project, sample, or pipeline. This makes the system very adaptable and portable, but for a newcomer, it is easy to confuse what the different configuration files are used for. So, here's an explanation of each for you to use as a reference until you are familiar with the whole ecosystem. Which ones you need to know about will depend on whether you're a pipeline user (running pipelines on your project) or a pipeline developer (building your own pipeline).
 
 
 Pipeline users
@@ -14,12 +14,14 @@ Users (non-developers) of pipelines only need to be aware of one or two YAML fil
 
 If you are planning to submit jobs to a cluster, then you need to know about a second YAML file:
 
--	:ref:`PEPENV environment config <cluster-resource-managers>`:  This file tells looper how to use compute resource managers, like SLURM. You can find examples and instructions for setting this up at https://github.com/pepkit/pepenv. This file doesn't require much editing or maintenance beyond initial setup.
+-	:ref:`PEPENV environment config <cluster-resource-managers>`:  This file tells looper how to use compute resource managers, like SLURM. This file doesn't require much editing or maintenance beyond initial setup.
+
+That should be all you need to worry about as a pipeline user. If you need to adjust compute resources or want to develop a pipeline or have more advanced project-level control over pipelines, then you'll need to know about a few others:
 
 Pipeline developers
 *****************
 
-If you want to add a new pipeline to looper or tweak the way looper interacts with a pipeline for a given project, then you need to know about a configuration file that coordinates linking your pipeline in to your looper project.
+If you want to add a new pipeline to looper, tweak the way looper interacts with a pipeline for a given project, or change the default cluster resources requested by a pipeline, then you need to know about a configuration file that coordinates linking your pipeline in to your looper project.
 
 -	:doc:`pipeline interface file <connecting-pipelines>`: Has two sections: 1) ``protocol_mapping`` tells looper which pipelines exist, and how to map each protocol (sample data type) to its pipelines; 2) ``pipelines`` links looper to the pipelines by describing variables, options and paths that the pipeline needs to know to run and outlines resource requirements for cluster managers.
 
