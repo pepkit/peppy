@@ -1,6 +1,7 @@
 """ Tests for PipelineInterface ADT. """
 
 import copy
+import inspect
 import itertools
 import random
 
@@ -8,7 +9,7 @@ import pytest
 import yaml
 
 from looper.models import \
-    PipelineInterface, _InvalidResourceSpecificationException, \
+    PipelineInterface, Sample, _InvalidResourceSpecificationException, \
     _MissingPipelineConfigurationException, DEFAULT_COMPUTE_RESOURCES_NAME
 
 
@@ -98,7 +99,9 @@ def pi_with_resources(request, basic_pipe_iface_data, resources):
 @pytest.mark.parametrize(
         argnames="funcname_and_kwargs",
         argvalues=[("choose_resource_package", {"file_size": 4}),
-                   ("get_arg_string", {"sample": "arbitrary-sample-name"}),
+                   ("get_arg_string",
+                    {"sample": Sample(
+                            {"sample_name": "arbitrary-sample-name"})}),
                    ("get_attribute",
                     {"attribute_key": "irrelevant-attr-name"}),
                    ("get_pipeline_name", {}),
@@ -115,9 +118,17 @@ def test_unconfigured_pipeline_exception(
             except KeyError:
                 # Already no default resource package.
                 pass
+
+    # Each of the functions being tested should take pipeline_name arg,
+    # and we want to test behavior for the call on an unknown pipeline.
     funcname, kwargs = funcname_and_kwargs
+    func = getattr(pi, funcname)
+    required_parameters = inspect.getargspec(func).args
+    for parameter in ["pipeline_name", "pipeline"]:
+        if parameter in required_parameters and parameter not in kwargs:
+            kwargs[parameter] = "missing-pipeline"
     with pytest.raises(_MissingPipelineConfigurationException):
-        getattr(pi, funcname).__call__("missing-pipeline", **kwargs)
+        func.__call__(**kwargs)
 
 
 
