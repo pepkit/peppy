@@ -6,16 +6,11 @@ The ``sample annotation sheet`` is a csv file containing information about all s
 
 A sample annotation sheet may contain any number of columns you need for your project. You can think of these columns as `sample attributes`, and you may use these columns later in your pipelines or analysis (for example, you could define a column called ``organism`` and use this to adjust the reference genome to use for each sample).
 
-Certain keyword columns are required or provide looper-specific features.
+Certain keyword columns are required or provide looper-specific features. Required columns are:
 
-Required columns are:
+- ``sample_name`` - a **unique** string identifying each sample [1]_. This is **required** for ``Sample`` construction.
 
-- ``sample_name`` - a **unique** string identifying each sample [1]_.
-This is **required** for `Sample` *construction*.
-- ``library`` - the source of data for the sample (*e.g.* ATAC-seq, RNA-seq, RRBS).
-`Looper` uses this information to determine which pipelines are relevant for the `Sample`.
-- A column specifying a data file (default name is ``data_source``).
-This is **required** for `Looper` to *submit* job(s) for a `Sample`.
+- A column specifying a data file (default name is ``data_source``). This is **required** for ``Looper`` to submit job(s) for a ``Sample``.
 
 Recommended columns are:
 
@@ -25,16 +20,15 @@ Any additional columns become attributes of your sample and will be part of the 
 
 Special columns
 """"""""""""""""""""""""""""""""""""""""""""""""""
-Mostly, you have complete control over any other column names you want to add,
-but there are a few reserved names that Looper treats differently.
-In addition to the ``sample_name`` column required to build a ``Sample``,
-here's a list of other special column names:
+Mostly, you have complete control over any other column names you want to add, but there are a few reserved names. In addition to the ``sample_name`` column required to build a ``Sample``, here's a list of other special column names:
 
-- ``library`` - While not needed to build a ``Sample``, this column is
-required for submission of job(s). It's required to determine how pipeline(s)
-relevant to the ``Sample``.
+- ``library`` - While not needed to build a ``Sample``, this column is required for submission of job(s). It specifies the source of data for the sample (*e.g.* ATAC-seq, RNA-seq, RRBS). ``Looper`` uses this information to determine which pipelines are relevant for the ``Sample``.
+
 - ``toggle`` - If the value of this column is not 1, Looper will not submit the pipeline for that sample. This enables you to submit a subset of samples.
-- ``data_source`` - This column is used by default to specify the location of the input data file. Usually you want your annotation sheet to specify the locations of files corresponding to each sample. You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see the advanced section :ref:`advanced-derived-columns`. Here are a few example annotation sheets:
+
+- ``data_source`` - This column is used by default to specify the location of the input data file. Usually you want your annotation sheet to specify the locations of files corresponding to each sample. You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see the advanced section :ref:`advanced-derived-columns`.
+
+Here are a few example annotation sheets:
 
 .. csv-table:: Example Sample Annotation Sheet
 	:file: ../../examples/microtest_sample_annotation.csv
