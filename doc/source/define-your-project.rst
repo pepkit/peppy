@@ -15,9 +15,9 @@ The format is simple and modular, so you only need to define the components you 
 
 .. code-block:: yaml
 
-	metadata:
-	  sample_annotation: /path/to/sample_annotation.csv
-	  output_dir: /path/to/output/folder
+   metadata:
+     sample_annotation: /path/to/sample_annotation.csv
+     output_dir: /path/to/output/folder
      pipeline_interfaces: path/to/pipeline_interface.yaml
 
 
