@@ -170,6 +170,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
                      getattr(sample, SAMPLE_NAME_COLNAME)
     merge_rows = merge_table[sample_indexer]
 
+    _LOGGER.log(5, "%d rows to merge", len(merge_rows))
     if len(merge_rows) > 0:
         # For each row in the merge table of this sample:
         # 1) populate any derived columns
@@ -185,6 +186,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
             for col in merge_rows.columns:
                 if col == SAMPLE_NAME_COLNAME or \
                                 col not in derived_columns:
+                    _LOGGER.log(5, "Skipping column: '%s'", col)
                     continue
                 # Initialize key in parent dict.
                 col_key = col + COL_KEY_SUFFIX
@@ -193,6 +195,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
                 row_dict[col] = sample.locate_data_source(
                     data_sources, col, row_dict[col], row_dict)  # 1)
 
+            _LOGGER.log(5, "Adding derived columns")
             # Also add in any derived cols present.
             for col in derived_columns:
                 # Skip over attributes that the sample
@@ -200,6 +203,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
                 # data from the current (row's) data.
                 if not hasattr(sample, col) or \
                                 col in row_dict:
+                    _LOGGER.log(5, "Skipping column: '%s'", col)
                     continue
                 # Map column name key to sample's value
                 # for the attribute given by column name.
@@ -219,8 +223,9 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
             # and then set to sample attribute.
             for key, val in row_dict.items():
                 if key == SAMPLE_NAME_COLNAME or not val:
+                    _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
                     continue
-                _LOGGER.debug("merge: sample '%s'; %s=%s",
+                _LOGGER.log(5, "merge: sample '%s'; %s=%s",
                               str(sample.name), str(key), str(val))
                 if not key in merged_cols:
                     new_val = str(val).rstrip()
@@ -1028,6 +1033,7 @@ class Project(AttributeDict):
                 return s
         else:
             def merge(s):
+                _LOGGER.log(5, "Doing column merge: '%s'", s.sample_name)
                 return merge_sample(s, self.merge_table, self.data_sources,
                                     self.derived_columns)
 
@@ -1654,7 +1660,8 @@ class Sample(object):
         except KeyError:
             _LOGGER.warn(
                     "Config lacks entry for data_source key: '{}' "
-                    "(in column: '{}')".format(source_key, column_name))
+                    "in column '{}'; known: {}".format(
+                    source_key, column_name, data_sources.keys()))
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
