@@ -14,13 +14,12 @@ import random
 
 import numpy.random as nprand
 import pytest
-import yaml
 
 from looper.looper import aggregate_exec_skip_reasons
 import looper.models
-from looper.models import AttributeDict, ATTRDICT_METADATA, COL_KEY_SUFFIX
+from looper.models import COL_KEY_SUFFIX
 from .conftest import \
-    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, FILE_BY_SAMPLE, \
+    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     LOOPER_ARGS_BY_PIPELINE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 
@@ -31,9 +30,6 @@ _LOGGER = logging.getLogger("looper.{}".format(__name__))
 
 @pytest.mark.usefixtures("write_project_files")
 class ProjectConstructorTest:
-
-    # TODO: docstrings and atomicity/encapsulation.
-    # TODO: conversion to pytest for consistency.
 
 
     @pytest.mark.parametrize(argnames="attr_name",

@@ -16,6 +16,7 @@ import tempfile
 
 from pandas.io.parsers import EmptyDataError
 import pytest
+import yaml
 
 from looper import setup_looper_logger
 from looper.models import PipelineInterface
@@ -25,6 +26,8 @@ from looper.loodels import Project
 # TODO: needed for interactive mode, but may crush cmdl option for setup.
 _LOGGER = logging.getLogger("looper")
 
+
+P_CONFIG_FILENAME = "project_config.yaml"
 
 # {basedir} lines are formatted during file write; other braced entries remain.
 PROJECT_CONFIG_LINES = """metadata:
@@ -194,6 +197,12 @@ def pytest_generate_tests(metafunc):
 
 
 
+@pytest.fixture(scope="function")
+def sample_annotation_lines():
+    return SAMPLE_ANNOTATION_LINES
+
+
+
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
     """ Configure logging for the testing session. """
@@ -244,7 +253,7 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(
         prj_lines,
-        dirpath=dirpath, fname="project_config.yaml")
+        dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_iface_file = _write_temp(
         iface_lines,
         dirpath=dirpath, fname="pipeline_interface.yaml")
@@ -297,8 +306,8 @@ def _write_temp(lines, dirpath, fname):
             **{"derived_column_names": ", ".join(DERIVED_COLNAMES)}
     )
     filepath = os.path.join(dirpath, fname)
-    _LOGGER.debug("Writing %d lines to file '%s'", len(lines), filepath)
     data_source_formatter = string.Formatter()
+    num_lines = 0
     with open(filepath, 'w') as tmpf:
         for l in lines:
             if "{basedir}" in l:
@@ -308,7 +317,67 @@ def _write_temp(lines, dirpath, fname):
                 l = data_source_formatter.vformat(
                     l, (), derived_columns_replacement)
             tmpf.write(l)
-        return tmpf.name
+            num_lines += 1
+    _LOGGER.debug("Wrote %d line(s) to disk: '%s'", num_lines, filepath)
+    return filepath
+
+
+
+@pytest.fixture(scope="function")
+def project_config_lines():
+    """ Provide safer iteration over the lines for Project config file. """
+    return PROJECT_CONFIG_LINES
+
+
+
+@pytest.fixture(scope="function")
+def path_project_conf(tmpdir, project_config_lines):
+    """
+    Write the Project configuration data.
+
+    :param py.path.local.LocalPath tmpdir: temporary Path fixture
+    :param Iterable[str] project_config_lines: collection of lines for
+        Project configuration file
+    :return str: path to file with Project configuration data
+    """
+    return _write_temp(
+        project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
+
+
+
+@pytest.fixture(scope="function")
+def proj_conf_data(path_project_conf):
+    """
+    Read and parse raw Project configuration data.
+
+    :param str path_project_conf: path to file with Project configuration data
+    :return Mapping: the data parsed from the configuration file written,
+        a Mapping form of the raw Project config text lines
+    """
+    with open(path_project_conf, 'r') as conf_file:
+        return yaml.safe_load(conf_file)
+
+
+
+@pytest.fixture(scope="function")
+def path_sample_anns(tmpdir, sample_annotation_lines):
+    """
+    Write the sample annotations file and return the path to it.
+
+    :param py.path.local.LocalPath tmpdir: temporary Path fixture
+    :param Iterable[str] sample_annotation_lines: collection of lines for
+        the sample annotations files
+    :return str: path to the sample annotations file that was written
+    """
+    filepath = _write_temp(
+            sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
+    return filepath
+
+
+
+@pytest.fixture(scope="function")
+def p_conf_fname():
+    return P_CONFIG_FILENAME
 
 
 
@@ -323,7 +392,7 @@ def write_project_files(request):
     """
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
-                                 dirpath=dirpath, fname="project_config.yaml")
+                                 dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_merge_table_file = _write_temp(
             MERGE_TABLE_LINES,
             dirpath=dirpath, fname=MERGE_TABLE_FILENAME
@@ -400,7 +469,7 @@ def request_class_attribute(req, attr):
 
 
 
-def _create(request, data_type):
+def _create(request, data_type, **kwargs):
     """
     Create instance of desired type, using file in request class.
 
@@ -413,7 +482,7 @@ def _create(request, data_type):
     _LOGGER.debug("Using %s as source of data to build %s",
                   data_source, data_type.__class__.__name__)
     try:
-        return data_type(data_source)
+        return data_type(data_source, **kwargs)
     except EmptyDataError:
         with open(data_source, 'r') as datafile:
             _LOGGER.error("File contents:\n{}".format(datafile.readlines()))

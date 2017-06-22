@@ -157,13 +157,14 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     :param Sample sample: sample to modify via merge table data
     :param merge_table: data with which to alter Sample
     :param Mapping data_sources: collection of named paths to data locations
-    :param derived_columns: names of columns with data-derived value
+    :param Iterable[str] derived_columns: names of column for which
+        corresponding Sample attribute's value is data-derived
     :return Set[str]: names of columns that were merged
     """
 
     merged_cols = {}
 
-    if not merge_table:
+    if merge_table is None:
         _LOGGER.debug("No data for sample merge, skipping")
         return merged_cols
 
@@ -185,7 +186,10 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
         return merged_cols
 
+    # Hash derived columns for faster lookup in case of many samples/columns.
+    derived_columns = set(derived_columns)
     _LOGGER.log(5, "%d rows to merge", len(merge_rows))
+
 
     # For each row in the merge table of this sample:
     # 1) populate any derived columns
@@ -206,7 +210,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
             merged_cols[col_key] = ""
             row_dict[col_key] = row_dict[col]
             row_dict[col] = sample.locate_data_source(
-                data_sources, col, row_dict[col], row_dict)  # 1)
+                    data_sources, col, row_dict[col], row_dict)  # 1)
 
         _LOGGER.log(5, "Adding derived columns")
         # Also add in any derived cols present.
@@ -225,7 +229,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
             # Map the column name itself to the
             # populated data source template string.
             row_dict[col] = sample.locate_data_source(
-                data_sources, col, getattr(sample, col), row_dict)
+                    data_sources, col, getattr(sample, col), row_dict)
             _LOGGER.debug("PROBLEM adding derived column: "
                           "{}, {}, {}".format(col, row_dict[col],
                                               getattr(sample, col)))
@@ -615,6 +619,9 @@ class Project(AttributeDict):
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
+        # Ensure data_sources is at least set if it wasn't parsed.
+        self.setdefault("data_sources", None)
+
         self.name = self.infer_name(self.config_file)
         self.subproject = subproject
 
@@ -641,7 +648,26 @@ class Project(AttributeDict):
                              self.metadata.pipelines_dir))
         self.interfaces_by_protocol = \
                 process_pipeline_interfaces(self.metadata.pipelines_dir)
-        self.sheet = check_sheet(self.metadata.sample_annotation)
+
+        path_anns_file = self.metadata.sample_annotation
+        _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
+        try:
+            self.sheet = check_sheet(path_anns_file)
+        except IOError:
+            _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
+                          path_anns_file)
+            anns_folder_path = _os.path.dirname(path_anns_file)
+            try:
+                annotations_file_folder_contents = \
+                        _os.listdir(anns_folder_path)
+            except OSError:
+                _LOGGER.error("Annotations file folder doesn't exist either: "
+                              "'%s'", anns_folder_path)
+            else:
+                _LOGGER.error("Annotations file folder's contents: {}".
+                              format(annotations_file_folder_contents))
+            raise
+
         self.merge_table = None
         self._samples = None if defer_sample_construction \
                 else self._make_basic_samples()
@@ -1046,6 +1072,8 @@ class Project(AttributeDict):
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
+            merge_sample(sample, self.merge_table,
+                         self.data_sources, self.derived_columns)
             sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
@@ -1057,8 +1085,6 @@ class Project(AttributeDict):
                               "data path assignment", sample.sample_name)
             else:
                 _LOGGER.debug("Path to sample data: '%s'", sample.data_source)
-            merge_sample(sample, self.merge_table,
-                         self.data_sources, self.derived_columns)
             samples.append(sample)
 
         return samples
@@ -1075,6 +1101,9 @@ class Project(AttributeDict):
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
+
+        _LOGGER.debug("{} config data: {}".format(
+                self.__class__.__name__, config))
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
