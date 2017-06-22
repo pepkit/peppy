@@ -19,6 +19,8 @@ Changelog
 
     - Changed LOOPERENV environment variable to PEPENV, generalizing it to generic models
 
+    - Changed name of ``pipelines_dir`` to ``pipeline_interfaces`` (but maintained backwards compatibility for now).
+
     - Changed name of ``run`` column to ``toggle``, since ``run`` can also refer to a sequencing run.
 
     - Relaxes many constraints (like resources sections, pipelines_dir columns), making project configuration files useful outside looper. This moves us closer to dividing models from looper, and improves flexibility.
@@ -42,7 +44,7 @@ Changelog
 
     - Complete rehaul of logging and test infrastructure, using logging and pytest packages
 
-  - Fixes
+  - Changed
 
     - Removes pipelines_dir requirement for models, making it useful outside looper
 
@@ -67,7 +69,7 @@ Changelog
 
     - Support for portable and pipeline-independent allocation of computing resources with Looperenv.
 
-  - Fixes
+  - Changed
 
     - Removed requirement to have ``pipelines`` repository installed in order to extend base Sample objects
 
