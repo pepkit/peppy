@@ -21,7 +21,7 @@ The format is simple and modular, so you only need to define the components you 
      pipeline_interfaces: path/to/pipeline_interface.yaml
 
 
-The **output_dir** key specifies where to save results. The **pipeline_interfaces** key points to your looper-compatible pipelines. The **sample_annotation** key points to another file, which is a comma-separated value (``csv``) file describing samples in the project. Here's a small example of **sample_annotation.csv**:
+The **output_dir** key specifies where to save results. The **pipeline_interfaces** key points to your looper-compatible pipelines (described in :doc:`linking the pipeline interface <pipeline-interface>`). The **sample_annotation** key points to another file, which is a comma-separated value (``csv``) file describing samples in the project. Here's a small example of **sample_annotation.csv**:
 
 
 .. csv-table:: Minimal Sample Annotation Sheet

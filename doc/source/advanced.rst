@@ -29,8 +29,7 @@ Note: to handle different *classes* of input files, like read1 and read2, these 
 Connecting to multiple pipelines
 ****************************************
 
-If you have a project that contains samples of different types, then you may need to specify multiple pipeline repositories to your project. Starting in version 0.5, looper can handle a priority list of pipeline directories in the metadata.pipeline_interfaces.
-attribute.
+If you have a project that contains samples of different types, then you may need to specify multiple pipeline repositories to your project. Starting in version 0.5, looper can handle a priority list of pipelines. Starting with version 0.6, these pointers should point directly at a pipeline interface files (instead of at directories as previously). in the metadata.pipeline_interfaces attribute.
 
 For example:
 
