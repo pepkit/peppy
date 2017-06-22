@@ -17,8 +17,7 @@ Example:
 	metadata:
 	  sample_annotation: /path/to/sample_annotation.csv
 	  output_dir: /path/to/output/folder
-	  pipelines_dir: /path/to/pipelines/repository
-
+	  pipeline_interfaces: /path/to/pipeline_interface.yaml
 
 
 Project config section: data_sources
@@ -171,9 +170,9 @@ Project config complete example
 	  # submission: where cluster submit scripts and log files will go
 	  results_subdir: results_pipeline
 	  submission_subdir: submission
-	  # pipelines_dir: the directory where the Looper will find pipeline
+	  # pipeline_interfaces: the pipeline_interface.yaml file or files for Looper pipelines
 	  # scripts (and accompanying pipeline config files) for submission.
-	  pipelines_dir: /path/to/shared/projects/example/pipelines
+	  pipeline_interfaces: /path/to/shared/projects/example/pipeline_interface.yaml
 
 
 	data_sources:
