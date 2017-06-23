@@ -1,0 +1,94 @@
+# This project config file describes all *project-specific variables*
+# Its primary purpose as as input to Looper, which will submit jobs as appropriate
+# for each sample in the project.
+# But it is also read by other tools, including:
+# - project sample loop (primary purpose)
+# - make_trackhubs scripts to produce web accessible results
+# - stats summary scripts
+# - analysis scripts requiring pointers to metadata, results, and other options.
+
+metadata:
+  # output_dir: ABSOLUTE PATH to the parent, shared space where project results go
+  output_dir: /scratch/lab_bock/shared/projects/microtest
+  # results and submission subdirs are subdirectors directories under parent output_dir
+  # results: where output sample folders will go
+  # submission: where cluster submit scripts and log files will go
+  results_subdir: results_pipeline
+  submission_subdir: submission
+  # pipelines_dir: ABSOLUTE PATH the directory where the Looper will find pipeline
+  # scripts (and accompanying pipeline config files) for submission.
+  pipelines_dir: $CODEBASE/pipelines
+  # Elements in this section can be absolute or relative.
+  # Typically, this project config file is stored with the project metadata, so
+  # relative paths are considered relative to this project config file.
+  # sample_annotation: one-row-per-sample metadata
+  sample_annotation: microtest_sample_annotation.csv
+  # merge_table: input for samples with more than one input file
+  merge_table: microtest_merge_table.csv
+  # compare_table: comparison pairs or groups, like normalization samples
+  compare_table: null.csv
+
+
+# a list of annotation sheet columns that are "derived"
+# the values in these are constructed using a regex-like expression
+# of variables (defined in the next section).
+derived_columns: [data_source]
+
+
+data_sources:
+  # specify the ABSOLUTE PATH of input files using variable path expressions
+  # entries correspond to values in the data_source column in sample_annotation table
+  # {variable} can be used to replace environment variables or other sample_annotation columns
+  # If you use {variable} codes, you should quote the field so python can parse it.
+  bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
+  microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
+  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}{file_number}.bam"
+
+
+subprojects:
+  config_test:
+    pipeline_config:
+      wgbs.py: wgbs_ds.yaml
+
+
+genomes:
+  human: hg19
+  mouse: mm10
+
+transcriptomes:
+  human: hg19_cdna
+  mouse: mm10_cdna
+
+
+pipeline_config:
+  # pipeline configuration files used in project.
+  # Key string must match the _name of the pipeline script_ (including extension)
+  # Relative paths are relative to this project config file.
+  # Default (null) means use the generic config for the pipeline.
+  # wgbs.py: null
+  # Or you can point to a specific config to be used in this project:
+  # rrbs.py: rrbs_config.yaml
+  # wgbs.py: wgbs_config.yaml
+  # cgps: cpgs_config.yaml
+
+
+pipeline_args:
+  rnaBitSeq.py:
+    "-w": 50
+
+
+trackhubs:
+  trackhub_dir: /data/groups/lab_bock/public_html/arendeiro/microtest/
+  # url: if you include this, the make_trackhubs will produce a link to your track hub in the project folder.
+  url: http://www.whatever.com/
+  matrix_x: cell_type
+  matrix_y: cell_count
+  sort_order: cell_type=+
+  parent_track_name: ews_rrbs
+  visibility: dense
+  hub_name: ews_hub
+  short_label_column: sample_name
+  email: arendeiro@cemm.oeaw.ac.at
+
+username: user
+email: user@email.com
