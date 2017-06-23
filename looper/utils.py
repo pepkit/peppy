@@ -147,7 +147,7 @@ def import_from_source(name, module_filepath):
 
     if sys.version_info >= (3, 5):
         from importlib import util as _il_util
-        modspec = _il_util.spec_from_file_module_filepath(
+        modspec = _il_util.spec_from_file_location(
             name, module_filepath)
         mod = _il_util.module_from_spec(modspec)
         modspec.loader.exec_module(mod)

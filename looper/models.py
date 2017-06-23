@@ -2715,7 +2715,6 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     :raises _UndefinedSampleSubtypeException: if the module is imported but
         type indicated by subtype_name is not found as a class
     """
-    from argparse import ArgumentError
     base_type = Sample
 
     _, modname = _os.path.split(pipeline_filepath)
@@ -2726,12 +2725,12 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
                       "calling it {}".format(pipeline_filepath, modname))
         pipeline_module = import_from_source(
             name=modname, module_filepath=pipeline_filepath)
-    except (ArgumentError, SystemExit):
+    except SystemExit:
         _LOGGER.warn("'%s' appears to attempt to run on import; "
                      "does it lack a conditional on __main__? Using base %s",
                      base_type.__name__)
         return base_type
-    except ImportError as e:
+    except Exception as e:
         _LOGGER.warn("Using base %s because of failure in attempt to "
                      "import pipeline module: %s", base_type.__name__, e)
         return base_type
