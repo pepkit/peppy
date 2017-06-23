@@ -1,3 +1,4 @@
+.. _pipeline-interface-mapping:
 
 Pipeline interface section: protocol_mapping 
 ********************************************

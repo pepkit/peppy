@@ -15,13 +15,13 @@ The format is simple and modular, so you only need to define the components you 
 
 .. code-block:: yaml
 
-	metadata:
-	  sample_annotation: /path/to/sample_annotation.csv
-	  output_dir: /path/to/output/folder
-	  pipelines_dir: /path/to/pipelines/repository
+   metadata:
+     sample_annotation: /path/to/sample_annotation.csv
+     output_dir: /path/to/output/folder
+     pipeline_interfaces: path/to/pipeline_interface.yaml
 
 
-The **output_dir** describes where you want to save pipeline results, and **pipelines_dir** describes where your pipeline code is stored. You will also need a second file to describe samples, which is a comma-separated value (``csv``) file containing at least a unique identifier column named ``sample_name``, a column named ``library`` describing the sample type, and some way of specifying an input file. Here's a minimal example of **sample_annotation.csv**:
+The **output_dir** key specifies where to save results. The **pipeline_interfaces** key points to your looper-compatible pipelines (described in :doc:`linking the pipeline interface <pipeline-interface>`). The **sample_annotation** key points to another file, which is a comma-separated value (``csv``) file describing samples in the project. Here's a small example of **sample_annotation.csv**:
 
 
 .. csv-table:: Minimal Sample Annotation Sheet

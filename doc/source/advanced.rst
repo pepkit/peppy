@@ -29,16 +29,15 @@ Note: to handle different *classes* of input files, like read1 and read2, these 
 Connecting to multiple pipelines
 ****************************************
 
-If you have a project that contains samples of different types, then you may need to specify multiple pipeline repositories to your project. Starting in version 0.5, looper can handle a priority list of pipeline directories in the metadata.pipelines_dir 
-attribute.
+If you have a project that contains samples of different types, then you may need to specify multiple pipeline repositories to your project. Starting in version 0.5, looper can handle a priority list of pipelines. Starting with version 0.6, these pointers should point directly at a pipeline interface files (instead of at directories as previously). in the metadata.pipeline_interfaces attribute.
 
 For example:
 
 .. code-block:: yaml
 
 	metadata:
-	  pipelines_dir: [pipeline1, pipeline2]
+	  pipeline_interfaces: [pipeline_iface1.yaml, pipeline_iface2.yaml]
 
 
-In this case, for a given sample, looper will first look in the pipeline1 directory to see if appropriate pipeline exists for this sample type. If it finds one, it will use this pipeline (or set of pipelines, as specified in the protocol_mappings.yaml file). Having submitted a suitable pipeline it will ignore the pipeline2 directory. However if there is no suitable pipeline in the first directory, looper will check the second directory and, if it finds a match, will submit that. If no suitable pipelines are found in any of the directories, the sample will be skipped as usual.
+In this case, for a given sample, looper will first look in pipeline_iface1.yaml to see if appropriate pipeline exists for this sample type. If it finds one, it will use this pipeline (or set of pipelines, as specified in the protocol_mappings.yaml file). Having submitted a suitable pipeline it will ignore the pipeline_iface2.yaml interface. However if there is no suitable pipeline in the first interface, looper will check the second and, if it finds a match, will submit that. If no suitable pipelines are found in any of the interfaces, the sample will be skipped as usual.
 
