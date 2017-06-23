@@ -1,11 +1,4 @@
 # This project config file describes all *project-specific variables*
-# Its primary purpose as as input to Looper, which will submit jobs as appropriate
-# for each sample in the project.
-# But it is also read by other tools, including:
-# - project sample loop (primary purpose)
-# - make_trackhubs scripts to produce web accessible results
-# - stats summary scripts
-# - analysis scripts requiring pointers to metadata, results, and other options.
 
 metadata:
   # output_dir: ABSOLUTE PATH to the parent, shared space where project results go
@@ -50,15 +43,14 @@ subprojects:
     pipeline_config:
       wgbs.py: wgbs_ds.yaml
 
-
-genomes:
-  human: hg19
-  mouse: mm10
-
-transcriptomes:
-  human: hg19_cdna
-  mouse: mm10_cdna
-
+implied_columns:
+  organism:
+    human:
+      genomes: hg19
+      transcriptome: hg19_cdna
+    mouse:
+      genome: mm10
+      transcriptome: mm10_cdna
 
 pipeline_config:
   # pipeline configuration files used in project.
