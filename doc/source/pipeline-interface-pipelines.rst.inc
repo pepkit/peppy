@@ -1,3 +1,5 @@
+:orphan:
+
 .. _pipeline-interface-pipelines:
 
 Pipeline interface section: pipelines 

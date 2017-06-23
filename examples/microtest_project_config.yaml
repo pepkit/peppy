@@ -1,0 +1,35 @@
+metadata:
+  output_dir: /scratch/lab_bock/shared/projects/microtest
+  results_subdir: results_pipeline
+  submission_subdir: submission
+  pipelines_dir: $CODEBASE/pipelines
+  sample_annotation: microtest_sample_annotation.csv
+  merge_table: microtest_merge_table.csv
+
+derived_columns: [data_source]
+
+data_sources:
+  bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
+  microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
+  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}{file_number}.bam"
+
+subprojects:
+  config_test:
+    pipeline_config:
+      wgbs.py: wgbs_ds.yaml
+
+implied_columns:
+  organism:
+    human:
+      genomes: hg19
+      transcriptome: hg19_cdna
+    mouse:
+      genome: mm10
+      transcriptome: mm10_cdna
+
+pipeline_config:
+  rrbs.py: rrbs_config.yaml
+
+pipeline_args:
+  rnaBitSeq.py:
+    "-w": 50
