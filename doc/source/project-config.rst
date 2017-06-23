@@ -124,7 +124,7 @@ Example:
 		"--flag": null
 
 
-For flag-like options (options without parameters), you should use ``null`` as the value, and this will passed to the pipeline without a value. The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
+For flag-like options (options without parameters), you should the the value to the yaml keyword ``null`` (which means no value), and this will passed to the pipeline without a value. The above specification will now pass ``--flavor=simple`` and ``--flag`` (no parameter) whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
 
 
 Project config section: compute
