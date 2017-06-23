@@ -66,8 +66,8 @@ import pandas as _pd
 import yaml
 
 from .utils import \
-    alpha_cased, check_bam, check_fastq, get_file_size, \
-    import_from_source, parse_ftype, partition
+    alpha_cased, check_bam, check_fastq, expandpath, \
+    get_file_size, import_from_source, parse_ftype, partition
 
 
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
@@ -271,8 +271,8 @@ def process_pipeline_interfaces(pipeline_interface_locations):
         pipeline interface and protocol mappings information. Each such file
         should be have a pipelines section and a protocol mappings section
         whereas each folder should have a file for each of those sections.
-    :return Mapping[str, ProtocolInterface]: mapping from protocol name to
-        interface(s) for which that protocol is mapped
+    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol 
+        name to interface(s) for which that protocol is mapped
     """
     interface_by_protocol = defaultdict(list)
     for pipe_iface_location in pipeline_interface_locations:
@@ -860,8 +860,8 @@ class Project(AttributeDict):
 
             this_protocol_pipelines = proto_iface.fetch(protocol)
             if not this_protocol_pipelines:
-                _LOGGER.warn("No mapping for protocol '%s' in '%s', skipping",
-                             protocol, proto_iface.location)
+                _LOGGER.warn("No mapping for protocol '%s' in %s", 
+                             protocol, proto_iface)
                 continue
             
             # TODO: update once dependency-encoding logic is in place.
@@ -904,7 +904,7 @@ class Project(AttributeDict):
             _LOGGER.debug("{} new scripts for protocol {} from "
                           "pipeline(s) location '{}': {}".
                           format(len(new_scripts), protocol,
-                                 proto_iface.location, new_scripts))
+                                 proto_iface.source, new_scripts))
 
             new_jobs = [proto_iface.create_submission_bundle(pipeline_key,
                                                              protocol)
@@ -2295,10 +2295,10 @@ class PipelineInterface(object):
 
     def get_attribute(self, pipeline_name, attribute_key, path_as_list=True):
         """
-        Return value of given attribute for named pipeline.
+        Return the value of the named attribute for the pipeline indicated.
 
         :param str pipeline_name: name of the pipeline of interest
-        :param str attribute_key: name of the attribute of interest
+        :param str attribute_key: name of the pipeline attribute of interest
         :param bool path_as_list: whether to ensure that a string attribute
             is returned as a list; this is useful for safe iteration over
             the returned value.
@@ -2370,58 +2370,62 @@ class ProtocolInterface(object):
     single project. Also stored are path attributes with information about
     the location(s) from which the PipelineInterface and ProtocolMapper came.
 
-    :param location: location (e.g., code repository) of pipelines
-    :type location: str
+    :param interface_data_source: location (e.g., code repository) of pipelines
+    :type interface_data_source: str
 
     """
 
     SUBTYPE_MAPPING_SECTION = "sample_subtypes"
 
 
-    def __init__(self, location):
-
+    def __init__(self, interface_data_source):
         super(ProtocolInterface, self).__init__()
 
-        if _os.path.isdir(location):
-            self.location = location
+        if isinstance(interface_data_source, Mapping):
+            # TODO: for implementation, we need to determine pipelines_path.
+            raise NotImplementedError(
+                    "Raw Mapping as source of {} data is not yet supported".
+                    format(self.__class__.__name__))
+            _LOGGER.debug("Creating %s from raw Mapping",
+                          self.__class__.__name__)
+            self.source = None
+            self.pipe_iface_path = None
+            for name, value in self._parse_iface_data(interface_data_source):
+                setattr(self, name, value)
+
+        elif _os.path.isfile(interface_data_source):
+            # Secondary version that passes combined yaml file directly,
+            # instead of relying on separate hard-coded config names.
+            _LOGGER.debug("Creating %s from file: '%s'",
+                          self.__class__.__name__, interface_data_source)
+            self.source = interface_data_source
+            self.pipe_iface_path = self.source
+            self.pipelines_path = _os.path.dirname(self.source)
+
+            with open(interface_data_source, 'r') as interface_file:
+                iface = yaml.load(interface_file)
+            for name, value in self._parse_iface_data(iface):
+                setattr(self, name, value)
+
+        elif _os.path.isdir(interface_data_source):
+            _LOGGER.debug("Creating %s from files in directory: '%s'",
+                          self.__class__.__name__, interface_data_source)
+            self.source = interface_data_source
             self.pipe_iface_path = _os.path.join(
-                    location, "config", "pipeline_interface.yaml")
+                    self.source, "config", "pipeline_interface.yaml")
+            self.pipelines_path = _os.path.join(self.source, "pipelines")
+
             self.pipe_iface = PipelineInterface(self.pipe_iface_path)
             self.protomap = ProtocolMapper(_os.path.join(
-                    location, "config", "protocol_mappings.yaml"))
-            self.pipelines_path = _os.path.join(location, "pipelines")
-
-        elif _os.path.isfile(location):
-            # Secondary version that passes combined yaml file directly,
-            # instead of relying on separate hard-coded config names as above
-            self.location = None
-            self.pipe_iface_path = location
-            self.pipelines_path = _os.path.dirname(location)
-
-            with open(location, 'r') as interface_file:
-                iface = yaml.load(interface_file)
-            try:
-                if "protocol_mapping" in iface:
-                    self.protomap = ProtocolMapper(iface["protocol_mapping"])
-                else:
-                    raise Exception("pipeline_interface file is missing "
-                                    "a 'protocol_mapping' section.")
-                if "pipelines" in iface:
-                    self.pipe_iface = PipelineInterface(iface["pipelines"])
-                else:
-                    raise Exception("pipeline_interface file is missing "
-                                    "a 'pipelines' section.")
-            except Exception as e:
-                _LOGGER.error(str(iface))
-                raise e
+                    self.source, "config", "protocol_mappings.yaml"))
 
         else:
             raise ValueError("Alleged pipelines location '{}' exists neither "
-                             "as a file nor as a folder.".format(location))
+                             "as a file nor as a folder.".format(interface_data_source))
 
 
     def __repr__(self):
-        return "ProtocolInterface from '{}'".format(self.location)
+        return "ProtocolInterface from '{}'".format(self.source or "Mapping")
 
 
     def create_submission_bundle(self, pipeline_key, protocol):
@@ -2448,15 +2452,24 @@ class ProtocolInterface(object):
         except KeyError:
             _LOGGER.debug("%s from '%s' doesn't define section '%s' "
                           "for pipeline '%s'",
-                          self.pipe_iface.__class__.__name__, self.location,
+                          self.pipe_iface.__class__.__name__, self.source,
                           self.SUBTYPE_MAPPING_SECTION, strict_pipe_key)
-            subtype = Sample
+            # Without a subtypes section, if pipeline module defines a single
+            # Sample subtype, we'll assume that type is to be used when in
+            # this case, when the interface section for this pipeline lacks
+            # an explicit subtypes section specification.
+            subtype_name = None
         else:
-            if isinstance(subtypes, str):
+            if subtypes is None:
+                _LOGGER.debug("Null Sample subtypes specified for pipeline: "
+                              "'%s'; using base Sample type", strict_pipe_key)
+                # Designate lack of need to attempt pipeline module import.
+                subtype = Sample
+            elif isinstance(subtypes, str):
                 subtype_name = subtypes
                 _LOGGER.debug("Single subtype name for pipeline '%s' "
                               "in interface from '%s': '%s'", subtype_name,
-                              strict_pipe_key, self.location)
+                              strict_pipe_key, self.source)
             else:
                 try:
                     temp_subtypes = {alpha_cased(p): st
@@ -2466,7 +2479,7 @@ class ProtocolInterface(object):
                     subtype = Sample
                     _LOGGER.debug("No %s subtype specified in interface from "
                                   "'%s': '%s', '%s'; known: %s",
-                                  subtype.__name__, self.location,
+                                  subtype.__name__, self.source,
                                   strict_pipe_key, protocol,
                                   ", ".join(temp_subtypes.keys()))
 
@@ -2489,6 +2502,22 @@ class ProtocolInterface(object):
         return self.protomap.mappings.get(alpha_cased(protocol))
 
 
+    @classmethod
+    def _parse_iface_data(cls, pipe_iface_data):
+        assignments = [("protocol_mapping", ProtocolMapper, "protomap"),
+                       ("pipelines", PipelineInterface, "pipe_iface")]
+        attribute_values = []
+        for section_name, data_type, attr_name in assignments:
+            try:
+                data = pipe_iface_data[section_name]
+            except KeyError:
+                _LOGGER.error("Error creating %s from data: %s",
+                              cls.__name__, str(pipe_iface_data))
+                raise Exception("PipelineInterface file lacks section: '{}'".
+                                format(section_name))
+            attribute_values.append((attr_name, data_type(data)))
+        return attribute_values
+
 
     def pipeline_key_to_path(self, pipeline_key):
         """
@@ -2509,6 +2538,9 @@ class ProtocolInterface(object):
         if self.pipe_iface.get_attribute(strict_pipeline_key, "path"):
             script_path_only = self.pipe_iface.get_attribute(
                     strict_pipeline_key, "path")[0].strip()
+            _LOGGER.log(5, "Expanding path: '%s'", script_path_only)
+            script_path_only = expandpath(script_path_only)
+            _LOGGER.log(5, "Expanded: '%s'", script_path_only)
             script_path_with_flags = \
                     " ".join([script_path_only, pipeline_key_args])
         else:
@@ -2669,18 +2701,21 @@ class _UndefinedSampleSubtypeException(Exception):
 
 
 
-def _import_sample_subtype(pipeline_filepath, subtype_name):
+def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     """
     Import a particular Sample subclass from a Python module.
 
     :param str pipeline_filepath: path to file to regard as Python module
-    :param str subtype_name: name of the target class; this must derive from
-        the base Sample class.
+    :param str subtype_name: name of the target class (which must derive from
+        the base Sample class in order for it to be used), optional; if
+        unspecified, if the module defines a single subtype, then that will
+        be used; otherwise, the base Sample type will be used.
     :return type: the imported class, defaulting to base Sample in case of
         failure with the import or other logic
     :raises _UndefinedSampleSubtypeException: if the module is imported but
         type indicated by subtype_name is not found as a class
     """
+    from argparse import ArgumentError
     base_type = Sample
 
     _, modname = _os.path.split(pipeline_filepath)
@@ -2691,6 +2726,11 @@ def _import_sample_subtype(pipeline_filepath, subtype_name):
                       "calling it {}".format(pipeline_filepath, modname))
         pipeline_module = import_from_source(
             name=modname, module_filepath=pipeline_filepath)
+    except (ArgumentError, SystemExit):
+        _LOGGER.warn("'%s' appears to attempt to run on import; "
+                     "does it lack a conditional on __main__? Using base %s",
+                     base_type.__name__)
+        return base_type
     except ImportError as e:
         _LOGGER.warn("Using base %s because of failure in attempt to "
                      "import pipeline module: %s", base_type.__name__, e)
@@ -2704,6 +2744,7 @@ def _import_sample_subtype(pipeline_filepath, subtype_name):
     def class_names(cs):
         return ", ".join([c.__name__ for c in cs])
 
+    # Find classes from pipeline module and determine which derive from Sample.
     classes = inspect.getmembers(
             pipeline_module, lambda obj: inspect.isclass(obj))
     classes = [klazz for _, klazz in classes]
@@ -2712,13 +2753,33 @@ def _import_sample_subtype(pipeline_filepath, subtype_name):
     _LOGGER.debug("%d %s subtype(s): %s", len(sample_subtypes),
                   base_type.__name__, class_names(sample_subtypes))
 
-    for st in sample_subtypes:
-        if st.__name__ == subtype_name:
-            _LOGGER.debug("Successfully imported %s from '%s'",
-                          subtype_name, pipeline_filepath)
-            return st
-    raise _UndefinedSampleSubtypeException(
-            subtype_name=subtype_name, pipeline_filepath=pipeline_filepath)
+    # Determine course of action based on subtype request and number found.
+    if not subtype_name:
+        _LOGGER.debug("No specific subtype is requested from '%s'",
+                      pipeline_filepath)
+        if len(sample_subtypes) == 1:
+            # No specific request and single subtype --> use single subtype.
+            subtype = sample_subtypes[0]
+            _LOGGER.debug("Single %s subtype found in '%s': '%s'",
+                          base_type.__name__, pipeline_filepath,
+                          subtype.__name__)
+            return subtype
+        else:
+            # We can't arbitrarily select from among 0 or multiple subtypes.
+            _LOGGER.debug("%s subtype cannot be selected from %d in '%s'; "
+                          "using base type", base_type.__name__,
+                          len(sample_subtypes), pipeline_filepath)
+            return base_type
+    else:
+        # Specific subtype request --> look for match.
+        for st in sample_subtypes:
+            if st.__name__ == subtype_name:
+                _LOGGER.debug("Successfully imported %s from '%s'",
+                              subtype_name, pipeline_filepath)
+                return st
+        _LOGGER.warn("No subtype from '%s' matches '%s'; using base: %s",
+                     pipeline_filepath, subtype_name, base_type.__name__)
+        return base_type
 
 
 
