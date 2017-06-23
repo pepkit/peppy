@@ -70,6 +70,13 @@ from .utils import \
     get_file_size, import_from_source, parse_ftype, partition
 
 
+# TODO: decide if we want to denote functions for export.
+__functions__ = []
+__classes__ = ["AttributeDict", "PipelineInterface", "Project",
+               "ProtocolInterface", "ProtocolMapper", "Sample"]
+__all__ = __functions__ + __classes__
+
+
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
 DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 DATA_SOURCE_COLNAME = "data_source"
