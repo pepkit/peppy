@@ -1,4 +1,6 @@
-.. _pipeline-interface-mapping:
+:orphan:
+
+.. _pi_mapping:
 
 Pipeline interface section: protocol_mapping 
 ********************************************
