@@ -124,7 +124,7 @@ Example:
 		"--flag": null
 
 
-The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
+For flag-like options (options without parameters), you should use ``null`` as the value, and this will passed to the pipeline without a value. The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
 
 
 Project config section: compute
@@ -183,15 +183,16 @@ Project config complete example
 	  bsf_samples: "$RAWDATA/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 	  encode_rrbs: "/path/to/shared/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
 
-	genomes:
-	  # supported genomes and organism -> genome mapping
-	  human: hg19
-	  mouse: mm10
 
-	transcriptomes:
-	  # supported transcriptomes and organism -> transcriptome mapping
-	  human: hg19_cdna
-	  mouse: mm10_cdna
+  implied_columns:
+	# supported genomes/transcriptomes and organism -> reference mapping
+    organism:
+      human:
+        genome: hg38
+        transcriptome: hg38_cdna
+      mouse:
+        genome: mm10
+        transcriptome: mm10_cdna
 
 	pipeline_config:
 	  # pipeline configuration files used in project.
@@ -201,15 +202,3 @@ Project config complete example
 	  # rrbs: rrbs_config.yaml
 	  # wgbs: wgbs_config.yaml
 	  # cgps: cpgs_config.yaml
-
-	track_configurations:
-	  trackhub_dir: /path/to/public_html/project_folder/
-	  url: http://www.whatever.com/
-	  matrix_x: cell_type
-	  matrix_y: cell_count
-	  sort_order: cell_type=+
-	  parent_track_name: ews_rrbs
-	  visibility: dense
-	  hub_name: ews_hub
-	  short_label_column: sample_name
-	  email: user@email.com
