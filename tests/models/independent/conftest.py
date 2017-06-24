@@ -78,7 +78,14 @@ def atacseq_iface_without_resources():
 
 
 @pytest.fixture(scope="function")
-def atacseq_piface_data(atacseq_iface_without_resources, resources):
+def atac_pipe_name():
+    return "ATACSeq.py"
+
+
+
+@pytest.fixture(scope="function")
+def atacseq_piface_data(atacseq_iface_without_resources,
+                        resources, atac_pipe_name):
     """
     Provide a test case with data for an ATACSeq PipelineInterface.
 
@@ -86,11 +93,13 @@ def atacseq_piface_data(atacseq_iface_without_resources, resources):
         data, minus a resources section
     :param Mapping resources: resources section of PipelineInterface
         configuration data
+    :param str atac_pipe_name: name/key for the pipeline to which the
+        interface data pertains
     :return dict: configuration data needed to create PipelineInterface
     """
     piface = copy.deepcopy(atacseq_iface_without_resources)
     piface.update(resources)
-    return {"ATACSeq.py": piface}
+    return {atac_pipe_name: piface}
 
 
 

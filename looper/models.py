@@ -2464,7 +2464,7 @@ class ProtocolInterface(object):
         subtype = None
 
         strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
-                self.pipeline_key_to_path(pipeline_key)
+                self.finalize_pipeline_key_and_paths(pipeline_key)
         this_pipeline_data = self.pipe_iface[strict_pipe_key]
 
         try:
@@ -2539,10 +2539,15 @@ class ProtocolInterface(object):
         return attribute_values
 
 
-    def pipeline_key_to_path(self, pipeline_key):
+    def finalize_pipeline_key_and_paths(self, pipeline_key):
         """
-        Given a pipeline_key, return the path to the script for that pipeline
-        specified in this pipeline interface config file.
+        Determine pipeline's full path, arguments, and strict key.
+
+        This handles multiple ways in which to refer to a pipeline (by key)
+        within the mapping that contains the data that defines a
+        PipelineInterface. It also ensures proper handling of the path to the
+        pipeline (i.e., ensuring that it's absolute), and that the text for
+        the arguments are appropriately dealt parsed and passed.
 
         :param str pipeline_key: the key in the pipeline interface file used
             for the protocol_mappings section. Previously was the script name.
@@ -2573,6 +2578,7 @@ class ProtocolInterface(object):
         if not _os.path.exists(script_path_only):
             _LOGGER.warn(
                     "Missing script command: '{}'".format(script_path_only))
+
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
 

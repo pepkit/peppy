@@ -408,8 +408,8 @@ class ConstructorPathParsingTests:
         PipelineInterface construction expands pipeline path.
 
         Environment variable(s) expand(s), but the path remains relative
-        if specified as such, deferring the joining with pipelines location
-        until used.
+        if specified as such, deferring the joining with pipelines location,
+        which makes the path absolute, until the path is actually used.
 
         """
         for add_path, pipe_key in zip(self.ADD_PATH, self.PIPELINE_KEYS):
