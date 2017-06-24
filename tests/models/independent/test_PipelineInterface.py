@@ -3,8 +3,16 @@
 import copy
 import inspect
 import itertools
+import logging
+import os
 import random
+import sys
+if sys.version_info < (3, 3):
+    from collections import Iterable, Mapping
+else:
+    from collections.abc import Iterable, Mapping
 
+import mock
 import pytest
 import yaml
 
@@ -15,6 +23,9 @@ from looper.models import \
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # Values with which to build pipeline interface keys and names
@@ -37,10 +48,18 @@ def pytest_generate_tests(metafunc):
     try:
         parameters = metafunc.cls.PARAMETERS
     except AttributeError:
+        _LOGGER.debug("No indirect parameterization for test class: '{}'".
+                      format(metafunc.cls))
         pass
     else:
         for name, values in parameters.items():
             metafunc.parametrize(argnames=name, argvalues=values)
+    if metafunc.cls == ConstructorPathParsingTests:
+        # Provide test case with two PipelineInterface config bundles.
+        metafunc.parametrize(
+                argnames="piface_config_bundles",
+                argvalues=[(atacseq_iface_without_resources(),
+                            {"name": "sans-path"})])
 
 
 
@@ -62,21 +81,6 @@ def resources():
 
 
 
-@pytest.mark.parametrize(argnames="from_file", argvalues=[False, True])
-def test_constructor_input_types(tmpdir, from_file, basic_pipe_iface_data):
-    """ PipelineInterface constructor handles Mapping or filepath. """
-    if from_file:
-        pipe_iface_config = tmpdir.join("pipe-iface-conf.yaml").strpath
-        with open(tmpdir.join("pipe-iface-conf.yaml").strpath, 'w') as f:
-            yaml.safe_dump(basic_pipe_iface_data, f)
-    else:
-        pipe_iface_config = basic_pipe_iface_data
-    pi = PipelineInterface(pipe_iface_config)
-    assert basic_pipe_iface_data == pi.pipe_iface_config
-    assert pi.pipe_iface_file == (pipe_iface_config if from_file else None)
-
-
-
 @pytest.fixture(scope="function")
 def pi_with_resources(request, basic_pipe_iface_data, resources):
     """ Add resource bundle data to each config section. """
@@ -93,6 +97,21 @@ def pi_with_resources(request, basic_pipe_iface_data, resources):
     for pipe_data in pipe_iface_config.pipelines:
         pipe_data["resources"] = resources
     return pipe_iface_config
+
+
+
+@pytest.mark.parametrize(argnames="from_file", argvalues=[False, True])
+def test_constructor_input_types(tmpdir, from_file, basic_pipe_iface_data):
+    """ PipelineInterface constructor handles Mapping or filepath. """
+    if from_file:
+        pipe_iface_config = tmpdir.join("pipe-iface-conf.yaml").strpath
+        with open(tmpdir.join("pipe-iface-conf.yaml").strpath, 'w') as f:
+            yaml.safe_dump(basic_pipe_iface_data, f)
+    else:
+        pipe_iface_config = basic_pipe_iface_data
+    pi = PipelineInterface(pipe_iface_config)
+    assert basic_pipe_iface_data == pi.pipe_iface_config
+    assert pi.pipe_iface_file == (pipe_iface_config if from_file else None)
 
 
 
@@ -158,7 +177,8 @@ class PipelineInterfaceNameResolutionTests:
             pipelines = [name + ext for name, ext
                          in zip(pipeline_names, extensions)]
             pi_config_data = {pipeline: None for pipeline in pipelines}
-            pi = PipelineInterface(pi_config_data)
+            with mock.patch("looper.models.PipelineInterface._expand_paths"):
+                pi = PipelineInterface(pi_config_data)
             for expected_name, pipeline in zip(pipeline_names, pipelines):
                 assert expected_name == pi.get_pipeline_name(pipeline)
 
@@ -338,6 +358,167 @@ class PipelineInterfaceResourcePackageTests:
         for pipe_name in pi.pipeline_names:
             with pytest.raises(KeyError):
                 pi.choose_resource_package(pipe_name, random.randrange(0, 10))
+
+
+
+@pytest.fixture(scope="function")
+def atacseq_iface_without_resources():
+    """
+    Provide the ATAC-Seq pipeline interface as a fixture, without resources.
+
+    Note that this represents the configuration data for the interface for a
+    single pipeline. In order to use this in the form that a PipelineInterface
+    expects, this needs to be the value to which a key is mapped within a
+    larger Mapping.
+
+    :return Mapping: all of the pipeline interface configuration data for
+        ATAC-Seq, minus the resources section
+    """
+    return {
+        "name": "ATACseq",
+        "looper_args": True,
+        "required_input_files": ["read1", "read2"],
+        "all_input_files": ["read1", "read2"],
+        "ngs_input_files": ["read1", "read2"],
+        "arguments": {
+            "--sample-name": "sample_name",
+            "--genome": "genome",
+            "--input": "read1",
+            "--input2": "read2",
+            "--single-or-paired": "read_type"
+        },
+        "optional_arguments": {
+            "--frip-ref-peaks": "FRIP_ref",
+            "--prealignments": "prealignments",
+            "--genome-size": "macs_genome_size"
+        }
+    }
+
+
+
+@pytest.fixture(scope="function")
+def piface_config_bundles(request, resources):
+    """
+    Provide the ATAC-Seq pipeline interface as a fixture, including resources.
+
+    Note that this represents the configuration data for the interface for a
+    single pipeline. In order to use this in the form that a PipelineInterface
+    expects, this needs to be the value to which a key is mapped within a
+    larger Mapping.
+
+    :param pytest._pytest.fixtures.SubRequest request: hook into test case
+        requesting this fixture, which is queried for a resources value with
+        which to override the default if it's present.
+    :param Mapping resources: pipeline interface resource specification
+    :return Iterable[Mapping]: collection of bundles of pipeline interface
+        configuration bundles
+    """
+    iface_config_datas = request.getfixturevalue("config_bundles")
+    if isinstance(iface_config_datas, Mapping):
+        data_bundles = iface_config_datas.values()
+    elif isinstance(iface_config_datas, Iterable):
+        data_bundles = iface_config_datas
+    else:
+        raise TypeError("Expected mapping or list collection of "
+                        "PipelineInterface data: {} ({})".format(
+                iface_config_datas, type(iface_config_datas)))
+    resources = request.getfixturevalue("resources") \
+            if "resources" in request.fixturenames else resources
+    for config_bundle in data_bundles:
+        config_bundle.update(resources)
+    return iface_config_datas
+
+
+
+class ConstructorPathParsingTests:
+    """ The constructor is responsible for expanding pipeline path(s). """
+
+    ADD_PATH = [True, False]
+    PIPELINE_KEYS = ["ATACSeq.py", "no_path.py"]
+    RELATIVE_PATH_DATA = [
+            ("./arbitrary-test-pipelines",
+             {},
+             "./arbitrary-test-pipelines"),
+            ("path/to/$TEMP_PIPE_LOCS",
+             {"TEMP_PIPE_LOCS": "validation-value"},
+             "path/to/validation-value")]
+    ABSOLUTE_PATHS = [os.path.join("~", "code_home", "bioinformatics"),
+                      os.path.join("$TEMP_TEST_HOME", "subfolder"),
+                      os.path.join("~", "$TEMPORARY_SUBFOLDER", "leaf")]
+
+
+    @pytest.fixture(scope="function")
+    def pipe_iface_data(self, piface_config_bundles):
+        return dict(zip(self.PIPELINE_KEYS, piface_config_bundles))
+
+
+    @pytest.fixture(scope="function", autouse=True)
+    def apply_envvars(self, request):
+        """ Use environment variables temporarily. """
+
+        if "envvars" not in request.fixturenames:
+            # We're autousing, so check for the relevant fixture.
+            return
+
+        original_envvars = {}
+        new_envvars = request.getfixturevalue("envvars")
+
+        # Remember values that are replaced as variables are updated.
+        for name, value in new_envvars.items():
+            try:
+                original_envvars[name] = os.environ[name]
+            except KeyError:
+                pass
+            os.environ[name] = value
+
+        def restore():
+            # Restore swapped variables and delete added ones.
+            for k, v in new_envvars.items():
+                try:
+                    os.environ[k] = original_envvars[k]
+                except KeyError:
+                    del os.environ[k]
+        request.addfinalizer(restore)
+
+
+    def test_no_path(self, piface_config_bundles, pipe_iface_data):
+        """ PipelineInterface config sections need not specify path. """
+        pi = PipelineInterface(pipe_iface_data)
+        for pipe_key in self.PIPELINE_KEYS:
+            piface_config = pi[pipe_key]
+            # Specific negative test of interest.
+            assert "path" not in piface_config
+            # Positive control validation.
+            assert pipe_iface_data[pipe_key] == piface_config
+
+
+    @pytest.mark.parametrize(
+            argnames=["pipe_path", "envvars", "expected"],
+            argvalues=RELATIVE_PATH_DATA)
+    def test_relative_path(self, piface_config_bundles, pipe_iface_data,
+                           pipe_path, envvars, expected, apply_envvars):
+        """
+        PipelineInterface construction expands pipeline path.
+
+        Environment variable(s) expand(s), but the path remains relative
+        if specified as such, deferring the joining with pipelines location
+        until used.
+
+        """
+        for add_path, pipe_key in zip(self.ADD_PATH, self.PIPELINE_KEYS):
+            if add_path:
+                pipe_iface_data[pipe_key]["path"] = pipe_path
+        pi = PipelineInterface(pipe_iface_data)
+        for add_path, pipe_key in zip(self.ADD_PATH, self.PIPELINE_KEYS):
+            if add_path:
+                assert expected == pi[pipe_key]["path"]
+            else:
+                assert "path" not in pi[pipe_key]
+
+
+    @pytest.mark.skip("Not implemented")
+    def test_path_expansion(self, piface_config_bundles, pipe_iface_data):
+        pass
 
 
 

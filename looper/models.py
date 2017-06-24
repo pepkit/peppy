@@ -2091,6 +2091,9 @@ class PipelineInterface(object):
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)
 
+        # Ensure that each pipeline path, if provided, is expanded.
+        self._expand_paths()
+
 
     def __getitem__(self, item):
         try:
@@ -2105,11 +2108,21 @@ class PipelineInterface(object):
 
 
     def __repr__(self):
-        source = self.pipe_iface_file or "mapping"
+        source = self.pipe_iface_file or "Mapping"
         num_pipelines = len(self.pipe_iface_config)
         pipelines = ", ".join(self.pipe_iface_config.keys())
         return "{} from {}, with {} pipeline(s): {}".format(
                 self.__class__.__name__, source, num_pipelines, pipelines)
+
+
+    def _expand_paths(self):
+        for pipe_data in self.pipe_iface_config.values():
+            if "path" in pipe_data:
+                pipe_path = pipe_data["path"]
+                _LOGGER.log(5, "Expanding path: '%s'", pipe_path)
+                pipe_path = expandpath(pipe_path)
+                _LOGGER.log(5, "Expanded: '%s'", pipe_path)
+                pipe_data["path"] = pipe_path
 
 
     @property
@@ -2545,9 +2558,6 @@ class ProtocolInterface(object):
         if self.pipe_iface.get_attribute(strict_pipeline_key, "path"):
             script_path_only = self.pipe_iface.get_attribute(
                     strict_pipeline_key, "path")[0].strip()
-            _LOGGER.log(5, "Expanding path: '%s'", script_path_only)
-            script_path_only = expandpath(script_path_only)
-            _LOGGER.log(5, "Expanded: '%s'", script_path_only)
             script_path_with_flags = \
                     " ".join([script_path_only, pipeline_key_args])
         else:

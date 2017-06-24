@@ -61,6 +61,7 @@ class ObjectRepresentationSmokeTests:
         assert str is type(getattr(class_name, method_name).__call__())
 
 
+
 @pytest.mark.usefixtures("write_project_files")
 class AttributeDictRepresentationSmokeTests:
     """ Non-fail validation of AttributeDict representations. """
