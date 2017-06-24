@@ -54,12 +54,6 @@ def pytest_generate_tests(metafunc):
     else:
         for name, values in parameters.items():
             metafunc.parametrize(argnames=name, argvalues=values)
-    if metafunc.cls == ConstructorPathParsingTests:
-        # Provide test case with two PipelineInterface config bundles.
-        metafunc.parametrize(
-                argnames="piface_config_bundles",
-                argvalues=[(atacseq_iface_without_resources(),
-                            {"name": "sans-path"})])
 
 
 
@@ -358,75 +352,6 @@ class PipelineInterfaceResourcePackageTests:
         for pipe_name in pi.pipeline_names:
             with pytest.raises(KeyError):
                 pi.choose_resource_package(pipe_name, random.randrange(0, 10))
-
-
-
-@pytest.fixture(scope="function")
-def atacseq_iface_without_resources():
-    """
-    Provide the ATAC-Seq pipeline interface as a fixture, without resources.
-
-    Note that this represents the configuration data for the interface for a
-    single pipeline. In order to use this in the form that a PipelineInterface
-    expects, this needs to be the value to which a key is mapped within a
-    larger Mapping.
-
-    :return Mapping: all of the pipeline interface configuration data for
-        ATAC-Seq, minus the resources section
-    """
-    return {
-        "name": "ATACseq",
-        "looper_args": True,
-        "required_input_files": ["read1", "read2"],
-        "all_input_files": ["read1", "read2"],
-        "ngs_input_files": ["read1", "read2"],
-        "arguments": {
-            "--sample-name": "sample_name",
-            "--genome": "genome",
-            "--input": "read1",
-            "--input2": "read2",
-            "--single-or-paired": "read_type"
-        },
-        "optional_arguments": {
-            "--frip-ref-peaks": "FRIP_ref",
-            "--prealignments": "prealignments",
-            "--genome-size": "macs_genome_size"
-        }
-    }
-
-
-
-@pytest.fixture(scope="function")
-def piface_config_bundles(request, resources):
-    """
-    Provide the ATAC-Seq pipeline interface as a fixture, including resources.
-
-    Note that this represents the configuration data for the interface for a
-    single pipeline. In order to use this in the form that a PipelineInterface
-    expects, this needs to be the value to which a key is mapped within a
-    larger Mapping.
-
-    :param pytest._pytest.fixtures.SubRequest request: hook into test case
-        requesting this fixture, which is queried for a resources value with
-        which to override the default if it's present.
-    :param Mapping resources: pipeline interface resource specification
-    :return Iterable[Mapping]: collection of bundles of pipeline interface
-        configuration bundles
-    """
-    iface_config_datas = request.getfixturevalue("config_bundles")
-    if isinstance(iface_config_datas, Mapping):
-        data_bundles = iface_config_datas.values()
-    elif isinstance(iface_config_datas, Iterable):
-        data_bundles = iface_config_datas
-    else:
-        raise TypeError("Expected mapping or list collection of "
-                        "PipelineInterface data: {} ({})".format(
-                iface_config_datas, type(iface_config_datas)))
-    resources = request.getfixturevalue("resources") \
-            if "resources" in request.fixturenames else resources
-    for config_bundle in data_bundles:
-        config_bundle.update(resources)
-    return iface_config_datas
 
 
 
