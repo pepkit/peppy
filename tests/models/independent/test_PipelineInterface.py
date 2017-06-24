@@ -6,11 +6,6 @@ import itertools
 import logging
 import os
 import random
-import sys
-if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping
-else:
-    from collections.abc import Iterable, Mapping
 
 import mock
 import pytest
@@ -31,15 +26,6 @@ _LOGGER = logging.getLogger(__name__)
 # Values with which to build pipeline interface keys and names
 PIPELINE_NAMES = ["ATACseq", "WGBS"]
 EXTENSIONS = [".py", ".sh", ".R"]
-
-# Compute resource bundles for pipeline interface configuration data
-DEFAULT_RESOURCES = {"file_size": 0, "cores": 1, "mem": 8000,
-                     "time": "0-01:00:00", "partition": "local"}
-MIDSIZE_RESOURCES = {"file_size": 10, "cores": 8, "mem": 16000,
-                     "time": "0-07:00:00", "partition": "serial"}
-HUGE_RESOURCES = {"file_size": 30, "cores": 24, "mem": 64000,
-                  "time": "30-00:00:00", "partition": "longq"}
-HUGE_RESOURCES_NAME = "huge"
 
 
 
@@ -64,14 +50,6 @@ def basic_pipe_iface_data(request):
             if "extension" in request.fixturenames else ".py"
     return {pipe_name + extension: {"name": pipe_name}
             for pipe_name in PIPELINE_NAMES}
-
-
-
-@pytest.fixture(scope="function")
-def resources():
-    """ Basic PipelineInterface compute resources data. """
-    return {DEFAULT_COMPUTE_RESOURCES_NAME: copy.deepcopy(DEFAULT_RESOURCES),
-            "huge": copy.copy(HUGE_RESOURCES)}
 
 
 
@@ -185,7 +163,7 @@ class PipelineInterfaceResourcePackageTests:
 
 
     def test_requires_default(
-            self, use_new_file_size, pi_with_resources):
+            self, use_new_file_size, pi_with_resources, huge_resources):
         """ If provided, resources specification needs 'default.' """
         pi = pi_with_resources
         for name, pipeline in pi:
@@ -197,7 +175,7 @@ class PipelineInterfaceResourcePackageTests:
             assert "default" not in pipeline["resources"]
             with pytest.raises(_InvalidResourceSpecificationException):
                 pi.choose_resource_package(
-                        name, file_size=HUGE_RESOURCES["file_size"] + 1)
+                        name, file_size=huge_resources["file_size"] + 1)
 
 
     def test_negative_file_size_request(
@@ -229,11 +207,11 @@ class PipelineInterfaceResourcePackageTests:
                        (16, "midsize"), (64, "huge")])
     def test_selects_proper_resource_package(
             self, use_new_file_size, pi_with_resources,
-            file_size, expected_package_name):
+            file_size, expected_package_name, midsize_resources):
         """ Minimal resource package sufficient for pipeline and file size. """
         for pipe_data in pi_with_resources.pipelines:
             pipe_data["resources"].update(
-                    {"midsize": copy.deepcopy(MIDSIZE_RESOURCES)})
+                    {"midsize": copy.deepcopy(midsize_resources)})
         for pipe_name, pipe_data in pi_with_resources:
             observed_package = pi_with_resources.choose_resource_package(
                 pipe_name, file_size)
@@ -257,7 +235,8 @@ class PipelineInterfaceResourcePackageTests:
 
 
     def test_file_size_spec_not_required_for_default(
-            self, use_new_file_size, basic_pipe_iface_data):
+            self, use_new_file_size, basic_pipe_iface_data, 
+            default_resources, huge_resources, midsize_resources):
         """ Default package implies minimum file size of zero. """
 
         def clear_file_size(resource_package):
@@ -269,7 +248,7 @@ class PipelineInterfaceResourcePackageTests:
         resources_data = dict(zip(
                 ["default", "midsize", "huge"],
                 [copy.deepcopy(data) for data in
-                 [DEFAULT_RESOURCES, MIDSIZE_RESOURCES, HUGE_RESOURCES]]))
+                 [default_resources, midsize_resources, huge_resources]]))
         for pack_name, pack_data in resources_data.items():
             # Use file size spec name as appropriate; clean default package.
             if pack_name == "default":
@@ -326,13 +305,14 @@ class PipelineInterfaceResourcePackageTests:
 
 
     def test_file_size_spec_required_for_non_default_packages(
-            self, use_new_file_size, basic_pipe_iface_data):
+            self, use_new_file_size, basic_pipe_iface_data, 
+            default_resources, huge_resources):
         """ Resource packages besides default require file size. """
 
         # Establish the resource specification.
         resource_package_data = {
-                "default": copy.deepcopy(DEFAULT_RESOURCES),
-                "huge": copy.deepcopy(HUGE_RESOURCES)}
+                "default": copy.deepcopy(default_resources),
+                "huge": copy.deepcopy(huge_resources)}
 
         # Remove file size for non-default; set it for default.
         del resource_package_data["huge"]["file_size"]
@@ -406,7 +386,8 @@ class ConstructorPathParsingTests:
         request.addfinalizer(restore)
 
 
-    def test_no_path(self, piface_config_bundles, pipe_iface_data):
+    def test_no_path(self, config_bundles, piface_config_bundles,
+                     pipe_iface_data):
         """ PipelineInterface config sections need not specify path. """
         pi = PipelineInterface(pipe_iface_data)
         for pipe_key in self.PIPELINE_KEYS:
@@ -420,8 +401,9 @@ class ConstructorPathParsingTests:
     @pytest.mark.parametrize(
             argnames=["pipe_path", "envvars", "expected"],
             argvalues=RELATIVE_PATH_DATA)
-    def test_relative_path(self, piface_config_bundles, pipe_iface_data,
-                           pipe_path, envvars, expected, apply_envvars):
+    def test_relative_path(
+            self, config_bundles, piface_config_bundles, pipe_iface_data,
+            pipe_path, envvars, expected, apply_envvars):
         """
         PipelineInterface construction expands pipeline path.
 
@@ -442,7 +424,8 @@ class ConstructorPathParsingTests:
 
 
     @pytest.mark.skip("Not implemented")
-    def test_path_expansion(self, piface_config_bundles, pipe_iface_data):
+    def test_path_expansion(self, config_bundles, piface_config_bundles,
+                            pipe_iface_data):
         pass
 
 

@@ -1,15 +1,27 @@
 """ Configuration for modules with independent tests of models. """
 
+import copy
 import sys
 if sys.version_info < (3, 3):
     from collections import Iterable, Mapping
 else:
     from collections.abc import Iterable, Mapping
 import pytest
+from looper.models import DEFAULT_COMPUTE_RESOURCES_NAME
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
+
+
+
+# Compute resource bundles for pipeline interface configuration data
+DEFAULT_RESOURCES = {"file_size": 0, "cores": 1, "mem": 8000,
+                     "time": "0-01:00:00", "partition": "local"}
+MIDSIZE_RESOURCES = {"file_size": 10, "cores": 8, "mem": 16000,
+                     "time": "0-07:00:00", "partition": "serial"}
+HUGE_RESOURCES = {"file_size": 30, "cores": 24, "mem": 64000,
+                  "time": "30-00:00:00", "partition": "longq"}
 
 
 
@@ -21,11 +33,10 @@ def pytest_generate_tests(metafunc):
         # Some functions don't belong to a class.
         pass
     else:
-        if classname in ["ConstructorPathParsingTests",
-                         "PipelinePathResolutionTests"]:
+        if classname == "ConstructorPathParsingTests":
             # Provide test case with two PipelineInterface config bundles.
             metafunc.parametrize(
-                    argnames="piface_config_bundles",
+                    argnames="config_bundles",
                     argvalues=[(atacseq_iface_without_resources(),
                                 {"name": "sans-path"})])
 
@@ -67,6 +78,41 @@ def atacseq_iface_without_resources():
 
 
 @pytest.fixture(scope="function")
+def atacseq_piface_data(atacseq_iface_without_resources, resources):
+    """
+    Provide a test case with data for an ATACSeq PipelineInterface.
+
+    :param dict atacseq_iface_without_resources: PipelineInterface config
+        data, minus a resources section
+    :param Mapping resources: resources section of PipelineInterface
+        configuration data
+    :return dict: configuration data needed to create PipelineInterface
+    """
+    piface = copy.deepcopy(atacseq_iface_without_resources)
+    piface.update(resources)
+    return {"ATACSeq.py": piface}
+
+
+
+@pytest.fixture(scope="function")
+def default_resources():
+    return copy.deepcopy(DEFAULT_RESOURCES)
+
+
+
+@pytest.fixture(scope="function")
+def huge_resources():
+    return copy.deepcopy(HUGE_RESOURCES)
+
+
+
+@pytest.fixture(scope="function")
+def midsize_resources():
+    return copy.deepcopy(MIDSIZE_RESOURCES)
+
+
+
+@pytest.fixture(scope="function")
 def piface_config_bundles(request, resources):
     """
     Provide the ATAC-Seq pipeline interface as a fixture, including resources.
@@ -97,3 +143,11 @@ def piface_config_bundles(request, resources):
     for config_bundle in data_bundles:
         config_bundle.update(resources)
     return iface_config_datas
+
+
+
+@pytest.fixture(scope="function")
+def resources():
+    """ Basic PipelineInterface compute resources data. """
+    return {DEFAULT_COMPUTE_RESOURCES_NAME: copy.deepcopy(DEFAULT_RESOURCES),
+            "huge": copy.copy(HUGE_RESOURCES)}
