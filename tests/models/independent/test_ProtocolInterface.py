@@ -107,22 +107,30 @@ class PipelinePathResolutionTests:
         """ Relative pipeline path is made absolute when requested by key. """
         # TODO: constant-ify "path" and "ATACSeq.py", as well as possibly "pipelines"
         # and "protocol_mapping" section names of PipelineInterface
-        exp_pipe_path = os.path.join(
+        exp_path = os.path.join(
                 tmpdir.strpath, pipe_path, atac_pipe_name)
         piface = ProtocolInterface(path_config_file)
-        _, obs_pipe_path, _ = piface.finalize_pipeline_key_and_paths(
-                atac_pipe_name)
-        assert exp_pipe_path == obs_pipe_path
+        _, obs_path, _ = piface.finalize_pipeline_key_and_paths(atac_pipe_name)
+        assert exp_path == obs_path
 
 
-    @pytest.mark.skip("Not implemented")
-    def test_absolute_path(self, piface_config):
-        pass
-
-
-    @pytest.mark.skip("Not implemented")
-    def test_pipeline_interface_path(self, piface_config):
-        pass
+    @pytest.mark.parametrize(
+            argnames=["pipe_path", "expected_path_base"],
+            argvalues=[(os.path.join("$HOME", "code-base-home", "biopipes"),
+                        os.path.join(os.path.expandvars("$HOME"),
+                                "code-base-home", "biopipes")),
+                       (os.path.join("~", "bioinformatics-pipelines"),
+                        os.path.join(os.path.expanduser("~"),
+                                     "bioinformatics-pipelines"))])
+    def test_absolute_path(
+            self, atacseq_piface_data, path_config_file, tmpdir, pipe_path,
+            expected_path_base, atac_pipe_name):
+        """ Absolute path regardless of variables works as pipeline path. """
+        exp_path = os.path.join(
+                tmpdir.strpath, expected_path_base, atac_pipe_name)
+        piface = ProtocolInterface(path_config_file)
+        _, obs_path, _ = piface.finalize_pipeline_key_and_paths(atac_pipe_name)
+        assert exp_path == obs_path
 
 
 
