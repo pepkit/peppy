@@ -15,11 +15,14 @@ __email__ = "vreuter@virginia.edu"
 
 def _write_config_data(protomap, conf_data, dirpath):
     """
+    Write ProtocolInterface data to (temp)file.
 
-    :param protomap
-    :param conf_data: 
-    :param dirpath: 
-    :return: 
+    :param Mapping protomap: mapping from protocol name to pipeline key/name
+    :param Mapping conf_data: mapping from pipeline key/name to configuration
+        data for a PipelineInterface
+    :param str dirpath: path to filesystem location in which to place the
+        file to write
+    :return str: path to the (temp)file written
     """
     full_conf_data = {"protocol_mapping": protomap, "pipelines": conf_data}
     filepath = os.path.join(dirpath, "pipeline_interface.yaml")

@@ -913,9 +913,26 @@ class Project(AttributeDict):
                           format(len(new_scripts), protocol,
                                  proto_iface.source, new_scripts))
 
-            new_jobs = [proto_iface.create_submission_bundle(pipeline_key,
-                                                             protocol)
-                        for pipeline_key in new_scripts]
+            # For each pipeline script to which this protocol will pertain,
+            # create the new jobs/submission bundles.
+            new_jobs = []
+            for pipeline_key in new_scripts:
+                # Determine how to reference the pipeline and where it is.
+                strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
+                        proto_iface.finalize_pipeline_key_and_paths(
+                                pipeline_key)
+                # Determine which interface and Sample subtype to use.
+                sample_subtype = \
+                        proto_iface.fetch_sample_subtype(
+                                protocol, strict_pipe_key, full_pipe_path)
+                # Package the pipeline's interface, subtype, command, and key.
+                submission_bundle = SubmissionBundle(
+                        proto_iface.pipe_iface, sample_subtype,
+                        strict_pipe_key, full_pipe_path_with_flags)
+                # Add this bundle to the collection of ones relevant for the
+                # current ProtocolInterface.
+                new_jobs.append(submission_bundle)
+
             job_submission_bundles.append(new_jobs)
 
         # Repeat logic check of short-circuit conditional to account for
@@ -2448,23 +2465,22 @@ class ProtocolInterface(object):
         return "ProtocolInterface from '{}'".format(self.source or "Mapping")
 
 
-    def create_submission_bundle(self, pipeline_key, protocol):
+    def fetch_sample_subtype(
+            self, protocol, strict_pipe_key, full_pipe_path):
         """
-        Create the collection of values needed to submit Sample for processing.
+        Determine the interface and Sample subtype for a protocol and pipeline.
 
-        :param str pipeline_key: key for specific pipeline in a pipeline
-            interface mapping declaration
         :param str protocol: name of the relevant protocol
-        :return SubmissionBundle: a namedtuple with this ProtocolInterface's
-            PipelineInterface, the Sample subtype to use for the submission,
-            the pipeline (script) key, and the full pipeline path with
-            command-line flags
+        :param str strict_pipe_key: key for specific pipeline in a pipeline
+            interface mapping declaration
+        :param str full_pipe_path: (absolute, expanded) path to the
+            pipeline script
+        :return type: Sample subtype to use for jobs for the given protocol,
+            that use the pipeline indicated
         """
 
         subtype = None
 
-        strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
-                self.finalize_pipeline_key_and_paths(pipeline_key)
         this_pipeline_data = self.pipe_iface[strict_pipe_key]
 
         try:
@@ -2507,8 +2523,7 @@ class ProtocolInterface(object):
         subtype = subtype or \
                   _import_sample_subtype(full_pipe_path, subtype_name)
         _LOGGER.debug("Using Sample subtype: %s", subtype.__name__)
-        return SubmissionBundle(self.pipe_iface, subtype,
-                                strict_pipe_key, full_pipe_path_with_flags)
+        return subtype
 
 
     def fetch(self, protocol):
