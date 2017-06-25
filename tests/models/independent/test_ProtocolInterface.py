@@ -133,6 +133,12 @@ class PipelinePathResolutionTests:
         assert exp_path == obs_path
 
 
+    @pytest.mark.skip("Not implemented")
+    def test_warns_about_nonexistent_pipeline_script_path(self):
+        """ Nonexistent, resolved pipeline script path generates warning. """
+        pass
+
+
 
 @pytest.mark.skip("Not implemented")
 class ProtocolInterfacePipelineSampleSubtypeTests:

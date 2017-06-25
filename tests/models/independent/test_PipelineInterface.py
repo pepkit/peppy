@@ -347,9 +347,17 @@ class ConstructorPathParsingTests:
             ("path/to/$TEMP_PIPE_LOCS",
              {"TEMP_PIPE_LOCS": "validation-value"},
              "path/to/validation-value")]
-    ABSOLUTE_PATHS = [os.path.join("~", "code_home", "bioinformatics"),
-                      os.path.join("$TEMP_TEST_HOME", "subfolder"),
-                      os.path.join("~", "$TEMPORARY_SUBFOLDER", "leaf")]
+    ABSOLUTE_PATHS = [
+            os.path.join("~", "code_home", "bioinformatics"),
+            os.path.join("$TEMP_TEST_HOME", "subfolder"),
+            os.path.join("~", "$TEMPORARY_SUBFOLDER", "leaf")]
+    ABSPATH_ENVVARS = {"TEMP_TEST_HOME": "tmptest-home-folder",
+                       "TEMPORARY_SUBFOLDER": "temp-subfolder"}
+    EXPECTED_PATHS_ABSOLUTE = [
+            os.path.join(os.path.expanduser("~"), "code_home",
+                         "bioinformatics"),
+            os.path.join("tmptest-home-folder", "subfolder"),
+            os.path.join(os.path.expanduser("~"), "temp-subfolder", "leaf")]
 
 
     @pytest.fixture(scope="function")
@@ -423,10 +431,20 @@ class ConstructorPathParsingTests:
                 assert "path" not in pi[pipe_key]
 
 
-    @pytest.mark.skip("Not implemented")
-    def test_path_expansion(self, config_bundles, piface_config_bundles,
-                            pipe_iface_data):
-        pass
+    @pytest.mark.parametrize(
+            argnames=["pipe_path", "envvars", "expected"],
+            argvalues=zip(ABSOLUTE_PATHS,
+                          len(ABSOLUTE_PATHS) * [ABSPATH_ENVVARS],
+                          EXPECTED_PATHS_ABSOLUTE))
+    def test_path_expansion(
+            self, pipe_path, envvars, expected,
+            config_bundles, piface_config_bundles, pipe_iface_data):
+        """ User/environment variables are expanded. """
+        for piface_data in pipe_iface_data.values():
+            piface_data["path"] = pipe_path
+        pi = PipelineInterface(pipe_iface_data)
+        for _, piface_data in pi:
+            assert expected == piface_data["path"]
 
 
 
