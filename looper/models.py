@@ -2571,13 +2571,18 @@ class ProtocolInterface(object):
             script_path_with_flags = pipeline_key 
 
         if not _os.path.isabs(script_path_only):
+            _LOGGER.log(5, "Expanding non-absolute script path: '%s'",
+                        script_path_only)
             script_path_only = _os.path.join(
                     self.pipelines_path, script_path_only)
+            _LOGGER.log(5, "Absolute script path: '%s'", script_path_only)
             script_path_with_flags = _os.path.join(
                     self.pipelines_path, script_path_with_flags)
+            _LOGGER.log(5, "Absolute script path with flags: '%s'",
+                        script_path_with_flags)
         if not _os.path.exists(script_path_only):
             _LOGGER.warn(
-                    "Missing script command: '{}'".format(script_path_only))
+                    "Missing pipeline script: '%s'", script_path_only)
 
         return strict_pipeline_key, script_path_only, script_path_with_flags
 

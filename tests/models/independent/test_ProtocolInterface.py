@@ -80,22 +80,23 @@ class PipelinePathResolutionTests:
         assert expected_pipe_path == full_pipe_path
 
 
-    def test_relpath_drops_dot_and_becomes_absolute(
+    def test_relpath_with_dot_becomes_absolute(
             self, tmpdir, atac_pipe_name, atacseq_piface_data):
         """ Leading dot drops from relative path, and it's made absolute. """
-        path_parts = ["relpath", "to", "pipelines"]
+        path_parts = ["relpath", "to", "pipelines", atac_pipe_name]
         sans_dot_path = os.path.join(*path_parts)
         pipe_path = os.path.join(".", sans_dot_path)
         atacseq_piface_data[atac_pipe_name]["path"] = pipe_path
 
-        exp_path = os.path.join(tmpdir.strpath, sans_dot_path, atac_pipe_name)
+        exp_path = os.path.join(tmpdir.strpath, sans_dot_path)
 
         path_config_file = _write_config_data(
                 protomap={"ATAC": atac_pipe_name},
                 conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
         piface = ProtocolInterface(path_config_file)
         _, obs_path, _ = piface.finalize_pipeline_key_and_paths(atac_pipe_name)
-        assert exp_path == obs_path
+        # Dot may remain in path, so assert equality of absolute paths.
+        assert os.path.abspath(exp_path) == os.path.abspath(obs_path)
 
 
     @pytest.mark.parametrize(
