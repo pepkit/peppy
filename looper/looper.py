@@ -821,7 +821,6 @@ def main():
     # Parse command-line arguments and establish logger.
     args, remaining_args = parse_arguments()
 
-    
     _LOGGER.info("Command: {} (Looper version: {})".
                  format(args.command, __version__))
     # Initialize project

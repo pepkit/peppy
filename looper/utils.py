@@ -2,8 +2,11 @@
 
 from argparse import ArgumentParser
 from collections import Counter, defaultdict, Iterable
+import contextlib
 import logging
 import os
+import random
+import string
 import subprocess as sp
 import yaml
 from ._version import __version__
@@ -128,16 +131,14 @@ def get_file_size(filename):
 
 
 
-def import_from_source(name, module_filepath):
+def import_from_source(module_filepath):
     """
     Import a module from a particular filesystem location.
 
-    :param str name: name for the module when loaded
     :param str module_filepath: path to the file that constitutes the module
         to import
     :return module: module imported from the given location, named as indicated
     :raises ValueError: if path provided does not point to an extant file
-    :raises ImportError: if path provided is indeed an existing file, but the
     """
     import sys
 
@@ -145,16 +146,11 @@ def import_from_source(name, module_filepath):
         raise ValueError("Path to alleged module file doesn't point to an "
                          "extant file: '{}'".format(module_filepath))
 
-    # We just want the module object, not the effect of altering modules.
-    try:
-        module_to_restore = sys.modules[name]
-    except KeyError:
-        def cleanup():
-            del sys.modules[name]
-    else:
-        def cleanup():
-            sys.modules[name] = module_to_restore
+    # Randomly generate module name.
+    fname_chars = string.ascii_letters + string.digits
+    name = "".join(random.choice(fname_chars) for _ in range(20))
 
+    # Import logic is version-dependent.
     if sys.version_info >= (3, 5):
         from importlib import util as _il_util
         modspec = _il_util.spec_from_file_location(
@@ -170,7 +166,6 @@ def import_from_source(name, module_filepath):
         loader = _il_mach.SourceFileLoader(name, module_filepath)
         mod = loader.load_module()
 
-    cleanup()
     return mod
 
 
@@ -250,6 +245,18 @@ def partition(items, test):
         group = passes if test(item) else fails
         group.append(item)
     return passes, fails
+
+
+
+@contextlib.contextmanager
+def standard_stream_redirector(stream):
+    import sys
+    genuine_stdout, genuine_stderr = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = stream, stream
+    try:
+        yield
+    finally:
+        sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
 
 
 

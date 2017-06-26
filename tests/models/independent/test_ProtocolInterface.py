@@ -1,10 +1,14 @@
 """ Tests for ProtocolInterface, for Project/PipelineInterface interaction. """
 
-import __builtin__
 import inspect
 import itertools
 import logging
 import os
+import sys
+if sys.version_info < (3, ):
+    import __builtin__ as builtins
+else:
+    import builtins
 
 import mock
 import pytest
@@ -34,11 +38,11 @@ CUSTOM_EXCEPTIONS = [CustomExceptionA, CustomExceptionB]
 
 # Test case parameterization, but here for import locality and
 # to reduce clutter in the pararmeterization declaration.
-BUILTIN_EXCEPTIONS_WITHOUT_REQUIRED_ARGUMENTS = \
-        list(zip(*inspect.getmembers(
-                __builtin__, lambda o: inspect.isclass(o) and
+_, BUILTIN_EXCEPTIONS_WITHOUT_REQUIRED_ARGUMENTS = \
+        list(map(list, zip(*inspect.getmembers(
+                builtins, lambda o: inspect.isclass(o) and
                                        issubclass(o, BaseException) and
-                                       not issubclass(o, UnicodeError)))[1])
+                                       not issubclass(o, UnicodeError)))))
 
 
 
@@ -372,8 +376,7 @@ class SampleSubtypeTests:
         if decoy_class:
             class_lines_pool.append(non_sample_class_lines)
         for lines_order in itertools.permutations(class_lines_pool):
-            path_module_file = _create_module(
-                    lines_by_class=lines_order, filepath=pipe_path)
+            _create_module(lines_by_class=lines_order, filepath=pipe_path)
             subtype = piface.fetch_sample_subtype(
                     protocol=ATAC_PROTOCOL_NAME,
                     strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
@@ -381,12 +384,12 @@ class SampleSubtypeTests:
                 exp_subtype_name = "{}0".format(sample_subclass_basename)
             else:
                 exp_subtype_name = Sample.__name__
-            # DEBUG
             try:
                 assert exp_subtype_name == subtype.__name__
             except AssertionError:
                 with open(pipe_path, 'r') as f:
-                    print("LINES: {}".format("\n".join(f.readlines())))
+                    print("PIPELINE MODULE LINES: {}".
+                          format("".join(f.readlines())))
                 raise
 
 

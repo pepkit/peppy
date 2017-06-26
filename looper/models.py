@@ -67,7 +67,8 @@ import yaml
 
 from .utils import \
     alpha_cased, check_bam, check_fastq, expandpath, \
-    get_file_size, import_from_source, parse_ftype, partition
+    get_file_size, import_from_source, parse_ftype, partition, \
+    standard_stream_redirector
 
 
 # TODO: decide if we want to denote functions for export.
@@ -172,7 +173,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     merged_cols = {}
 
     if merge_table is None:
-        _LOGGER.debug("No data for sample merge, skipping")
+        _LOGGER.log(5, "No data for sample merge, skipping")
         return merged_cols
 
     if SAMPLE_NAME_COLNAME not in merge_table.columns:
@@ -1105,10 +1106,10 @@ class Project(AttributeDict):
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks data source; skipping "
+                _LOGGER.log(5, "Sample '%s' lacks data source; skipping "
                               "data path assignment", sample.sample_name)
             else:
-                _LOGGER.debug("Path to sample data: '%s'", sample.data_source)
+                _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
 
         return samples
@@ -2788,26 +2789,34 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     """
     base_type = Sample
 
-    _, modname = _os.path.split(pipeline_filepath)
-    modname, _ = _os.path.splitext(modname)
-
     try:
-        _LOGGER.debug("Attempting to import module defined by {}, "
-                      "calling it {}".format(pipeline_filepath, modname))
-        pipeline_module = import_from_source(
-            name=modname, module_filepath=pipeline_filepath)
+        _LOGGER.debug("Attempting to import module defined by {}".
+                      format(pipeline_filepath))
+        # TODO: consider more fine-grained control here. What if verbose
+        # TODO: logging is only to file, not to stdout/err?
+        if _LOGGER.getEffectiveLevel() > logging.DEBUG:
+            with open(_os.devnull, 'w') as temp_standard_streams:
+                with standard_stream_redirector(temp_standard_streams):
+                    pipeline_module = import_from_source(pipeline_filepath)
+        else:
+            pipeline_module = import_from_source(pipeline_filepath)
+
     except SystemExit:
         # SystemExit would be caught as BaseException, but SystemExit is
         # particularly suggestive of an a script without a conditional
         # check on __main__, and as such warrant a tailored message.
         _LOGGER.warn("'%s' appears to attempt to run on import; "
-                     "does it lack a conditional on __main__? Using base %s",
-                     base_type.__name__)
+                     "does it lack a conditional on '__main__'? "
+                     "Using base type: %s",
+                     pipeline_filepath, base_type.__name__)
         return base_type
+
     except (BaseException, Exception) as e:
         _LOGGER.warn("Using base %s because of failure in attempt to "
-                     "import pipeline module: %s", base_type.__name__, e)
+                     "import pipeline module '%s': %r",
+                     base_type.__name__, pipeline_filepath, e)
         return base_type
+
     else:
         _LOGGER.debug("Successfully imported pipeline module '%s', "
                       "naming it '%s'", pipeline_filepath,
@@ -2824,9 +2833,9 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
 
     # Base Sample could be imported; we want the true subtypes.
-    proper_subtypes = filter(
+    proper_subtypes = list(filter(
             lambda c: issubclass(c, base_type) and c != base_type,
-            classes)
+            classes))
     _LOGGER.debug("%d %s subtype(s): %s", len(proper_subtypes),
                   base_type.__name__, class_names(proper_subtypes))
 
