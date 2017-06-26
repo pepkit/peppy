@@ -2765,15 +2765,6 @@ class _MissingPipelineConfigurationException(Exception):
 
 
 
-class _UndefinedSampleSubtypeException(Exception):
-    """ Sample subtype--if declared in PipelineInterface--must be found. """
-    def __init__(self, subtype_name, pipeline_filepath):
-        reason = "Sample subtype {} cannot be imported from '{}'".\
-                format(subtype_name, pipeline_filepath)
-        super(_UndefinedSampleSubtypeException, self).__init__(reason)
-
-
-
 def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     """
     Import a particular Sample subclass from a Python module.
@@ -2785,8 +2776,6 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
         be used; otherwise, the base Sample type will be used.
     :return type: the imported class, defaulting to base Sample in case of
         failure with the import or other logic
-    :raises _UndefinedSampleSubtypeException: if the module is imported but
-        type indicated by subtype_name is not found as a class
     """
     base_type = Sample
 
@@ -2863,14 +2852,16 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
                 _LOGGER.debug("Successfully imported %s from '%s'",
                               subtype_name, pipeline_filepath)
                 return st
-        _LOGGER.warn("No %s subtype from '%s' matches '%s'; using base: %s",
-                     base_type.__name__, pipeline_filepath,
-                     subtype_name, base_type.__name__)
-        return base_type
+        raise ValueError(
+                "'{}' matches none of the {} {} subtype(s) defined "
+                "in '{}': {}".format(subtype_name, len(proper_subtypes),
+                                     base_type.__name__, pipeline_filepath,
+                                     class_names(proper_subtypes)))
 
 
 
 def _fetch_classes(mod):
+    """ Return the classes defined in a module. """
     try:
         _, classes = zip(*inspect.getmembers(
                 mod, lambda o: inspect.isclass(o)))
@@ -2881,10 +2872,12 @@ def _fetch_classes(mod):
 
 
 def _proper_subtypes(types, supertype):
+    """ Determine the proper subtypes of a supertype. """
     return list(filter(
             lambda t: issubclass(t, supertype) and t != supertype, types))
 
 
 
 def _is_member(item, items):
+    """ Determine whether an iterm is a member of a collection. """
     return item in items
