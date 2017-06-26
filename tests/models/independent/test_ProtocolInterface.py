@@ -22,7 +22,7 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-ATAC_PROTOCOL_NAME = "atac"
+ATAC_PROTOCOL_NAME = "ATAC"
 
 
 class CustomExceptionA(Exception):
@@ -129,7 +129,7 @@ class PipelinePathResolutionTests:
         exp_path = os.path.join(tmpdir.strpath, sans_dot_path)
 
         path_config_file = _write_config_data(
-                protomap={"ATAC": atac_pipe_name},
+                protomap={ATAC_PROTOCOL_NAME: atac_pipe_name},
                 conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
         piface = ProtocolInterface(path_config_file)
         _, obs_path, _ = piface.finalize_pipeline_key_and_paths(atac_pipe_name)
@@ -319,7 +319,7 @@ class SampleSubtypeTests:
         """ Base Sample is used if builtin exception on pipeline import. """
 
         # Values needed for object creation and function invocation
-        protocol = "ATAC"
+        protocol = ATAC_PROTOCOL_NAME
         protocol_mapping = {protocol: atac_pipe_name}
         full_pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
 
@@ -409,11 +409,52 @@ class SampleSubtypeTests:
 
 
     @pytest.mark.parametrize(
-            argnames="spec_type", argvalues=["singleton", "mapping"])
+            argnames="spec_type", argvalues=[str, dict])
     def test_Sample_as_name(
             self, tmpdir, spec_type, atacseq_piface_data, atac_pipe_name):
         """ A pipeline may redeclare Sample as a subtype name. """
-        pass
+
+        # General values for the test
+        subtype_name = Sample.__name__
+        pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+
+        # Define the subtype in the pipeline module.
+        lines = ["from looper.models import Sample\n",
+                 "class {}({}):\n".format(subtype_name, subtype_name),
+                 "\tdef __init__(self, *args, **kwargs):\n",
+                 "\t\tsuper({}, self).__init__(*args, **kwargs)\n".
+                        format(subtype_name)]
+        with open(pipe_path, 'w') as pipe_module_file:
+            for l in lines:
+                pipe_module_file.write(l)
+
+        # Determine how to specify the subtype.
+        if spec_type is str:
+            section_value = subtype_name
+        elif spec_type is dict:
+            section_value = {ATAC_PROTOCOL_NAME: subtype_name}
+        else:
+            raise ValueError("Unexpected subtype specification: {}".
+                             format(spec_type))
+
+        # Add the subtype specification, create the interface, and get subtype.
+        atacseq_piface_data[atac_pipe_name]["sample_subtypes"] = section_value
+        conf_path = _write_config_data(
+                protomap={ATAC_PROTOCOL_NAME: atac_pipe_name},
+                conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
+        piface = ProtocolInterface(conf_path)
+        subtype = piface.fetch_sample_subtype(
+                protocol=ATAC_PROTOCOL_NAME,
+                strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
+
+        # Establish that subclass relationship is improper.
+        assert issubclass(Sample, Sample)
+        # Our subtype derives from base Sample...
+        assert issubclass(subtype, Sample)
+        # ...but not vice-versa.
+        assert not issubclass(Sample, subtype)
+        # And we retained the name.
+        assert subtype.__name__ == Sample.__name__
 
 
     def test_subtypes_single_name_non_implemented(self):
