@@ -53,8 +53,7 @@ class ProjectConstructorTests:
             argnames="lazy", argvalues=[False, True],
             ids=lambda lazy: "lazy={}".format(lazy))
     def test_no_merge_table_in_config(
-            self, tmpdir, spec_type, lazy,
-            proj_conf_data, path_sample_anns):
+            self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
         """ Merge table attribute remains null if config lacks merge_table. """
         metadata = proj_conf_data["metadata"]
         try:

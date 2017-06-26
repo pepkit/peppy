@@ -53,6 +53,7 @@ from collections import \
     OrderedDict as _OrderedDict
 from functools import partial
 import glob
+import inspect
 import itertools
 import logging
 import os as _os
@@ -2826,20 +2827,15 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
                       "naming it '%s'", pipeline_filepath,
                       pipeline_module.__name__)
 
-    import inspect
     def class_names(cs):
         return ", ".join([c.__name__ for c in cs])
 
     # Find classes from pipeline module and determine which derive from Sample.
-    classes = inspect.getmembers(
-            pipeline_module, lambda obj: inspect.isclass(obj))
-    classes = [klazz for _, klazz in classes]
+    classes = _fetch_classes(pipeline_module)
     _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
 
     # Base Sample could be imported; we want the true subtypes.
-    proper_subtypes = list(filter(
-            lambda c: issubclass(c, base_type) and c != base_type,
-            classes))
+    proper_subtypes = _proper_subtypes(classes, base_type)
     _LOGGER.debug("%d %s subtype(s): %s", len(proper_subtypes),
                   base_type.__name__, class_names(proper_subtypes))
 
@@ -2867,9 +2863,26 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
                 _LOGGER.debug("Successfully imported %s from '%s'",
                               subtype_name, pipeline_filepath)
                 return st
-        _LOGGER.warn("No subtype from '%s' matches '%s'; using base: %s",
-                     pipeline_filepath, subtype_name, base_type.__name__)
+        _LOGGER.warn("No %s subtype from '%s' matches '%s'; using base: %s",
+                     base_type.__name__, pipeline_filepath,
+                     subtype_name, base_type.__name__)
         return base_type
+
+
+
+def _fetch_classes(mod):
+    try:
+        _, classes = zip(*inspect.getmembers(
+                mod, lambda o: inspect.isclass(o)))
+    except ValueError:
+        return []
+    return list(classes)
+
+
+
+def _proper_subtypes(types, supertype):
+    return list(filter(
+            lambda t: issubclass(t, supertype) and t != supertype, types))
 
 
 
