@@ -1,9 +1,13 @@
 """ Tests for ProtocolInterface, for Project/PipelineInterface interaction. """
 
+import __builtin__
+import inspect
 import logging
+import mock
 import os
 import pytest
 import yaml
+import looper
 from looper import models, DEV_LOGGING_FMT
 from looper.models import ProtocolInterface
 
@@ -167,7 +171,101 @@ class PipelinePathResolutionTests:
 
 
 
-@pytest.mark.skip("Not implemented")
-class ProtocolInterfacePipelineSampleSubtypeTests:
+class SampleSubtypeTests:
     """ ProtocolInterface attempts import of pipeline-specific Sample. """
-    pass
+
+    # Basic cases
+    # 1 -- unmapped pipeline
+    # 2 -- subtypes section is single string
+    # 3 -- subtypes section is mapping ()
+    # 4 -- subtypes section is missing (use single Sample subclass if there is one, base Sample for 0 or > 1 Sample subtypes defined)
+    # 5 -- subtypes section is null  --> ALWAYS USE BASE SAMPLE (backdoor user side mechanism for making this be so)
+
+    # Import trouble cases
+    # No __main__
+    # Argument parsing
+    # missing import(s)
+
+    # Subcases
+    # 2 -- single string
+    # 2a -- named class isn't defined in the module
+    # 2b -- named class is in module but isn't defined
+    #
+
+    @pytest.fixture(scope="function")
+    def subtypes_section_single(self, atac_pipe_name):
+        pass
+
+
+    @pytest.fixture(scope="function")
+    def subtypes_section_multiple(self, atac_pipe_name):
+        pass
+
+
+    @pytest.mark.parametrize(
+            argnames="pipe_key",
+            argvalues=["ATAC-Seq.py", "atacseq.py", "ATACSEQ.py", "ATACSEQ",
+                       "atacseq", "ATAC-seq.py", "ATACseq.py"])
+    @pytest.mark.parametrize(
+            argnames="protocol",
+            argvalues=["ATAC-Seq", "ATACSeq", "ATACseq", "ATAC-seq", "ATAC",
+                       "ATACSEQ", "ATAC-SEQ", "atac", "atacseq", "atac-seq"])
+    def test_pipeline_key_close_matches_dont_count(
+            self, tmpdir, pipe_key, protocol, atac_pipe_name,
+            atacseq_iface_with_resources):
+        """ Request for Sample subtype for unmapped pipeline is KeyError. """
+        strict_pipe_key = atac_pipe_name
+        protocol_mapping = {protocol: strict_pipe_key}
+        path_config_file = _write_config_data(
+                protomap=protocol_mapping,
+                conf_data={strict_pipe_key: atacseq_iface_with_resources},
+                dirpath=tmpdir.strpath)
+        piface = ProtocolInterface(path_config_file)
+        full_pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+        with pytest.raises(KeyError):
+            # Mismatch between pipeline key arg and strict key --> KeyError.
+            piface.fetch_sample_subtype(
+                    protocol, pipe_key, full_pipe_path=full_pipe_path)
+
+
+    def test_protocol_match_is_fuzzy(self):
+        """ Punctuation and case mismatches are tolerated in protocol name. """
+        pass
+
+
+    @pytest.mark.parametrize(
+            argnames="error_type",
+            argvalues=zip(*inspect.getmembers(
+                    __builtin__, lambda o: inspect.isclass(o) and
+                                           issubclass(o, BaseException)))[1])
+    def test_problematic_import_builtin_exception(self, error_type):
+        pass
+
+
+    @pytest.mark.parametrize(
+            argnames="error_type",
+            argvalues=zip(*inspect.getmembers(
+                    looper.models, lambda o: inspect.isclass(o) and
+                                             issubclass(o, Exception)))[1])
+    def test_problematic_import_custom_exception(self, error_type):
+        pass
+
+
+    def test_no_subtypes_section(self):
+        pass
+
+
+    def test_subtypes_section_maps_protocol_to_non_sample_subtype(self):
+        pass
+
+
+    def test_subtypes_section_single_subtype_name_is_sample_subtype(self):
+        pass
+
+
+    def test_subtypes_section_single_subtype_name_is_not_sample_subtype(self):
+        pass
+
+
+    def test_subtypes_section_mapping_missing_protocol(self):
+        pass

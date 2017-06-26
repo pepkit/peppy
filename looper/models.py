@@ -2477,6 +2477,8 @@ class ProtocolInterface(object):
             pipeline script
         :return type: Sample subtype to use for jobs for the given protocol,
             that use the pipeline indicated
+        :raises KeyError: if given a pipeline key that's not mapped in this
+            ProtocolInterface instance's PipelineInterface
         """
 
         subtype = None
@@ -2769,11 +2771,14 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
         pipeline_module = import_from_source(
             name=modname, module_filepath=pipeline_filepath)
     except SystemExit:
+        # SystemExit would be caught as BaseException, but SystemExit is
+        # particularly suggestive of an a script without a conditional
+        # check on __main__, and as such warrant a tailored message.
         _LOGGER.warn("'%s' appears to attempt to run on import; "
                      "does it lack a conditional on __main__? Using base %s",
                      base_type.__name__)
         return base_type
-    except Exception as e:
+    except (BaseException, Exception) as e:
         _LOGGER.warn("Using base %s because of failure in attempt to "
                      "import pipeline module: %s", base_type.__name__, e)
         return base_type
