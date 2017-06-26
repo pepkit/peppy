@@ -404,7 +404,7 @@ class SampleSubtypeTests:
             argnames="subtype_name", argvalues=[Sample.__name__])
     def test_Sample_as_name(
             self, tmpdir, subtype_name, atac_pipe_name,
-            atacseq_piface_data_with_subtypes):
+            subtypes_section_spec_type, atacseq_piface_data_with_subtypes):
         """ A pipeline may redeclare Sample as a subtype name. """
 
         # General values for the test
