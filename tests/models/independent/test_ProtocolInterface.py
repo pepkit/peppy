@@ -2,6 +2,7 @@
 
 import __builtin__
 import inspect
+import itertools
 import logging
 import mock
 import os
@@ -9,7 +10,7 @@ import pytest
 import yaml
 import looper
 from looper import models, DEV_LOGGING_FMT
-from looper.models import ProtocolInterface
+from looper.models import ProtocolInterface, Sample
 
 
 __author__ = "Vince Reuter"
@@ -192,6 +193,12 @@ class SampleSubtypeTests:
     # 2b -- named class is in module but isn't defined
     #
 
+    PROTOCOL_NAME_VARIANTS = [
+            "ATAC-Seq", "ATACSeq", "ATACseq", "ATAC-seq", "ATAC",
+            "ATACSEQ", "ATAC-SEQ", "atac", "atacseq", "atac-seq"]
+
+
+
     @pytest.fixture(scope="function")
     def subtypes_section_single(self, atac_pipe_name):
         pass
@@ -204,33 +211,86 @@ class SampleSubtypeTests:
 
     @pytest.mark.parametrize(
             argnames="pipe_key",
-            argvalues=["ATAC-Seq.py", "atacseq.py", "ATACSEQ.py", "ATACSEQ",
-                       "atacseq", "ATAC-seq.py", "ATACseq.py"])
+            argvalues=["{}.py".format(proto) for proto
+                       in PROTOCOL_NAME_VARIANTS])
     @pytest.mark.parametrize(
             argnames="protocol",
-            argvalues=["ATAC-Seq", "ATACSeq", "ATACseq", "ATAC-seq", "ATAC",
-                       "ATACSEQ", "ATAC-SEQ", "atac", "atacseq", "atac-seq"])
-    def test_pipeline_key_close_matches_dont_count(
+            argvalues=PROTOCOL_NAME_VARIANTS)
+    def test_pipeline_key_match_is_strict(
             self, tmpdir, pipe_key, protocol, atac_pipe_name,
             atacseq_iface_with_resources):
         """ Request for Sample subtype for unmapped pipeline is KeyError. """
+
+        # Create the ProtocolInterface.
         strict_pipe_key = atac_pipe_name
         protocol_mapping = {protocol: strict_pipe_key}
-        path_config_file = _write_config_data(
-                protomap=protocol_mapping,
-                conf_data={strict_pipe_key: atacseq_iface_with_resources},
-                dirpath=tmpdir.strpath)
-        piface = ProtocolInterface(path_config_file)
+        confpath = _write_config_data(
+                protomap=protocol_mapping, dirpath=tmpdir.strpath,
+                conf_data={strict_pipe_key: atacseq_iface_with_resources})
+        piface = ProtocolInterface(confpath)
+
+        # The absolute pipeline path is the pipeline name, joined to the
+        # ProtocolInterface's pipelines location. This location is the
+        # location from which a Sample subtype import is attempted.
         full_pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
-        with pytest.raises(KeyError):
-            # Mismatch between pipeline key arg and strict key --> KeyError.
+
+        # TODO: update to pytest.raises(None) if/when 3.1 adoption.
+        # Match between pipeline key specified and the strict key used in
+        # the mapping --> no error while mismatch --> error.
+        if pipe_key == atac_pipe_name:
             piface.fetch_sample_subtype(
-                    protocol, pipe_key, full_pipe_path=full_pipe_path)
+                protocol, pipe_key, full_pipe_path=full_pipe_path)
+        else:
+            with pytest.raises(KeyError):
+                piface.fetch_sample_subtype(
+                        protocol, pipe_key, full_pipe_path=full_pipe_path)
 
 
-    def test_protocol_match_is_fuzzy(self):
+    @pytest.mark.parametrize(
+            argnames=["mapped_protocol", "requested_protocol"],
+            argvalues=itertools.combinations(PROTOCOL_NAME_VARIANTS, 2))
+    def test_protocol_match_is_fuzzy(
+            self, tmpdir, mapped_protocol, atac_pipe_name,
+            requested_protocol, atacseq_piface_data):
         """ Punctuation and case mismatches are tolerated in protocol name. """
-        pass
+
+        # Needed to create the ProtocolInterface.
+        protomap = {mapped_protocol: atac_pipe_name}
+        # Needed to invoke the function under test.
+        full_pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+
+        # PipelineInterface data provided maps name to actual interface data
+        # Mapping, so modify the ATAC-Seq mapping within that.
+        # In this test, we're interested in the resolution of the protocol
+        # name, that with it we can grab the name of a class. Thus, we
+        # need only an arbitrary class name about which we can make the
+        # relevant assertion(s).
+        test_class_name = "TotallyArbitrary"
+        atacseq_piface_data[atac_pipe_name]["sample_subtypes"] = \
+                test_class_name
+
+        # Write out configuration data and create the ProtocolInterface.
+        conf_path = _write_config_data(
+                protomap=protomap, conf_data=atacseq_piface_data,
+                dirpath=tmpdir.strpath)
+        piface = ProtocolInterface(conf_path)
+
+        # Make the call under test, patching the function protected
+        # function that's called iff the protocol name match succeeds.
+        with mock.patch("looper.models._import_sample_subtype",
+                        return_value=None) as mocked_import:
+            # Return value is irrelevant; the effect of the protocol name
+            # match/resolution is entirely observable via the argument to the
+            # protected import function.
+            piface.fetch_sample_subtype(
+                    protocol=requested_protocol,
+                    strict_pipe_key=atac_pipe_name,
+                    full_pipe_path=full_pipe_path)
+        # When the protocol name match/resolution succeeds, the name of the
+        # Sample subtype class to which it was mapped is passed as an
+        # argument to the protected import function.
+        mocked_import.assert_called_with(full_pipe_path, test_class_name)
+
 
 
     @pytest.mark.parametrize(
@@ -239,6 +299,7 @@ class SampleSubtypeTests:
                     __builtin__, lambda o: inspect.isclass(o) and
                                            issubclass(o, BaseException)))[1])
     def test_problematic_import_builtin_exception(self, error_type):
+        """ Base Sample is used if builtin exception on pipeline import. """
         pass
 
 
@@ -248,10 +309,12 @@ class SampleSubtypeTests:
                     looper.models, lambda o: inspect.isclass(o) and
                                              issubclass(o, Exception)))[1])
     def test_problematic_import_custom_exception(self, error_type):
+        """ Base Sample is used if custom exception on pipeline import. """
         pass
 
 
     def test_no_subtypes_section(self):
+        """  """
         pass
 
 

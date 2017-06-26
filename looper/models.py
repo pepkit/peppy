@@ -865,7 +865,7 @@ class Project(AttributeDict):
             if priority and len(job_submission_bundles) > 0:
                 return job_submission_bundles[0]
 
-            this_protocol_pipelines = proto_iface.fetch(protocol)
+            this_protocol_pipelines = proto_iface.fetch_pipelines(protocol)
             if not this_protocol_pipelines:
                 _LOGGER.warn("No mapping for protocol '%s' in %s", 
                              protocol, proto_iface)
@@ -2465,6 +2465,18 @@ class ProtocolInterface(object):
         return "ProtocolInterface from '{}'".format(self.source or "Mapping")
 
 
+    def fetch_pipelines(self, protocol):
+        """
+        Fetch the mapping for a particular protocol, null if unmapped.
+
+        :param str protocol: name/key for the protocol for which to fetch the
+            pipeline(s)
+        :return str | Iterable[str] | NoneType: pipeline(s) to which the given
+            protocol is mapped, otherwise null
+        """
+        return self.protomap.mappings.get(alpha_cased(protocol))
+
+
     def fetch_sample_subtype(
             self, protocol, strict_pipe_key, full_pipe_path):
         """
@@ -2499,21 +2511,26 @@ class ProtocolInterface(object):
             subtype_name = None
         else:
             if subtypes is None:
-                _LOGGER.debug("Null Sample subtypes specified for pipeline: "
-                              "'%s'; using base Sample type", strict_pipe_key)
-                # Designate lack of need to attempt pipeline module import.
+                # Designate lack of need for import attempt and provide
+                # class with name to format message below.
                 subtype = Sample
+                _LOGGER.debug("Null %s subtype(s) section specified for "
+                              "pipeline: '%s'; using base %s type",
+                              subtype.__name__, strict_pipe_key,
+                              subtype.__name__)
             elif isinstance(subtypes, str):
                 subtype_name = subtypes
                 _LOGGER.debug("Single subtype name for pipeline '%s' "
                               "in interface from '%s': '%s'", subtype_name,
                               strict_pipe_key, self.source)
             else:
+                temp_subtypes = {
+                        alpha_cased(p): st for p, st in subtypes.items()}
                 try:
-                    temp_subtypes = {alpha_cased(p): st
-                                     for p, st in subtypes.items()}
                     subtype_name = temp_subtypes[alpha_cased(protocol)]
                 except KeyError:
+                    # Designate lack of need for import attempt and provide
+                    # class with name to format message below.
                     subtype = Sample
                     _LOGGER.debug("No %s subtype specified in interface from "
                                   "'%s': '%s', '%s'; known: %s",
@@ -2523,24 +2540,32 @@ class ProtocolInterface(object):
 
         # subtype_name is defined if and only if subtype remained null.
         subtype = subtype or \
-                  _import_sample_subtype(full_pipe_path, subtype_name)
+                  _import_sample_subtype(full_pipe_path, subtype_name) or \
+                  Sample
         _LOGGER.debug("Using Sample subtype: %s", subtype.__name__)
         return subtype
 
 
-    def fetch(self, protocol):
-        """
-        Fetch the mapping for a particular protocol, null if unmapped.
-
-        :param str protocol:
-        :return str | Iterable[str] | NoneType: pipeline(s) to which the given
-            protocol is mapped, otherwise null
-        """
-        return self.protomap.mappings.get(alpha_cased(protocol))
-
-
     @classmethod
     def _parse_iface_data(cls, pipe_iface_data):
+        """
+        Parse data from mappings to set instance attributes.
+
+        The data that define a ProtocolInterface are a "protocol_mapping"
+        Mapping and a "pipelines" Mapping, which are used to create a
+        ProtocolMapper and a PipelineInterface, representing the configuration
+        data for pipeline(s) from a single location. There are a couple of
+        different ways (file, folder, and eventually, raw Mapping) to provide
+        this data, and this function provides some standardization to how
+        those data are processed, independent of input type/format.
+
+        :param Mapping[str, Mapping] pipe_iface_data: mapping from section
+            name to section data mapping; more specifically, the protocol
+            mappings Mapping and the PipelineInterface mapping
+        :return list[(str, ProtocolMapper | PipelineInterface)]: pairs of
+            attribute name for the ProtocolInterface being created, and the
+            value for that attribute,
+        """
         assignments = [("protocol_mapping", ProtocolMapper, "protomap"),
                        ("pipelines", PipelineInterface, "pipe_iface")]
         attribute_values = []
