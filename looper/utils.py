@@ -250,6 +250,15 @@ def partition(items, test):
 
 @contextlib.contextmanager
 def standard_stream_redirector(stream):
+    """
+    Temporarily redirect stdout and stderr to another stream.
+
+    This can be useful for capturing messages for easier inspection, or
+    for rerouting and essentially ignoring them, with the destination as
+    something like an opened os.devnull.
+
+    :param FileIO[str] stream: temporary proxy for standard streams
+    """
     import sys
     genuine_stdout, genuine_stderr = sys.stdout, sys.stderr
     sys.stdout, sys.stderr = stream, stream

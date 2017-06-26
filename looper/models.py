@@ -2792,8 +2792,12 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     try:
         _LOGGER.debug("Attempting to import module defined by {}".
                       format(pipeline_filepath))
+
         # TODO: consider more fine-grained control here. What if verbose
         # TODO: logging is only to file, not to stdout/err?
+
+        # Redirect standard streams during the import to prevent noisy
+        # error messaging in the shell that may distract or confuse a user.
         if _LOGGER.getEffectiveLevel() > logging.DEBUG:
             with open(_os.devnull, 'w') as temp_standard_streams:
                 with standard_stream_redirector(temp_standard_streams):

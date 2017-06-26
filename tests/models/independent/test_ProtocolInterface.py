@@ -355,8 +355,12 @@ class SampleSubtypeTests:
             self, tmpdir, path_config_file, atac_pipe_name,
             num_sample_subclasses, decoy_class):
         """ DEPENDS ON PIPELINE MODULE CONTENT """
+
+        # Basic values to invoke the function under test
         pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
         piface = ProtocolInterface(path_config_file)
+
+        # How to define the Sample subtypes (and non-subtype)
         sample_subclass_basename = "SampleSubclass"
         sample_lines = [
                 "class {basename}{index}(Sample):",
@@ -365,6 +369,14 @@ class SampleSubtypeTests:
         non_sample_class_lines = [
                 "class NonSample(object):", "\tdef __init__(self):",
                 "\t\tsuper(NonSample, self).__init__()"]
+
+        # We expect the subtype iff there's just one Sample subtype.
+        if num_sample_subclasses == 1:
+            exp_subtype_name = "{}0".format(sample_subclass_basename)
+        else:
+            exp_subtype_name = Sample.__name__
+
+        # Fill in the class definition template lines.
         def populate_sample_lines(n_classes):
             return [[sample_lines[0].format(basename=sample_subclass_basename,
                                             index=class_index),
@@ -372,18 +384,21 @@ class SampleSubtypeTests:
                      sample_lines[2].format(basename=sample_subclass_basename,
                                             index=class_index)]
                     for class_index in range(n_classes)]
+
+        # Determine the groups of lines to permute.
         class_lines_pool = populate_sample_lines(num_sample_subclasses)
         if decoy_class:
             class_lines_pool.append(non_sample_class_lines)
+
+        # Subtype fetch is independent of class declaration order,
+        # so validate each permutation.
         for lines_order in itertools.permutations(class_lines_pool):
+            # Write out class declarations and invoke the function under test.
             _create_module(lines_by_class=lines_order, filepath=pipe_path)
             subtype = piface.fetch_sample_subtype(
                     protocol=ATAC_PROTOCOL_NAME,
                     strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
-            if num_sample_subclasses == 1:
-                exp_subtype_name = "{}0".format(sample_subclass_basename)
-            else:
-                exp_subtype_name = Sample.__name__
+
             try:
                 assert exp_subtype_name == subtype.__name__
             except AssertionError:
@@ -395,7 +410,8 @@ class SampleSubtypeTests:
 
     @pytest.mark.parametrize(
             argnames="spec_type", argvalues=["singleton", "mapping"])
-    def test_Sample_as_name(self, tmpdir, spec_type):
+    def test_Sample_as_name(
+            self, tmpdir, spec_type, atacseq_piface_data, atac_pipe_name):
         """ A pipeline may redeclare Sample as a subtype name. """
         pass
 
@@ -439,16 +455,6 @@ class SampleSubtypeTests:
         pass
 
 
-    @pytest.fixture(scope="function")
-    def create_module(self, request, tmpdir):
-        num_sample_subclasses = \
-                request.getfixturevalue("num_sample_subclasses")
-        num_non_sample_subclasses = \
-                request.getfixturevalue("num_non_sample_subclasses")
-        path_module_file = os.path.join(tmpdir.strpath, "_dummy_classes.py")
-        with open(path_module_file, 'w') as modfile:
-            pass
-
 
 def _create_module(lines_by_class, filepath):
     """
@@ -465,17 +471,3 @@ def _create_module(lines_by_class, filepath):
     with open(filepath, 'w') as modfile:
         modfile.write("{}\n".format(lines))
     return filepath
-
-
-
-def _generate_lines_by_class(sample_subclass_vector):
-    """
-    Generate lines of text that define dummy classes.
-
-    The input is a vector of flags indicating the order in which the classes
-    should be defined, and whether each should derive from Sample.
-
-    :param sample_subclass_vector:
-    :return:
-    """
-    pass

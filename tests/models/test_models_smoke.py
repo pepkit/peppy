@@ -57,7 +57,7 @@ class ObjectRepresentationSmokeTests:
 
     def test_repr_smoke(self, class_name, method_name):
         """ Object representation method successfully returns string. """
-        # TODO: with pytest.raises(None) in 3.1+
+        # TODO: "with pytest.raises(None)..." in 3.1+
         assert str is type(getattr(class_name, method_name).__call__())
 
 

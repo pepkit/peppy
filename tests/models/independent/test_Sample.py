@@ -15,19 +15,6 @@ __email__ = "vreuter@virginia.edu"
 
 
 
-def pytest_generate_tests(metafunc):
-    """ Customization of this module's test cases. """
-    if metafunc.cls == CustomSampleTests:
-        if "subclass_attrname" in metafunc.fixturenames:
-            metafunc.parametrize(argnames="subclass_attrname",
-                                 argvalues=["library", "protocol"])
-        if "pipelines_type" in metafunc.fixturenames:
-            metafunc.parametrize(argnames="pipelines_type",
-                                 argvalues=["module", "package"])
-
-
-
-
 class ParseSampleImplicationsTests:
     """ Tests for appending columns/fields to a Sample based on a mapping. """
 
@@ -144,87 +131,6 @@ class SampleRequirementsTests:
         else:
             with pytest.raises(ValueError):
                 Sample(data_type(data))
-
-
-
-@pytest.mark.skip("Not implemented")
-class CustomSampleTests:
-    """ Bespoke Sample creation tests. """
-
-
-    PROTOCOLS = ["WGBS", "RRBS", "ATAC-Seq", "RNA-seq"]
-
-
-    @pytest.mark.fixture(scope="function")
-    def sample_subclass_definition(self, tmpdir, request):
-        subclass_attrname = request.getfixturevalue("subclass_attrname")
-        pipelines_type = request.getfixturevalue("pipelines_type")
-        if "pipe_path" in request.fixturenames:
-            pipe_path = tmpdir.strpath
-        else:
-            pipe_path = request.getfixturevalue("pipe_path")
-        if pipelines_type == "module":
-            pipe_path = os.path.join(pipe_path, "pipelines.py")
-        elif pipelines_type == "package":
-            init_file = os.path.join(pipe_path, "__init__.py")
-            with open(init_file, 'w') as f:
-                pass
-            module_file = tempfile.NamedTemporaryFile(dir=pipe_path, suffix=".py", delete=False)
-            module_file.close()
-            with open(module_file.name, 'w') as modfile:
-                # TODO: write out definition.
-                pass
-        else:
-            raise ValueError(
-                    "Unknown pipelines type: {}; module and package "
-                    "are supported".format(pipelines_type))
-
-        # TODO: ensure cleanup.
-        request.addfinalizer()
-
-
-    DATA_FOR_SAMPLES = {
-            SAMPLE_NAME_COLNAME: ["sample{}".format(i) for i in range(3)],
-            "arbitrary-value": list(np.random.randint(-1000, 1000, size=3))}
-
-
-    CLASS_DEFINITION_LINES = """\"\"\" Sample subclass test file.  \"\"\"
-    
-    from looper.models import Sample
-    
-    class DummySampleSubclass(Sample):
-        \"\"\" Subclass shell to test Project's Sample subclass seek sensitivity. \"\"\"
-        __{attribute_name}__ = {attribute_value}
-        pass
-        
-    class NotSampleSubclass(Sample):
-        \"\"\" Subclass shell to test Project's Sample subclass seek specificity. \"\"\"
-        __unrecognized__ = irrelevant
-    
-    """
-
-
-    def test_generic_sample_for_unfindable_subclass(self):
-        """ If no Sample subclass is found, a generic Sample is created. """
-        pass
-
-
-    def test_raw_pipelines_import_has_sample_subclass(
-            self, pipelines_type, subclass_attrname):
-        """ Project finds Sample subclass in pipelines package. """
-        pass
-
-
-    def test_project_pipelines_dir_has_sample_subclass(
-            self, pipelines_type, subclass_attrname):
-        """ Project finds Sample subclass in optional pipelines_dir. """
-        pass
-
-
-    def test_sample_subclass_messaging(
-            self, pipelines_type, subclass_attrname):
-        """ Sample subclass seek process provides info about procedure. """
-        pass
 
 
 

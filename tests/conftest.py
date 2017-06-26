@@ -23,7 +23,6 @@ from looper.models import PipelineInterface
 from looper.loodels import Project
 
 
-# TODO: needed for interactive mode, but may crush cmdl option for setup.
 _LOGGER = logging.getLogger("looper")
 
 

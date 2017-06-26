@@ -36,7 +36,6 @@ class ProjectConstructorTest:
                              argvalues=["required_inputs", "all_input_attr"])
     def test_sample_required_inputs_not_set(self, proj, attr_name):
         """ Samples' inputs are not set in `Project` ctor. """
-        # TODO: update this to check for null if design is changed as may be.
         with pytest.raises(AttributeError):
             getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
 

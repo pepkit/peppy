@@ -162,8 +162,6 @@ class AttributeDictUpdateTests:
 
     """
 
-    # TODO: ensure that we cover tests cases for both merged and non-merged.
-
     _TOTALLY_ARBITRARY_VALUES = [
         "abc", 123,
         (4, "text", ("nes", "ted")), list("-101")
