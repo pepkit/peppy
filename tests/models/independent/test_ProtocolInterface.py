@@ -4,17 +4,41 @@ import __builtin__
 import inspect
 import itertools
 import logging
-import mock
 import os
+
+import mock
 import pytest
 import yaml
-import looper
+
 from looper import models, DEV_LOGGING_FMT
 from looper.models import ProtocolInterface, Sample
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
+
+
+ATAC_PROTOCOL_NAME = "atac"
+
+
+class CustomExceptionA(Exception):
+    def __init__(self, *args):
+        super(CustomExceptionA, self).__init__(*args)
+
+class CustomExceptionB(Exception):
+    def __init__(self, *args):
+        super(CustomExceptionB, self).__init__(*args)
+
+CUSTOM_EXCEPTIONS = [CustomExceptionA, CustomExceptionB]
+
+
+# Test case parameterization, but here for import locality and
+# to reduce clutter in the pararmeterization declaration.
+BUILTIN_EXCEPTIONS_WITHOUT_REQUIRED_ARGUMENTS = \
+        list(zip(*inspect.getmembers(
+                __builtin__, lambda o: inspect.isclass(o) and
+                                       issubclass(o, BaseException) and
+                                       not issubclass(o, UnicodeError)))[1])
 
 
 
@@ -66,7 +90,7 @@ def path_config_file(request, tmpdir, atac_pipe_name):
         # interface data bundle.
         for iface_bundle in conf_data.values():
             iface_bundle["path"] = pipe_path
-    return _write_config_data(protomap={"ATAC": atac_pipe_name},
+    return _write_config_data(protomap={ATAC_PROTOCOL_NAME: atac_pipe_name},
                               conf_data=conf_data, dirpath=tmpdir.strpath)
 
 
@@ -198,17 +222,6 @@ class SampleSubtypeTests:
             "ATACSEQ", "ATAC-SEQ", "atac", "atacseq", "atac-seq"]
 
 
-
-    @pytest.fixture(scope="function")
-    def subtypes_section_single(self, atac_pipe_name):
-        pass
-
-
-    @pytest.fixture(scope="function")
-    def subtypes_section_multiple(self, atac_pipe_name):
-        pass
-
-
     @pytest.mark.parametrize(
             argnames="pipe_key",
             argvalues=["{}.py".format(proto) for proto
@@ -295,34 +308,96 @@ class SampleSubtypeTests:
 
     @pytest.mark.parametrize(
             argnames="error_type",
-            argvalues=zip(*inspect.getmembers(
-                    __builtin__, lambda o: inspect.isclass(o) and
-                                           issubclass(o, BaseException)))[1])
-    def test_problematic_import_builtin_exception(self, error_type):
+            argvalues=CUSTOM_EXCEPTIONS +
+                      BUILTIN_EXCEPTIONS_WITHOUT_REQUIRED_ARGUMENTS)
+    def test_problematic_import_builtin_exception(
+            self, tmpdir, error_type, atac_pipe_name, atacseq_piface_data):
         """ Base Sample is used if builtin exception on pipeline import. """
-        pass
+
+        # Values needed for object creation and function invocation
+        protocol = "ATAC"
+        protocol_mapping = {protocol: atac_pipe_name}
+        full_pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+
+        # Modify the data for the ProtocolInterface and create it.
+        atacseq_piface_data[atac_pipe_name]["sample_subtypes"] = \
+                {protocol: "IrrelevantClassname"}
+        conf_path = _write_config_data(
+                protomap=protocol_mapping,
+                conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
+        piface = ProtocolInterface(conf_path)
+
+        # We want to test the effect of an encounter with an exception during
+        # the import attempt, so patch the relevant function with a function
+        # to raise the parameterized exception type.
+        with mock.patch(
+                "looper.utils.import_from_source",
+                side_effect=error_type()):
+            subtype = piface.fetch_sample_subtype(
+                    protocol=protocol, strict_pipe_key=atac_pipe_name,
+                    full_pipe_path=full_pipe_path)
+        # When the import hits an exception, the base Sample type is used.
+        assert subtype is Sample
 
 
     @pytest.mark.parametrize(
-            argnames="error_type",
-            argvalues=zip(*inspect.getmembers(
-                    looper.models, lambda o: inspect.isclass(o) and
-                                             issubclass(o, Exception)))[1])
-    def test_problematic_import_custom_exception(self, error_type):
-        """ Base Sample is used if custom exception on pipeline import. """
+            argnames="num_sample_subclasses", argvalues=[0, 1, 2],
+            ids=lambda n_samples:
+            " num_sample_subclasses = {} ".format(n_samples))
+    @pytest.mark.parametrize(
+            argnames="decoy_class", argvalues=[False, True],
+            ids=lambda decoy: " decoy_class = {} ".format(decoy))
+    def test_no_subtypes_section(
+            self, tmpdir, path_config_file, atac_pipe_name,
+            num_sample_subclasses, decoy_class):
+        """ DEPENDS ON PIPELINE MODULE CONTENT """
+        pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+        piface = ProtocolInterface(path_config_file)
+        sample_subclass_basename = "SampleSubclass"
+        sample_lines = [
+                "class {basename}{index}(Sample):",
+                "\tdef __init__(*args, **kwargs):",
+                "\t\tsuper({basename}{index}, self).__init__(*args, **kwargs)"]
+        non_sample_class_lines = [
+                "class NonSample(object):", "\tdef __init__(self):",
+                "\t\tsuper(NonSample, self).__init__()"]
+        def populate_sample_lines(n_classes):
+            return [[sample_lines[0].format(basename=sample_subclass_basename,
+                                            index=class_index),
+                     sample_lines[1],
+                     sample_lines[2].format(basename=sample_subclass_basename,
+                                            index=class_index)]
+                    for class_index in range(n_classes)]
+        class_lines_pool = populate_sample_lines(num_sample_subclasses)
+        if decoy_class:
+            class_lines_pool.append(non_sample_class_lines)
+        for lines_order in itertools.permutations(class_lines_pool):
+            path_module_file = _create_module(
+                    lines_by_class=lines_order, filepath=pipe_path)
+            subtype = piface.fetch_sample_subtype(
+                    protocol=ATAC_PROTOCOL_NAME,
+                    strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
+            if num_sample_subclasses == 1:
+                exp_subtype_name = "{}0".format(sample_subclass_basename)
+            else:
+                exp_subtype_name = Sample.__name__
+            # DEBUG
+            try:
+                assert exp_subtype_name == subtype.__name__
+            except AssertionError:
+                with open(pipe_path, 'r') as f:
+                    print("LINES: {}".format("\n".join(f.readlines())))
+                raise
+
+
+    @pytest.mark.parametrize(
+            argnames="spec_type", argvalues=["singleton", "mapping"])
+    def test_Sample_as_name(self, tmpdir, spec_type):
+        """ A pipeline may redeclare Sample as a subtype name. """
         pass
 
 
-    def test_no_subtypes_section(self):
-        """  """
-        pass
-
-
-    def test_subtypes_section_maps_protocol_to_non_sample_subtype(self):
-        pass
-
-
-    def test_subtypes_section_single_subtype_name_is_sample_subtype(self):
+    def test_subtypes_single_name_non_implemented(self):
         pass
 
 
@@ -330,5 +405,74 @@ class SampleSubtypeTests:
         pass
 
 
-    def test_subtypes_section_mapping_missing_protocol(self):
+    def test_subtypes_section_single_subtype_name_is_sample_subtype(self):
         pass
+
+
+    def test_subtypes_mapping_to_non_implemented_class(self):
+        pass
+
+
+    def test_has_subtypes_mapping_but_protocol_doesnt_match(self):
+        pass
+
+
+    def test_subtypes_mapping_to_non_sample_subtype(self):
+        pass
+
+
+    def test_sample_grandchild(self):
+        """ The subtype to be used can be a grandchild of Sample. """
+        pass
+
+
+    @pytest.fixture(scope="function")
+    def subtypes_section_single(self, atac_pipe_name):
+        pass
+
+
+    @pytest.fixture(scope="function")
+    def subtypes_section_multiple(self, atac_pipe_name):
+        pass
+
+
+    @pytest.fixture(scope="function")
+    def create_module(self, request, tmpdir):
+        num_sample_subclasses = \
+                request.getfixturevalue("num_sample_subclasses")
+        num_non_sample_subclasses = \
+                request.getfixturevalue("num_non_sample_subclasses")
+        path_module_file = os.path.join(tmpdir.strpath, "_dummy_classes.py")
+        with open(path_module_file, 'w') as modfile:
+            pass
+
+
+def _create_module(lines_by_class, filepath):
+    """
+    Write out lines that will defined a module.
+
+    :param Sequence[str] lines_by_class: lines that define a class
+    :param str filepath: path to module file to create
+    :return str: path to the module file written
+    """
+    header = "from looper.models import Sample"
+    lines = "\n\n".join(
+        [header] + ["\n".join(class_lines)
+                    for class_lines in lines_by_class])
+    with open(filepath, 'w') as modfile:
+        modfile.write("{}\n".format(lines))
+    return filepath
+
+
+
+def _generate_lines_by_class(sample_subclass_vector):
+    """
+    Generate lines of text that define dummy classes.
+
+    The input is a vector of flags indicating the order in which the classes
+    should be defined, and whether each should derive from Sample.
+
+    :param sample_subclass_vector:
+    :return:
+    """
+    pass

@@ -145,6 +145,16 @@ def import_from_source(name, module_filepath):
         raise ValueError("Path to alleged module file doesn't point to an "
                          "extant file: '{}'".format(module_filepath))
 
+    # We just want the module object, not the effect of altering modules.
+    try:
+        module_to_restore = sys.modules[name]
+    except KeyError:
+        def cleanup():
+            del sys.modules[name]
+    else:
+        def cleanup():
+            sys.modules[name] = module_to_restore
+
     if sys.version_info >= (3, 5):
         from importlib import util as _il_util
         modspec = _il_util.spec_from_file_location(
@@ -160,6 +170,7 @@ def import_from_source(name, module_filepath):
         loader = _il_mach.SourceFileLoader(name, module_filepath)
         mod = loader.load_module()
 
+    cleanup()
     return mod
 
 

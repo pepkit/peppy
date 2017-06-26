@@ -2484,7 +2484,8 @@ class ProtocolInterface(object):
 
         :param str protocol: name of the relevant protocol
         :param str strict_pipe_key: key for specific pipeline in a pipeline
-            interface mapping declaration
+            interface mapping declaration; this must exactly match a key in
+            the PipelineInterface (or the Mapping that represent it)
         :param str full_pipe_path: (absolute, expanded) path to the
             pipeline script
         :return type: Sample subtype to use for jobs for the given protocol,
@@ -2821,30 +2822,34 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
             pipeline_module, lambda obj: inspect.isclass(obj))
     classes = [klazz for _, klazz in classes]
     _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
-    sample_subtypes = filter(lambda c: issubclass(c, base_type), classes)
-    _LOGGER.debug("%d %s subtype(s): %s", len(sample_subtypes),
-                  base_type.__name__, class_names(sample_subtypes))
+
+    # Base Sample could be imported; we want the true subtypes.
+    proper_subtypes = filter(
+            lambda c: issubclass(c, base_type) and c != base_type,
+            classes)
+    _LOGGER.debug("%d %s subtype(s): %s", len(proper_subtypes),
+                  base_type.__name__, class_names(proper_subtypes))
 
     # Determine course of action based on subtype request and number found.
     if not subtype_name:
         _LOGGER.debug("No specific subtype is requested from '%s'",
                       pipeline_filepath)
-        if len(sample_subtypes) == 1:
+        if len(proper_subtypes) == 1:
             # No specific request and single subtype --> use single subtype.
-            subtype = sample_subtypes[0]
+            subtype = proper_subtypes[0]
             _LOGGER.debug("Single %s subtype found in '%s': '%s'",
                           base_type.__name__, pipeline_filepath,
                           subtype.__name__)
             return subtype
         else:
             # We can't arbitrarily select from among 0 or multiple subtypes.
-            _LOGGER.debug("%s subtype cannot be selected from %d in '%s'; "
-                          "using base type", base_type.__name__,
-                          len(sample_subtypes), pipeline_filepath)
+            _LOGGER.debug("%s subtype cannot be selected from %d found in "
+                          "'%s'; using base type", base_type.__name__,
+                          len(proper_subtypes), pipeline_filepath)
             return base_type
     else:
         # Specific subtype request --> look for match.
-        for st in sample_subtypes:
+        for st in proper_subtypes:
             if st.__name__ == subtype_name:
                 _LOGGER.debug("Successfully imported %s from '%s'",
                               subtype_name, pipeline_filepath)
