@@ -24,6 +24,7 @@ __email__ = "vreuter@virginia.edu"
 
 SUBTYPES_KEY = ProtocolInterface.SUBTYPE_MAPPING_SECTION
 ATAC_PROTOCOL_NAME = "ATAC"
+SAMPLE_IMPORT = "from looper.models import Sample"
 
 
 class CustomExceptionA(Exception):
@@ -453,6 +454,7 @@ class SampleSubtypeTests:
         # Write out pipeline module file with non-Sample class definition.
         lines = _class_definition_lines(subtype_name, name_super_type="object")
         with open(pipe_path, 'w') as pipe_module_file:
+            pipe_module_file.write("{}\n\n".format(SAMPLE_IMPORT))
             for l in lines:
                 pipe_module_file.write(l)
 
@@ -480,6 +482,7 @@ class SampleSubtypeTests:
         lines = _class_definition_lines("Decoy", "object") \
                 if decoy_class else []
         with open(pipe_path, 'w') as modfile:
+            modfile.write("{}\n\n".format(SAMPLE_IMPORT))
             for l in lines:
                 modfile.write(l)
         conf_path = _write_config_data(
@@ -505,7 +508,7 @@ class SampleSubtypeTests:
         decoy_proto = "DECOY"
 
         # Update the ProtocolInterface data and write it out.
-        atacseq_piface_data[SUBTYPES_KEY] = {
+        atacseq_piface_data[atac_pipe_name][SUBTYPES_KEY] = {
                 ATAC_PROTOCOL_NAME: subtype_name, decoy_proto: decoy_class}
         conf_path = _write_config_data(
                 protomap={ATAC_PROTOCOL_NAME: atac_pipe_name,
@@ -518,6 +521,7 @@ class SampleSubtypeTests:
 
         for lines_order in itertools.permutations([legit_lines, decoy_lines]):
             with open(pipe_path, 'w') as pipe_mod_file:
+                pipe_mod_file.write("{}\n\n".format(SAMPLE_IMPORT))
                 for class_lines in lines_order:
                     for line in class_lines:
                         pipe_mod_file.write(line)
@@ -543,16 +547,18 @@ class SampleSubtypeTests:
         # Define the classes, writing them in the pipeline module file.
         subtype_names = ["ArbitraryA", "PlaceholderB"]
         with open(pipe_path, 'w') as pipe_module_file:
+            pipe_module_file.write("{}\n\n".format(SAMPLE_IMPORT))
             for subtype_name in subtype_names:
                 # Have the classes be Sample subtypes.
                 for line in _class_definition_lines(
                         subtype_name, name_super_type=Sample.__name__):
                     pipe_module_file.write(line)
+                pipe_module_file.write("\n\n")
 
         # Update the ProtocolInterface data.
         subtype_section = subtype_names if spec_type == "single" \
                 else {ATAC_PROTOCOL_NAME: subtype_names}
-        atacseq_piface_data[SUBTYPES_KEY] = subtype_section
+        atacseq_piface_data[atac_pipe_name][SUBTYPES_KEY] = subtype_section
 
         # Create the ProtocolInterface.
         conf_path = _write_config_data(
@@ -568,35 +574,42 @@ class SampleSubtypeTests:
 
 
     @pytest.mark.parametrize(
-            argnames="target", argvalues=["middle", "bottom"])
+            argnames="target", argvalues=["Leaf", "Middle"])
     @pytest.mark.parametrize(
             argnames="spec_type", argvalues=["single", "mapping"])
     def test_sample_grandchild(
             self, tmpdir, spec_type, target,
-            atacseq_piface_data, name_atac_pipe):
+            atacseq_piface_data, atac_pipe_name):
         """ The subtype to be used can be a grandchild of Sample. """
-        pipe_path = os.path.join(tmpdir.strpath, name_atac_pipe)
+
+        pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
         intermediate_sample_subtype = "Middle"
         leaf_sample_subtype = "Leaf"
+
         intermediate_subtype_lines = _class_definition_lines(
                 intermediate_sample_subtype, Sample.__name__)
         leaf_subtype_lines = _class_definition_lines(
                 leaf_sample_subtype, intermediate_sample_subtype)
         with open(pipe_path, 'w') as pipe_mod_file:
+            pipe_mod_file.write("{}\n\n".format(SAMPLE_IMPORT))
             for l in intermediate_subtype_lines:
                 pipe_mod_file.write(l)
             pipe_mod_file.write("\n\n")
             for l in leaf_subtype_lines:
                 pipe_mod_file.write(l)
-        atacseq_piface_data[SUBTYPES_KEY] = target if spec_type == "single" \
-                else {ATAC_PROTOCOL_NAME: target}
+
+        atacseq_piface_data[atac_pipe_name][SUBTYPES_KEY] = \
+                target if spec_type == "single" else \
+                {ATAC_PROTOCOL_NAME: target}
         conf_path = _write_config_data(
-                protomap={ATAC_PROTOCOL_NAME: name_atac_pipe},
+                protomap={ATAC_PROTOCOL_NAME: atac_pipe_name},
                 conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
+
         piface = ProtocolInterface(conf_path)
         subtype = piface.fetch_sample_subtype(
-                protocol=ATAC_PROTOCOL_NAME, strict_pipe_key=name_atac_pipe,
+                protocol=ATAC_PROTOCOL_NAME, strict_pipe_key=atac_pipe_name,
                 full_pipe_path=pipe_path)
+
         assert target == subtype.__name__
 
 
@@ -635,7 +648,7 @@ class SampleSubtypeTests:
 
 def _class_definition_lines(name, name_super_type):
     """ Create lines that define a class. """
-    return ["class {t}({st}):\n".format(name),
+    return ["class {t}({st}):\n".format(t=name, st=name_super_type),
             "\tdef __init__(self, *args, **kwarggs):\n",
             "\t\tsuper({t}, self).__init__(*args, **kwargs)".format(
                     t=name, st=name_super_type)]
@@ -650,9 +663,8 @@ def _create_module(lines_by_class, filepath):
     :param str filepath: path to module file to create
     :return str: path to the module file written
     """
-    header = "from looper.models import Sample"
     lines = "\n\n".join(
-        [header] + ["\n".join(class_lines)
+        [SAMPLE_IMPORT] + ["\n".join(class_lines)
                     for class_lines in lines_by_class])
     with open(filepath, 'w') as modfile:
         modfile.write("{}\n".format(lines))

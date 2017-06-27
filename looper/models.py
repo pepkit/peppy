@@ -2825,7 +2825,7 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
 
     # Base Sample could be imported; we want the true subtypes.
     proper_subtypes = _proper_subtypes(classes, base_type)
-    _LOGGER.debug("%d %s subtype(s): %s", len(proper_subtypes),
+    _LOGGER.debug("%d proper %s subtype(s): %s", len(proper_subtypes),
                   base_type.__name__, class_names(proper_subtypes))
 
     # Determine course of action based on subtype request and number found.
