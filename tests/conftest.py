@@ -7,6 +7,7 @@ test execution is not deleteriously affected, then it should be no problem.
 
 """
 
+import copy
 import logging
 import os
 import shutil
@@ -19,8 +20,7 @@ import pytest
 import yaml
 
 from looper import setup_looper_logger
-from looper.models import PipelineInterface
-from looper.loodels import Project
+from looper.models import PipelineInterface, Project, SAMPLE_NAME_COLNAME
 
 
 _LOGGER = logging.getLogger("looper")
@@ -173,6 +173,18 @@ _SEASON_HIERARCHY = {
 }
 COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
                         "keys", "values", "items"]
+COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
+PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": "annotations.csv"}}
+
+
+
+def update_project_conf_data(extension):
+    """ Updated Project configuration data mapping based on file extension """
+    updated = copy.deepcopy(PROJECT_CONFIG_DATA)
+    filename = updated["metadata"]["sample_annotation"]
+    base, _ = os.path.splitext(filename)
+    updated["metadata"]["sample_annotation"] = "{}.{}".format(base, extension)
+    return updated
 
 
 
@@ -196,12 +208,6 @@ def pytest_generate_tests(metafunc):
 
 
 
-@pytest.fixture(scope="function")
-def sample_annotation_lines():
-    return SAMPLE_ANNOTATION_LINES
-
-
-
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
     """ Configure logging for the testing session. """
@@ -212,6 +218,42 @@ def conf_logs(request):
         str(level), __name__)
     global _LOGGER
     _LOGGER = logging.getLogger("looper.{}".format(__name__))
+
+
+
+
+@pytest.fixture(scope="function")
+def sample_annotation_lines():
+    return SAMPLE_ANNOTATION_LINES
+
+
+
+@pytest.fixture(scope="function")
+def path_empty_project(request, tmpdir):
+    """ Provide path to Project config file with empty annotations. """
+
+    # Determine how to write the data and how to name a file.
+    if "delimiter" in request.fixturenames:
+        delimiter = request.getfixturevalue("delimiter")
+        extension = "txt"
+    else:
+        delimiter = ","
+        extension = "csv"
+
+    # Update the Project configuration data.
+    conf_data = update_project_conf_data(extension)
+
+    # Write the needed files.
+    anns_path = os.path.join(
+            tmpdir.strpath, conf_data["metadata"]["sample_annotation"])
+
+    with open(anns_path, 'w') as anns_file:
+        anns_file.write(delimiter.join(COLUMNS))
+    conf_path = os.path.join(tmpdir.strpath, "proj-conf.yaml")
+    with open(conf_path, 'w') as conf_file:
+        yaml.dump(conf_data, conf_file)
+
+    return conf_path
 
 
 

@@ -106,7 +106,6 @@ def check_sheet(sample_file, dtype=str):
     :raises IOError: if given annotations file can't be read.
     :raises ValueError: if required column(s) is/are missing.
     """
-
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
                         index_col=False, engine="python")
     req = [SAMPLE_NAME_COLNAME]
@@ -510,6 +509,9 @@ class AttributeDict(MutableMapping):
 
     def __repr__(self):
         return repr(self.__dict__)
+
+    def __str__(self):
+        return "{}: {}".format(self.__class__.__name__, repr(self))
 
 
 
@@ -1048,7 +1050,8 @@ class Project(AttributeDict):
             def include(_):
                 return True
 
-        return _pd.DataFrame([s for s in self.samples if include(s)])
+        return _pd.DataFrame(
+                [s.as_series() for s in self.samples if include(s)])
 
 
     def make_project_dirs(self):
@@ -1450,6 +1453,14 @@ class Sample(object):
         # Only when sample is added to project, can paths be added -
         # This is because sample-specific files will be created in a
         self.paths = Paths()
+
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+
+    def __ne__(self, other):
+        return not self == other
 
 
     def __getitem__(self, item):
@@ -2460,7 +2471,8 @@ class ProtocolInterface(object):
 
         else:
             raise ValueError("Alleged pipelines location '{}' exists neither "
-                             "as a file nor as a folder.".format(interface_data_source))
+                             "as a file nor as a folder.".
+                             format(interface_data_source))
 
 
     def __repr__(self):
@@ -2549,41 +2561,6 @@ class ProtocolInterface(object):
         return subtype
 
 
-    @classmethod
-    def _parse_iface_data(cls, pipe_iface_data):
-        """
-        Parse data from mappings to set instance attributes.
-
-        The data that define a ProtocolInterface are a "protocol_mapping"
-        Mapping and a "pipelines" Mapping, which are used to create a
-        ProtocolMapper and a PipelineInterface, representing the configuration
-        data for pipeline(s) from a single location. There are a couple of
-        different ways (file, folder, and eventually, raw Mapping) to provide
-        this data, and this function provides some standardization to how
-        those data are processed, independent of input type/format.
-
-        :param Mapping[str, Mapping] pipe_iface_data: mapping from section
-            name to section data mapping; more specifically, the protocol
-            mappings Mapping and the PipelineInterface mapping
-        :return list[(str, ProtocolMapper | PipelineInterface)]: pairs of
-            attribute name for the ProtocolInterface being created, and the
-            value for that attribute,
-        """
-        assignments = [("protocol_mapping", ProtocolMapper, "protomap"),
-                       ("pipelines", PipelineInterface, "pipe_iface")]
-        attribute_values = []
-        for section_name, data_type, attr_name in assignments:
-            try:
-                data = pipe_iface_data[section_name]
-            except KeyError:
-                _LOGGER.error("Error creating %s from data: %s",
-                              cls.__name__, str(pipe_iface_data))
-                raise Exception("PipelineInterface file lacks section: '{}'".
-                                format(section_name))
-            attribute_values.append((attr_name, data_type(data)))
-        return attribute_values
-
-
     def finalize_pipeline_key_and_paths(self, pipeline_key):
         """
         Determine pipeline's full path, arguments, and strict key.
@@ -2630,6 +2607,41 @@ class ProtocolInterface(object):
                     "Missing pipeline script: '%s'", script_path_only)
 
         return strict_pipeline_key, script_path_only, script_path_with_flags
+
+
+    @classmethod
+    def _parse_iface_data(cls, pipe_iface_data):
+        """
+        Parse data from mappings to set instance attributes.
+
+        The data that define a ProtocolInterface are a "protocol_mapping"
+        Mapping and a "pipelines" Mapping, which are used to create a
+        ProtocolMapper and a PipelineInterface, representing the configuration
+        data for pipeline(s) from a single location. There are a couple of
+        different ways (file, folder, and eventually, raw Mapping) to provide
+        this data, and this function provides some standardization to how
+        those data are processed, independent of input type/format.
+
+        :param Mapping[str, Mapping] pipe_iface_data: mapping from section
+            name to section data mapping; more specifically, the protocol
+            mappings Mapping and the PipelineInterface mapping
+        :return list[(str, ProtocolMapper | PipelineInterface)]: pairs of
+            attribute name for the ProtocolInterface being created, and the
+            value for that attribute,
+        """
+        assignments = [("protocol_mapping", ProtocolMapper, "protomap"),
+                       ("pipelines", PipelineInterface, "pipe_iface")]
+        attribute_values = []
+        for section_name, data_type, attr_name in assignments:
+            try:
+                data = pipe_iface_data[section_name]
+            except KeyError:
+                _LOGGER.error("Error creating %s from data: %s",
+                              cls.__name__, str(pipe_iface_data))
+                raise Exception("PipelineInterface file lacks section: '{}'".
+                                format(section_name))
+            attribute_values.append((attr_name, data_type(data)))
+        return attribute_values
 
 
 

@@ -46,6 +46,14 @@ class ProjectConstructorTests:
     """ Tests of Project constructor, particularly behavioral details. """
 
 
+    def test_no_samples(self, path_empty_project):
+        """ Lack of Samples is unproblematic. """
+        p = Project(path_empty_project)
+        assert 0 == p.num_samples
+        assert [] == list(p.samples)
+
+
+
     @pytest.mark.parametrize(
             argnames="spec_type", argvalues=["as_null", "missing"],
             ids=lambda spec: "spec_type={}".format(spec))
