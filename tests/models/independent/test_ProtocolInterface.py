@@ -16,13 +16,13 @@ import yaml
 
 from looper import models, DEV_LOGGING_FMT
 from looper.models import ProtocolInterface, Sample
-from looper.utils import import_from_source
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
+SUBTYPES_KEY = ProtocolInterface.SUBTYPE_MAPPING_SECTION
 ATAC_PROTOCOL_NAME = "ATAC"
 
 
@@ -273,7 +273,7 @@ class SampleSubtypeTests:
         # need only an arbitrary class name about which we can make the
         # relevant assertion(s).
         test_class_name = "TotallyArbitrary"
-        atacseq_piface_data[atac_pipe_name]["sample_subtypes"] = \
+        atacseq_piface_data[atac_pipe_name][SUBTYPES_KEY] = \
                 test_class_name
 
         # Write out configuration data and create the ProtocolInterface.
@@ -314,7 +314,7 @@ class SampleSubtypeTests:
         full_pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
 
         # Modify the data for the ProtocolInterface and create it.
-        atacseq_piface_data[atac_pipe_name]["sample_subtypes"] = \
+        atacseq_piface_data[atac_pipe_name][SUBTYPES_KEY] = \
                 {protocol: "IrrelevantClassname"}
         conf_path = _write_config_data(
                 protomap=protocol_mapping,
@@ -451,7 +451,7 @@ class SampleSubtypeTests:
         pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
 
         # Write out pipeline module file with non-Sample class definition.
-        lines = _class_definition_lines(subtype_name)
+        lines = _class_definition_lines(subtype_name, name_super_type="object")
         with open(pipe_path, 'w') as pipe_module_file:
             for l in lines:
                 pipe_module_file.write(l)
@@ -477,7 +477,8 @@ class SampleSubtypeTests:
         """ Subtype that doesn't extend Sample isn't used. """
         # Create the pipeline module.
         pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
-        lines = _class_definition_lines(name="Decoy") if decoy_class else []
+        lines = _class_definition_lines("Decoy", "object") \
+                if decoy_class else []
         with open(pipe_path, 'w') as modfile:
             for l in lines:
                 modfile.write(l)
@@ -491,21 +492,112 @@ class SampleSubtypeTests:
                     protocol=ATAC_PROTOCOL_NAME,
                     strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
 
+    
+    @pytest.mark.parametrize(
+            argnames="subtype_name", argvalues=["SubsampleA", "SubsampleB"])
+    def test_matches_sample_subtype(
+            self, tmpdir, atac_pipe_name, subtype_name, atacseq_piface_data):
+        """ Fetch of subtype is specific even from among multiple subtypes. """
 
-    def test_subtypes_section_is_sample_subtype(self):
-        # Parameterize over mapping and singleton
-        pass
+        # Basic values
+        pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+        decoy_class = "Decoy"
+        decoy_proto = "DECOY"
+
+        # Update the ProtocolInterface data and write it out.
+        atacseq_piface_data[SUBTYPES_KEY] = {
+                ATAC_PROTOCOL_NAME: subtype_name, decoy_proto: decoy_class}
+        conf_path = _write_config_data(
+                protomap={ATAC_PROTOCOL_NAME: atac_pipe_name,
+                          decoy_proto: atac_pipe_name},
+                conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
+
+        # Create the collection of definition lines for each class.
+        legit_lines = _class_definition_lines(subtype_name, Sample.__name__)
+        decoy_lines = _class_definition_lines(decoy_class, Sample.__name__)
+
+        for lines_order in itertools.permutations([legit_lines, decoy_lines]):
+            with open(pipe_path, 'w') as pipe_mod_file:
+                for class_lines in lines_order:
+                    for line in class_lines:
+                        pipe_mod_file.write(line)
+                    pipe_mod_file.write("\n\n")
+
+            # We need the new pipeline module file in place before the
+            # ProtocolInterface is created.
+            piface = ProtocolInterface(conf_path)
+            subtype = piface.fetch_sample_subtype(
+                    protocol=ATAC_PROTOCOL_NAME,
+                    strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
+            assert subtype_name == subtype.__name__
 
 
-    def test_sample_grandchild(self):
+    @pytest.mark.parametrize(
+            argnames="spec_type", argvalues=["single", "nested"])
+    def test_subtypes_list(
+            self, tmpdir, atac_pipe_name, atacseq_piface_data, spec_type):
+        """ As singleton or within mapping, only 1 subtype allowed. """
+
+        pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
+
+        # Define the classes, writing them in the pipeline module file.
+        subtype_names = ["ArbitraryA", "PlaceholderB"]
+        with open(pipe_path, 'w') as pipe_module_file:
+            for subtype_name in subtype_names:
+                # Have the classes be Sample subtypes.
+                for line in _class_definition_lines(
+                        subtype_name, name_super_type=Sample.__name__):
+                    pipe_module_file.write(line)
+
+        # Update the ProtocolInterface data.
+        subtype_section = subtype_names if spec_type == "single" \
+                else {ATAC_PROTOCOL_NAME: subtype_names}
+        atacseq_piface_data[SUBTYPES_KEY] = subtype_section
+
+        # Create the ProtocolInterface.
+        conf_path = _write_config_data(
+                protomap={ATAC_PROTOCOL_NAME: atac_pipe_name},
+                conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
+        piface = ProtocolInterface(conf_path)
+
+        # We don't really care about exception type, just that one arises.
+        with pytest.raises(Exception):
+            piface.fetch_sample_subtype(
+                    protocol=ATAC_PROTOCOL_NAME,
+                    strict_pipe_key=atac_pipe_name, full_pipe_path=pipe_path)
+
+
+    @pytest.mark.parametrize(
+            argnames="target", argvalues=["middle", "bottom"])
+    @pytest.mark.parametrize(
+            argnames="spec_type", argvalues=["single", "mapping"])
+    def test_sample_grandchild(
+            self, tmpdir, spec_type, target,
+            atacseq_piface_data, name_atac_pipe):
         """ The subtype to be used can be a grandchild of Sample. """
-        # Can parameterize but don't need to
-        pass
-
-
-    def test_has_subtypes_mapping_but_protocol_doesnt_match(self):
-        # Intrinsic to mapping; this is a failure case.
-        pass
+        pipe_path = os.path.join(tmpdir.strpath, name_atac_pipe)
+        intermediate_sample_subtype = "Middle"
+        leaf_sample_subtype = "Leaf"
+        intermediate_subtype_lines = _class_definition_lines(
+                intermediate_sample_subtype, Sample.__name__)
+        leaf_subtype_lines = _class_definition_lines(
+                leaf_sample_subtype, intermediate_sample_subtype)
+        with open(pipe_path, 'w') as pipe_mod_file:
+            for l in intermediate_subtype_lines:
+                pipe_mod_file.write(l)
+            pipe_mod_file.write("\n\n")
+            for l in leaf_subtype_lines:
+                pipe_mod_file.write(l)
+        atacseq_piface_data[SUBTYPES_KEY] = target if spec_type == "single" \
+                else {ATAC_PROTOCOL_NAME: target}
+        conf_path = _write_config_data(
+                protomap={ATAC_PROTOCOL_NAME: name_atac_pipe},
+                conf_data=atacseq_piface_data, dirpath=tmpdir.strpath)
+        piface = ProtocolInterface(conf_path)
+        subtype = piface.fetch_sample_subtype(
+                protocol=ATAC_PROTOCOL_NAME, strict_pipe_key=name_atac_pipe,
+                full_pipe_path=pipe_path)
+        assert target == subtype.__name__
 
 
     @pytest.fixture(scope="function")
@@ -536,16 +628,17 @@ class SampleSubtypeTests:
                              "{}".format(spec_type))
 
         # Update and return the interface data.
-        atacseq_piface_data[atac_pipe_name]["sample_subtypes"] = section_value
+        atacseq_piface_data[atac_pipe_name][SUBTYPES_KEY] = section_value
         return atacseq_piface_data
 
 
 
-def _class_definition_lines(name):
+def _class_definition_lines(name, name_super_type):
     """ Create lines that define a class. """
-    return ["class {}(object):\n".format(name),
+    return ["class {t}({st}):\n".format(name),
             "\tdef __init__(self, *args, **kwarggs):\n",
-            "\t\tsuper({}, self).__init__(*args, **kwargs)".format(name)]
+            "\t\tsuper({t}, self).__init__(*args, **kwargs)".format(
+                    t=name, st=name_super_type)]
 
 
 
