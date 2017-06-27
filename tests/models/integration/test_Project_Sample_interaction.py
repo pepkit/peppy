@@ -11,8 +11,9 @@ import pytest
 import yaml
 
 from looper.models import \
-        merge_sample, Project, Sample, \
+        Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from looper.utils import alpha_cased
 
 
 __author__ = "Vince Reuter"
@@ -54,7 +55,9 @@ def pytest_generate_tests(metafunc):
                     argnames="protocols",
                     argvalues=list(itertools.chain.from_iterable(
                             itertools.combinations(PROTOCOLS, x)
-                            for x in range(1 + len(PROTOCOLS)))))
+                            for x in range(1 + len(PROTOCOLS)))),
+                    ids=lambda protos:
+                    " protocols = {} ".format(",".join(protos)))
         if "delimiter" in metafunc.fixturenames:
             metafunc.parametrize(argnames="delimiter", argvalues=[",", "\t"])
 
@@ -93,13 +96,27 @@ def path_anns_file(request, tmpdir, sample_sheet):
 
 @pytest.fixture(scope="function")
 def samples_rawdata():
-    return copy.deepcopy(DATA_FOR_SAMPLES)
+    return copy.deepcopy(DATA)
 
 
 
 @pytest.fixture(scope="function")
 def sample_sheet(samples_rawdata):
-    return pd.DataFrame(samples_rawdata)
+    df = pd.DataFrame(samples_rawdata)
+    df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
+    return df
+
+
+
+def test_samples_are_generic(path_anns_file, path_proj_conf_file):
+    """ Regardless of protocol, Samples for sheet are generic. """
+    # Annotations filepath fixture is also writes that file, so
+    # it's needed even though that return value isn't used locally.
+    p = Project(path_proj_conf_file)
+    assert len(SAMPLE_NAMES) == p.num_samples
+    samples = list(p.samples)
+    assert p.num_samples == len(samples)
+    assert all([Sample is type(s) for s in samples])
 
 
 
@@ -159,12 +176,21 @@ class BuildSheetTests:
     def test_multiple_samples(
             self, protocols, path_anns_file, path_proj_conf_file):
         """ Project also processes multiple Sample fine. """
-        pass
 
+        p = Project(path_proj_conf_file)
 
-    def test_samples_are_generic(self, path_anns_file, path_proj_conf_file):
-        """ Regardless of protocol, Samples for sheet are generic. """
-        pass
+        # Total sample count is constant.
+        assert len(SAMPLE_NAMES) == sum(1 for _ in p.samples)
+
+        # But the sheet permits filtering to specific protocol(s).
+        exp_num_samples = len(SAMPLE_NAMES) if not protocols else \
+            sum(sum(1 for l in LIBRARIES if l == p) for p in protocols)
+        sheet = p.build_sheet(*protocols)
+        assert exp_num_samples == len(sheet)
+        if protocols:
+            fuzzy_protos = {alpha_cased(p) for p in protocols}
+            for _, sample_data in sheet.iterrows():
+                assert alpha_cased(sample_data.library) in fuzzy_protos
 
 
 

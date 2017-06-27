@@ -239,6 +239,30 @@ def minimal_project_conf_path(tmpdir):
 
 
 @pytest.fixture(scope="function")
+def path_proj_conf_file(tmpdir, proj_conf):
+    """ Write basic project configuration data and provide filepath. """
+    conf_path = os.path.join(tmpdir.strpath, "project_config.yaml")
+    with open(conf_path, 'w') as conf:
+        yaml.safe_dump(proj_conf, conf)
+    return conf_path
+
+
+
+@pytest.fixture(scope="function")
+def path_anns_file(request, tmpdir, sample_sheet):
+    """ Write basic annotations, optionally using a different delimiter. """
+    filepath = os.path.join(tmpdir.strpath, "annotations.csv")
+    if "delimiter" in request.fixturenames:
+        delimiter = request.getfixturevalue("delimiter")
+    else:
+        delimiter = ","
+    with open(filepath, 'w') as anns_file:
+        sample_sheet.to_csv(anns_file, sep=delimiter, index=False)
+    return filepath
+
+
+
+@pytest.fixture(scope="function")
 def piface_config_bundles(request, resources):
     """
     Provide the ATAC-Seq pipeline interface as a fixture, including resources.

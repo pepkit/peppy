@@ -644,6 +644,7 @@ class ProjectPipelineArgstringTests:
         return parsed_command_elements
 
 
+
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     """
     Write the configuration file for a Project.

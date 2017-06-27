@@ -1038,20 +1038,11 @@ class Project(AttributeDict):
             given, else all of this Project's samples
         """
         # Use all protocols if none are explicitly specified.
-        protocols = set(protocols or self.protocols)
-        if protocols:
-            protocols = set(protocols)
-            def include(sample):
-                try:
-                    return sample.library in protocols
-                except AttributeError:
-                    return False
-        else:
-            def include(_):
-                return True
-
+        samples = self.samples
+        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
         return _pd.DataFrame(
-                [s.as_series() for s in self.samples if include(s)])
+                [s.as_series() for s in samples if
+                 hasattr(s, "library") and alpha_cased(s.library) in protocols])
 
 
     def make_project_dirs(self):
