@@ -162,8 +162,6 @@ class AttributeDictUpdateTests:
 
     """
 
-    # TODO: ensure that we cover tests cases for both merged and non-merged.
-
     _TOTALLY_ARBITRARY_VALUES = [
         "abc", 123,
         (4, "text", ("nes", "ted")), list("-101")
@@ -561,30 +559,6 @@ class SampleYamlTests:
             filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
             lines, _ = self._yaml_data(sample, filepath)
             assert all([metadata_attribute not in line for line in lines])
-
-
-    @pytest.mark.parametrize(
-        argnames="metadata_attribute", argvalues=ATTRDICT_METADATA.keys(),
-        ids=lambda attr_name: " metadata item = {} ".format(attr_name))
-    def test_non_defaults_have_metadata(
-            self, tmpdir, proj, metadata_attribute):
-        """ Only non-default metadata elements are written to file. """
-        for i, sample in enumerate(proj.samples):
-            filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
-
-            # Flip the value of an attribute in the project section.
-            newval = not ATTRDICT_METADATA[metadata_attribute]
-            lines, data = self._yaml_data(
-                    sample, filepath, section_to_change="prj",
-                    attr_to_change=metadata_attribute, newval=newval)
-
-            # Is the test sensitive?
-            assert newval == data["prj"][metadata_attribute]
-            # How about specific?
-            num_meta_lines = sum(1 if any(
-                    [meta_item in line for meta_item
-                     in ATTRDICT_METADATA.keys()]) else 0 for line in lines)
-            assert 1 == num_meta_lines
 
     
     @staticmethod

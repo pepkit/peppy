@@ -31,7 +31,7 @@ Let's start with a very simple example. A basic ``pipeline_interface.yaml`` file
 
 The first section specifies that samples of protocol ``RRBS`` will be mapped to the pipeline specified by key ``rrbs_pipeline``. The second section describes where the pipeline named ``rrbs_pipeline`` is located and what command-line arguments it requires. Pretty simple. Let's go through each of these sections in more detail:
 
-.. include:: pipeline-interface-mapping.rst
+.. include:: pipeline-interface-mapping.rst.inc
 
-.. include:: pipeline-interface-pipelines.rst
+.. include:: pipeline-interface-pipelines.rst.inc
 

@@ -27,6 +27,7 @@ Changelog
 
     - Various small bug fixes and dev improvements.
 
+    - Require `setuptools` for installation, and `pandas 0.20.2`. If `numexpr` is installed, version `2.6.2` is required.
 
 - **v0.5** (*2017-03-01*):
 

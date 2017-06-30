@@ -19,7 +19,7 @@ If you are planning to submit jobs to a cluster, then you need to know about a s
 That should be all you need to worry about as a pipeline user. If you need to adjust compute resources or want to develop a pipeline or have more advanced project-level control over pipelines, then you'll need to know about a few others:
 
 Pipeline developers
-*****************
+**********************
 
 If you want to add a new pipeline to looper, tweak the way looper interacts with a pipeline for a given project, or change the default cluster resources requested by a pipeline, then you need to know about a configuration file that coordinates linking your pipeline in to your looper project.
 

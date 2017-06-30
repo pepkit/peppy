@@ -40,8 +40,8 @@ For example, by default, your jobs will run serially on your local computer, whe
 
 Let's go through the more advanced details of both annotation sheets and project config files:
 
-.. include:: sample-annotation-sheet.rst
+.. include:: sample-annotation-sheet.rst.inc
 
-.. include:: project-config.rst
+.. include:: project-config.rst.inc
 
 
