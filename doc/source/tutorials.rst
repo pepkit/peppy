@@ -41,9 +41,9 @@ Inside there will be two directories:
 -  ``submissions`` [2]_ - which holds yaml representations of the samples and log files of the submited jobs.
 
 
-The sample-specific output of each pipeline type varies and is described in :doc:`pipelines`.
+The sample-specific output of each pipeline type varies.
 
-To use pre-made pipelines with your project, all you have to do is :doc:`define your project <define-your-project>` using looper's standard format. To link your own, custom built pipelines, you can :doc:`connect your pipeline to looper <connecting-pipelines>`.
+To use pre-made pipelines with your project, all you have to do is :doc:`define your project <define-your-project>` using looper's standard format. To link your own, custom built pipelines, you can :doc:`connect your pipeline to looper with a pipeline interface <pipeline-interface>`.
 
 In this example, we just ran one example sample (an amplicon sequencing library) through a pipeline that processes amplicon data (to determine percentage of indels in amplicon).
 

@@ -8,7 +8,7 @@ import pytest
 import yaml
 import looper
 from looper.models import \
-        AttributeDict, Project, \
+        AttributeDict, Project, Sample, \
         _MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
 
 
@@ -23,7 +23,7 @@ def project_config_data():
         "metadata": {
             SAMPLE_ANNOTATIONS_KEY: "sample-anns-filler.csv",
             "output_dir": "$HOME/sequencing/output",
-            "pipelines_dir": "${CODE}/pipelines"},
+            "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
         "genomes": {"human": "hg19", "mouse": "mm10"},
         "transcriptomes": {"human": "hg19_cdna", "mouse": "mm10_cdna"}}
@@ -39,6 +39,105 @@ def pytest_generate_tests(metafunc):
                 argnames="case_type",
                 argvalues=DerivedColumnsTests.DERIVED_COLUMNS_CASE_TYPES,
                 ids=lambda case_type: "case_type={}".format(case_type))
+
+
+
+class ProjectConstructorTests:
+    """ Tests of Project constructor, particularly behavioral details. """
+
+
+    def test_no_samples(self, path_empty_project):
+        """ Lack of Samples is unproblematic. """
+        p = Project(path_empty_project)
+        assert 0 == p.num_samples
+        assert [] == list(p.samples)
+
+
+
+    @pytest.mark.parametrize(
+            argnames="spec_type", argvalues=["as_null", "missing"],
+            ids=lambda spec: "spec_type={}".format(spec))
+    @pytest.mark.parametrize(
+            argnames="lazy", argvalues=[False, True],
+            ids=lambda lazy: "lazy={}".format(lazy))
+    def test_no_merge_table_in_config(
+            self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
+        """ Merge table attribute remains null if config lacks merge_table. """
+        metadata = proj_conf_data["metadata"]
+        try:
+            assert "merge_table" in metadata
+        except AssertionError:
+            print("Project metadata section lacks 'merge_table'")
+            print("All config data: {}".format(proj_conf_data))
+            print("Config metadata section: {}".format(metadata))
+            raise
+        if spec_type == "as_null":
+            metadata["merge_table"] = None
+        elif spec_type == "missing":
+            del metadata["merge_table"]
+        else:
+            raise ValueError("Unknown way to specify no merge table: {}".
+                             format(spec_type))
+        path_config_file = os.path.join(tmpdir.strpath, "project_config.yaml")
+        with open(path_config_file, 'w') as conf_file:
+            yaml.safe_dump(proj_conf_data, conf_file)
+        p = Project(path_config_file, defer_sample_construction=lazy)
+        assert p.merge_table is None
+
+
+    @pytest.mark.skip("Not implemented")
+    def test_merge_table_construction(
+            self, tmpdir, project_config_data):
+        """ Merge table is constructed iff samples are constructed. """
+        # TODO: implement
+        pass
+
+
+    def test_counting_samples_doesnt_create_samples(
+            self, sample_annotation_lines,
+            path_project_conf, path_sample_anns):
+        """ User can ask about sample count without creating samples. """
+        # We're not parameterized in terms of Sample creation laziness here
+        # because a piece of the test's essence is Sample collection absence.
+        p = Project(path_project_conf, defer_sample_construction=True)
+        assert p._samples is None
+        expected_sample_count = sum(1 for _ in sample_annotation_lines) - 1
+        assert expected_sample_count == p.num_samples
+        assert p._samples is None
+
+
+    @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
+    def test_sample_creation_laziness(
+            self, path_project_conf, path_sample_anns, lazy):
+        """ Project offers control over whether to create base Sample(s). """
+
+        p = Project(path_project_conf, defer_sample_construction=lazy)
+
+        if lazy:
+            # Samples should remain null during lazy Project construction.
+            assert p._samples is None
+
+        else:
+            # Eager Project construction builds Sample objects.
+            assert p._samples is not None
+            with open(path_sample_anns, 'r') as anns_file:
+                anns_file_lines = anns_file.readlines()
+
+            # Sum excludes the header line.
+            num_samples_expected = sum(1 for l in anns_file_lines[1:] if l)
+            assert num_samples_expected == len(p._samples)
+            assert all([Sample == type(s) for s in p._samples])
+
+
+    @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
+    def test_sample_name_availability(
+            self, path_project_conf, path_sample_anns, lazy):
+        """ Sample names always available on Project. """
+        with open(path_sample_anns, 'r') as anns_file:
+            expected_sample_names = \
+                    [l.split(",")[0] for l in anns_file.readlines()[1:] if l]
+        p = Project(path_project_conf, defer_sample_construction=lazy)
+        assert expected_sample_names == list(p.sample_names)
 
 
 
@@ -220,7 +319,7 @@ class ProjectDefaultEnvironmentSettingsTests:
 
     @staticmethod
     def default_compute_settings(project):
-        settings_filepath = project.default_cmpenv_file
+        settings_filepath = project.default_compute_envfile
         with open(settings_filepath, 'r') as settings_data_file:
             settings = yaml.safe_load(settings_data_file)
         return {"environment": copy.deepcopy(settings),
@@ -276,7 +375,7 @@ class DerivedColumnsTests:
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
-        with mock.patch("looper.models.Project.add_sample_sheet"):
+        with mock.patch("looper.models.check_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
         return expected_derived_columns, project
 
@@ -489,7 +588,7 @@ class ProjectPipelineArgstringTests:
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
 
         # Subvert requirement for sample annotations file.
-        with mock.patch("looper.models.Project.add_sample_sheet"):
+        with mock.patch("looper.models.check_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
 
         argstring = project.get_arg_string(pipeline)
@@ -545,6 +644,7 @@ class ProjectPipelineArgstringTests:
         return parsed_command_elements
 
 
+
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     """
     Write the configuration file for a Project.
@@ -574,8 +674,6 @@ def _env_paths_to_names(envs):
     """
     reduced = {}
     for env_name, env_data in envs.items():
-        # DEBUG
-        print(env_name)
         reduced[env_name] = _compute_paths_to_names(env_data)
     return reduced
 
@@ -594,15 +692,5 @@ def _compute_paths_to_names(env):
     """
     reduced = copy.deepcopy(env)
     for pathvar in ["submission_template"]:
-
-        # DEBUG
-        try:
-            _, reduced[pathvar] = os.path.split(reduced[pathvar])
-        except KeyError:
-            print("REDUCED: {}".format(reduced))
-            print("ENV: {}".format(env))
-            print("KEYS: {}".format(reduced.keys()))
-            print("ENV KEYS: {}".format(env.keys()))
-            raise
-
+        _, reduced[pathvar] = os.path.split(reduced[pathvar])
     return reduced

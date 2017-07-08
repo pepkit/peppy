@@ -7,6 +7,7 @@ test execution is not deleteriously affected, then it should be no problem.
 
 """
 
+import copy
 import logging
 import os
 import shutil
@@ -16,21 +17,22 @@ import tempfile
 
 from pandas.io.parsers import EmptyDataError
 import pytest
+import yaml
 
 from looper import setup_looper_logger
-from looper.models import PipelineInterface
-from looper.loodels import Project
+from looper.models import PipelineInterface, Project, SAMPLE_NAME_COLNAME
 
 
-# TODO: needed for interactive mode, but may crush cmdl option for setup.
 _LOGGER = logging.getLogger("looper")
 
+
+P_CONFIG_FILENAME = "project_config.yaml"
 
 # {basedir} lines are formatted during file write; other braced entries remain.
 PROJECT_CONFIG_LINES = """metadata:
   sample_annotation: samples.csv
   output_dir: test
-  pipelines_dir: pipelines
+  pipeline_interfaces: pipelines
   merge_table: merge.csv
 
 derived_columns: [{derived_column_names}]
@@ -171,6 +173,18 @@ _SEASON_HIERARCHY = {
 }
 COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
                         "keys", "values", "items"]
+COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
+PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": "annotations.csv"}}
+
+
+
+def update_project_conf_data(extension):
+    """ Updated Project configuration data mapping based on file extension """
+    updated = copy.deepcopy(PROJECT_CONFIG_DATA)
+    filename = updated["metadata"]["sample_annotation"]
+    base, _ = os.path.splitext(filename)
+    updated["metadata"]["sample_annotation"] = "{}.{}".format(base, extension)
+    return updated
 
 
 
@@ -207,11 +221,47 @@ def conf_logs(request):
 
 
 
+
+@pytest.fixture(scope="function")
+def sample_annotation_lines():
+    return SAMPLE_ANNOTATION_LINES
+
+
+
+@pytest.fixture(scope="function")
+def path_empty_project(request, tmpdir):
+    """ Provide path to Project config file with empty annotations. """
+
+    # Determine how to write the data and how to name a file.
+    if "delimiter" in request.fixturenames:
+        delimiter = request.getfixturevalue("delimiter")
+        extension = "txt"
+    else:
+        delimiter = ","
+        extension = "csv"
+
+    # Update the Project configuration data.
+    conf_data = update_project_conf_data(extension)
+
+    # Write the needed files.
+    anns_path = os.path.join(
+            tmpdir.strpath, conf_data["metadata"]["sample_annotation"])
+
+    with open(anns_path, 'w') as anns_file:
+        anns_file.write(delimiter.join(COLUMNS))
+    conf_path = os.path.join(tmpdir.strpath, "proj-conf.yaml")
+    with open(conf_path, 'w') as conf_file:
+        yaml.dump(conf_data, conf_file)
+
+    return conf_path
+
+
+
 def interactive(prj_lines=PROJECT_CONFIG_LINES,
                 iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
                 merge_table_lines = MERGE_TABLE_LINES,
                 sample_annotation_lines=SAMPLE_ANNOTATION_LINES,
-                project_kwargs=None):
+                loglevel=logging.DEBUG, project_kwargs=None):
     """
     Create Project and PipelineInterface instances from default or given data.
 
@@ -227,14 +277,24 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
         table file
     :param collections.Iterable[str] sample_annotation_lines: lines for a
         sample annotations file
+    :param str | int loglevel: level at which to attend to log messages
     :param dict project_kwargs: keyword arguments for Project constructor
     :return Project, PipelineInterface: one Project and one PipelineInterface,
     """
+
+    # Establish logging for interactive session
+    import logging, sys
+    h = logging.StreamHandler(sys.stdout)
+    h.setLevel(loglevel)
+    logging.root.setLevel(loglevel)
+    logging.root.addHandler(h)
+
+
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(
         prj_lines,
-        dirpath=dirpath, fname="project_config.yaml")
+        dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_iface_file = _write_temp(
         iface_lines,
         dirpath=dirpath, fname="pipeline_interface.yaml")
@@ -287,8 +347,8 @@ def _write_temp(lines, dirpath, fname):
             **{"derived_column_names": ", ".join(DERIVED_COLNAMES)}
     )
     filepath = os.path.join(dirpath, fname)
-    _LOGGER.debug("Writing %d lines to file '%s'", len(lines), filepath)
     data_source_formatter = string.Formatter()
+    num_lines = 0
     with open(filepath, 'w') as tmpf:
         for l in lines:
             if "{basedir}" in l:
@@ -298,7 +358,67 @@ def _write_temp(lines, dirpath, fname):
                 l = data_source_formatter.vformat(
                     l, (), derived_columns_replacement)
             tmpf.write(l)
-        return tmpf.name
+            num_lines += 1
+    _LOGGER.debug("Wrote %d line(s) to disk: '%s'", num_lines, filepath)
+    return filepath
+
+
+
+@pytest.fixture(scope="function")
+def project_config_lines():
+    """ Provide safer iteration over the lines for Project config file. """
+    return PROJECT_CONFIG_LINES
+
+
+
+@pytest.fixture(scope="function")
+def path_project_conf(tmpdir, project_config_lines):
+    """
+    Write the Project configuration data.
+
+    :param py.path.local.LocalPath tmpdir: temporary Path fixture
+    :param Iterable[str] project_config_lines: collection of lines for
+        Project configuration file
+    :return str: path to file with Project configuration data
+    """
+    return _write_temp(
+        project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
+
+
+
+@pytest.fixture(scope="function")
+def proj_conf_data(path_project_conf):
+    """
+    Read and parse raw Project configuration data.
+
+    :param str path_project_conf: path to file with Project configuration data
+    :return Mapping: the data parsed from the configuration file written,
+        a Mapping form of the raw Project config text lines
+    """
+    with open(path_project_conf, 'r') as conf_file:
+        return yaml.safe_load(conf_file)
+
+
+
+@pytest.fixture(scope="function")
+def path_sample_anns(tmpdir, sample_annotation_lines):
+    """
+    Write the sample annotations file and return the path to it.
+
+    :param py.path.local.LocalPath tmpdir: temporary Path fixture
+    :param Iterable[str] sample_annotation_lines: collection of lines for
+        the sample annotations files
+    :return str: path to the sample annotations file that was written
+    """
+    filepath = _write_temp(
+            sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
+    return filepath
+
+
+
+@pytest.fixture(scope="function")
+def p_conf_fname():
+    return P_CONFIG_FILENAME
 
 
 
@@ -313,7 +433,7 @@ def write_project_files(request):
     """
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
-                                 dirpath=dirpath, fname="project_config.yaml")
+                                 dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_merge_table_file = _write_temp(
             MERGE_TABLE_LINES,
             dirpath=dirpath, fname=MERGE_TABLE_FILENAME
@@ -390,7 +510,7 @@ def request_class_attribute(req, attr):
 
 
 
-def _create(request, data_type):
+def _create(request, data_type, **kwargs):
     """
     Create instance of desired type, using file in request class.
 
@@ -403,7 +523,7 @@ def _create(request, data_type):
     _LOGGER.debug("Using %s as source of data to build %s",
                   data_source, data_type.__class__.__name__)
     try:
-        return data_type(data_source)
+        return data_type(data_source, **kwargs)
     except EmptyDataError:
         with open(data_source, 'r') as datafile:
             _LOGGER.error("File contents:\n{}".format(datafile.readlines()))
@@ -421,7 +541,9 @@ def proj(request):
     :return looper.models.Project: object created by parsing
         data in file pointed to by `request` class
     """
-    return _create(request, Project)
+    p = _create(request, Project)
+    p.finalize_pipelines_directory()
+    return p
 
 
 

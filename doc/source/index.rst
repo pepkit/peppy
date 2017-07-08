@@ -27,10 +27,10 @@ Contents
 	advanced.rst
 
 .. toctree::
-	:caption: Developing Pipelines
+	:caption: Developing and Linking Pipelines
 	:maxdepth: 2
 
-	connecting-pipelines.rst
+	pipeline-interface.rst
 	config-files.rst
 
 .. toctree::

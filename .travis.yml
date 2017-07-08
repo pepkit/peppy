@@ -13,5 +13,6 @@ install:
 script: pytest
 branches:
   only:
+    - 0.6-rc2
     - dev
     - master

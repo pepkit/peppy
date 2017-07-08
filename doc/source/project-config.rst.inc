@@ -1,3 +1,5 @@
+:orphan:
+
 Project config file
 ***************************************************
 
@@ -17,8 +19,7 @@ Example:
 	metadata:
 	  sample_annotation: /path/to/sample_annotation.csv
 	  output_dir: /path/to/output/folder
-	  pipelines_dir: /path/to/pipelines/repository
-
+	  pipeline_interfaces: /path/to/pipeline_interface.yaml
 
 
 Project config section: data_sources
@@ -87,6 +88,7 @@ For example:
 
 This project would specify 2 subprojects that have almost the exact same settings, but change only their ``metadata.sample_annotation`` parameter (so, each subproject points to a different sample annotation sheet). Rather than defining two 99% identical project config files, you can use a subproject. 
 
+.. _pipeline-config-section:
 
 Project config section: pipeline_config
 """""""""""""""""""""""""""""""""""""""""""
@@ -124,7 +126,7 @@ Example:
 		"--flag": null
 
 
-The above specification will now pass '--flavor=simple' and '--flag' whenever rrbs.py is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
+For flag-like options (options without parameters), you should set the value to the yaml keyword ``null`` (which means no value). Looper will pass the key to the pipeline without a value. The above specification will now pass ``--flavor=simple`` and ``--flag`` (no parameter) whenever ``rrbs.py`` is invoked -- for this project only. This is a way to control (and record!) project-level pipeline arg tuning. The only keyword here is `pipeline_args`; all other variables in this section are specific to particular pipelines, command-line arguments, and argument values.
 
 
 Project config section: compute
@@ -170,9 +172,9 @@ Project config complete example
 	  # submission: where cluster submit scripts and log files will go
 	  results_subdir: results_pipeline
 	  submission_subdir: submission
-	  # pipelines_dir: the directory where the Looper will find pipeline
+	  # pipeline_interfaces: the pipeline_interface.yaml file or files for Looper pipelines
 	  # scripts (and accompanying pipeline config files) for submission.
-	  pipelines_dir: /path/to/shared/projects/example/pipelines
+	  pipeline_interfaces: /path/to/shared/projects/example/pipeline_interface.yaml
 
 
 	data_sources:
@@ -183,15 +185,16 @@ Project config complete example
 	  bsf_samples: "$RAWDATA/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 	  encode_rrbs: "/path/to/shared/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
 
-	genomes:
-	  # supported genomes and organism -> genome mapping
-	  human: hg19
-	  mouse: mm10
 
-	transcriptomes:
-	  # supported transcriptomes and organism -> transcriptome mapping
-	  human: hg19_cdna
-	  mouse: mm10_cdna
+  implied_columns:
+	# supported genomes/transcriptomes and organism -> reference mapping
+    organism:
+      human:
+        genome: hg38
+        transcriptome: hg38_cdna
+      mouse:
+        genome: mm10
+        transcriptome: mm10_cdna
 
 	pipeline_config:
 	  # pipeline configuration files used in project.
@@ -201,15 +204,3 @@ Project config complete example
 	  # rrbs: rrbs_config.yaml
 	  # wgbs: wgbs_config.yaml
 	  # cgps: cpgs_config.yaml
-
-	track_configurations:
-	  trackhub_dir: /path/to/public_html/project_folder/
-	  url: http://www.whatever.com/
-	  matrix_x: cell_type
-	  matrix_y: cell_count
-	  sort_order: cell_type=+
-	  parent_track_name: ews_rrbs
-	  visibility: dense
-	  hub_name: ews_hub
-	  short_label_column: sample_name
-	  email: user@email.com

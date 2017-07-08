@@ -14,13 +14,12 @@ import random
 
 import numpy.random as nprand
 import pytest
-import yaml
 
 from looper.looper import aggregate_exec_skip_reasons
 import looper.models
-from looper.models import AttributeDict, ATTRDICT_METADATA, COL_KEY_SUFFIX
+from looper.models import COL_KEY_SUFFIX
 from .conftest import \
-    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, FILE_BY_SAMPLE, \
+    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     LOOPER_ARGS_BY_PIPELINE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 
@@ -32,15 +31,11 @@ _LOGGER = logging.getLogger("looper.{}".format(__name__))
 @pytest.mark.usefixtures("write_project_files")
 class ProjectConstructorTest:
 
-    # TODO: docstrings and atomicity/encapsulation.
-    # TODO: conversion to pytest for consistency.
-
 
     @pytest.mark.parametrize(argnames="attr_name",
                              argvalues=["required_inputs", "all_input_attr"])
     def test_sample_required_inputs_not_set(self, proj, attr_name):
         """ Samples' inputs are not set in `Project` ctor. """
-        # TODO: update this to check for null if design is changed as may be.
         with pytest.raises(AttributeError):
             getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
 
@@ -67,11 +62,12 @@ class ProjectConstructorTest:
         merged_columns = filter(
                 lambda col_key: (col_key != "col_modifier") and
                                 not col_key.endswith(COL_KEY_SUFFIX),
-                proj.samples[sample_index].merged_cols.keys()
-        )
+                proj.samples[sample_index].merged_cols.keys())
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
-        assert set(DERIVED_COLNAMES) == set(merged_columns)
+        expected = set(DERIVED_COLNAMES)
+        observed = set(merged_columns)
+        assert expected == observed
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -94,29 +90,13 @@ class ProjectConstructorTest:
         assert not proj.samples[sample_index].merged_cols
 
 
-    @pytest.mark.parametrize(argnames="sample_index",
-                             argvalues=range(NUM_SAMPLES))
-    def test_multiple_add_sample_sheet_calls_no_rederivation(self, proj,
-                                                             sample_index):
-        """ Don't rederive `derived_columns` for multiple calls. """
-        expected_files = FILE_BY_SAMPLE[sample_index]
-        def _observed(p):
-            return [os.path.basename(f)
-                    for f in p.samples[sample_index].file.split(" ")]
-        assert expected_files == _observed(proj)
-        proj.add_sample_sheet()
-        proj.add_sample_sheet()
-        assert expected_files == _observed(proj)
-        proj.add_sample_sheet()
-        assert expected_files == _observed(proj)
-
-
     def test_duplicate_derived_columns_still_derived(self, proj):
         sample_index = 2
         observed_nonmerged_col_basename = \
             os.path.basename(proj.samples[sample_index].nonmerged_col)
         assert "c.txt" == observed_nonmerged_col_basename
-        assert "" == proj.samples[sample_index].locate_data_source('file')
+        assert "" == proj.samples[sample_index].locate_data_source(
+                proj.data_sources, 'file')
 
 
 
@@ -139,7 +119,8 @@ class SampleWrtProjectCtorTests:
         observed_required_inputs = [os.path.basename(f)
                                     for f in sample.required_inputs]
         assert expected_required_inputs == observed_required_inputs
-        assert sample.confirm_required_inputs()
+        error_type, error_message = sample.determine_missing_requirements()
+        assert error_type is None and not error_message
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -154,7 +135,8 @@ class SampleWrtProjectCtorTests:
                                                   [sample_index][0])
         observed_required_input_basename = \
             os.path.basename(sample.required_inputs[0])
-        assert sample.confirm_required_inputs()
+        error_type, error_message = sample.determine_missing_requirements()
+        assert error_type is None and not error_message
         assert 1 == len(sample.required_inputs)
         assert expected_required_input_basename == \
                observed_required_input_basename
@@ -220,102 +202,6 @@ class SampleWrtProjectCtorTests:
         """ Test looper args usage flag. """
         observed = pipe_iface.uses_looper_args(pipeline)
         assert (expected and observed) or not (observed or expected)
-
-
-
-@pytest.mark.usefixtures("write_project_files")
-class SampleRoundtripTests:
-    """ Test equality of objects written to and from YAML files. """
-
-
-    def test_default_behavioral_metadata_retention(self, tmpdir, proj):
-        """ With default metadata, writing to file and restoring is OK. """
-        tempfolder = str(tmpdir)
-        sample_tempfiles = []
-        for sample in proj.samples:
-            path_sample_tempfile = os.path.join(tempfolder,
-                                                "{}.yaml".format(sample.name))
-            sample.to_yaml(path_sample_tempfile)
-            sample_tempfiles.append(path_sample_tempfile)
-        for original_sample, temp_sample_path in zip(proj.samples,
-                                                     sample_tempfiles):
-            with open(temp_sample_path, 'r') as sample_file:
-                restored_sample_data = yaml.load(sample_file)
-            ad = AttributeDict(restored_sample_data)
-            self._metadata_equality(original_sample.prj, ad)
-
-
-    def test_modified_behavioral_metadata_preservation(self, tmpdir, proj):
-        """ Behavior metadata modifications are preserved to/from disk. """
-        tempfolder = str(tmpdir)
-        sample_tempfiles = []
-        samples = proj.samples
-        assert 1 < len(samples), "Too few samples: {}".format(len(samples))
-
-        # TODO: note that this may fail if metadata
-        # modification prohibition is implemented.
-        samples[0].prj.__dict__["_force_nulls"] = True
-        samples[1].prj.__dict__["_attribute_identity"] = True
-
-        for sample in proj.samples[:2]:
-            path_sample_tempfile = os.path.join(tempfolder,
-                                                "{}.yaml".format(sample.name))
-            sample.to_yaml(path_sample_tempfile)
-            sample_tempfiles.append(path_sample_tempfile)
-
-        with open(sample_tempfiles[0], 'r') as f:
-            sample_0_data = yaml.load(f)
-        assert AttributeDict(sample_0_data).prj._force_nulls is True
-
-        with open(sample_tempfiles[1], 'r') as f:
-            sample_1_data = yaml.load(f)
-        sample_1_restored_attrdict =  AttributeDict(sample_1_data)
-        assert sample_1_restored_attrdict.prj.does_not_exist == "does_not_exist"
-
-
-    def _check_nested_metadata(self, original, restored):
-        """
-        Check equality for metadata items, accounting for nesting within
-        instances of AttributeDict and its child classes.
-
-        :param AttributeDict original: original AttributeDict (or child) object
-        :param AttributeDict restored: instance restored from writing
-            original object to file, then reparsing and constructing
-            AttributeDict instance
-        :return bool: whether metadata items are equivalent between objects
-            at all nesting levels
-        """
-        for key, data in original.items():
-            if key not in restored:
-                return False
-            equal_level = self._metadata_equality(original, restored)
-            if not equal_level:
-                return False
-            if isinstance(original, AttributeDict):
-                return isinstance(restored, AttributeDict) and \
-                       self._check_nested_metadata(data, restored[key])
-            else:
-                return True
-
-
-    @staticmethod
-    def _metadata_equality(original, restored):
-        """
-        Check nested levels of metadata equality.
-
-        :param AttributeDict original: a raw AttributeDict or an
-            instance of a child class that was serialized and written to disk
-        :param AttributeDict restored: an AttributeDict instance created by
-            parsing the file associated with the original object
-        :return bool: whether all metadata keys/items have equal value
-            when comparing original object to restored version
-        """
-        for metadata_item in ATTRDICT_METADATA:
-            if metadata_item not in original or \
-                    metadata_item not in restored or \
-                    original[metadata_item] != restored[metadata_item]:
-                return False
-        return True
 
 
 

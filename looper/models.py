@@ -49,9 +49,11 @@ Explore:
 # TODO: the examples changes would involve library and output_dir.
 
 from collections import \
-    defaultdict, Iterable, Mapping, MutableMapping, OrderedDict as _OrderedDict
+    defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
+    OrderedDict as _OrderedDict
 from functools import partial
 import glob
+import inspect
 import itertools
 import logging
 import os as _os
@@ -65,7 +67,16 @@ import pandas as _pd
 import yaml
 
 from .utils import \
-    parse_ftype, check_bam, check_fastq, get_file_size, partition
+    alpha_cased, check_bam, check_fastq, expandpath, \
+    get_file_size, import_from_source, parse_ftype, partition, \
+    standard_stream_redirector
+
+
+# TODO: decide if we want to denote functions for export.
+__functions__ = []
+__classes__ = ["AttributeDict", "PipelineInterface", "Project",
+               "ProtocolInterface", "ProtocolMapper", "Sample"]
+__all__ = __functions__ + __classes__
 
 
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
@@ -74,6 +85,8 @@ DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 IMPLICATIONS_DECLARATION = "implied_columns"
+DATA_SOURCES_SECTION = "data_sources"
+SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
@@ -81,6 +94,27 @@ ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 _LOGGER = logging.getLogger(__name__)
 if not logging.getLogger().handlers:
     _LOGGER.addHandler(logging.NullHandler())
+
+
+
+def check_sheet(sample_file, dtype=str):
+    """
+    Check if csv file exists and has all required columns.
+
+    :param str sample_file: path to sample annotations file.
+    :param type dtype: data type for CSV read.
+    :raises IOError: if given annotations file can't be read.
+    :raises ValueError: if required column(s) is/are missing.
+    """
+    df = _pd.read_table(sample_file, sep=None, dtype=dtype,
+                        index_col=False, engine="python")
+    req = [SAMPLE_NAME_COLNAME]
+    missing = set(req) - set(df.columns)
+    if len(missing) != 0:
+        raise ValueError(
+            "Annotation sheet ('{}') is missing column(s): {}; has: {}".
+                format(sample_file, missing, df.columns))
+    return df
 
 
 
@@ -97,8 +131,175 @@ def copy(obj):
 
 
 
+def include_in_repr(attr, klazz):
+    """
+    Determine whether to include attribute in an object's text representation.
+
+    :param str attr: attribute to include/exclude from object's representation
+    :param str | type klazz: name of type or type itself of which the object
+        to be represented is an instance
+    :return bool: whether to include attribute in an object's
+        text representation
+    """
+    classname = klazz.__name__ if isinstance(klazz, type) else klazz
+    return attr not in \
+           {"Project": ["sheet", "interfaces_by_protocol"]}[classname]
+
+
+
 def is_url(maybe_url):
+    """
+    Determine whether a path is a URL.
+
+    :param str maybe_url: path to investigate as URL
+    :return bool: whether path appears to be a URL
+    """
     return urlparse(maybe_url).scheme != ""
+
+
+
+def merge_sample(sample, merge_table, data_sources, derived_columns):
+    """
+    Use merge table data to augment/modify Sample.
+
+    :param Sample sample: sample to modify via merge table data
+    :param merge_table: data with which to alter Sample
+    :param Mapping data_sources: collection of named paths to data locations
+    :param Iterable[str] derived_columns: names of column for which
+        corresponding Sample attribute's value is data-derived
+    :return Set[str]: names of columns that were merged
+    """
+
+    merged_cols = {}
+
+    if merge_table is None:
+        _LOGGER.log(5, "No data for sample merge, skipping")
+        return merged_cols
+
+    if SAMPLE_NAME_COLNAME not in merge_table.columns:
+        raise KeyError(
+            "Merge table requires a column named '{}'.".
+                format(SAMPLE_NAME_COLNAME))
+
+    _LOGGER.debug("Merging Sample with data sources: {}".
+                  format(data_sources))
+    _LOGGER.debug("Merging Sample with derived columns: {}".
+                  format(derived_columns))
+
+    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
+                     getattr(sample, SAMPLE_NAME_COLNAME)
+    merge_rows = merge_table[sample_indexer]
+
+    if len(merge_rows) == 0:
+        _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
+        return merged_cols
+
+    # Hash derived columns for faster lookup in case of many samples/columns.
+    derived_columns = set(derived_columns)
+    _LOGGER.log(5, "%d rows to merge", len(merge_rows))
+
+
+    # For each row in the merge table of this sample:
+    # 1) populate any derived columns
+    # 2) derived columns --> space-delimited strings
+    # 3) update the sample values with the merge table
+    # Keep track of merged cols,
+    # so we don't re-derive them later.
+    merged_cols = {key: "" for key in merge_rows.columns}
+    for _, row in merge_rows.iterrows():
+        row_dict = row.to_dict()
+        for col in merge_rows.columns:
+            if col == SAMPLE_NAME_COLNAME or \
+                            col not in derived_columns:
+                _LOGGER.log(5, "Skipping column: '%s'", col)
+                continue
+            # Initialize key in parent dict.
+            col_key = col + COL_KEY_SUFFIX
+            merged_cols[col_key] = ""
+            row_dict[col_key] = row_dict[col]
+            row_dict[col] = sample.locate_data_source(
+                    data_sources, col, row_dict[col], row_dict)  # 1)
+
+        _LOGGER.log(5, "Adding derived columns")
+        # Also add in any derived cols present.
+        for col in derived_columns:
+            # Skip over attributes that the sample
+            # either lacks, and those covered by the
+            # data from the current (row's) data.
+            if not hasattr(sample, col) or \
+                            col in row_dict:
+                _LOGGER.log(5, "Skipping column: '%s'", col)
+                continue
+            # Map column name key to sample's value
+            # for the attribute given by column name.
+            col_key = col + COL_KEY_SUFFIX
+            row_dict[col_key] = getattr(sample, col)
+            # Map the column name itself to the
+            # populated data source template string.
+            row_dict[col] = sample.locate_data_source(
+                    data_sources, col, getattr(sample, col), row_dict)
+            _LOGGER.debug("PROBLEM adding derived column: "
+                          "{}, {}, {}".format(col, row_dict[col],
+                                              getattr(sample, col)))
+
+        # Since we are now jamming multiple (merged)
+        # entries into a single attribute, we have to
+        # join them into a space-delimited string
+        # and then set to sample attribute.
+        for key, val in row_dict.items():
+            if key == SAMPLE_NAME_COLNAME or not val:
+                _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
+                continue
+            _LOGGER.log(5, "merge: sample '%s'; %s=%s",
+                          str(sample.name), str(key), str(val))
+            if not key in merged_cols:
+                new_val = str(val).rstrip()
+            else:
+                new_val = "{} {}".format(
+                    merged_cols[key], str(val)).strip()
+            merged_cols[key] = new_val  # 2)
+
+    # Don't update sample_name.
+    merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+
+    sample.update(merged_cols)  # 3)
+    sample.merged_cols = merged_cols
+    sample.merged = True
+
+    return sample
+
+
+
+def process_pipeline_interfaces(pipeline_interface_locations):
+    """
+    Create a ProtocolInterface for each pipeline location given.
+
+    :param Iterable[str] pipeline_interface_locations: locations, each of
+        which should be either a directory path or a filepath, that specifies
+        pipeline interface and protocol mappings information. Each such file
+        should be have a pipelines section and a protocol mappings section
+        whereas each folder should have a file for each of those sections.
+    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol 
+        name to interface(s) for which that protocol is mapped
+    """
+    interface_by_protocol = defaultdict(list)
+    for pipe_iface_location in pipeline_interface_locations:
+        if not _os.path.exists(pipe_iface_location):
+            _LOGGER.warn("Ignoring nonexistent pipeline interface "
+                         "location '%s'", pipe_iface_location)
+            continue
+        proto_iface = ProtocolInterface(pipe_iface_location)
+        for proto_name in proto_iface.protomap:
+            _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
+            interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
+    return interface_by_protocol
+
+
+
+# Collect PipelineInterface, Sample type, pipeline path, and script with flags.
+SubmissionBundle = namedtuple(
+    "SubmissionBundle",
+    field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
 
 
 
@@ -106,8 +307,11 @@ def is_url(maybe_url):
 class Paths(object):
     """ A class to hold paths as attributes. """
 
-    def __str__(self):
-        return "Paths object."
+    def __getitem__(self, key):
+        """
+        Provides dict-style access to attributes
+        """
+        return getattr(self, key)
 
     def __iter__(self):
         """
@@ -120,11 +324,8 @@ class Paths(object):
         """
         return iter(self.__dict__.values())
 
-    def __getitem__(self, key):
-        """
-        Provides dict-style access to attributes
-        """
-        return getattr(self, key)
+    def __repr__(self):
+        return "Paths object."
 
 
 
@@ -185,8 +386,7 @@ class AttributeDict(MutableMapping):
 
     def __getattr__(self, item, default=None):
         """
-        Fetch the value associated with the provided identifier. Unlike an
-        ordinary object, `AttributeDict` supports fetching
+        Fetch the value associated with the provided identifier.
 
         :param int | str item: identifier for value to fetch
         :return object: whatever value corresponds to the requested key/item
@@ -198,6 +398,11 @@ class AttributeDict(MutableMapping):
             anyway. More specifically, respect attribute naming that appears
             to be indicative of the intent of protection.
         """
+        try:
+            return super(AttributeDict, self).__getattribute__(item)
+        except (AttributeError, TypeError):
+            # Handle potential property and non-string failures.
+            pass
         try:
             # Fundamentally, this is still a mapping;
             # route object notation access pattern accordingly.
@@ -241,21 +446,21 @@ class AttributeDict(MutableMapping):
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
-                _LOGGER.debug("Updating key: '{}'".format(key))
+                _LOGGER.log(5, "Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            _LOGGER.debug("'{}' now has keys {}".
+            _LOGGER.log(5, "'{}' now has keys {}".
                           format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
             _LOGGER.log(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
         else:
-            _LOGGER.debug("Not setting {k} to {v}; _force_nulls: {nulls}".
-                          format(k=key, v=value,
-                                 nulls=self.__dict__["_force_nulls"]))
+            _LOGGER.log(5, "Not setting {k} to {v}; _force_nulls: {nulls}".
+                        format(k=key, v=value,
+                               nulls=self.__dict__["_force_nulls"]))
 
 
     def __getitem__(self, item):
@@ -305,6 +510,9 @@ class AttributeDict(MutableMapping):
     def __repr__(self):
         return repr(self.__dict__)
 
+    def __str__(self):
+        return "{}: {}".format(self.__class__.__name__, repr(self))
+
 
 
 @copy
@@ -339,6 +547,10 @@ class Project(AttributeDict):
         settings can't be established, optional; if null (the default),
         a warning message will be logged, and no exception will be raised.
     :type no_compute_exception: type
+    :param defer_sample_construction: whether to wait to build this Project's
+        Sample objects until they're needed, optional; by default, the basic
+        Sample is created during Project construction
+    :type defer_sample_construction: bool
 
 
     :Example:
@@ -356,13 +568,12 @@ class Project(AttributeDict):
     def __init__(self, config_file, subproject=None,
                  default_compute=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
-                 no_environment_exception=None, no_compute_exception=None):
+                 no_environment_exception=None, no_compute_exception=None,
+                 defer_sample_construction=False):
 
-        _LOGGER.info("Creating %s from file: '%s'",
+        _LOGGER.debug("Creating %s from file: '%s'",
                           self.__class__.__name__, config_file)
         super(Project, self).__init__()
-
-        default_compute = default_compute or self.default_cmpenv_file
 
         # Initialize local, serial compute as default (no cluster submission)
         # Start with default environment settings.
@@ -370,7 +581,8 @@ class Project(AttributeDict):
         self.environment, self.environment_file = None, None
 
         try:
-            self.update_environment(default_compute)
+            self.update_environment(
+                    default_compute or self.default_compute_envfile)
         except Exception as e:
             _LOGGER.error("Can't load environment config file '%s'",
                           str(default_compute))
@@ -413,10 +625,13 @@ class Project(AttributeDict):
         self.config_file = _os.path.abspath(config_file)
 
         # Parse config file
-        _LOGGER.info("Parsing %s config file", self.__class__.__name__)
+        _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
         if subproject:
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
+
+        # Ensure data_sources is at least set if it wasn't parsed.
+        self.setdefault("data_sources", None)
 
         self.name = self.infer_name(self.config_file)
         self.subproject = subproject
@@ -435,37 +650,114 @@ class Project(AttributeDict):
         except AttributeError:
             self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
 
-        # Sheet will be set to non-null value by call to add_sample_sheet().
-        # That call also sets the samples (list) attribute for the instance
-        # and adds default derived columns.
-        self.sheet = None
-        self.samples = list()
-        self.add_sample_sheet()
-
         self.finalize_pipelines_directory()
 
+        # SampleSheet creation populates project's samples, adds the
+        # sheet itself, and adds any derived columns.
+        _LOGGER.debug("Processing {} pipeline location(s): {}".
+                      format(len(self.metadata.pipelines_dir),
+                             self.metadata.pipelines_dir))
+        self.interfaces_by_protocol = \
+                process_pipeline_interfaces(self.metadata.pipelines_dir)
 
-    @property
-    def default_cmpenv_file(self):
-        """ Path to default compute environment settings file. """
-        return _os.path.join(
-                self.templates_folder, "default_compute_settings.yaml")
+        path_anns_file = self.metadata.sample_annotation
+        _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
+        try:
+            self.sheet = check_sheet(path_anns_file)
+        except IOError:
+            _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
+                          path_anns_file)
+            anns_folder_path = _os.path.dirname(path_anns_file)
+            try:
+                annotations_file_folder_contents = \
+                        _os.listdir(anns_folder_path)
+            except OSError:
+                _LOGGER.error("Annotations file folder doesn't exist either: "
+                              "'%s'", anns_folder_path)
+            else:
+                _LOGGER.error("Annotations file folder's contents: {}".
+                              format(annotations_file_folder_contents))
+            raise
+
+        self.merge_table = None
+        self._samples = None if defer_sample_construction \
+                else self._make_basic_samples()
 
 
-    @property
-    def templates_folder(self):
-        return _os.path.join(_os.path.dirname(__file__), "submit_templates")
+    def __repr__(self):
+        include = partial(include_in_repr, klazz=self.__class__)
+        return repr({k: v for k, v in self.__dict__.items() if include(k)})
 
 
     @property
     def compute_env_var(self):
         """
         Environment variable through which to access compute settings.
-        
-        :return str: name of the environment variable to pointing to 
+
+        :return str: name of the environment variable to pointing to
             compute settings
         """
         return COMPUTE_SETTINGS_VARNAME
+
+
+    @property
+    def default_compute_envfile(self):
+        """ Path to default compute environment settings file. """
+        return _os.path.join(
+                self.templates_folder, "default_compute_settings.yaml")
+
+
+    @property
+    def num_samples(self):
+        """ Number of samples available in this Project. """
+        return sum(1 for _ in self.sample_names)
+
+
+    @property
+    def output_dir(self):
+        """
+        Directory in which to place results and submissions folders.
+
+        By default, assume that the project's configuration file specifies
+        an output directory, and that this is therefore available within
+        the project metadata. If that assumption does not hold, though,
+        consider the folder in which the project configuration file lives
+        to be the project's output directory.
+
+        :return str: path to the project's output directory, either as
+            specified in the configuration file or the folder that contains
+            the project's configuration file.
+        """
+        try:
+            return self.metadata.output_dir
+        except AttributeError:
+            return _os.path.dirname(self.config_file)
+
+
+    @property
+    def project_folders(self):
+        """
+        Names of folders to nest within a project output directory.
+
+        :return Iterable[str]: names of output-nested folders
+        """
+        return ["results_subdir", "submission_subdir"]
+
+
+    @property
+    def protocols(self):
+        """
+        Determine this Project's unique protocol names.
+
+        :return Set[str]: collection of this Project's unique protocol names
+        """
+        protos = set()
+        for s in self.samples:
+            try:
+                protos.add(s.library)
+            except AttributeError:
+                _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
+        return protos
 
 
     @property
@@ -484,34 +776,36 @@ class Project(AttributeDict):
 
 
     @property
-    def project_folders(self):
-        """
-        Names of folders to nest within a project output directory.
-        
-        :return Iterable[str]: names of output-nested folders
-        """
-        return ["results_subdir", "submission_subdir"]
+    def sample_names(self):
+        """ Names of samples of which this Project is aware. """
+        return iter(self.sheet[SAMPLE_NAME_COLNAME])
 
 
     @property
-    def output_dir(self):
+    def samples(self):
         """
-        Directory in which to place results and submissions folders.
-        
-        By default, assume that the project's configuration file specifies
-        an output directory, and that this is therefore available within 
-        the project metadata. If that assumption does not hold, though, 
-        consider the folder in which the project configuration file lives 
-        to be the project's output directory. 
-        
-        :return str: path to the project's output directory, either as 
-            specified in the configuration file or the folder that contains
-            the project's configuration file.
+        Generic/base Sample instance for each of this Project's samples.
+
+        :return Iterable[Sample]: Sample instance for each
+            of this Project's samples
         """
-        try:
-            return self.metadata.output_dir
-        except AttributeError:
-            return _os.path.dirname(self.config_file)
+        if self._samples is None:
+            _LOGGER.debug("Building basic Sample(s) for %s",
+                          self.__class__.__name__)
+            self._samples = self._make_basic_samples()
+        _LOGGER.debug("%s has %d basic Sample(s)",
+                      self.__class__.__name__, len(self._samples))
+        return self._samples
+
+
+    @property
+    def templates_folder(self):
+        """
+        Path to folder with default submission templates.
+
+        :return str: path to folder with default submission templates
+        """
+        return _os.path.join(_os.path.dirname(__file__), "submit_templates")
 
 
     @staticmethod
@@ -530,27 +824,135 @@ class Project(AttributeDict):
         return config_folder
 
 
-    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
-        """ Default environment settings aren't required; warn, though. """
-        missing_env_attrs = \
-            [attr for attr in ["environment", "environment_file"]
-             if not hasattr(self, attr) or getattr(self, attr) is None]
-        if not missing_env_attrs:
-            return
-        message = "'{}' lacks environment attributes: {}".\
-                format(env_settings_file, missing_env_attrs)
-        if when_missing is None:
-            _LOGGER.warn(message)
+    def build_submission_bundles(self, protocol, priority=True):
+        """
+        Create pipelines to submit for each sample of a particular protocol.
+
+        With the argument (flag) to the priority parameter, there's control
+        over whether to submit pipeline(s) from only one of the project's
+        known pipeline locations with a match for the protocol, or whether to
+        submit pipelines created from all locations with a match for the
+        protocol.
+        
+        :param str protocol: name of the protocol/library for which to
+            create pipeline(s)
+        :param bool priority: to only submit pipeline(s) from the first of the
+            pipelines location(s) (indicated in the project config file) that
+            has a match for the given protocol; optional, default True
+        :return Iterable[(PipelineInterface, str, str)]:
+        :raises AssertionError: if there's a failure in the attempt to
+            partition an interface's pipeline scripts into disjoint subsets of
+            those already mapped and those not yet mapped
+        """
+
+        # Pull out the collection of interfaces (potentially one from each of
+        # the locations indicated in the project configuration file) as a
+        # sort of pool of information about possible ways in which to submit
+        # pipeline(s) for sample(s) of the indicated protocol.
+        try:
+            protocol_interfaces = \
+                    self.interfaces_by_protocol[protocol]
+        except KeyError:
+            _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
+            return []
+
+        job_submission_bundles = []
+        pipeline_keys_used = set()
+        _LOGGER.debug("Building pipelines for {} PIs...".
+                      format(len(protocol_interfaces)))
+        for proto_iface in protocol_interfaces:
+            # Short-circuit if we care only about the highest-priority match
+            # for pipeline submission. That is, if the intent is to submit
+            # pipeline(s) from a single location for each sample of the given
+            # protocol, we can stop searching the pool of pipeline interface
+            # information once we've found a match for the protocol.
+            if priority and len(job_submission_bundles) > 0:
+                return job_submission_bundles[0]
+
+            this_protocol_pipelines = proto_iface.fetch_pipelines(protocol)
+            if not this_protocol_pipelines:
+                _LOGGER.warn("No mapping for protocol '%s' in %s", 
+                             protocol, proto_iface)
+                continue
+            
+            # TODO: update once dependency-encoding logic is in place.
+            # The proposed dependency-encoding format uses a semicolon
+            # between pipelines for which the dependency relationship is
+            # serial. For now, simply treat those as multiple independent
+            # pipelines by replacing the semicolon with a comma, which is the
+            # way in which multiple independent pipelines for a single protocol
+            # are represented in the mapping declaration.
+            pipeline_keys = \
+                    this_protocol_pipelines.replace(";", ",")\
+                                           .strip(" ()\n")\
+                                           .split(",")
+            # These cleaned pipeline keys are what's used to resolve the path
+            # to the pipeline to run.
+            pipeline_keys = [pk.strip() for pk in pipeline_keys]
+
+            # Skip over pipelines already mapped by another location.
+            already_mapped, new_scripts = \
+                    partition(pipeline_keys,
+                              partial(_is_member, items=pipeline_keys_used))
+            pipeline_keys_used |= set(pipeline_keys)
+
+            # Attempt to validate that partition yielded disjoint subsets.
+            try:
+                disjoint_partition_violation = \
+                        set(already_mapped) & set(new_scripts)
+            except TypeError:
+                _LOGGER.debug("Unable to hash partitions for validation")
+            else:
+                assert not disjoint_partition_violation, \
+                        "Partitioning {} with membership in {} as " \
+                        "predicate produced intersection: {}".format(
+                        pipeline_keys, pipeline_keys_used, 
+                        disjoint_partition_violation)
+
+            if len(already_mapped) > 0:
+                _LOGGER.debug("Skipping {} already-mapped script name(s): {}".
+                              format(len(already_mapped), already_mapped))
+            _LOGGER.debug("{} new scripts for protocol {} from "
+                          "pipeline(s) location '{}': {}".
+                          format(len(new_scripts), protocol,
+                                 proto_iface.source, new_scripts))
+
+            # For each pipeline script to which this protocol will pertain,
+            # create the new jobs/submission bundles.
+            new_jobs = []
+            for pipeline_key in new_scripts:
+                # Determine how to reference the pipeline and where it is.
+                strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
+                        proto_iface.finalize_pipeline_key_and_paths(
+                                pipeline_key)
+                # Determine which interface and Sample subtype to use.
+                sample_subtype = \
+                        proto_iface.fetch_sample_subtype(
+                                protocol, strict_pipe_key, full_pipe_path)
+                # Package the pipeline's interface, subtype, command, and key.
+                submission_bundle = SubmissionBundle(
+                        proto_iface.pipe_iface, sample_subtype,
+                        strict_pipe_key, full_pipe_path_with_flags)
+                # Add this bundle to the collection of ones relevant for the
+                # current ProtocolInterface.
+                new_jobs.append(submission_bundle)
+
+            job_submission_bundles.append(new_jobs)
+
+        # Repeat logic check of short-circuit conditional to account for
+        # edge case in which it's satisfied during the final iteration.
+        if priority and len(job_submission_bundles) > 1:
+            return job_submission_bundles[0]
         else:
-            when_missing(message)
+            return list(itertools.chain(*job_submission_bundles))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
         Finalize the establishment of a path to this project's pipelines.
-        
-        With the passed argument, override anything already set. 
-        Otherwise, prefer path provided in this project's config, then 
+
+        With the passed argument, override anything already set.
+        Otherwise, prefer path provided in this project's config, then
         local pipelines folder, then a location set in project environment.
 
         :param str pipe_path: (absolute) path to pipelines
@@ -586,6 +988,128 @@ class Project(AttributeDict):
         self.metadata.pipelines_dir = pipe_path
 
 
+    def get_arg_string(self, pipeline_name):
+        """
+        For this project, given a pipeline, return an argument string
+        specified in the project config file.
+        """
+
+        def make_optarg_text(opt, arg):
+            """ Transform flag/option into CLI-ready text version. """
+            return "{} {}".format(opt, _os.path.expandvars(arg)) \
+                    if arg else opt
+
+        def create_argtext(name):
+            """ Create command-line argstring text from config section. """
+            try:
+                optargs = getattr(self.pipeline_args, name)
+            except AttributeError:
+                return ""
+            # NS using __dict__ will add in the metadata from AttrDict (doh!)
+            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
+            optargs_texts = [make_optarg_text(opt, arg)
+                             for opt, arg in optargs.items()]
+            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
+            # TODO: may need to fix some spacing issues here.
+            return " ".join(optargs_texts)
+
+        default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
+        pipeline_argtext = create_argtext(pipeline_name)
+
+        if not pipeline_argtext:
+            # The project config may not have an entry for this pipeline;
+            # no problem! There are no pipeline-specific args. Return text
+            # from default arguments, whether empty or not.
+            return default_argtext
+        elif default_argtext:
+            # Non-empty pipeline-specific and default argtext
+            return " ".join([default_argtext, pipeline_argtext])
+        else:
+            # No default argtext, but non-empty pipeline-specific argtext
+            return pipeline_argtext
+
+
+    def build_sheet(self, *protocols):
+        """
+        Create all Sample object for this project for the given protocol(s).
+
+        :return pandas.core.frame.DataFrame: DataFrame with from base version
+            of each of this Project's samples, for indicated protocol(s) if
+            given, else all of this Project's samples
+        """
+        # Use all protocols if none are explicitly specified.
+        samples = self.samples
+        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
+        return _pd.DataFrame(
+                [s.as_series() for s in samples if
+                 hasattr(s, "library") and alpha_cased(s.library) in protocols])
+
+
+    def make_project_dirs(self):
+        """
+        Creates project directory structure if it doesn't exist.
+        """
+        for folder_name in self.project_folders:
+            folder_path = self.metadata[folder_name]
+            _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
+            if not _os.path.exists(folder_path):
+                _LOGGER.debug("Attempting to create project folder: '%s'",
+                              folder_path)
+                try:
+                    _os.makedirs(folder_path)
+                except OSError as e:
+                    _LOGGER.warn("Could not create project folder: '%s'",
+                                 str(e))
+
+
+    def _make_basic_samples(self):
+        """ Build the base Sample objects from the annotations sheet data. """
+
+        # This should be executed just once, establishing the Project's
+        # base Sample objects if they don't already exist.
+        if hasattr(self.metadata, "merge_table"):
+            if self.merge_table is None:
+                if self.metadata.merge_table and \
+                        _os.path.isfile(self.metadata.merge_table):
+                    self.merge_table = _pd.read_table(
+                        self.metadata.merge_table,
+                        sep=None, engine="python")
+                    _LOGGER.debug("Merge table shape: {}".
+                                  format(self.merge_table.shape))
+                else:
+                    _LOGGER.debug(
+                        "Alleged path to merge table data is not a "
+                        "file: '%s'", self.metadata.merge_table)
+            else:
+                _LOGGER.debug("Already parsed merge table")
+        else:
+            _LOGGER.debug("No merge table")
+
+        # Create the Sample(s).
+        samples = []
+        for _, row in self.sheet.iterrows():
+            sample = Sample(row.dropna())
+            sample.set_genome(self.get("genomes"))
+            sample.set_transcriptome(self.get("transcriptomes"))
+
+            merge_sample(sample, self.merge_table,
+                         self.data_sources, self.derived_columns)
+            sample.set_file_paths(self)
+            # Hack for backwards-compatibility
+            # Pipelines should now use `data_source`)
+            _LOGGER.debug("Setting sample's data path")
+            try:
+                sample.data_path = sample.data_source
+            except AttributeError:
+                _LOGGER.log(5, "Sample '%s' lacks data source; skipping "
+                              "data path assignment", sample.sample_name)
+            else:
+                _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
+            samples.append(sample)
+
+        return samples
+
+
     def parse_config_file(self, subproject=None):
         """
         Parse provided yaml config file and check required fields exist.
@@ -597,6 +1121,9 @@ class Project(AttributeDict):
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
+
+        _LOGGER.debug("{} config data: {}".format(
+                self.__class__.__name__, config))
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
@@ -626,6 +1153,29 @@ class Project(AttributeDict):
             self.metadata.add_entries(self.paths)
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
+
+        # In looper 0.6, we added pipeline_interfaces to metadata
+        # For backwards compatibility, merge it with pipelines_dir
+
+        if "metadata" in config:
+            if "pipelines_dir" in self.metadata:
+                _LOGGER.warning("Looper v0.6 suggests "
+                    "switching from pipelines_dir to "
+                    "pipeline_interfaces. See docs for details: "
+                    "http://looper.readthedocs.io/en/latest/")
+            if "pipeline_interfaces" in self.metadata:
+                if "pipelines_dir" in self.metadata:
+                    raise AttributeError(
+                            "You defined both 'pipeline_interfaces' and "
+                            "'pipelines_dir'. Please remove your "
+                            "'pipelines_dir' definition.")
+                else:
+                    self.metadata.pipelines_dir = \
+                            self.metadata.pipeline_interfaces
+                _LOGGER.debug("Adding pipeline_interfaces to "
+                    "pipelines_dir. New value: {}".
+                    format(self.metadata.pipelines_dir))
+
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
@@ -661,12 +1211,12 @@ class Project(AttributeDict):
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
             if not hasattr(self, sect):
-                _LOGGER.debug("%s lacks relative section '%s', skipping",
-                                   self.__class__.__name__, sect)
+                _LOGGER.log(5, "%s lacks relative section '%s', skipping",
+                            self.__class__.__name__, sect)
                 continue
             relative_vars = getattr(self, sect)
             if not relative_vars:
-                _LOGGER.debug("No relative variables, continuing")
+                _LOGGER.log(5, "No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
                 if not hasattr(relative_vars, var) or \
@@ -677,18 +1227,17 @@ class Project(AttributeDict):
                 _LOGGER.debug("Ensuring absolute path(s) for '%s'", var)
                 # Parsed from YAML, so small space of possible datatypes.
                 if isinstance(relpath, list):
-                    setattr(relative_vars, var,
-                            [self._ensure_absolute(maybe_relpath)
-                             for maybe_relpath in relpath])
+                    absolute = [self._ensure_absolute(maybe_relpath)
+                                for maybe_relpath in relpath]
                 else:
-                    abs_path = self._ensure_absolute(relpath)
-                    _LOGGER.debug("Setting '%s' to '%s'", var, abs_path)
-                    setattr(relative_vars, var, abs_path)
+                    absolute = self._ensure_absolute(relpath)
+                _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
+                setattr(relative_vars, var, absolute)
 
         # Project config may have made compute.submission_template relative.
         # Make sure it's absolute.
         if self.compute is None:
-            _LOGGER.debug("No compute, no submission template")
+            _LOGGER.log(5, "No compute, no submission template")
         elif not _os.path.isabs(self.compute.submission_template):
             # Relative to environment config file.
             self.compute.submission_template = _os.path.join(
@@ -703,24 +1252,57 @@ class Project(AttributeDict):
                     path_config_file=self.config_file)
 
 
-    def _ensure_absolute(self, maybe_relpath):
-        _LOGGER.debug("Ensuring absolute path for '%s'", maybe_relpath)
-        if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.debug("Already absolute")
-            return maybe_relpath
-        # Maybe we have env vars that make the path absolute?
-        expanded = _os.path.expandvars(maybe_relpath)
-        _LOGGER.debug("Expanded: '%s'", expanded)
-        if _os.path.isabs(expanded):
-            _LOGGER.debug("Expanded is absolute")
-            return expanded
-        _LOGGER.debug("Making non-absolute path '%s' be absolute",
-                      maybe_relpath)
-        # Set path to an absolute path, relative to project config.
-        config_dirpath = _os.path.dirname(self.config_file)
-        _LOGGER.debug("config_dirpath: %s", config_dirpath)
-        abs_path = _os.path.join(config_dirpath, maybe_relpath)
-        return abs_path
+    def set_compute(self, setting):
+        """
+        Set the compute attributes according to the
+        specified settings in the environment file.
+
+        :param str setting:	name for non-resource compute bundle, the name of
+            a subsection in an environment configuration file
+        :return bool: success flag for attempt to establish compute settings
+        """
+
+        # Hope that environment & environment compute are present.
+        if setting and self.environment and "compute" in self.environment:
+            # Augment compute, creating it if needed.
+            if self.compute is None:
+                _LOGGER.debug("Creating Project compute")
+                self.compute = AttributeDict()
+                _LOGGER.debug("Adding entries for setting '%s'", setting)
+            self.compute.add_entries(self.environment.compute[setting])
+
+            # Ensure submission template is absolute.
+            if not _os.path.isabs(self.compute.submission_template):
+                try:
+                    self.compute.submission_template = _os.path.join(
+                            _os.path.dirname(self.environment_file),
+                            self.compute.submission_template)
+                except AttributeError as e:
+                    # Environment and environment compute should at least have been
+                    # set as null-valued attributes, so execution here is an error.
+                    _LOGGER.error(str(e))
+                    # Compute settings have been established.
+                else:
+                    return True
+        else:
+            # Scenario in which environment and environment compute are
+            # both present but don't evaluate to True is fairly
+            # innocuous, even common if outside of the looper context.
+            _LOGGER.debug("Environment = {}".format(self.environment))
+
+        return False
+
+
+    def set_project_permissions(self):
+        """
+        Make the project's public_html folder executable.
+        """
+        try:
+            _os.chmod(self.trackhubs.trackhub_dir, 0o0755)
+        except OSError:
+            # This currently does not fail now
+            # ("cannot change folder's mode: %s" % d)
+            pass
 
 
     def update_environment(self, env_settings_file):
@@ -730,13 +1312,11 @@ class Project(AttributeDict):
         :param str env_settings_file: path to file with 
             new environment configuration data
         """
-        if not env_settings_file:
-            return
 
-        with open(env_settings_file, 'r') as handle:
+        with open(env_settings_file, 'r') as f:
             _LOGGER.info("Loading %s: %s",
                          self.compute_env_var, env_settings_file)
-            env_settings = yaml.load(handle)
+            env_settings = yaml.load(f)
             _LOGGER.debug("Parsed environment settings: %s",
                           str(env_settings))
 
@@ -761,432 +1341,40 @@ class Project(AttributeDict):
         self.environment_file = env_settings_file
 
 
-    def make_project_dirs(self):
-        """
-        Creates project directory structure if it doesn't exist.
-        """
-        for folder_name in self.project_folders:
-            folder_path = self.metadata[folder_name]
-            _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
-            if not _os.path.exists(folder_path):
-                _LOGGER.debug("Attempting to create project folder: '%s'",
-                              folder_path)
-                try:
-                    _os.makedirs(folder_path)
-                except OSError as e:
-                    _LOGGER.warn("Could not create project folder: '%s'",
-                                 str(e))
+    def _ensure_absolute(self, maybe_relpath):
+        """ Ensure that a possibly relative path is absolute. """
+        _LOGGER.log(5, "Ensuring absolute: '%s'", maybe_relpath)
+        if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+            _LOGGER.log(5, "Already absolute")
+            return maybe_relpath
+        # Maybe we have env vars that make the path absolute?
+        expanded = _os.path.expandvars(maybe_relpath)
+        _LOGGER.log(5, "Expanded: '%s'", expanded)
+        if _os.path.isabs(expanded):
+            _LOGGER.log(5, "Expanded is absolute")
+            return expanded
+        _LOGGER.log(5, "Making non-absolute path '%s' be absolute",
+                      maybe_relpath)
+        # Set path to an absolute path, relative to project config.
+        config_dirpath = _os.path.dirname(self.config_file)
+        _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
+        abs_path = _os.path.join(config_dirpath, maybe_relpath)
+        return abs_path
 
 
-    def set_project_permissions(self):
-        """
-        Makes the project's public_html folder executable.
-        """
-        for d in [self.trackhubs.trackhub_dir]:
-            try:
-                _os.chmod(d, 0o0755)
-            except OSError:
-                # This currently does not fail now
-                # ("cannot change folder's mode: %s" % d)
-                continue
-
-
-    def set_compute(self, setting):
-        """
-        Set the compute attributes according to the
-        specified settings in the environment file.
-
-        :param str setting:	name for non-resource compute bundle, the name of
-            a subsection in an environment configuration file
-        :return bool: success flag for attempt to establish compute settings
-        """
-
-        # Hope that environment & environment compute are present.
-        if setting and self.environment and "compute" in self.environment:
-
-                # Augment compute, creating it if needed
-                if self.compute is None:
-                    _LOGGER.debug("Creating Project compute")
-                    self.compute = AttributeDict()
-                    _LOGGER.debug("Adding entries for setting '%s'", setting)
-                self.compute.add_entries(self.environment.compute[setting])
-
-                # Ensure submission template is absolute.
-                if not _os.path.isabs(self.compute.submission_template):
-                    try:
-                        self.compute.submission_template = _os.path.join(
-                                _os.path.dirname(self.environment_file),
-                                self.compute.submission_template)
-                    except AttributeError as e:
-                        # Environment and environment compute should at least have been
-                        # set as null-valued attributes, so execution here is an error.
-                        _LOGGER.error(str(e))
-                        # Compute settings have been established.
-                    else:
-                        return True
+    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
+        """ Default environment settings aren't required; warn, though. """
+        missing_env_attrs = \
+            [attr for attr in ["environment", "environment_file"]
+             if not hasattr(self, attr) or getattr(self, attr) is None]
+        if not missing_env_attrs:
+            return
+        message = "'{}' lacks environment attributes: {}".\
+                format(env_settings_file, missing_env_attrs)
+        if when_missing is None:
+            _LOGGER.warn(message)
         else:
-            # Scenario in which environment and environment compute are
-            # both present but don't evaluate to True is fairly
-            # innocuous, even common if outside of the looper context.
-            _LOGGER.debug("Environment = {}".format(self.environment))
-
-        return False
-
-
-    def get_arg_string(self, pipeline_name):
-        """
-        For this project, given a pipeline, return an argument string
-        specified in the project config file.
-        """
-
-        def make_optarg_text(opt, arg):
-            """ Transform flag/option into CLI-ready text version. """
-            return "{} {}".format(opt, _os.path.expandvars(arg)) \
-                    if arg else opt
-
-        def create_argtext(name):
-            """ Create command-line argstring text from config section. """
-            try:
-                optargs = getattr(self.pipeline_args, name)
-            except AttributeError:
-                return ""
-            # NS using __dict__ will add in the metadata from AttrDict (doh!)
-            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
-            optargs_texts = [make_optarg_text(opt, arg)
-                             for opt, arg in optargs.items()]
-            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
-            # TODO: may need to fix some spacing issues here.
-            return " ".join(optargs_texts)
-
-        default_argtext, pipeline_argtext = \
-                create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME), create_argtext(pipeline_name)
-
-        if not pipeline_argtext:
-            # The project config may not have an entry for this pipeline;
-            # no problem! There are no pipeline-specific args. Return text 
-            # from default arguments, whether empty or not.
-            return default_argtext
-        elif default_argtext:
-            # Non-empty pipeline-specific and default argtext
-            return " ".join([default_argtext, pipeline_argtext])
-        else:
-            # No default argtext, but non-empty pipeline-specific argtext
-            return pipeline_argtext
-
-
-    def add_sample_sheet(self, csv=None):
-        """
-        Build a `SampleSheet` object from a csv file and
-        add it and its samples to the project.
-
-        :param csv: Path to csv file.
-        :type csv: str
-        """
-
-        _LOGGER.debug("Adding sample sheet")
-
-        # Make SampleSheet object
-        # By default read sample_annotation, but allow explict CSV arg.
-        self.sheet = SampleSheet(csv or self.metadata.sample_annotation)
-
-        # Pair project and sheet.
-        self.sheet.prj = self
-
-        # Generate sample objects from annotation sheet.
-        _LOGGER.debug("Creating samples from annotation sheet")
-        self.sheet.make_samples()
-
-        # Add samples to Project
-        for sample in self.sheet.samples:
-            # Overwritten later if merged
-            sample.merged = False
-            self.add_sample(sample)		# Appends sample to self.samples.
-
-        # Merge sample files (!) using merge table if provided:
-        if hasattr(self.metadata, "merge_table"):
-            if self.metadata.merge_table is not None:
-                if _os.path.isfile(self.metadata.merge_table):
-                    # read in merge table
-
-                    merge_table = _pd.read_table(
-                            self.metadata.merge_table,
-                            sep=None, index_col=False, engine="python")
-
-                    if SAMPLE_NAME_COLNAME not in merge_table.columns:
-                        raise KeyError(
-                                "Merge table requires a column named '{}'.".
-                                format(SAMPLE_NAME_COLNAME))
-
-                    for sample in self.sheet.samples:
-                        sample_indexer = \
-                                merge_table[SAMPLE_NAME_COLNAME] == sample.name
-                        merge_rows = merge_table[sample_indexer]
-
-                        # Check if there are rows in the
-                        # merge table for this sample:
-                        if len(merge_rows) > 0:
-                            # For each row in the merge table of this sample:
-                            # 1) populate any derived columns
-                            # 2) derived columns --> space-delimited strings
-                            # 3) update the sample values with the merge table
-
-                            # Keep track of merged cols,
-                            # so we don't re-derive them later.
-                            merged_cols = {
-                                    key: "" for key in merge_rows.columns}
-                            for _, row in merge_rows.iterrows():
-                                row_dict = row.to_dict()
-                                for col in merge_rows.columns:
-                                    if col == SAMPLE_NAME_COLNAME or \
-                                            col not in self.derived_columns:
-                                        continue
-                                    # Initialize key in parent dict.
-                                    col_key = col + COL_KEY_SUFFIX
-                                    merged_cols[col_key] = ""
-                                    row_dict[col_key] = row_dict[col]
-                                    row_dict[col] = sample.locate_data_source(
-                                        col, row_dict[col], row_dict)  # 1)
-
-                                # Also add in any derived cols present.
-                                for col in self.derived_columns:
-                                    # Skip over attributes that the sample
-                                    # either lacks, and those covered by the
-                                    # data from the current (row's) data.
-                                    if not hasattr(sample, col) or \
-                                            col in row_dict:
-                                        continue
-                                    # Map column name key to sample's value
-                                    # for the attribute given by column name.
-                                    col_key = col + COL_KEY_SUFFIX
-                                    row_dict[col_key] = getattr(sample, col)
-                                    # Map the column name itself to the
-                                    # populated data source template string.
-                                    row_dict[col] = sample.locate_data_source(
-                                        col, getattr(sample, col), row_dict)
-                                    _LOGGER.debug(
-                                        "PROBLEM adding derived column: "
-                                        "{}, {}, {}".format(col,
-                                        row_dict[col], getattr(sample, col)))
-
-                                # Since we are now jamming multiple (merged)
-                                # entries into a single attribute, we have to
-                                # join them into a space-delimited string
-                                # and then set to sample attribute.
-                                for key, val in row_dict.items():
-                                    if key == SAMPLE_NAME_COLNAME or not val:
-                                        continue
-                                    _LOGGER.debug("merge: sample '%s'; %s=%s",
-                                                  str(sample.name), 
-                                                  str(key), str(val))
-                                    if not key in merged_cols:
-                                        new_val = str(val).rstrip()
-                                    else:
-                                        new_val = "{} {}".format(
-                                            merged_cols[key], str(val)).strip()
-                                    merged_cols[key] = new_val    # 2)
-
-                            # Don't update sample_name.
-                            merged_cols.pop(SAMPLE_NAME_COLNAME, None)
-
-                            sample.update(merged_cols)    # 3)
-                            sample.merged = True    # mark sample as merged
-                            sample.merged_cols = merged_cols
-
-        # With all samples, prepare file paths.
-        for sample in self.sheet.samples:
-            if hasattr(sample, "organism"):
-                sample.get_genome_transcriptome()
-            sample.set_file_paths()
-            # Hack for backwards-compatibility
-            # Pipelines should now use `data_source`)
-            try:
-                sample.data_path = sample.data_source
-            except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks data source --> skipping "
-                              "data path assignment", sample.sample_name)
-
-
-    def add_sample(self, sample):
-        """
-        Adds a sample to the project's `samples`.
-        """
-        # Check sample is Sample object
-        if not isinstance(sample, Sample):
-            raise TypeError("Provided object is not a Sample object.")
-
-        # Tie sample and project bilaterally
-        sample.prj = self
-        # Append
-        self.samples.append(sample)
-
-
-
-@copy
-class SampleSheet(object):
-    """
-    Class to model a sample annotation sheet.
-
-    :param path: Path to sample file.
-    :type path: str
-    :param dtype: Data type to read sample file as. Default is str.
-    :type dtype: type
-
-    :Example:
-
-    .. code-block:: python
-
-        from models import Project, SampleSheet
-        prj = Project("config.yaml")
-        sheet = SampleSheet("sheet.csv")
-    """
-
-    def __init__(self, path, dtype=str):
-        super(SampleSheet, self).__init__()
-        self.df = self.check_sheet(path, dtype)
-        self.path = path
-        self.samples = list()
-
-    def __repr__(self):
-        if hasattr(self, "prj"):
-            return "SampleSheet for project '%s' with %i samples." % \
-                   (self.prj, len(self.df))
-        else:
-            return "SampleSheet with %i samples." % len(self.df)
-
-
-    @staticmethod
-    def check_sheet(sample_file, dtype):
-        """
-        Check if csv file exists and has all required columns.
-        
-        :param str sample_file: path to sample annotations file.
-        :param type dtype: data type for CSV read.
-        :raises IOError: if given annotations file can't be read.
-        :raises ValueError: if required column(s) is/are missing.
-        """
-
-        df = _pd.read_table(sample_file, sep=None, dtype=dtype,
-                            index_col=False, engine="python")
-        req = [SAMPLE_NAME_COLNAME]
-        missing = set(req) - set(df.columns)
-        if len(missing) != 0:
-            raise ValueError(
-                "Annotation sheet ('{}') is missing column(s): {}; has: {}".
-                format(sample_file, missing, df.columns))
-        return df
-
-
-    @staticmethod
-    def alpha_cased(text, lower=False):
-        """
-        Filter text to just letters and homogenize case.
-        
-        :param str text: what to filter and homogenize.
-        :param bool lower: whether to convert to lowercase; default uppercase.
-        :return str: input filtered to just letters, with homogenized case.
-        """
-        text = "".join(filter(lambda c: c.isalpha(), text))
-        return text.lower() if lower else text.upper()
-
-
-    def make_samples(self):
-        """
-        Create samples from annotation sheet (considering library), 
-        and them to the project.
-        """
-
-        found_pipelines = False
-        try:
-            import pipelines  # Use a pipelines package if installed.
-        except ImportError:
-            # pipelines_dir is optional.
-            pipeline_dirpaths = getattr(
-                    self.prj.metadata, "pipelines_dir", None)
-            if pipeline_dirpaths:
-                if isinstance(pipeline_dirpaths, str):
-                    pipeline_dirpaths = [pipeline_dirpaths]
-                sys.path.extend(pipeline_dirpaths)
-                _LOGGER.debug(
-                    "Added {} pipelines path(s) to sys.path: {}".
-                        format(len(pipeline_dirpaths), pipeline_dirpaths))
-            try:
-                import pipelines
-            except ImportError:
-                pass
-            else:
-                found_pipelines = True
-        else:
-            found_pipelines = True
-
-        if not found_pipelines:
-            # Just return a basic Sample for each of the sheet's rows.
-            def make_sample(data):
-                return Sample(data)
-        else:
-            # Attempt creation of Sample subtype specific to protocol.
-
-            # Get all pipelines package Sample subclasses.
-            import inspect
-            from utils import fetch_package_classes
-            sample_types = fetch_package_classes(pipelines,
-                    lambda maybe_class: inspect.isclass(maybe_class)
-                                        and issubclass(maybe_class, Sample))
-
-            # TODO: perhaps modify or alter handling of need for __library__.
-            pairing = {self.alpha_cased(sample_class.__library__): sample_class
-                       for sample_type, sample_class in sample_types}
-
-            def make_sample(data):
-                try:
-                    return pairing[self.alpha_cased(data.library)](data)
-                except (AttributeError, KeyError):
-                    return Sample(data)
-
-        for _, row in self.df.iterrows():
-            self.samples.append(make_sample(row.dropna()))
-
-
-    def as_data_frame(self):
-        """
-        Returns a `pandas.DataFrame` representation of self.
-        """
-        return _pd.DataFrame([s.as_series() for s in self.samples])
-
-
-    def write(self, path, sep=None):
-        """
-        Saves an annotation sheet from the samples.
-
-        :param path: Path to file to be written.
-        :type path: str
-        :param sep: Delimiter to use in the file written.
-        :type sep: str
-
-        :Example:
-
-        .. code-block:: python
-
-            from models import SampleSheet
-            sheet = SampleSheet("/projects/example/sheet.csv")
-            sheet.write("~/projects/example/sheet2.csv")
-        """
-
-        valid_types = [".txt", ".tsv", ".csv"]
-
-        # Infer delimiter if needed.
-        if sep is None:
-            file_type = _os.path.splitext(path)[1].lower()
-            if file_type not in valid_types:
-                help_msg = "Provide an argument for parameter 'sep' or pass a " \
-                           "filepath with an extension in: {}".\
-                        format(valid_types)
-                raise ValueError(help_msg)
-            sep = "," if file_type == ".csv" else "\t"
-
-        # Convert to frame and write to disk.
-        with open(path, 'w') as sheetfile:
-            # TODO: decide which--if any--attributes to drop here.
-            self.as_data_frame().to_csv(sheetfile, sep=sep, index=False)
+            when_missing(message)
 
 
 
@@ -1196,7 +1384,7 @@ class Sample(object):
     Class to model Samples based on a pandas Series.
 
     :param series: Sample's data.
-    :type series: pandas.core.series.Series
+    :type series: Mapping | pandas.core.series.Series
 
     :Example:
 
@@ -1226,6 +1414,8 @@ class Sample(object):
 
         if isinstance(series, _pd.Series):
             series = series.to_dict()
+        elif isinstance(series, Sample):
+            series = series.as_series().to_dict()
 
         # Set series attributes on self.
         for key, value in series.items():
@@ -1247,17 +1437,21 @@ class Sample(object):
         self.required_paths = None
         self.yaml_file = None
 
+        # Not yet merged, potentially toggled when merge step is considered.
+        self.merged = False
+
         # Sample dirs
-        self.paths = Paths()
         # Only when sample is added to project, can paths be added -
         # This is because sample-specific files will be created in a
-        # data root directory dependent on the project.
-        # The SampleSheet object, after being added to a project, will
-        # call Sample.set_file_paths().
+        self.paths = Paths()
 
 
-    def __repr__(self):
-        return "Sample '{}'".format(self.name)
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+
+    def __ne__(self, other):
+        return not self == other
 
 
     def __getitem__(self, item):
@@ -1270,12 +1464,18 @@ class Sample(object):
             raise KeyError(item)
 
 
-    def update(self, newdata):
+    def __repr__(self):
+        return "Sample '{}'".format(self.name)
+
+
+    def as_series(self):
         """
-        Update Sample object with attributes from a dict.
+        Returns a `pandas.Series` object with all the sample's attributes.
+
+        :return pandas.core.series.Series: pandas Series representation
+            of this Sample, with its attributes.
         """
-        for key, value in newdata.items():
-            setattr(self, key, value)
+        return _pd.Series(self.__dict__)
 
 
     def check_valid(self, required=None):
@@ -1295,6 +1495,87 @@ class Sample(object):
         return lacking
 
 
+    def determine_missing_requirements(self):
+        """
+        Determine which of this Sample's required attributes/files are missing.
+
+        :return (type, str): hypothetical exception type along with message
+            about what's missing; null and empty if nothing exceptional
+            is detected
+        """
+
+        # set_pipeline_attributes must be run first.
+        if not hasattr(self, "required_inputs"):
+            _LOGGER.warn("You must run set_pipeline_attributes "
+                         "before determine_missing_requirements")
+            return None, ""
+
+        if not self.required_inputs:
+            _LOGGER.debug("No required inputs")
+            return None, ""
+
+        # First, attributes
+        missing, empty = [], []
+        for file_attribute in self.required_inputs_attr:
+            _LOGGER.log(5, "Checking '{}'".format(file_attribute))
+            try:
+                attval = getattr(self, file_attribute)
+            except AttributeError:
+                _LOGGER.log(5, "Missing required input attribute '%s'",
+                             file_attribute)
+                missing.append(file_attribute)
+                continue
+            if attval == "":
+                _LOGGER.log(5, "Empty required input attribute '%s'",
+                             file_attribute)
+                empty.append(file_attribute)
+            else:
+                _LOGGER.log(5, "'{}' is valid: '{}'".
+                              format(file_attribute, attval))
+
+        if missing or empty:
+            return AttributeError, \
+                   "Missing attributes: {}. Empty attributes: {}".\
+                    format(missing, empty)
+
+        # Second, files
+        missing_files = []
+        for paths in self.required_inputs:
+            _LOGGER.log(5, "Text to split and check paths: '%s'", paths)
+            # There can be multiple, space-separated values here.
+            for path in paths.split(" "):
+                _LOGGER.log(5, "Checking path: '{}'".format(path))
+                if not _os.path.exists(path):
+                    _LOGGER.log(5, "Missing required input file: '{}'".
+                                  format(path))
+                    missing_files.append(path)
+
+        if not missing_files:
+            return None, ""
+        else:
+            missing_message = \
+                    "Missing file(s): {}".format(", ".join(missing_files))
+            return IOError, missing_message
+
+
+    def generate_filename(self, delimiter="_"):
+        """
+        Create a name for file in which to represent this Sample.
+
+        This uses knowledge of the instance's subtype, sandwiching a delimiter
+        between the name of this Sample and the name of the subtype before the
+        extension. If the instance is a base Sample type, then the filename
+        is simply the sample name with an extension.
+
+        :param str delimiter: what to place between sample name and name of
+            subtype; this is only relevant if the instance is of a subclass
+        :return str: name for file with which to represent this Sample on disk
+        """
+        base = self.name if type(self) is Sample else \
+            "{}{}{}".format(self.name, delimiter, self.__class__.__name__)
+        return "{}.yaml".format(base)
+
+
     def generate_name(self):
         """
         Generate name for the sample by joining some of its attribute strings.
@@ -1302,88 +1583,134 @@ class Sample(object):
         raise NotImplementedError("Not implemented in new code base.")
 
 
-    def as_series(self):
+    def get_attr_values(self, attrlist):
         """
-        Returns a `pandas.Series` object with all the sample's attributes.
+        Get value corresponding to each given attribute.
 
-        :return pandas.core.series.Series: pandas Series representation 
-            of this Sample, with its attributes.
+        :param str attrlist: name of an attribute storing a list of attr names
+        :return list | NoneType: value (or empty string) corresponding to
+            each named attribute; null if this Sample's value for the
+            attribute given by the argument to the "attrlist" parameter is
+            empty/null, or if this Sample lacks the indicated attribute
         """
-        return _pd.Series(self.__dict__)
+        # If attribute is None, then value is also None.
+        attribute_list = getattr(self, attrlist, None)
+        if not attribute_list:
+            return None
+
+        if not isinstance(attribute_list, list):
+            attribute_list = [attribute_list]
+
+        # Strings contained here are appended later so shouldn't be null.
+        return [getattr(self, attr, "") for attr in attribute_list]
 
 
-    def to_yaml(self, path=None):
+    def get_sheet_dict(self):
         """
-        Serializes itself in YAML format.
+        Create a K-V pairs for items originally passed in via the sample sheet.
 
-        :param str path: A file path to write yaml to.
+        This is useful for summarizing; it provides a representation of the
+        sample that excludes things like config files and derived entries.
+
+        :return OrderedDict: mapping from name to value for data elements
+            originally provided via the sample sheet (i.e., the a map-like
+            representation of the instance, excluding derived items)
         """
-        def obj2dict(obj, to_skip=("samples", "sheet", "sheet_attributes")):
-            """
-            Build representation of object as a dict, recursively
-            for all objects that might be attributes of self.
-
-            :param object obj: what to serialize to write to YAML.
-            :param Iterable[str] to_skip: names of attributes to ignore.
-\            """
-            if isinstance(obj, list):
-                return [obj2dict(i) for i in obj]
-            if isinstance(obj, AttributeDict):
-                return {k: obj2dict(v) for k, v in obj.__dict__.items()
-                        if k not in to_skip and
-                        (k not in ATTRDICT_METADATA or
-                         v != ATTRDICT_METADATA[k])}
-            elif isinstance(obj, Mapping):
-                return {k: obj2dict(v)
-                        for k, v in obj.items() if k not in to_skip}
-            elif isinstance(obj, (Paths, Sample)):
-                return {k: obj2dict(v)
-                        for k, v in obj.__dict__.items() if k not in to_skip}
-            elif hasattr(obj, 'dtype'):  # numpy data types
-                # TODO: this fails with ValueError for multi-element array.
-                return obj.item()
-            elif _pd.isnull(obj):
-                # Missing values as evaluated by pd.isnull().
-                # This gets correctly written into yaml.
-                return "NaN"
-            else:
-                return obj
-
-        # If path is not specified, use default:
-        # prj.metadata.submission_dir + sample_name + yaml
-        self.yaml_file = path or \
-                         _os.path.join(self.prj.metadata.submission_subdir,
-                                       self.sample_name + ".yaml")
-        serial = obj2dict(self)
-        with open(self.yaml_file, 'w') as outfile:
-            outfile.write(yaml.safe_dump(serial, default_flow_style=False))
+        return _OrderedDict([[k, getattr(self, k)]
+                             for k in self.sheet_attributes])
 
 
-    def locate_data_source(self, column_name=DATA_SOURCE_COLNAME,
+    def infer_columns(self, implications):
+        """
+        Infer value for additional field(s) from other field(s).
+
+        Add columns/fields to the sample based on values in those already-set
+        that the sample's project defines as indicative of implications for
+        additional data elements for the sample.
+
+        :param Mapping implications: Project's implied columns data
+        :return None: this function mutates state and is strictly for effect
+        """
+
+        _LOGGER.log(5, "Sample attribute implications: {}".
+                    format(implications))
+        if not implications:
+            return
+
+        for implier_name, implied in implications.items():
+            _LOGGER.debug(
+                "Setting Sample variable(s) implied by '%s'", implier_name)
+            try:
+                implier_value = self[implier_name]
+            except KeyError:
+                _LOGGER.debug("No '%s' for this sample", implier_name)
+                continue
+            try:
+                implied_value_by_column = implied[implier_value]
+                _LOGGER.debug("Implications for '%s' = %s: %s",
+                              implier_name, implier_value,
+                              str(implied_value_by_column))
+                for colname, implied_value in \
+                        implied_value_by_column.items():
+                    _LOGGER.log(5, "Setting '%s'=%s",
+                                colname, implied_value)
+                    setattr(self, colname, implied_value)
+            except KeyError:
+                _LOGGER.log(
+                    5, "Unknown implied value for implier '%s' = '%s'",
+                    implier_name, implier_value)
+
+
+    def is_dormant(self):
+        """
+        Determine whether this Sample is inactive.
+
+        By default, a Sample is regarded as active. That is, if it lacks an
+        indication about activation status, it's assumed to be active. If,
+        however, and there's an indication of such status, it must be '1'
+        in order to be considered switched 'on.'
+
+        :return bool: whether this Sample's been designated as dormant
+        """
+        try:
+            flag = self[SAMPLE_EXECUTION_TOGGLE]
+        except KeyError:
+            # Regard default Sample state as active.
+            return False
+        # If specified, the activation flag must be set to '1'.
+        return flag != "1"
+
+
+    def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
         """
-        Uses the template path provided in the project config section 
-        "data_sources" to piece together an actual path by substituting 
+        Uses the template path provided in the project config section
+        "data_sources" to piece together an actual path by substituting
         variables (encoded by "{variable}"") with sample attributes.
 
-        :param str column_name: Name of sample attribute 
+        :param Mapping data_sources: mapping from key name (as a value in
+            a cell of a tabular data structure) to, e.g., filepath
+        :param str column_name: Name of sample attribute
             (equivalently, sample sheet column) specifying a derived column.
-        :param str source_key: The key of the data_source, 
-            used to index into the project config data_sources section. 
-            By default, the source key will be taken as the value of 
-            the specified column (as a sample attribute). 
-            For cases where the sample doesn't have this attribute yet 
+        :param str source_key: The key of the data_source,
+            used to index into the project config data_sources section.
+            By default, the source key will be taken as the value of
+            the specified column (as a sample attribute).
+            For cases where the sample doesn't have this attribute yet
             (e.g. in a merge table), you must specify the source key.
-        :param dict extra_vars: By default, this will look to 
-            populate the template location using attributes found in the 
-            current sample; however, you may also provide a dict of extra 
-            variables that can also be used for variable replacement. 
+        :param dict extra_vars: By default, this will look to
+            populate the template location using attributes found in the
+            current sample; however, you may also provide a dict of extra
+            variables that can also be used for variable replacement.
             These extra variables are given a higher priority.
         :return str: regex expansion of data source specified in configuration,
             with variable substitutions made
+        :raises ValueError: if argument to data_sources parameter is null/empty
         """
 
-        sources_section = "data_sources"
+        if not data_sources:
+            # TODO: should this be a null/empty-string return, or actual error?
+            raise ValueError("No data sources")
 
         if not source_key:
             try:
@@ -1392,15 +1719,16 @@ class Sample(object):
                 reason = "'{attr}': to locate sample's data source, provide " \
                          "the name of a key from '{sources}' or ensure " \
                          "sample has attribute '{attr}'".format(
-                         attr=column_name, sources=sources_section)
+                         attr=column_name, sources=DATA_SOURCES_SECTION)
                 raise AttributeError(reason)
 
         try:
-            regex = self.prj[sources_section][source_key]
+            regex = data_sources[source_key]
         except KeyError:
             _LOGGER.warn(
                     "Config lacks entry for data_source key: '{}' "
-                    "(in column: '{}')".format(source_key, column_name))
+                    "in column '{}'; known: {}".format(
+                    source_key, column_name, data_sources.keys()))
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
@@ -1429,102 +1757,6 @@ class Sample(object):
         return val
 
 
-    def get_genome_transcriptome(self):
-        """
-        Get genome and transcriptome, based on project config file.
-        If not available (matching config), genome and transcriptome will be set to sample.organism.
-        """
-        try:
-            self.genome = getattr(self.prj.genomes, self.organism)
-        except AttributeError:
-            _LOGGER.debug("Project config lacks genome mapping for "
-                              "organism '%s'", str(self.organism))
-        try:
-            self.transcriptome = getattr(self.prj.transcriptomes, self.organism)
-        except AttributeError:
-            _LOGGER.debug("Project config lacks transcriptome mapping for "
-                              "organism '%s'", str(self.organism))
-
-
-    def set_file_paths(self):
-        """
-        Sets the paths of all files for this sample.
-        """
-        # Any columns specified as "derived" will be constructed
-        # based on regex in the "data_sources" section of project config.
-
-        for col in self.prj.derived_columns:
-            # Only proceed if the specified column exists
-            # and was not already merged or derived.
-            if hasattr(self, col) and col not in self.merged_cols \
-                    and col not in self.derived_cols_done:
-                # Set a variable called {col}_key, so the
-                # original source can also be retrieved.
-                setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
-                setattr(self, col, self.locate_data_source(col))
-                self.derived_cols_done.append(col)
-
-        self.infer_columns()
-
-        # Parent
-        self.results_subdir = self.prj.metadata.results_subdir
-        self.paths.sample_root = _os.path.join(
-                self.prj.metadata.results_subdir, self.sample_name)
-
-        # Track url
-        bigwig_filename = self.name + ".bigWig"
-        try:
-            # Project's public_html folder
-            self.bigwig = _os.path.join(
-                    self.prj.trackhubs.trackhub_dir, bigwig_filename)
-            self.track_url = \
-                    "{}/{}".format(self.prj.trackhubs.url, bigwig_filename)
-        except:
-            _LOGGER.debug("No trackhub/URL")
-            pass
-
-
-    def infer_columns(self):
-        """
-        Infer value for additional field(s) from other field(s).
-        
-        Add columns/fields to the sample based on values in those already-set 
-        that the sample's project defines as indicative of implications for 
-        additional data elements for the sample.
-        
-        :return None: this function mutates state and is strictly for effect
-        """
-        if not hasattr(self.prj, IMPLICATIONS_DECLARATION):
-            return
-
-        impliers = self.prj[IMPLICATIONS_DECLARATION]
-
-        _LOGGER.debug(
-                "Sample variable(s) that can imply others: %s", str(impliers))
-        for implier_name, implied in impliers.items():
-            _LOGGER.debug(
-                "Setting Sample variable(s) implied by '%s'", implier_name)
-            try:
-                implier_value = self[implier_name]
-            except KeyError:
-                _LOGGER.debug("No '%s' for this sample", implier_name)
-                continue
-            try:
-                implied_value_by_column = implied[implier_value]
-                _LOGGER.debug("Implications for '%s' = %s: %s",
-                              implier_name, implier_value,
-                              str(implied_value_by_column))
-                for colname, implied_value in \
-                        implied_value_by_column.items():
-                    _LOGGER.log(5, "Setting '%s'=%s",
-                                colname, implied_value)
-                    setattr(self, colname, implied_value)
-            except KeyError:
-                _LOGGER.log(
-                    5, "Unknown implied value for implier '%s' = '%s'",
-                    implier_name, implier_value)
-
-
     def make_sample_dirs(self):
         """
         Creates sample directory structure if it doesn't exist.
@@ -1534,20 +1766,85 @@ class Sample(object):
                 _os.makedirs(path)
 
 
-    def get_sheet_dict(self):
+    def set_file_paths(self, project):
         """
-        Create a K-V pairs for items originally passed in via the sample sheet.
-        
-        This is useful for summarizing; it provides a representation of the 
-        sample that excludes things like config files and derived entries.
-        
-        :return OrderedDict: mapping from name to value for data elements 
-            originally provided via the sample sheet (i.e., the a map-like 
-            representation of the instance, excluding derived items)
-        """
-        return _OrderedDict([[k, getattr(self, k)]
-                             for k in self.sheet_attributes])
+        Sets the paths of all files for this sample.
 
+        :param Project project: object with pointers to data paths and such
+        """
+        # Any columns specified as "derived" will be constructed
+        # based on regex in the "data_sources" section of project config.
+
+        for col in project.derived_columns:
+            # Only proceed if the specified column exists
+            # and was not already merged or derived.
+            if hasattr(self, col) and col not in self.merged_cols \
+                    and col not in self.derived_cols_done:
+                # Set a variable called {col}_key, so the
+                # original source can also be retrieved.
+                setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
+                setattr(self, col, self.locate_data_source(
+                        data_sources=project.get(DATA_SOURCES_SECTION),
+                        column_name=col))
+                self.derived_cols_done.append(col)
+
+        self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
+
+        # Parent
+        self.results_subdir = project.metadata.results_subdir
+        self.paths.sample_root = _os.path.join(
+                project.metadata.results_subdir, self.sample_name)
+
+        # Track url
+        bigwig_filename = self.name + ".bigWig"
+        try:
+            # Project's public_html folder
+            self.bigwig = _os.path.join(
+                    project.trackhubs.trackhub_dir, bigwig_filename)
+            self.track_url = \
+                    "{}/{}".format(project.trackhubs.url, bigwig_filename)
+        except:
+            _LOGGER.debug("No trackhub/URL")
+            pass
+
+    
+    def set_genome(self, genomes):
+        """
+        Set the genome for this Sample.
+
+        :param Mapping[str, str] genomes: genome assembly by organism name
+        """
+        self._set_assembly("genome", genomes)
+        
+        
+    def set_transcriptome(self, transcriptomes):
+        """
+        Set the transcriptome for this Sample.
+
+        :param Mapping[str, str] transcriptomes: transcriptome assembly by
+            organism name
+        """
+        self._set_assembly("transcriptome", transcriptomes)
+        
+        
+    def _set_assembly(self, ome, assemblies):
+        if not assemblies:
+            _LOGGER.debug("Empty/null assemblies mapping: {} ({})".
+                          format(assemblies, type(assemblies)))
+            return
+        try:
+            assembly = assemblies[self.organism]
+        except AttributeError:
+            _LOGGER.debug("Sample '%s' lacks organism attribute", self.name)
+            assembly = None
+        except KeyError:
+            _LOGGER.log(5, "Unknown {} value: '{}'".
+                    format(ome, self.organism))
+            assembly = None
+        _LOGGER.log(5, "Setting {} as {} on sample: '{}'".
+                format(assembly, ome, self.name))
+        setattr(self, ome, assembly)
+        
 
     def set_pipeline_attributes(
             self, pipeline_interface, pipeline_name, permissive=True):
@@ -1571,106 +1868,35 @@ class Sample(object):
         # Settings ending in _attr are lists of attribute keys.
         # These attributes are then queried to populate values
         # for the primary entries.
-        self.ngs_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "ngs_input_files")
-        self.required_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "required_input_files")
-        self.all_inputs_attr = pipeline_interface.get_attribute(
-                pipeline_name, "all_input_files")
+        req_attr_names = [("ngs_input_files", "ngs_inputs_attr"),
+                          ("required_input_files", "required_inputs_attr"),
+                          ("all_input_files", "all_inputs_attr")]
+        for name_src_attr, name_dst_attr in req_attr_names:
+            _LOGGER.log(5, "Value of '%s' will be assigned to '%s'",
+                        name_src_attr, name_dst_attr)
+            value = pipeline_interface.get_attribute(
+                    pipeline_name, name_src_attr)
+            _LOGGER.log(5, "Assigning '{}': {}".format(name_dst_attr, value))
+            setattr(self, name_dst_attr, value)
 
+        # Post-processing of input attribute assignments.
+        # Ensure that there's a valid all_inputs_attr.
+        if not self.all_inputs_attr:
+            self.all_inputs_attr = self.required_inputs_attr
+        # Convert attribute keys into values.
         if self.ngs_inputs_attr:
+            _LOGGER.log(5, "Handling NGS input attributes: '%s'", self.name)
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
             self.set_read_type(permissive=permissive)
+        else:
+            _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
 
-        # input_size
-        if not self.all_inputs_attr:
-            self.all_inputs_attr = self.required_inputs_attr
-
-        # Convert attribute keys into values
+        # Assign values for actual inputs attributes.
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
         self.input_file_size = get_file_size(self.all_inputs)
-
-
-    def confirm_required_inputs(self, permissive=False):
-
-        # set_pipeline_attributes must be run first.
-        if not hasattr(self, "required_inputs"):
-            _LOGGER.warn("You must run set_pipeline_attributes "
-                         "before confirm_required_inputs")
-            return True
-
-        if not self.required_inputs:
-            _LOGGER.debug("No required inputs")
-            return True
-
-        # First, attributes
-        for file_attribute in self.required_inputs_attr:
-            _LOGGER.debug("Checking '{}'".format(file_attribute))
-            if not hasattr(self, file_attribute):
-                message = "Missing required input attribute '{}'".\
-                    format(file_attribute)
-                _LOGGER.warn(message)
-                if not permissive:
-                    raise IOError(message)
-                else:
-                    return False
-            if getattr(self, file_attribute) is "":
-                message = "Empty required input attribute '{}'".\
-                    format(file_attribute)
-                _LOGGER.warn(message)
-                if not permissive:
-                    raise IOError(message)
-                else:
-                    return False
-
-        # Second, files
-        missing_files = []
-        for paths in self.required_inputs:
-            # There can be multiple, space-separated values here.
-            for path in paths.split(" "):
-                _LOGGER.debug("Checking path: '{}'".format(path))
-                if not _os.path.exists(path):
-                    _LOGGER.warn("Missing required input file: '{}'".format(path))
-                    missing_files.append(path)
-
-        if len(missing_files) > 0:
-            message = "Missing/unreadable file(s): {}".\
-                    format(", ".join(["'{}'".format(path)
-                                      for path in missing_files]))
-            if not permissive:
-                raise IOError(message)
-            else:
-                _LOGGER.error(message)
-                return False
-
-        return True
-
-
-    def get_attr_values(self, attrlist):
-        """
-        Get value corresponding to each given attribute.
-
-        :param str attrlist: name of an attribute storing a list of attr names
-        :return list: value (or empty string) corresponding to each named attr
-        """
-        if not hasattr(self, attrlist):
-            return None
-
-        attribute_list = getattr(self, attrlist)
-
-        # If attribute is None, then value is also None.
-        if not attribute_list:
-            return None
-
-        if not isinstance(attribute_list, list):
-            attribute_list = [attribute_list]
-
-        # Strings contained here are appended later so shouldn't be null.
-        return [getattr(self, attr) if hasattr(self, attr) else ""
-                for attr in attribute_list]
 
 
     def set_read_type(self, n=10, permissive=True):
@@ -1769,6 +1995,95 @@ class Sample(object):
                              feature, self.name)
 
 
+    def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
+        """
+        Serializes itself in YAML format.
+
+        :param str path: A file path to write yaml to; provide this or
+            the subs_folder_path
+        :param str subs_folder_path: path to folder in which to place file
+            that's being written; provide this or a full filepath
+        :param str delimiter: text to place between the sample name and the
+            suffix within the filename; irrelevant if there's no suffix
+        :return str: filepath used (same as input if given, otherwise the
+            path value that was inferred)
+        :raises ValueError: if neither full filepath nor path to extant
+            parent directory is provided.
+        """
+
+        # Determine filepath, prioritizing anything given, then falling
+        # back to a default using this Sample's Project's submission_subdir.
+        # Use the sample name and YAML extension as the file name,
+        # interjecting a pipeline name as a subfolder within the Project's
+        # submission_subdir if such a pipeline name is provided.
+        if not path:
+            if not subs_folder_path:
+                raise ValueError(
+                    "To represent {} on disk, provide a full path or a path "
+                    "to a parent (submissions) folder".
+                    format(self.__class__.__name__))
+            _LOGGER.debug("Creating filename for %s: '%s'",
+                          self.__class__.__name__, self.name)
+            filename = self.generate_filename(delimiter=delimiter)
+            _LOGGER.debug("Filename: '%s'", filename)
+            path = _os.path.join(subs_folder_path, filename)
+
+        _LOGGER.debug("Setting %s filepath: '%s'",
+                      self.__class__.__name__, path)
+        self.yaml_file = path
+
+
+        def obj2dict(obj,
+                     to_skip=("samples", "sheet", "sheet_attributes")):
+            """
+            Build representation of object as a dict, recursively
+            for all objects that might be attributes of self.
+
+            :param object obj: what to serialize to write to YAML.
+            :param Iterable[str] to_skip: names of attributes to ignore.
+\            """
+            if isinstance(obj, list):
+                return [obj2dict(i) for i in obj]
+            if isinstance(obj, AttributeDict):
+                return {k: obj2dict(v) for k, v in obj.__dict__.items()
+                        if k not in to_skip and
+                        (k not in ATTRDICT_METADATA or
+                         v != ATTRDICT_METADATA[k])}
+            elif isinstance(obj, Mapping):
+                return {k: obj2dict(v)
+                        for k, v in obj.items() if k not in to_skip}
+            elif isinstance(obj, (Paths, Sample)):
+                return {k: obj2dict(v)
+                        for k, v in obj.__dict__.items() if
+                        k not in to_skip}
+            elif hasattr(obj, 'dtype'):  # numpy data types
+                # TODO: this fails with ValueError for multi-element array.
+                return obj.item()
+            elif _pd.isnull(obj):
+                # Missing values as evaluated by pd.isnull().
+                # This gets correctly written into yaml.
+                return "NaN"
+            else:
+                return obj
+
+        _LOGGER.debug("Serializing %s: '%s'",
+                      self.__class__.__name__, self.name)
+        serial = obj2dict(self)
+        with open(self.yaml_file, 'w') as outfile:
+            _LOGGER.debug("Generating YAML data for %s: '%s'",
+                          self.__class__.__name__, self.name)
+            yaml_data = yaml.safe_dump(serial, default_flow_style=False)
+            outfile.write(yaml_data)
+
+
+    def update(self, newdata):
+        """
+        Update Sample object with attributes from a dict.
+        """
+        for key, value in newdata.items():
+            setattr(self, key, value)
+
+
 
 @copy
 class PipelineInterface(object):
@@ -1791,11 +2106,22 @@ class PipelineInterface(object):
             self.pipe_iface_config = config
 
         else:
-            _LOGGER.debug("Parsing '%s' for %s config data",
-                         config, self.__class__.__name__)
+            _LOGGER.debug("Parsing '%s' for PipelineInterface config data",
+                         config)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)
+
+        # Ensure that each pipeline path, if provided, is expanded.
+        self._expand_paths()
+
+
+    def __getitem__(self, item):
+        try:
+            return self._select_pipeline(item)
+        except _MissingPipelineConfigurationException:
+            raise KeyError("{} is not a known pipeline; known: {}".
+                           format(item, self.pipe_iface_config.keys()))
 
 
     def __iter__(self):
@@ -1803,16 +2129,41 @@ class PipelineInterface(object):
 
 
     def __repr__(self):
-        return repr(self.pipe_iface_config)
+        source = self.pipe_iface_file or "Mapping"
+        num_pipelines = len(self.pipe_iface_config)
+        pipelines = ", ".join(self.pipe_iface_config.keys())
+        return "{} from {}, with {} pipeline(s): {}".format(
+                self.__class__.__name__, source, num_pipelines, pipelines)
+
+
+    def _expand_paths(self):
+        for pipe_data in self.pipe_iface_config.values():
+            if "path" in pipe_data:
+                pipe_path = pipe_data["path"]
+                _LOGGER.log(5, "Expanding path: '%s'", pipe_path)
+                pipe_path = expandpath(pipe_path)
+                _LOGGER.log(5, "Expanded: '%s'", pipe_path)
+                pipe_data["path"] = pipe_path
 
 
     @property
     def pipeline_names(self):
+        """
+        Names of pipelines about which this interface is aware.
+
+        :return Iterable[str]: names of pipelines about which this
+            interface is aware
+        """
         return self.pipe_iface_config.keys()
 
 
     @property
     def pipelines(self):
+        """
+        Keyed collection of pipeline interface data.
+
+        :return Mapping: pipeline interface configuration data
+        """
         return self.pipe_iface_config.values()
 
 
@@ -1895,14 +2246,27 @@ class PipelineInterface(object):
                 return rp_data
 
 
-    def get_arg_string(self, pipeline_name, sample):
+    def get_arg_string(self, pipeline_name, sample,
+                       submission_folder_path="", **null_replacements):
         """
         For a given pipeline and sample, return the argument string
 
         :param str pipeline_name: Name of pipeline.
         :param Sample sample: current sample for which job is being built
+        :param str submission_folder_path: path to folder in which files
+            related to submission of this sample will be placed.
+        :param dict null_replacements: mapping from name of Sample attribute
+            name to value to use in arg string if Sample attribute's value
+            is null
         :return str: command-line argument string for pipeline
         """
+
+        # It's undesirable to put a null value in the argument string.
+        default_filepath = _os.path.join(
+                submission_folder_path, sample.generate_filename())
+        _LOGGER.debug("Default sample filepath: '%s'", default_filepath)
+        proxies = {"yaml_file": default_filepath}
+        proxies.update(null_replacements)
 
         _LOGGER.debug("Building arguments string")
         config = self._select_pipeline(pipeline_name)
@@ -1917,8 +2281,7 @@ class PipelineInterface(object):
 
         for key, value in args.iteritems():
             if value is None:
-                _LOGGER.debug("Null value for opt arg key '%s'",
-                                   str(key))
+                _LOGGER.debug("Null value for opt arg key '%s'", str(key))
                 continue
             try:
                arg = getattr(sample, value)
@@ -1930,7 +2293,19 @@ class PipelineInterface(object):
                     pipeline_name, value, key)
                 raise
 
-            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".format(arg, value, key))
+            # It's undesirable to put a null value in the argument string.
+            if arg is None:
+                _LOGGER.debug("Null value for Sample attribute: '%s'", value)
+                try:
+                    arg = proxies[value]
+                except KeyError:
+                    raise ValueError("No default for null "
+                                     "Sample attribute: '{}'".format(value))
+                _LOGGER.debug("Found default for '{}': '{}'".
+                              format(value, arg))
+
+            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".
+                          format(arg, value, key))
             argstring += " " + str(key) + " " + str(arg)
 
         # Add optional arguments
@@ -1959,14 +2334,19 @@ class PipelineInterface(object):
         return argstring
 
 
-    def get_attribute(self, pipeline_name, attribute_key):
-        """ Return value of given attribute for named pipeline. """
+    def get_attribute(self, pipeline_name, attribute_key, path_as_list=True):
+        """
+        Return the value of the named attribute for the pipeline indicated.
+
+        :param str pipeline_name: name of the pipeline of interest
+        :param str attribute_key: name of the pipeline attribute of interest
+        :param bool path_as_list: whether to ensure that a string attribute
+            is returned as a list; this is useful for safe iteration over
+            the returned value.
+        """
         config = self._select_pipeline(pipeline_name)
-        try:
-            value = config[attribute_key]
-        except KeyError:
-            value = None
-        return [value] if isinstance(value, str) else value
+        value = config.get(attribute_key)
+        return [value] if isinstance(value, str) and path_as_list else value
 
 
     def get_pipeline_name(self, pipeline):
@@ -2024,190 +2404,236 @@ class PipelineInterface(object):
 
 
 
-@copy
-class InterfaceManager(object):
-    """ Manage pipeline use for multiple locations and protocols.
-
-    This is done by aggregating protocol interface instances,
-    allowing one Project to use pipelines from multiple locations.
-
-    :param pipeline_dirs: locations containing pipelines and configuration
-        information; specifically, a directory with a 'pipelines' folder and
-        a 'config' folder, within which there is a pipeline interface file
-        and a protocol mappings file.
-    :type pipeline_dirs: Iterable[str]
-
-    """
-    def __init__(self, pipeline_dirs):
-        # Collect interface/mappings pairs by protocol name.
-        interfaces_and_protocols = \
-                [ProtocolInterfaces(pipedir) for pipedir in pipeline_dirs]
-        self.ifproto_by_proto_name = defaultdict(list)
-        for ifproto in interfaces_and_protocols:
-            for proto_name in ifproto.protomap:
-                _LOGGER.debug("Protocol name: {}".format(proto_name))
-                self.ifproto_by_proto_name[proto_name].append(ifproto)
-
-
-    def build_pipelines(self, protocol_name, priority=True):
-        """
-        Build up a sequence of scripts to execute for this protocol.
-
-        :param str protocol_name: name for the protocol for which to build
-            pipelines
-        :param bool priority: should only the top priority mapping be used?
-        :return Sequence[(PipelineInterface, str, str)]: sequence of jobs
-            (script paths) to execute for the given protocol; if priority
-            flag is set (as is the default), this is a single-element list,
-            the sequence of jobs built is interpreted as descending priority
-        """
-
-        try:
-            ifprotos = self.ifproto_by_proto_name[protocol_name]
-        except KeyError:
-            _LOGGER.warn("Unknown protocol: '{}'".format(protocol_name))
-            return []
-
-        jobs = []
-        pipeline_keys_used = set()
-        _LOGGER.debug("Building pipelines for {} PIs...".format(len(ifprotos)))
-        for ifproto in ifprotos:
-            try:
-                this_protocol_pipelines = \
-                        ifproto.protomap.mappings[protocol_name]
-            except KeyError:
-                _LOGGER.debug("Protocol {} missing mapping in '{}'".
-                              format(protocol_name, ifproto.protomaps_path))
-            else:
-                # TODO: update once dependency-encoding logic is in place.
-                _LOGGER.debug("Protocol: {}".format(protocol_name))
-                pipeline_keys = this_protocol_pipelines.replace(";", ",")\
-                                                      .strip(" ()\n")\
-                                                      .split(",")
-                pipeline_keys = [pk.strip() for pk in pipeline_keys]
-                already_mapped, new_scripts = \
-                        partition(pipeline_keys,
-                                  partial(_is_member, items=pipeline_keys_used))
-                pipeline_keys_used |= set(pipeline_keys)
-
-                if len(pipeline_keys) != (len(already_mapped) + len(new_scripts)):
-                    _LOGGER.error("{} --> {} + {}".format(
-                            pipeline_keys, already_mapped, new_scripts))
-
-                    raise RuntimeError(
-                            "Partitioned {} script names into allegedly "
-                            "disjoint sets of {} and {} elements.".
-                            format(len(pipeline_keys),
-                                   len(already_mapped),
-                                   len(new_scripts)))
-
-                _LOGGER.debug("Skipping {} already-mapped script names: {}".
-                              format(len(already_mapped),
-                                     ", ".join(already_mapped)))
-                _LOGGER.debug("{} new scripts for protocol {} from "
-                              "pipelines warehouse '{}': {}".
-                              format(len(new_scripts), protocol_name,
-                                     ifproto.pipedir, ", ".join(new_scripts)))
-
-                jobs.append([(ifproto.interface, ) +
-                             ifproto.pipeline_key_to_path(pipeline_key)
-                             for pipeline_key in pipeline_keys])
-
-        return jobs[0] if priority and len(jobs) > 1 else list(itertools.chain(*jobs))
-
-
-
-def _is_member(item, items):
-    return item in items
-
-
-
-# TODO: rename.
-class ProtocolInterfaces:
+class ProtocolInterface(object):
     """ PipelineInterface and ProtocolMapper for a single pipelines location.
 
-    Instances of this class are used by InterfaceManager to facilitate
-    multi-location pipelines use by a single project. Here also are stored
-    path attributes to retain information about the location from which the
-    interface and mapper came.
+    This class facilitates use of pipelines from multiple locations by a
+    single project. Also stored are path attributes with information about
+    the location(s) from which the PipelineInterface and ProtocolMapper came.
 
-    :param pipedir: location (e.g., code repository) of pipelines
-    :type pipedir: str
+    :param interface_data_source: location (e.g., code repository) of pipelines
+    :type interface_data_source: str
 
     """
-    def __init__(self, pipedir):
-        if _os.path.isdir(pipedir):
-            self.pipedir = pipedir
-            self.config_path = _os.path.join(pipedir, "config")
-            self.interface_path = _os.path.join(self.config_path,
-                                                "pipeline_interface.yaml")
-            self.protomaps_path = _os.path.join(self.config_path,
-                                                "protocol_mappings.yaml")
-            self.interface = PipelineInterface(self.interface_path)
-            self.protomap = ProtocolMapper(self.protomaps_path)
-            self.pipelines_path = _os.path.join(pipedir, "pipelines")
-        elif _os.path.isfile(pipedir):
+
+    SUBTYPE_MAPPING_SECTION = "sample_subtypes"
+
+
+    def __init__(self, interface_data_source):
+        super(ProtocolInterface, self).__init__()
+
+        if isinstance(interface_data_source, Mapping):
+            # TODO: for implementation, we need to determine pipelines_path.
+            raise NotImplementedError(
+                    "Raw Mapping as source of {} data is not yet supported".
+                    format(self.__class__.__name__))
+            _LOGGER.debug("Creating %s from raw Mapping",
+                          self.__class__.__name__)
+            self.source = None
+            self.pipe_iface_path = None
+            for name, value in self._parse_iface_data(interface_data_source):
+                setattr(self, name, value)
+
+        elif _os.path.isfile(interface_data_source):
             # Secondary version that passes combined yaml file directly,
-            # instead of relying on separate hard-coded config names as above
-            self.pipedir = None
-            self.interface_file = pipedir
+            # instead of relying on separate hard-coded config names.
+            _LOGGER.debug("Creating %s from file: '%s'",
+                          self.__class__.__name__, interface_data_source)
+            self.source = interface_data_source
+            self.pipe_iface_path = self.source
+            self.pipelines_path = _os.path.dirname(self.source)
 
-            self.pipelines_path = _os.path.dirname(pipedir)
-
-            with open(self.interface_file, 'r') as interface_file:
+            with open(interface_data_source, 'r') as interface_file:
                 iface = yaml.load(interface_file)
-            try:
-                if "protocol_mapping" in iface:
-                    self.protomap = ProtocolMapper(iface["protocol_mapping"])
-                else:
-                    raise Exception("pipeline_interface file is missing "
-                                    "a 'protocol_mapping' section.")
-                if "pipelines" in iface:
-                    self.interface = PipelineInterface(iface["pipelines"])
-                else:
-                    raise Exception("pipeline_interface file is missing "
-                                    "a 'pipelines' section.")
-            except Exception as e:
-                _LOGGER.error(str(iface))
-                raise e
+            for name, value in self._parse_iface_data(iface):
+                setattr(self, name, value)
+
+        elif _os.path.isdir(interface_data_source):
+            _LOGGER.debug("Creating %s from files in directory: '%s'",
+                          self.__class__.__name__, interface_data_source)
+            self.source = interface_data_source
+            self.pipe_iface_path = _os.path.join(
+                    self.source, "config", "pipeline_interface.yaml")
+            self.pipelines_path = _os.path.join(self.source, "pipelines")
+
+            self.pipe_iface = PipelineInterface(self.pipe_iface_path)
+            self.protomap = ProtocolMapper(_os.path.join(
+                    self.source, "config", "protocol_mappings.yaml"))
+
+        else:
+            raise ValueError("Alleged pipelines location '{}' exists neither "
+                             "as a file nor as a folder.".
+                             format(interface_data_source))
 
 
-    def pipeline_key_to_path(self, pipeline_key):
+    def __repr__(self):
+        return "ProtocolInterface from '{}'".format(self.source or "Mapping")
+
+
+    def fetch_pipelines(self, protocol):
         """
-        Given a pipeline_key, return the path to the script for that pipeline
-        specified in this pipeline interface config file.
+        Fetch the mapping for a particular protocol, null if unmapped.
+
+        :param str protocol: name/key for the protocol for which to fetch the
+            pipeline(s)
+        :return str | Iterable[str] | NoneType: pipeline(s) to which the given
+            protocol is mapped, otherwise null
+        """
+        return self.protomap.mappings.get(alpha_cased(protocol))
+
+
+    def fetch_sample_subtype(
+            self, protocol, strict_pipe_key, full_pipe_path):
+        """
+        Determine the interface and Sample subtype for a protocol and pipeline.
+
+        :param str protocol: name of the relevant protocol
+        :param str strict_pipe_key: key for specific pipeline in a pipeline
+            interface mapping declaration; this must exactly match a key in
+            the PipelineInterface (or the Mapping that represent it)
+        :param str full_pipe_path: (absolute, expanded) path to the
+            pipeline script
+        :return type: Sample subtype to use for jobs for the given protocol,
+            that use the pipeline indicated
+        :raises KeyError: if given a pipeline key that's not mapped in this
+            ProtocolInterface instance's PipelineInterface
+        """
+
+        subtype = None
+
+        this_pipeline_data = self.pipe_iface[strict_pipe_key]
+
+        try:
+            subtypes = this_pipeline_data[self.SUBTYPE_MAPPING_SECTION]
+        except KeyError:
+            _LOGGER.debug("%s from '%s' doesn't define section '%s' "
+                          "for pipeline '%s'",
+                          self.pipe_iface.__class__.__name__, self.source,
+                          self.SUBTYPE_MAPPING_SECTION, strict_pipe_key)
+            # Without a subtypes section, if pipeline module defines a single
+            # Sample subtype, we'll assume that type is to be used when in
+            # this case, when the interface section for this pipeline lacks
+            # an explicit subtypes section specification.
+            subtype_name = None
+        else:
+            if subtypes is None:
+                # Designate lack of need for import attempt and provide
+                # class with name to format message below.
+                subtype = Sample
+                _LOGGER.debug("Null %s subtype(s) section specified for "
+                              "pipeline: '%s'; using base %s type",
+                              subtype.__name__, strict_pipe_key,
+                              subtype.__name__)
+            elif isinstance(subtypes, str):
+                subtype_name = subtypes
+                _LOGGER.debug("Single subtype name for pipeline '%s' "
+                              "in interface from '%s': '%s'", subtype_name,
+                              strict_pipe_key, self.source)
+            else:
+                temp_subtypes = {
+                        alpha_cased(p): st for p, st in subtypes.items()}
+                try:
+                    subtype_name = temp_subtypes[alpha_cased(protocol)]
+                except KeyError:
+                    # Designate lack of need for import attempt and provide
+                    # class with name to format message below.
+                    subtype = Sample
+                    _LOGGER.debug("No %s subtype specified in interface from "
+                                  "'%s': '%s', '%s'; known: %s",
+                                  subtype.__name__, self.source,
+                                  strict_pipe_key, protocol,
+                                  ", ".join(temp_subtypes.keys()))
+
+        # subtype_name is defined if and only if subtype remained null.
+        subtype = subtype or \
+                  _import_sample_subtype(full_pipe_path, subtype_name) or \
+                  Sample
+        _LOGGER.debug("Using Sample subtype: %s", subtype.__name__)
+        return subtype
+
+
+    def finalize_pipeline_key_and_paths(self, pipeline_key):
+        """
+        Determine pipeline's full path, arguments, and strict key.
+
+        This handles multiple ways in which to refer to a pipeline (by key)
+        within the mapping that contains the data that defines a
+        PipelineInterface. It also ensures proper handling of the path to the
+        pipeline (i.e., ensuring that it's absolute), and that the text for
+        the arguments are appropriately dealt parsed and passed.
 
         :param str pipeline_key: the key in the pipeline interface file used
             for the protocol_mappings section. Previously was the script name.
-        :return (str, str): more restrictive version of input key, along with
-            absolute path for pipeline script.
+        :return (str, str, str): more precise version of input key, along with
+            absolute path for pipeline script, and full script path + options
 
         """
-        # key may contain extra command-line flags; split key from flags.
 
+        # The key may contain extra command-line flags; split key from flags.
+        # The strict key is the script name itself, something like "ATACseq.py"
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
-        if self.interface.get_attribute(strict_pipeline_key, "path"):
-            script_path_only = self.interface.get_attribute(
-                    strict_pipeline_key, "path")[0]
-            script_path_with_flags = " ".join([script_path_only, pipeline_key_args])
+        if self.pipe_iface.get_attribute(strict_pipeline_key, "path"):
+            script_path_only = self.pipe_iface.get_attribute(
+                    strict_pipeline_key, "path")[0].strip()
+            script_path_with_flags = \
+                    " ".join([script_path_only, pipeline_key_args])
         else:
             # backwards compatibility w/ v0.5
             script_path_only = strict_pipeline_key
             script_path_with_flags = pipeline_key 
 
-        if _os.path.isabs(script_path_only):
-            if not _os.path.exists(script_path_only.strip()):
-                _LOGGER.warn("Missing script command: '{}'".format(script_path_only))
-            return strict_pipeline_key, script_path_with_flags
-        else:
-            abs_script_path_only = _os.path.join(self.pipelines_path, script_path_only)
-            abs_script_path_with_flags = _os.path.join(self.pipelines_path, script_path_with_flags)
+        if not _os.path.isabs(script_path_only):
+            _LOGGER.log(5, "Expanding non-absolute script path: '%s'",
+                        script_path_only)
+            script_path_only = _os.path.join(
+                    self.pipelines_path, script_path_only)
+            _LOGGER.log(5, "Absolute script path: '%s'", script_path_only)
+            script_path_with_flags = _os.path.join(
+                    self.pipelines_path, script_path_with_flags)
+            _LOGGER.log(5, "Absolute script path with flags: '%s'",
+                        script_path_with_flags)
+        if not _os.path.exists(script_path_only):
+            _LOGGER.warn(
+                    "Missing pipeline script: '%s'", script_path_only)
 
-            if not _os.path.isfile(abs_script_path_only.strip()):
-                _LOGGER.warn("Missing script command: '{}'".
-                             format(abs_script_path_only))
-            return strict_pipeline_key, abs_script_path_with_flags
+        return strict_pipeline_key, script_path_only, script_path_with_flags
+
+
+    @classmethod
+    def _parse_iface_data(cls, pipe_iface_data):
+        """
+        Parse data from mappings to set instance attributes.
+
+        The data that define a ProtocolInterface are a "protocol_mapping"
+        Mapping and a "pipelines" Mapping, which are used to create a
+        ProtocolMapper and a PipelineInterface, representing the configuration
+        data for pipeline(s) from a single location. There are a couple of
+        different ways (file, folder, and eventually, raw Mapping) to provide
+        this data, and this function provides some standardization to how
+        those data are processed, independent of input type/format.
+
+        :param Mapping[str, Mapping] pipe_iface_data: mapping from section
+            name to section data mapping; more specifically, the protocol
+            mappings Mapping and the PipelineInterface mapping
+        :return list[(str, ProtocolMapper | PipelineInterface)]: pairs of
+            attribute name for the ProtocolInterface being created, and the
+            value for that attribute,
+        """
+        assignments = [("protocol_mapping", ProtocolMapper, "protomap"),
+                       ("pipelines", PipelineInterface, "pipe_iface")]
+        attribute_values = []
+        for section_name, data_type, attr_name in assignments:
+            try:
+                data = pipe_iface_data[section_name]
+            except KeyError:
+                _LOGGER.error("Error creating %s from data: %s",
+                              cls.__name__, str(pipe_iface_data))
+                raise Exception("PipelineInterface file lacks section: '{}'".
+                                format(section_name))
+            attribute_values.append((attr_name, data_type(data)))
+        return attribute_values
+
 
 
 @copy
@@ -2222,15 +2648,32 @@ class ProtocolMapper(Mapping):
     """
     def __init__(self, mappings_input):
         if isinstance(mappings_input, Mapping):
-            # Pre-parsed mappings data
-            self.mappings_file = None
             mappings = mappings_input
+            self.filepath = None
         else:
             # Parse file mapping protocols to pipeline(s).
-            self.mappings_file = mappings_input
-            with open(self.mappings_file, 'r') as mapfile:
+            with open(mappings_input, 'r') as mapfile:
                 mappings = yaml.load(mapfile)
-        self.mappings = {k.upper(): v for k, v in mappings.items()}
+            self.filepath = mappings_input
+        self.mappings = {alpha_cased(k): v for k, v in mappings.items()}
+
+
+    def __getitem__(self, protocol_name):
+        return self.mappings[protocol_name]
+
+    def __iter__(self):
+        return iter(self.mappings)
+
+    def __len__(self):
+        return len(self.mappings)
+
+
+    def __repr__(self):
+        source = self.filepath or "mapping"
+        num_protocols = len(self.mappings)
+        protocols = ", ".join(self.mappings.keys())
+        return "{} from {}, with {} protocol(s): {}".format(
+                self.__class__.__name__, source, num_protocols, protocols)
 
 
     def build_pipeline(self, protocol):
@@ -2261,7 +2704,7 @@ class ProtocolMapper(Mapping):
                 self.parse_parallel_jobs(split_jobs[i], split_jobs[i - 1])
         """
 
-    # TODO: incorporate into the InterfaceManager?
+
     def parse_parallel_jobs(self, job, dep):
         job = job.replace("(", "").replace(")", "")
         split_jobs = [x.strip() for x in job.split(',')]
@@ -2271,22 +2714,9 @@ class ProtocolMapper(Mapping):
         else:
             self.register_job(job, dep)
 
-    # TODO: incorporate into InterfaceManager?
+
     def register_job(self, job, dep):
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
-
-
-    def __getitem__(self, item):
-        return self.mappings[item]
-
-    def __iter__(self):
-        return iter(self.mappings)
-
-    def __len__(self):
-        return len(self.mappings)
-
-    def __repr__(self):
-        return repr(self.__dict__)
 
 
 
@@ -2335,3 +2765,122 @@ class _MissingPipelineConfigurationException(Exception):
     """ A selected pipeline needs configuration data. """
     def __init__(self, pipeline):
         super(_MissingPipelineConfigurationException, self).__init__(pipeline)
+
+
+
+def _import_sample_subtype(pipeline_filepath, subtype_name=None):
+    """
+    Import a particular Sample subclass from a Python module.
+
+    :param str pipeline_filepath: path to file to regard as Python module
+    :param str subtype_name: name of the target class (which must derive from
+        the base Sample class in order for it to be used), optional; if
+        unspecified, if the module defines a single subtype, then that will
+        be used; otherwise, the base Sample type will be used.
+    :return type: the imported class, defaulting to base Sample in case of
+        failure with the import or other logic
+    """
+    base_type = Sample
+
+    try:
+        _LOGGER.debug("Attempting to import module defined by {}".
+                      format(pipeline_filepath))
+
+        # TODO: consider more fine-grained control here. What if verbose
+        # TODO: logging is only to file, not to stdout/err?
+
+        # Redirect standard streams during the import to prevent noisy
+        # error messaging in the shell that may distract or confuse a user.
+        if _LOGGER.getEffectiveLevel() > logging.DEBUG:
+            with open(_os.devnull, 'w') as temp_standard_streams:
+                with standard_stream_redirector(temp_standard_streams):
+                    pipeline_module = import_from_source(pipeline_filepath)
+        else:
+            pipeline_module = import_from_source(pipeline_filepath)
+
+    except SystemExit:
+        # SystemExit would be caught as BaseException, but SystemExit is
+        # particularly suggestive of an a script without a conditional
+        # check on __main__, and as such warrant a tailored message.
+        _LOGGER.warn("'%s' appears to attempt to run on import; "
+                     "does it lack a conditional on '__main__'? "
+                     "Using base type: %s",
+                     pipeline_filepath, base_type.__name__)
+        return base_type
+
+    except (BaseException, Exception) as e:
+        _LOGGER.warn("Using base %s because of failure in attempt to "
+                     "import pipeline module '%s': %r",
+                     base_type.__name__, pipeline_filepath, e)
+        return base_type
+
+    else:
+        _LOGGER.debug("Successfully imported pipeline module '%s', "
+                      "naming it '%s'", pipeline_filepath,
+                      pipeline_module.__name__)
+
+    def class_names(cs):
+        return ", ".join([c.__name__ for c in cs])
+
+    # Find classes from pipeline module and determine which derive from Sample.
+    classes = _fetch_classes(pipeline_module)
+    _LOGGER.debug("Found %d classes: %s", len(classes), class_names(classes))
+
+    # Base Sample could be imported; we want the true subtypes.
+    proper_subtypes = _proper_subtypes(classes, base_type)
+    _LOGGER.debug("%d proper %s subtype(s): %s", len(proper_subtypes),
+                  base_type.__name__, class_names(proper_subtypes))
+
+    # Determine course of action based on subtype request and number found.
+    if not subtype_name:
+        _LOGGER.debug("No specific subtype is requested from '%s'",
+                      pipeline_filepath)
+        if len(proper_subtypes) == 1:
+            # No specific request and single subtype --> use single subtype.
+            subtype = proper_subtypes[0]
+            _LOGGER.debug("Single %s subtype found in '%s': '%s'",
+                          base_type.__name__, pipeline_filepath,
+                          subtype.__name__)
+            return subtype
+        else:
+            # We can't arbitrarily select from among 0 or multiple subtypes.
+            _LOGGER.debug("%s subtype cannot be selected from %d found in "
+                          "'%s'; using base type", base_type.__name__,
+                          len(proper_subtypes), pipeline_filepath)
+            return base_type
+    else:
+        # Specific subtype request --> look for match.
+        for st in proper_subtypes:
+            if st.__name__ == subtype_name:
+                _LOGGER.debug("Successfully imported %s from '%s'",
+                              subtype_name, pipeline_filepath)
+                return st
+        raise ValueError(
+                "'{}' matches none of the {} {} subtype(s) defined "
+                "in '{}': {}".format(subtype_name, len(proper_subtypes),
+                                     base_type.__name__, pipeline_filepath,
+                                     class_names(proper_subtypes)))
+
+
+
+def _fetch_classes(mod):
+    """ Return the classes defined in a module. """
+    try:
+        _, classes = zip(*inspect.getmembers(
+                mod, lambda o: inspect.isclass(o)))
+    except ValueError:
+        return []
+    return list(classes)
+
+
+
+def _proper_subtypes(types, supertype):
+    """ Determine the proper subtypes of a supertype. """
+    return list(filter(
+            lambda t: issubclass(t, supertype) and t != supertype, types))
+
+
+
+def _is_member(item, items):
+    """ Determine whether an iterm is a member of a collection. """
+    return item in items
