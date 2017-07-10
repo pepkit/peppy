@@ -257,11 +257,12 @@ def path_empty_project(request, tmpdir):
 
 
 
-def interactive(prj_lines=PROJECT_CONFIG_LINES,
-                iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
-                merge_table_lines = MERGE_TABLE_LINES,
-                sample_annotation_lines=SAMPLE_ANNOTATION_LINES,
-                loglevel=logging.DEBUG, project_kwargs=None):
+def interactive(
+        prj_lines=PROJECT_CONFIG_LINES, 
+        iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
+        merge_table_lines=MERGE_TABLE_LINES,
+        annotation_lines=SAMPLE_ANNOTATION_LINES,
+        project_kwargs=None, logger_kwargs=None):
     """
     Create Project and PipelineInterface instances from default or given data.
 
@@ -270,25 +271,24 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
     interpreter or Notebook. Test authorship is simplified if we provide
     easy access to viable instances of these objects.
 
-    :param collections.Iterable[str] prj_lines: project config lines
-    :param collections.Iterable[str] iface_lines: pipeline interface
-        config lines
-    :param collections.Iterable[str] merge_table_lines: lines for a merge
-        table file
-    :param collections.Iterable[str] sample_annotation_lines: lines for a
-        sample annotations file
+    :param Iterable[str] prj_lines: project config lines
+    :param Iterable[str] iface_lines: pipeline interface config lines
+    :param Iterable[str] merge_table_lines: lines for a merge table file
+    :param Iterable[str] annotation_lines: lines for a sample annotations file
     :param str | int loglevel: level at which to attend to log messages
     :param dict project_kwargs: keyword arguments for Project constructor
+    :param dict logger_kwargs: keyword arguments for logging configuration
+    :param bool devmode: whether logging should be done in development mode;
+        this implies a more verbose level setting and a more information-rich
+        template for logging message formatting
+    :param str logfile: path to file to which to write logging messages
     :return Project, PipelineInterface: one Project and one PipelineInterface,
     """
 
-    # Establish logging for interactive session
-    import logging, sys
-    h = logging.StreamHandler(sys.stdout)
-    h.setLevel(loglevel)
-    logging.root.setLevel(loglevel)
-    logging.root.addHandler(h)
-
+    # Establish logging for interactive session.
+    looper_logger_kwargs = {"level": "DEBUG"}
+    looper_logger_kwargs.update(logger_kwargs or {})
+    setup_looper_logger(**looper_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
@@ -303,7 +303,7 @@ def interactive(prj_lines=PROJECT_CONFIG_LINES,
         dirpath=dirpath, fname=MERGE_TABLE_FILENAME
     )
     path_sample_annotation_file = _write_temp(
-        sample_annotation_lines,
+        annotation_lines,
         dirpath=dirpath, fname=ANNOTATIONS_FILENAME
     )
 

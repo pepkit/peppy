@@ -2545,6 +2545,8 @@ class ProtocolInterface(object):
                                   ", ".join(temp_subtypes.keys()))
 
         # subtype_name is defined if and only if subtype remained null.
+        # The import helper function can return null if the import attempt
+        # fails, so provide the base Sample type as a fallback.
         subtype = subtype or \
                   _import_sample_subtype(full_pipe_path, subtype_name) or \
                   Sample
