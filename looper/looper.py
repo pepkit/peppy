@@ -45,28 +45,35 @@ def parse_arguments():
         arguments defined here, them undefined arguments
     """
 
-    description = "%(prog)s - Loop through samples and submit pipelines."
-    epilog = "For subcommand-specific options, type: '%(prog)s <subcommand> -h'"
-    epilog += "\nhttps://github.com/epigen/looper"
+    banner = "%(prog)s - Loop through samples and submit pipelines."
+    additional_description = "For subcommand-specific options, type: " \
+            "'%(prog)s <subcommand> -h'"
+    additional_description += "\nhttps://github.com/epigen/looper"
 
     parser = VersionInHelpParser(
-        description=description, epilog=epilog,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-V", "--version", action="version",
-                  version="%(prog)s {v}".format(v=__version__))
+            description=banner,
+            epilog=additional_description,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+            "-V", "--version",
+            action="version",
+            version="%(prog)s {v}".format(v=__version__))
 
     # Logging control
-    parser.add_argument("--logfile",
-                        help=argparse.SUPPRESS)
-    parser.add_argument("--verbosity",
-                        type=int,
-                        choices=range(len(_LEVEL_BY_VERBOSITY)),
-                        help=argparse.SUPPRESS)
-    parser.add_argument("--logging-level",
-                        help=argparse.SUPPRESS)
-    parser.add_argument("--dbg",
-                        action="store_true",
-                        help=argparse.SUPPRESS)
+    parser.add_argument(
+            "--logfile", dest="logfile",
+            help=argparse.SUPPRESS)
+    parser.add_argument(
+            "--verbosity", dest="verbosity",
+            type=int, choices=range(len(_LEVEL_BY_VERBOSITY)),
+            help=argparse.SUPPRESS)
+    parser.add_argument(
+            "--logging-level", dest="logging_level",
+            help=argparse.SUPPRESS)
+    parser.add_argument(
+            "--dbg", dest="dbg",
+            action="store_true",
+            help=argparse.SUPPRESS)
 
     subparsers = parser.add_subparsers(dest="command")
 
@@ -75,13 +82,11 @@ def parse_arguments():
             "run",
             help="Main Looper function: Submit jobs for samples.")
     run_subparser.add_argument(
-            "-t",
-            "--time-delay",
-            type=int,
-            default=0,
+            "-t", "--time-delay", dest="time_delay",
+            type=int, default=0,
             help="Time delay in seconds between job submissions.")
     run_subparser.add_argument(
-            "--ignore-flags",
+            "--ignore-flags", dest="ignore_flags",
             action="store_true",
             help="Ignore run status flags? Default: False. "
                  "By default, pipelines will not be submitted if a pypiper "
@@ -89,14 +94,14 @@ def parse_arguments():
                  "'running' or 'failed'). Set this option to ignore flags "
                  "and submit the runs anyway.")
     run_subparser.add_argument(
-            "--compute",
+            "--compute", dest="compute",
             help="YAML file with looper environment compute settings.")
     run_subparser.add_argument(
-            "--env",
+            "--env", dest="env",
             default=os.getenv("{}".format(COMPUTE_SETTINGS_VARNAME), ""),
             help="Employ looper environment compute settings.")
     run_subparser.add_argument(
-            "--limit",
+            "--limit", dest="limit",
             type=int,
             help="Limit to n samples.")
 
@@ -127,17 +132,15 @@ def parse_arguments():
                 "config_file",
                 help="Project configuration file (YAML).")
         subparser.add_argument(
-                "--file-checks",
+                "--file-checks", dest="file_checks",
                 action="store_false",
                 help="Perform input file checks. Default=True.")
         subparser.add_argument(
-                "-d",
-                "--dry-run",
+                "-d", "--dry-run", dest="dry_run",
                 action="store_true",
                 help="Don't actually submit the project/subproject.")
         subparser.add_argument(
-                "--sp",
-                dest="subproject",
+                "--sp", dest="subproject",
                 help="Name of subproject to use, as designated in the "
                      "project's configuration file")
 
@@ -164,7 +167,7 @@ def parse_arguments():
 
     if len(remaining_args) > 0:
         _LOGGER.debug("Remaining arguments passed to pipelines: {}".
-                 format(" ".join([str(x) for x in remaining_args])))
+                      format(" ".join([str(x) for x in remaining_args])))
 
     return args, remaining_args
 
