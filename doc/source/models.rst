@@ -25,13 +25,38 @@ Extending sample objects
 
 By default we use `generic models <https://github.com/epigen/looper/tree/master/looper/models.py>`_ (see the `API <api.html>`_ for more) to handle samples in Looper, but these can also be reused in other contexts by importing ``models`` or by means of object serialization through YAML files.
 
-Since these models provide useful methods to interact, update, and store attributes in the objects (most nobly *samples* - ``Sample`` object), a useful use case is during the run of a pipeline: pipeline scripts can extend ``Sample`` objects with further attributes or methods.
+Since these models provide useful methods to store, update, and read attributes in the objects created from them (most notably a *sample* - ``Sample`` object), a useful use case is during the run of a pipeline: a pipeline can create a more tailored ``Sample`` model, adding attributes or providing altered or additional methods.
 
-Example:
+**Example:**
 
-You want a convenient yet systematic way of specifying many file paths for several samples depending on the type of NGS sample you're handling: a ChIP-seq sample might have at some point during a run a peak file with a certain location, while a RNA-seq sample will have a file with transcript quantifications. Both paths to the files exist only for the respective samples, will likely be used during a run of a pipeline, but also during some analysis later on.
-By working with ``Sample`` objects that are specific to each file type, you can specify the location of such files only once during the whole process and later access them "on the fly".
+You have several samples, of multiple different experiment *types*,
+each yielding different *types* of data and files. For each sample of a given
+experiment type that uses a particular pipeline, the set of file path types
+that are relevant for the initial pipeline processing or for downstream
+analysis is known. For instance, a peak file with a certain genomic location
+is likely to be relevant for a ChIP-seq sample, while a transcript
+abundance/quantification file will probably be used when working with a RNA-seq
+sample. This common environment, in which one or more file types are specific
+to a pipeline or analysis for a particular experiment type, is not only
+amenable to a extension of the base ``Sample`` to a more bespoke ``Sample``
+*type*, but it's also especially likely to be made more pleasant by doing so.
+Rather than working with a generic, base ``Sample`` instance and needing to
+repeatedly specify the paths to relevant files, those locations can be
+specified just once, stored in an instance of the custom ``Sample`` *type*,
+and then later used or modified as needed, referencing a named attribute on
+the object. As this approach can dramatically reduce the number of times that
+a full filepath must be accurately typed, it will certainly save a modest
+amount of simple typing time; more significantly, it's likely to save time lost
+to diagnostics of typo-induced errors. The most rewarding aspect of employing
+the ``Sample`` extension strategy, however, is the potential for a drastic
+readability boost; as the visual clutter of raw filepaths clears, code readers
+are able to more clearly focus on the content and use of the data pointed to
+by filepath rather than the path itself.
 
+**Logistics**:
+
+There are a few different hypothetical ``Sample`` extension definition
+scenarios that ``Looper`` handles.
 
 **To have** ``Looper`` **create a ``Sample`` object specific to your data type, simply import the base** ``Sample`` **object from** ``models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
 
