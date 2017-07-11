@@ -53,10 +53,41 @@ readability boost; as the visual clutter of raw filepaths clears, code readers
 are able to more clearly focus on the content and use of the data pointed to
 by filepath rather than the path itself.
 
-**Logistics**:
+**Logistics:**
 
-There are a few different hypothetical ``Sample`` extension definition
-scenarios that ``Looper`` handles.
+It's the specification of *both an experiment or data type* ("library" or
+"protocol") *and a pipeline with which to process that input type* that
+``Looper`` uses to determine which type of ``Sample`` object(s) to create for
+pipeline processing and analysis (i.e., which ``Sample`` extension to use).
+There's a pair of symmetric reasons for this--the relationship between input
+type and pipeline can be one-to-many, in both directions. That is, it's
+possible for a single pipeline to process more than one input type, and a
+single input type may be processed by more than one pipeline.
+
+There are a few different ``Sample`` extension scenarios, each of which
+``Looper`` can handle and interpret. The most basic is the scenario in which
+a ``Sample`` extension, or *subtype*, is neither needed nor defined. In this
+case, the pipeline does not implement a ``Sample`` subtype, and in the
+pipeline interface nothing special is needed. Almost equally effortless on the
+user side is the case in which a pipeline author requires or otherwise intends
+for a single ``Sample`` subtype to be used with her pipeline. In this situation,
+the pipeline author simply implements the subtype within the pipeline module,
+and nothing further is required--neither of the pipeline author nor of a
+pipeline user! ``Looper`` will find the ``Sample`` subtype within the pipeline
+module and infer that it's intended to be used as the fundamental object
+representation of a sample within that pipeline. If a pipeline author extends
+the base ``Sample`` type in the pipeline module, it's likely for the
+pipeline's proper functionality to depend on the use of that ``Sample`` subtype.
+In a rare case, though, it may be both possible and desirable to use the base
+``Sample`` type even if the pipeline author has defined a bespoke type with
+her pipeline. To favor the base ``Sample`` over the tailored one created by a
+pipeline author--whether or not that custom type is declared in the
+``sample_subtypes`` section of the pipeline interface--the user may simply
+set ``sample_subtypes`` to ``null`` in his own version of the pipeline
+interface, either for all input types to that pipeline, or for just a subset
+of them. Read on for further information.
+
+
 
 **To have** ``Looper`` **create a ``Sample`` object specific to your data type, simply import the base** ``Sample`` **object from** ``models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
 

@@ -2846,6 +2846,10 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
             return subtype
         else:
             # We can't arbitrarily select from among 0 or multiple subtypes.
+            # Note that this text is used in the tests, as validation of which
+            # branch of the code in this function is being hit in order to
+            # return the base Sample type. If it changes, the corresponding
+            # tests will also need to change.
             _LOGGER.debug("%s subtype cannot be selected from %d found in "
                           "'%s'; using base type", base_type.__name__,
                           len(proper_subtypes), pipeline_filepath)
