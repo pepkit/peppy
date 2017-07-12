@@ -136,7 +136,7 @@ it's a collection of key-value pairs, the keys should be names of input data
 types (as in the ``protocol_mapping``), and each value is the name of the class
 that should be used for each sample object of the corresponding key*for that
 pipeline*. This underscores that it's the *combination of a pipeline and input
-type* that determines the ``Sample`` subtype.
+type* that determines the subtype.
 
 
 .. code-block:: yaml
@@ -161,15 +161,15 @@ If a pipeline author provides more than one subtype, the ``sample_subtypes``
 section is needed to select from among them once it's time to create
 ``Sample`` objects. If multiple options are available, and the
 ``sample_subtypes`` section fails to clarify the decision, the base/generic
-``Sample`` type will be used. The responsibility for supplying the
-``sample_subtypes`` section, as is true for the rest of the pipeline interface,
-therefore rests primarily with the pipeline developer. It is possible for an
-end user to modify these settings, though.
+type will be used. The responsibility for supplying the ``sample_subtypes``
+section, as is true for the rest of the pipeline interface, therefore rests
+primarily with the pipeline developer. It is possible for an end user to
+modify these settings, though.
 
-Since the mechanism for ``Sample`` subtype detection is ``inspect``ion of each
-of the pipeline module's classes and retention of those which satisfy a
-subclass status check against ``Sample``, it's possible for pipeline authors
-to implement a class hierarchy with multi-hop inheritance relationships. For
+Since the mechanism for subtype detection is ``inspect``-ion of each of the
+pipeline module's classes and retention of those which satisfy a subclass
+status check against ``Sample``, it's possible for pipeline authors to
+implement a class hierarchy with multi-hop inheritance relationships. For
 example, consider the addition of the following class to the previous example
 of a pipeline module ``atacseq.py``:
 
