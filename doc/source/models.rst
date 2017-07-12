@@ -76,43 +76,20 @@ There are a few different ``Sample`` extension scenarios. Most basic is the
 one in which an extension, or *subtype*, is neither defined nor needed--the
 pipeline author does not provide one, and users do not request one. Almost
 equally effortless on the user side is the case in which a pipeline author
-requires or intends for a single subtype to be used with her pipeline. In this
-situation, the pipeline author simply implements the subtype within the
-pipeline module, and nothing further is required--of the pipeline author or of
-a user! The ``Sample`` subtype will be found within the pipeline
-module, and the inference will be made that it's intended to be used as the
-fundamental representation of a sample within that pipeline. If a pipeline
-author extends the base ``Sample`` type in the pipeline module, it's likely
-that the pipeline's proper functionality depends on the use of that subtype.
-In a rare case, though, it may be desirable to use the base ``Sample`` type
-even if the pipeline author has provided a more customized version with her
-pipeline. To favor the base ``Sample`` over the tailored one created by a
-pipeline author, the user may simply set ``sample_subtypes`` to ``null`` in
-his own version of the pipeline interface, either for all types of inpute to
-that pipeline, or for just a subset of them. Read on for further information.
-
-To leverage the power of a ``Sample`` subtype, the relevant model is the
-``PipelineInterface``. For each pipeline defined in the ``pipelines`` section
-of ``pipeline_interface.yaml``, there's accommodation for a ``sample_subtypes``
-subsection to communicate this information. The value for each such key may be
-either a single string or a collection of key-value pairs. If it's a single
-string, the value is the name of the class that's to be used as the template
-for each ``Sample`` object created for processing by that pipeline. If instead
-it's a collection of key-value pairs, the keys should be names of input data
-types (as in the ``protocol_mapping``), and each value is the name of the class
-that should be used for each sample object of the corresponding key*for that
-pipeline*. This underscores that it's the *combination of a pipeline and input
-type* that determines the ``Sample`` subtype.
-
-If a pipeline author provides more than one subtype, the ``sample_subtypes``
-section is needed to select from among them once it's time to create
-``Sample`` objects. If multiple options are available, and the
-``sample_subtypes`` section fails to clarify the decision, the base/generic
-``Sample`` type will be used. The responsibility for supplying the
-``sample_subtypes`` section, as is true for the rest of the pipeline interface,
-therefore rests primarily with the pipeline developer. It is possible for an
-end user to modify these settings, though.
-
+intends for a single subtype to be used with her pipeline. In this situation,
+the pipeline author simply implements the subtype within the pipeline module,
+and nothing further is required--of the pipeline author or of a user! The
+``Sample`` subtype will be found within the pipeline module, and the inference
+will be made that it's intended to be used as the fundamental representation
+of a sample within that pipeline. If a pipeline author extends the base
+``Sample`` type in the pipeline module, it's likely that the pipeline's proper
+functionality depends on the use of that subtype. In a rare case, though, it
+may be desirable to use the base ``Sample`` type even if the pipeline author
+has provided a more customized version with her pipeline. To favor the base
+``Sample`` over the tailored one created by a pipeline author, the user may
+simply set ``sample_subtypes`` to ``null`` in his own version of the pipeline
+interface, either for all types of inpute to that pipeline, or for just a
+subset of them. Read on for further information.
 
 
 .. code-block:: python
@@ -148,3 +125,84 @@ end user to modify these settings, though.
 			self.peaks = os.path.join(self.paths.sample_root, self.name + "_peaks.bed")
 
 
+To leverage the power of a ``Sample`` subtype, the relevant model is the
+``PipelineInterface``. For each pipeline defined in the ``pipelines`` section
+of ``pipeline_interface.yaml``, there's accommodation for a ``sample_subtypes``
+subsection to communicate this information. The value for each such key may be
+either a single string or a collection of key-value pairs. If it's a single
+string, the value is the name of the class that's to be used as the template
+for each ``Sample`` object created for processing by that pipeline. If instead
+it's a collection of key-value pairs, the keys should be names of input data
+types (as in the ``protocol_mapping``), and each value is the name of the class
+that should be used for each sample object of the corresponding key*for that
+pipeline*. This underscores that it's the *combination of a pipeline and input
+type* that determines the ``Sample`` subtype.
+
+
+.. code-block:: yaml
+
+    # Content of pipeline_interface.yaml
+
+    protocol_mapping:
+        ATAC: atacseq.py
+
+    pipelines:
+        atacseq.py:
+            ...
+            ...
+            sample_subtypes: ATACseqSample
+            ...
+            ...
+        ...
+        ...
+
+
+If a pipeline author provides more than one subtype, the ``sample_subtypes``
+section is needed to select from among them once it's time to create
+``Sample`` objects. If multiple options are available, and the
+``sample_subtypes`` section fails to clarify the decision, the base/generic
+``Sample`` type will be used. The responsibility for supplying the
+``sample_subtypes`` section, as is true for the rest of the pipeline interface,
+therefore rests primarily with the pipeline developer. It is possible for an
+end user to modify these settings, though.
+
+Since the mechanism for ``Sample`` subtype detection is ``inspect``ion of each
+of the pipeline module's classes and retention of those which satisfy a
+subclass status check against ``Sample``, it's possible for pipeline authors
+to implement a class hierarchy with multi-hop inheritance relationships. For
+example, consider the addition of the following class to the previous example
+of a pipeline module ``atacseq.py``:
+
+
+.. code-block:: python
+
+    class DNaseSample(ATACseqSample):
+        ...
+
+
+In this case there are now two ``Sample`` subtypes available, and more
+generally, there will necessarily be multiple subtypes available in any
+pipeline module that uses a subtype scheme with multiple, serial inheritance
+steps. In such cases, the pipeline interface should include an unambiguous
+``sample_subtypes`` section.
+
+
+.. code-block:: yaml
+
+    # Content of pipeline_interface.yaml
+
+    protocol_mapping:
+        ATAC: atacseq.py
+        DNase: atacseq.py
+
+    pipelines:
+        atacseq.py:
+            ...
+            ...
+            sample_subtypes:
+                ATAC: ATACseqSample
+                DNase: DNaseSample
+            ...
+            ...
+        ...
+        ...
