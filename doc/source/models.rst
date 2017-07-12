@@ -16,6 +16,17 @@ Once you have your project and samples in your Python session, the possibilities
 
 This is a work in progress, but you can find more information and examples in the `API <api.html>`_.
 
+**Exploration:**
+
+To interact with the various ``models`` and become acquainted with their
+features and behavior, there is a lightweight module that provides small
+working versions of a couple of the core objects. Specifically, from
+within the ``tests`` directory, the Python code in the ``tests.interactive``
+module can be copied and pasted into an interpreter. This provides a
+``Project`` instance called ``proj`` and a ``PipelineInterface`` instance
+called ``pi``. Additionally, this provides logging information in great detail,
+affording visibility into some what's happening as the ``models`` are created
+and used.
 
 
 .. _extending-sample-objects:
@@ -29,29 +40,26 @@ Since these models provide useful methods to store, update, and read attributes 
 
 **Example:**
 
-You have several samples, of multiple different experiment *types*,
-each yielding different *types* of data and files. For each sample of a given
+You have several samples, of different experiment types,
+each yielding different varieties of data and files. For each sample of a given
 experiment type that uses a particular pipeline, the set of file path types
 that are relevant for the initial pipeline processing or for downstream
 analysis is known. For instance, a peak file with a certain genomic location
-is likely to be relevant for a ChIP-seq sample, while a transcript
+will likely be relevant for a ChIP-seq sample, while a transcript
 abundance/quantification file will probably be used when working with a RNA-seq
-sample. This common environment, in which one or more file types are specific
-to a pipeline or analysis for a particular experiment type, is not only
-amenable to a extension of the base ``Sample`` to a more bespoke ``Sample``
-*type*, but it's also especially likely to be made more pleasant by doing so.
-Rather than working with a generic, base ``Sample`` instance and needing to
-repeatedly specify the paths to relevant files, those locations can be
-specified just once, stored in an instance of the custom ``Sample`` *type*,
-and then later used or modified as needed, referencing a named attribute on
-the object. As this approach can dramatically reduce the number of times that
-a full filepath must be accurately typed, it will certainly save a modest
-amount of simple typing time; more significantly, it's likely to save time lost
-to diagnostics of typo-induced errors. The most rewarding aspect of employing
-the ``Sample`` extension strategy, however, is the potential for a drastic
-readability boost; as the visual clutter of raw filepaths clears, code readers
-are able to more clearly focus on the content and use of the data pointed to
-by filepath rather than the path itself.
+sample. This common situation, in which one or more file types are specific
+to a pipeline and analysis both benefits from and is amenable to a bespoke
+``Sample`` *type*. Rather than working with a base ``Sample`` instance and
+repeatedly specifying paths to relevant files, those locations can be provided
+just once, stored in an instance of the custom ``Sample`` *type*, and later
+used or modified as needed by referencing a named attribute on the object.
+This approach can dramatically reduce the number of times that a full filepath
+must be accurately keyed and thus saves some typing time. More significant,
+it's likely to save time lost to diagnostics of typo-induced errors. The most
+rewarding aspect of employing the ``Sample`` extension strategy, though, is
+a drastic readability boost. As the visual clutter of raw filepaths clears,
+code readers can more clearly focus on questions of *what* a filepath points
+to and *how* it's being used, rather than on the path itself.
 
 **Logistics:**
 
@@ -64,55 +72,47 @@ type and pipeline can be one-to-many, in both directions. That is, it's
 possible for a single pipeline to process more than one input type, and a
 single input type may be processed by more than one pipeline.
 
-There are a few different ``Sample`` extension scenarios, each of which
-``Looper`` can interpret and handle. The most basic is the one in which
-a ``Sample`` extension, or *subtype*, is neither defined nor needed--the
-pipeline author does not provide such an implementation, and users do not
-request a subtype in a pipeline interface. Almost equally effortless on the
-user side is the case in which a pipeline author requires or otherwise intends
-for a single ``Sample`` subtype to be used with her pipeline. In this situation,
-the pipeline author simply implements the subtype within the pipeline module,
-and nothing further is required--neither of the pipeline author nor of a
-pipeline user! ``Looper`` will find the ``Sample`` subtype within the pipeline
-module and infer that it's intended to be used as the fundamental object
-representation of a sample within that pipeline. If a pipeline author extends
-the base ``Sample`` type in the pipeline module, it's likely for the
-pipeline's proper functionality to depend on the use of that ``Sample`` subtype.
-In a rare case, though, it may be both possible and desirable to use the base
-``Sample`` type even if the pipeline author has defined a bespoke type with
-her pipeline. To favor the base ``Sample`` over the tailored one created by a
-pipeline author--whether or not that custom type is declared in the
-``sample_subtypes`` section of the pipeline interface--the user may simply
-set ``sample_subtypes`` to ``null`` in his own version of the pipeline
-interface, either for all input types to that pipeline, or for just a subset
-of them. Read on for further information.
+There are a few different ``Sample`` extension scenarios. Most basic is the
+one in which an extension, or *subtype*, is neither defined nor needed--the
+pipeline author does not provide one, and users do not request one. Almost
+equally effortless on the user side is the case in which a pipeline author
+requires or intends for a single subtype to be used with her pipeline. In this
+situation, the pipeline author simply implements the subtype within the
+pipeline module, and nothing further is required--of the pipeline author or of
+a user! The ``Sample`` subtype will be found within the pipeline
+module, and the inference will be made that it's intended to be used as the
+fundamental representation of a sample within that pipeline. If a pipeline
+author extends the base ``Sample`` type in the pipeline module, it's likely
+that the pipeline's proper functionality depends on the use of that subtype.
+In a rare case, though, it may be desirable to use the base ``Sample`` type
+even if the pipeline author has provided a more customized version with her
+pipeline. To favor the base ``Sample`` over the tailored one created by a
+pipeline author, the user may simply set ``sample_subtypes`` to ``null`` in
+his own version of the pipeline interface, either for all types of inpute to
+that pipeline, or for just a subset of them. Read on for further information.
 
-When either the pipeline author or a user wants to does want to leverage the
-power of a ``Sample`` extension for one or more types of input data or
-experiments, the relevant ``Looper`` component is the pipeline interface.
-For each pipeline defined within in, the ``pipelines`` section of
-``pipeline_interface.yaml`` accommodates a section ``sample_subtypes`` to
-communicate this information. The value for this key may be either a single
-string or a collection of key-value pairs. If it's a single string, the value
-is the name of the class that is to be used as the template for each ``Sample``
-object created for processing by that pipeline. If it's a collection of
-key-value pairs, the keys should be names of input data types (experiment
-protocols, or data/library types, as in the ``protocol_mapping``), and each
-value is the name of the class that should be used for each sample object
-of the corresponding key *for that pipeline*. This underscores the fact that
-it's the *combination of a pipeline and input type* that determines the
-desired ``Sample`` subtype.
+To leverage the power of a ``Sample`` subtype, the relevant model is the
+``PipelineInterface``. For each pipeline defined in the ``pipelines`` section
+of ``pipeline_interface.yaml``, there's accommodation for a ``sample_subtypes``
+subsection to communicate this information. The value for each such key may be
+either a single string or a collection of key-value pairs. If it's a single
+string, the value is the name of the class that's to be used as the template
+for each ``Sample`` object created for processing by that pipeline. If instead
+it's a collection of key-value pairs, the keys should be names of input data
+types (as in the ``protocol_mapping``), and each value is the name of the class
+that should be used for each sample object of the corresponding key*for that
+pipeline*. This underscores that it's the *combination of a pipeline and input
+type* that determines the ``Sample`` subtype.
 
-If a pipeline author provides more than one ``Sample`` extension, ``Looper``
-relies on the ``sample_subtypes`` section to select the proper subtype when
-it's time to create a ``Sample`` object. If multiple options are available,
-and the ``sample_subtypes`` section fails to disambiguate the decision,
-``Looper`` will resort to the base/generic ``Sample``. The responsibility
-for supplying the ``sample_subtypes`` section, as is true for the rest of the
-pipeline interface, therefore rests primarily with the pipeline developer. It
-is possible for an end user to modify these settings, though.
+If a pipeline author provides more than one subtype, the ``sample_subtypes``
+section is needed to select from among them once it's time to create
+``Sample`` objects. If multiple options are available, and the
+``sample_subtypes`` section fails to clarify the decision, the base/generic
+``Sample`` type will be used. The responsibility for supplying the
+``sample_subtypes`` section, as is true for the rest of the pipeline interface,
+therefore rests primarily with the pipeline developer. It is possible for an
+end user to modify these settings, though.
 
-**To have** ``Looper`` **create a ``Sample`` object specific to your data type, simply import the base** ``Sample`` **object from** ``models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
 
 
 .. code-block:: python
@@ -128,7 +128,6 @@ is possible for an end user to modify these settings, though.
 		:param series: Pandas `Series` object.
 		:type series: pandas.Series
 		"""
-		__library__ = "ATAC-seq"
 
 		def __init__(self, series):
 			if not isinstance(series, pd.Series):
@@ -149,14 +148,3 @@ is possible for an end user to modify these settings, though.
 			self.peaks = os.path.join(self.paths.sample_root, self.name + "_peaks.bed")
 
 
-When ``Looper`` parses your config file and creates ``Sample`` objects, it will:
-
-	- check if any pipeline has a class extending ``Sample`` with the ``__library__`` attribute:
-		
-		- first by trying to import a ``pipelines`` module and checking the module pipelines;
-
-		- if the previous fails, it will try appending the provided pipeline_dir to ``$PATH`` and checking the module files for pipelines;
-
-	- if any of the above is successful, if will match the sample ``library`` with the ``__library__`` attribute of the classes to create extended sample objects.
-
-	- if a sample cannot be matched to an extended class, it will be a generic ``Sample`` object.
