@@ -65,10 +65,10 @@ possible for a single pipeline to process more than one input type, and a
 single input type may be processed by more than one pipeline.
 
 There are a few different ``Sample`` extension scenarios, each of which
-``Looper`` can handle and interpret. The most basic is the scenario in which
-a ``Sample`` extension, or *subtype*, is neither needed nor defined. In this
-case, the pipeline does not implement a ``Sample`` subtype, and in the
-pipeline interface nothing special is needed. Almost equally effortless on the
+``Looper`` can interpret and handle. The most basic is the one in which
+a ``Sample`` extension, or *subtype*, is neither defined nor needed--the
+pipeline author does not provide such an implementation, and users do not
+request a subtype in a pipeline interface. Almost equally effortless on the
 user side is the case in which a pipeline author requires or otherwise intends
 for a single ``Sample`` subtype to be used with her pipeline. In this situation,
 the pipeline author simply implements the subtype within the pipeline module,
@@ -87,7 +87,30 @@ set ``sample_subtypes`` to ``null`` in his own version of the pipeline
 interface, either for all input types to that pipeline, or for just a subset
 of them. Read on for further information.
 
+When either the pipeline author or a user wants to does want to leverage the
+power of a ``Sample`` extension for one or more types of input data or
+experiments, the relevant ``Looper`` component is the pipeline interface.
+For each pipeline defined within in, the ``pipelines`` section of
+``pipeline_interface.yaml`` accommodates a section ``sample_subtypes`` to
+communicate this information. The value for this key may be either a single
+string or a collection of key-value pairs. If it's a single string, the value
+is the name of the class that is to be used as the template for each ``Sample``
+object created for processing by that pipeline. If it's a collection of
+key-value pairs, the keys should be names of input data types (experiment
+protocols, or data/library types, as in the ``protocol_mapping``), and each
+value is the name of the class that should be used for each sample object
+of the corresponding key *for that pipeline*. This underscores the fact that
+it's the *combination of a pipeline and input type* that determines the
+desired ``Sample`` subtype.
 
+If a pipeline author provides more than one ``Sample`` extension, ``Looper``
+relies on the ``sample_subtypes`` section to select the proper subtype when
+it's time to create a ``Sample`` object. If multiple options are available,
+and the ``sample_subtypes`` section fails to disambiguate the decision,
+``Looper`` will resort to the base/generic ``Sample``. The responsibility
+for supplying the ``sample_subtypes`` section, as is true for the rest of the
+pipeline interface, therefore rests primarily with the pipeline developer. It
+is possible for an end user to modify these settings, though.
 
 **To have** ``Looper`` **create a ``Sample`` object specific to your data type, simply import the base** ``Sample`` **object from** ``models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
 
