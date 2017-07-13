@@ -20,7 +20,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper --help``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper [-h] [-V] {run,summarize,destroy,check,clean} ...
@@ -47,7 +47,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper run --help``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper run [-h] [-t TIME_DELAY] [--ignore-flags] [--compute COMPUTE]
@@ -80,7 +80,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper summarize --help``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper summarize [-h] [--file-checks] [-d] [--sp SUBPROJECT]
@@ -101,7 +101,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper destroy --help``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper destroy [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
@@ -121,7 +121,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper check --help``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper check [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
@@ -141,7 +141,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper clean --help``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper clean [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
@@ -161,7 +161,7 @@ Here you can see the command-line usage instructions for the main looper command
 ``looper --help --details``
 ----------------------------------
 
-.. code-block:: shell
+.. code-block:: none
 
 	version: 0.6.0-dev
 	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}] [--dbg]

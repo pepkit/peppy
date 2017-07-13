@@ -8,7 +8,7 @@ Contents
 
 .. toctree::
 	:caption: Getting Started
-	:maxdepth: 0
+	:maxdepth: 1
 
 	intro.rst
 	hello-world.rst
