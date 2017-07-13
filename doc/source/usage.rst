@@ -58,6 +58,8 @@ Here you can see the command-line usage instructions for the main looper command
 	                  [--sp SUBPROJECT]
 	                  config_file
 	
+	Main Looper function: Submit jobs for samples.
+	
 	positional arguments:
 	  config_file           Project configuration file (YAML).
 	
@@ -87,6 +89,8 @@ Here you can see the command-line usage instructions for the main looper command
 	usage: looper summarize [-h] [--file-checks] [-d] [--sp SUBPROJECT]
 	                        config_file
 	
+	Summarize statistics of project samples.
+	
 	positional arguments:
 	  config_file      Project configuration file (YAML).
 	
@@ -104,6 +108,8 @@ Here you can see the command-line usage instructions for the main looper command
 
 	version: 0.6.0-dev
 	usage: looper destroy [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
+	
+	Remove all files of the project.
 	
 	positional arguments:
 	  config_file      Project configuration file (YAML).
@@ -123,6 +129,8 @@ Here you can see the command-line usage instructions for the main looper command
 	version: 0.6.0-dev
 	usage: looper check [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
+	Checks flag status of current runs.
+	
 	positional arguments:
 	  config_file      Project configuration file (YAML).
 	
@@ -141,6 +149,8 @@ Here you can see the command-line usage instructions for the main looper command
 	version: 0.6.0-dev
 	usage: looper clean [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
+	Runs clean scripts to remove intermediate files of already processed jobs.
+	
 	positional arguments:
 	  config_file      Project configuration file (YAML).
 	
@@ -157,8 +167,7 @@ Here you can see the command-line usage instructions for the main looper command
 .. code-block:: shell
 
 	version: 0.6.0-dev
-	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}]
-	              [--logging-level LOGGING_LEVEL] [--dbg]
+	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}] [--dbg]
 	              {run,summarize,destroy,check,clean} ...
 	
 	looper - Loop through samples and submit pipelines.
@@ -178,8 +187,6 @@ Here you can see the command-line usage instructions for the main looper command
 	  --logfile LOGFILE     Optional output file for looper logs (default: None)
 	  --verbosity {0,1,2,3,4}
 	                        Choose level of verbosity (default: None)
-	  --logging-level LOGGING_LEVEL
-	                        Set logging level (default: None)
 	  --dbg                 Turn on debug mode (default: False)
 	
 	For subcommand-specific options, type: 'looper <subcommand> -h'
