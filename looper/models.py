@@ -790,10 +790,10 @@ class Project(AttributeDict):
             of this Project's samples
         """
         if self._samples is None:
-            _LOGGER.debug("Building basic Sample(s) for %s",
+            _LOGGER.debug("Building basic sample object(s) for %s",
                           self.__class__.__name__)
             self._samples = self._make_basic_samples()
-        _LOGGER.debug("%s has %d basic Sample(s)",
+        _LOGGER.debug("%s has %d basic sample object(s)",
                       self.__class__.__name__, len(self._samples))
         return self._samples
 
@@ -1085,10 +1085,10 @@ class Project(AttributeDict):
         else:
             _LOGGER.debug("No merge table")
 
-        # Create the Sample(s).
+        # Create the Samples.
         samples = []
         for _, row in self.sheet.iterrows():
-            sample = Sample(row.dropna())
+            sample = Sample(row.dropna(), prj=self)
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
@@ -1401,8 +1401,9 @@ class Sample(object):
     # Originally, this object was inheriting from _pd.Series,
     # but complications with serializing and code maintenance
     # made me go back and implement it as a top-level object
-    def __init__(self, series):
+    def __init__(self, series, prj=None):
         super(Sample, self).__init__()
+        self.prj = prj
         self.merged_cols = {}
         self.derived_cols_done = []
 
@@ -1420,6 +1421,10 @@ class Sample(object):
         # Set series attributes on self.
         for key, value in series.items():
             setattr(self, key, value)
+
+        # Ensure Project reference is actual Project or AttributeDict.
+        if not isinstance(self.prj, Project):
+            self.prj = AttributeDict(self.prj or {})
 
         # Check if required attributes exist and are not empty.
         lacking = self.check_valid()
@@ -2041,7 +2046,19 @@ class Sample(object):
 
             :param object obj: what to serialize to write to YAML.
             :param Iterable[str] to_skip: names of attributes to ignore.
-\            """
+            """
+            if isinstance(obj, Project):
+                _LOGGER.debug("Attempting to store %s's %s metadata",
+                              self.__class__.__name__,
+                              Project.__class__.__name__)
+                try:
+                    proj_data = dict(obj.metadata.items())
+                except AttributeError:
+                    _LOGGER.debug("No metadata")
+                    proj_data = {}
+                else:
+                    _LOGGER.debug("Successfully stored metadata")
+                return proj_data
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
@@ -2069,10 +2086,37 @@ class Sample(object):
         _LOGGER.debug("Serializing %s: '%s'",
                       self.__class__.__name__, self.name)
         serial = obj2dict(self)
+
+        # TODO: this is the way to add the project metadata reference if
+        # the metadata items are to be accessed directly on the Sample rather
+        # than through the Project; that is:
+        #
+        # sample.output_dir
+        # instead of
+        # sample.prj.output_dir
+        #
+        # In this case, "prj" should be added to the default argument to the
+        # to_skip parameter in the function signature, and the instance check
+        # of the object to serialize against Project can be dropped.
+        """
+        try:
+            serial.update(self.prj.metadata)
+        except AttributeError:
+            _LOGGER.debug("%s lacks %s reference",
+                          self.__class__.__name__, Project.__class__.__name__)
+        else:
+            _LOGGER.debug("Added %s metadata to serialized %s",
+                          Project.__class__.__name__, self.__class__.__name__)
+        """
+
         with open(self.yaml_file, 'w') as outfile:
             _LOGGER.debug("Generating YAML data for %s: '%s'",
                           self.__class__.__name__, self.name)
-            yaml_data = yaml.safe_dump(serial, default_flow_style=False)
+            try:
+                yaml_data = yaml.safe_dump(serial, default_flow_style=False)
+            except yaml.representer.RepresenterError:
+                print("SERIAL: {}".format(serial))
+                raise
             outfile.write(yaml_data)
 
 

@@ -59,7 +59,8 @@ def parse_arguments():
         suppress_details = False
     else:
         suppress_details = argparse.SUPPRESS
-        additional_description += "\n  For debug options, type: '%(prog)s -h --details'"
+        additional_description += \
+                "\n  For debug options, type: '%(prog)s -h --details'"
 
     parser = VersionInHelpParser(
             description=banner,
@@ -271,6 +272,7 @@ def run(prj, args, remaining_args):
             _LOGGER.debug("Creating %s instance: '%s'",
                           sample_subtype.__name__, sample.sample_name)
             sample = sample_subtype(sample_data)
+            sample.prj = prj
 
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
