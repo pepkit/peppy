@@ -1,6 +1,6 @@
 looper --help > USAGE.temp 2>&1
 
-for cmd in run summarize destroy check clean; do
+for cmd in run summarize destroy check clean "--details"; do
 	echo $cmd
 	echo -e "\n\n>looper $cmd --help" >> USAGE.temp
 	looper $cmd --help >> USAGE.temp 2>&1

@@ -22,7 +22,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 	>looper --help
 
-	version: 0.6.0-rc2
+	version: 0.6.0-dev
 	usage: looper [-h] [-V] {run,summarize,destroy,check,clean} ...
 	
 	looper - Loop through samples and submit pipelines.
@@ -41,11 +41,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  -V, --version         show program's version number and exit
 	
 	For subcommand-specific options, type: 'looper <subcommand> -h'
-	https://github.com/epigen/looper
+	https://github.com/epigen/looper For debug options, type: 'looper -h
+	--details'
 	
 	
 	>looper run --help
-	version: 0.6.0-rc2
+	version: 0.6.0-dev
 	usage: looper run [-h] [-t TIME_DELAY] [--ignore-flags] [--compute COMPUTE]
 	                  [--env ENV] [--limit LIMIT] [--file-checks] [-d]
 	                  [--sp SUBPROJECT]
@@ -73,7 +74,7 @@ Here you can see the command-line usage instructions for the main looper command
 	
 	
 	>looper summarize --help
-	version: 0.6.0-rc2
+	version: 0.6.0-dev
 	usage: looper summarize [-h] [--file-checks] [-d] [--sp SUBPROJECT]
 	                        config_file
 	
@@ -89,7 +90,7 @@ Here you can see the command-line usage instructions for the main looper command
 	
 	
 	>looper destroy --help
-	version: 0.6.0-rc2
+	version: 0.6.0-dev
 	usage: looper destroy [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
 	positional arguments:
@@ -104,7 +105,7 @@ Here you can see the command-line usage instructions for the main looper command
 	
 	
 	>looper check --help
-	version: 0.6.0-rc2
+	version: 0.6.0-dev
 	usage: looper check [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
 	positional arguments:
@@ -119,7 +120,7 @@ Here you can see the command-line usage instructions for the main looper command
 	
 	
 	>looper clean --help
-	version: 0.6.0-rc2
+	version: 0.6.0-dev
 	usage: looper clean [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
 	positional arguments:
@@ -131,3 +132,34 @@ Here you can see the command-line usage instructions for the main looper command
 	  -d, --dry-run    Don't actually submit the project/subproject.
 	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
 	                   configuration file
+	
+	
+	>looper --details --help
+	version: 0.6.0-dev
+	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}]
+	              [--logging-level LOGGING_LEVEL] [--dbg]
+	              {run,summarize,destroy,check,clean} ...
+	
+	looper - Loop through samples and submit pipelines.
+	
+	positional arguments:
+	  {run,summarize,destroy,check,clean}
+	    run                 Main Looper function: Submit jobs for samples.
+	    summarize           Summarize statistics of project samples.
+	    destroy             Remove all files of the project.
+	    check               Checks flag status of current runs.
+	    clean               Runs clean scripts to remove intermediate files of
+	                        already processed jobs.
+	
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -V, --version         show program's version number and exit
+	  --logfile LOGFILE     Optional output file for looper logs (default: None)
+	  --verbosity {0,1,2,3,4}
+	                        Choose level of verbosity (default: None)
+	  --logging-level LOGGING_LEVEL
+	                        Set logging level (default: None)
+	  --dbg                 Turn on debug mode (default: False)
+	
+	For subcommand-specific options, type: 'looper <subcommand> -h'
+	https://github.com/epigen/looper
