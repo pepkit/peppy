@@ -14,13 +14,16 @@ Each task is controlled by one of the five main commands ``run``, ``summarize``,
 - ``looper destroy``: Deletes all output results for this project.
 
 
+Command-line usage:
+******************************
 
 Here you can see the command-line usage instructions for the main looper command and for each subcommand:
 
 
-.. code-block:: shell
+``looper --help``
+----------------------------------
 
-	>looper --help
+.. code-block:: shell
 
 	version: 0.6.0-dev
 	usage: looper [-h] [-V] {run,summarize,destroy,check,clean} ...
@@ -43,9 +46,12 @@ Here you can see the command-line usage instructions for the main looper command
 	For subcommand-specific options, type: 'looper <subcommand> -h'
 	https://github.com/epigen/looper For debug options, type: 'looper -h
 	--details'
-	
-	
-	>looper run --help
+
+``looper run --help``
+----------------------------------
+
+.. code-block:: shell
+
 	version: 0.6.0-dev
 	usage: looper run [-h] [-t TIME_DELAY] [--ignore-flags] [--compute COMPUTE]
 	                  [--env ENV] [--limit LIMIT] [--file-checks] [-d]
@@ -71,9 +77,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  -d, --dry-run         Don't actually submit the project/subproject.
 	  --sp SUBPROJECT       Name of subproject to use, as designated in the
 	                        project's configuration file
-	
-	
-	>looper summarize --help
+
+``looper summarize --help``
+----------------------------------
+
+.. code-block:: shell
+
 	version: 0.6.0-dev
 	usage: looper summarize [-h] [--file-checks] [-d] [--sp SUBPROJECT]
 	                        config_file
@@ -87,9 +96,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  -d, --dry-run    Don't actually submit the project/subproject.
 	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
 	                   configuration file
-	
-	
-	>looper destroy --help
+
+``looper destroy --help``
+----------------------------------
+
+.. code-block:: shell
+
 	version: 0.6.0-dev
 	usage: looper destroy [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
@@ -102,9 +114,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  -d, --dry-run    Don't actually submit the project/subproject.
 	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
 	                   configuration file
-	
-	
-	>looper check --help
+
+``looper check --help``
+----------------------------------
+
+.. code-block:: shell
+
 	version: 0.6.0-dev
 	usage: looper check [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
@@ -117,9 +132,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  -d, --dry-run    Don't actually submit the project/subproject.
 	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
 	                   configuration file
-	
-	
-	>looper clean --help
+
+``looper clean --help``
+----------------------------------
+
+.. code-block:: shell
+
 	version: 0.6.0-dev
 	usage: looper clean [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
@@ -132,9 +150,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  -d, --dry-run    Don't actually submit the project/subproject.
 	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
 	                   configuration file
-	
-	
-	>looper --details --help
+
+``looper --help --details``
+----------------------------------
+
+.. code-block:: shell
+
 	version: 0.6.0-dev
 	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}]
 	              [--logging-level LOGGING_LEVEL] [--dbg]

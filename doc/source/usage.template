@@ -14,10 +14,8 @@ Each task is controlled by one of the five main commands ``run``, ``summarize``,
 - ``looper destroy``: Deletes all output results for this project.
 
 
+Command-line usage:
+******************************
 
 Here you can see the command-line usage instructions for the main looper command and for each subcommand:
 
-
-.. code-block:: shell
-
-	>looper --help
