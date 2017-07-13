@@ -16,6 +16,17 @@ Once you have your project and samples in your Python session, the possibilities
 
 This is a work in progress, but you can find more information and examples in the `API <api.html>`_.
 
+**Exploration:**
+
+To interact with the various ``models`` and become acquainted with their
+features and behavior, there is a lightweight module that provides small
+working versions of a couple of the core objects. Specifically, from
+within the ``tests`` directory, the Python code in the ``tests.interactive``
+module can be copied and pasted into an interpreter. This provides a
+``Project`` instance called ``proj`` and a ``PipelineInterface`` instance
+called ``pi``. Additionally, this provides logging information in great detail,
+affording visibility into some what's happening as the ``models`` are created
+and used.
 
 
 .. _extending-sample-objects:
@@ -25,15 +36,60 @@ Extending sample objects
 
 By default we use `generic models <https://github.com/epigen/looper/tree/master/looper/models.py>`_ (see the `API <api.html>`_ for more) to handle samples in Looper, but these can also be reused in other contexts by importing ``models`` or by means of object serialization through YAML files.
 
-Since these models provide useful methods to interact, update, and store attributes in the objects (most nobly *samples* - ``Sample`` object), a useful use case is during the run of a pipeline: pipeline scripts can extend ``Sample`` objects with further attributes or methods.
+Since these models provide useful methods to store, update, and read attributes in the objects created from them (most notably a *sample* - ``Sample`` object), a useful use case is during the run of a pipeline: a pipeline can create a more tailored ``Sample`` model, adding attributes or providing altered or additional methods.
 
-Example:
+**Example:**
 
-You want a convenient yet systematic way of specifying many file paths for several samples depending on the type of NGS sample you're handling: a ChIP-seq sample might have at some point during a run a peak file with a certain location, while a RNA-seq sample will have a file with transcript quantifications. Both paths to the files exist only for the respective samples, will likely be used during a run of a pipeline, but also during some analysis later on.
-By working with ``Sample`` objects that are specific to each file type, you can specify the location of such files only once during the whole process and later access them "on the fly".
+You have several samples, of different experiment types,
+each yielding different varieties of data and files. For each sample of a given
+experiment type that uses a particular pipeline, the set of file path types
+that are relevant for the initial pipeline processing or for downstream
+analysis is known. For instance, a peak file with a certain genomic location
+will likely be relevant for a ChIP-seq sample, while a transcript
+abundance/quantification file will probably be used when working with a RNA-seq
+sample. This common situation, in which one or more file types are specific
+to a pipeline and analysis both benefits from and is amenable to a bespoke
+``Sample`` *type*. Rather than working with a base ``Sample`` instance and
+repeatedly specifying paths to relevant files, those locations can be provided
+just once, stored in an instance of the custom ``Sample`` *type*, and later
+used or modified as needed by referencing a named attribute on the object.
+This approach can dramatically reduce the number of times that a full filepath
+must be accurately keyed and thus saves some typing time. More significant,
+it's likely to save time lost to diagnostics of typo-induced errors. The most
+rewarding aspect of employing the ``Sample`` extension strategy, though, is
+a drastic readability boost. As the visual clutter of raw filepaths clears,
+code readers can more clearly focus on questions of *what* a filepath points
+to and *how* it's being used, rather than on the path itself.
 
+**Logistics:**
 
-**To have** ``Looper`` **create a ``Sample`` object specific to your data type, simply import the base** ``Sample`` **object from** ``models``, **and create a** ``class`` **that inherits from it that has an** ``__library__`` **attribute:**
+It's the specification of *both an experiment or data type* ("library" or
+"protocol") *and a pipeline with which to process that input type* that
+``Looper`` uses to determine which type of ``Sample`` object(s) to create for
+pipeline processing and analysis (i.e., which ``Sample`` extension to use).
+There's a pair of symmetric reasons for this--the relationship between input
+type and pipeline can be one-to-many, in both directions. That is, it's
+possible for a single pipeline to process more than one input type, and a
+single input type may be processed by more than one pipeline.
+
+There are a few different ``Sample`` extension scenarios. Most basic is the
+one in which an extension, or *subtype*, is neither defined nor needed--the
+pipeline author does not provide one, and users do not request one. Almost
+equally effortless on the user side is the case in which a pipeline author
+intends for a single subtype to be used with her pipeline. In this situation,
+the pipeline author simply implements the subtype within the pipeline module,
+and nothing further is required--of the pipeline author or of a user! The
+``Sample`` subtype will be found within the pipeline module, and the inference
+will be made that it's intended to be used as the fundamental representation
+of a sample within that pipeline. If a pipeline author extends the base
+``Sample`` type in the pipeline module, it's likely that the pipeline's proper
+functionality depends on the use of that subtype. In a rare case, though, it
+may be desirable to use the base ``Sample`` type even if the pipeline author
+has provided a more customized version with her pipeline. To favor the base
+``Sample`` over the tailored one created by a pipeline author, the user may
+simply set ``sample_subtypes`` to ``null`` in his own version of the pipeline
+interface, either for all types of inpute to that pipeline, or for just a
+subset of them. Read on for further information.
 
 
 .. code-block:: python
@@ -49,7 +105,6 @@ By working with ``Sample`` objects that are specific to each file type, you can 
 		:param series: Pandas `Series` object.
 		:type series: pandas.Series
 		"""
-		__library__ = "ATAC-seq"
 
 		def __init__(self, series):
 			if not isinstance(series, pd.Series):
@@ -70,14 +125,84 @@ By working with ``Sample`` objects that are specific to each file type, you can 
 			self.peaks = os.path.join(self.paths.sample_root, self.name + "_peaks.bed")
 
 
-When ``Looper`` parses your config file and creates ``Sample`` objects, it will:
+To leverage the power of a ``Sample`` subtype, the relevant model is the
+``PipelineInterface``. For each pipeline defined in the ``pipelines`` section
+of ``pipeline_interface.yaml``, there's accommodation for a ``sample_subtypes``
+subsection to communicate this information. The value for each such key may be
+either a single string or a collection of key-value pairs. If it's a single
+string, the value is the name of the class that's to be used as the template
+for each ``Sample`` object created for processing by that pipeline. If instead
+it's a collection of key-value pairs, the keys should be names of input data
+types (as in the ``protocol_mapping``), and each value is the name of the class
+that should be used for each sample object of the corresponding key*for that
+pipeline*. This underscores that it's the *combination of a pipeline and input
+type* that determines the subtype.
 
-	- check if any pipeline has a class extending ``Sample`` with the ``__library__`` attribute:
-		
-		- first by trying to import a ``pipelines`` module and checking the module pipelines;
 
-		- if the previous fails, it will try appending the provided pipeline_dir to ``$PATH`` and checking the module files for pipelines;
+.. code-block:: yaml
 
-	- if any of the above is successful, if will match the sample ``library`` with the ``__library__`` attribute of the classes to create extended sample objects.
+    # Content of pipeline_interface.yaml
 
-	- if a sample cannot be matched to an extended class, it will be a generic ``Sample`` object.
+    protocol_mapping:
+        ATAC: atacseq.py
+
+    pipelines:
+        atacseq.py:
+            ...
+            ...
+            sample_subtypes: ATACseqSample
+            ...
+            ...
+        ...
+        ...
+
+
+If a pipeline author provides more than one subtype, the ``sample_subtypes``
+section is needed to select from among them once it's time to create
+``Sample`` objects. If multiple options are available, and the
+``sample_subtypes`` section fails to clarify the decision, the base/generic
+type will be used. The responsibility for supplying the ``sample_subtypes``
+section, as is true for the rest of the pipeline interface, therefore rests
+primarily with the pipeline developer. It is possible for an end user to
+modify these settings, though.
+
+Since the mechanism for subtype detection is ``inspect``-ion of each of the
+pipeline module's classes and retention of those which satisfy a subclass
+status check against ``Sample``, it's possible for pipeline authors to
+implement a class hierarchy with multi-hop inheritance relationships. For
+example, consider the addition of the following class to the previous example
+of a pipeline module ``atacseq.py``:
+
+
+.. code-block:: python
+
+    class DNaseSample(ATACseqSample):
+        ...
+
+
+In this case there are now two ``Sample`` subtypes available, and more
+generally, there will necessarily be multiple subtypes available in any
+pipeline module that uses a subtype scheme with multiple, serial inheritance
+steps. In such cases, the pipeline interface should include an unambiguous
+``sample_subtypes`` section.
+
+
+.. code-block:: yaml
+
+    # Content of pipeline_interface.yaml
+
+    protocol_mapping:
+        ATAC: atacseq.py
+        DNase: atacseq.py
+
+    pipelines:
+        atacseq.py:
+            ...
+            ...
+            sample_subtypes:
+                ATAC: ATACseqSample
+                DNase: DNaseSample
+            ...
+            ...
+        ...
+        ...

@@ -13,7 +13,7 @@ Contents
 	intro.rst
 	hello-world.rst
 	features.rst
-	usage-and-commands.rst
+	usage.rst
 	tutorials.rst
 
 .. toctree::
