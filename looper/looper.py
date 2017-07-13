@@ -86,12 +86,21 @@ def parse_arguments():
             action="store_true",
             help=suppress_details or "Turn on debug mode")
 
+    # Individual subcommands
+    msg_by_cmd = {
+            "run": "Main Looper function: Submit jobs for samples.",
+            "summarize": "Summarize statistics of project samples.",
+            "destroy": "Remove all files of the project.", 
+            "check": "Checks flag status of current runs.", 
+            "clean": "Runs clean scripts to remove intermediate "
+                     "files of already processed jobs."}
     subparsers = parser.add_subparsers(dest="command")
+    def add_subparser(cmd):
+        message = msg_by_cmd[cmd]
+        return subparsers.add_parser(cmd, description=message, help=message)
 
     # Run command
-    run_subparser = subparsers.add_parser(
-            "run",
-            help="Main Looper function: Submit jobs for samples.")
+    run_subparser = add_subparser("run")
     run_subparser.add_argument(
             "-t", "--time-delay", dest="time_delay",
             type=int, default=0,
@@ -116,25 +125,11 @@ def parse_arguments():
             type=int,
             help="Limit to n samples.")
 
-    # Summarize command
-    summarize_subparser = subparsers.add_parser(
-            "summarize",
-            help="Summarize statistics of project samples.")
-
-    # Destroy command
-    destroy_subparser = subparsers.add_parser(
-            "destroy",
-            help="Remove all files of the project.")
-
-    # Check command
-    check_subparser = subparsers.add_parser(
-            "check",
-            help="Checks flag status of current runs.")
-
-    clean_subparser = subparsers.add_parser(
-            "clean",
-            help="Runs clean scripts to remove intermediate "
-                 "files of already processed jobs.")
+    # Other commands
+    summarize_subparser = add_subparser("summarize")
+    destroy_subparser = add_subparser("destroy")
+    check_subparser = add_subparser("check")
+    clean_subparser = add_subparser("clean")
 
     # Common arguments
     for subparser in [run_subparser, summarize_subparser,
