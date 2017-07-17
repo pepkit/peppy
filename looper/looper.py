@@ -398,7 +398,7 @@ def run(prj, args, remaining_args):
             # Submit job!
             _LOGGER.debug("Attempting job submission: '%s' ('%s')",
                           sample.sample_name, pl_name)
-            submit_script, submit = cluster_submit(
+            submit_script, submit = create_submission_script(
                     sample, prj.compute.submission_template, submit_settings,
                     prj.metadata.submission_subdir, sample_output_folder,
                     pl_name, ignore_flags=args.ignore_flags,
@@ -636,7 +636,7 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 
 
-def cluster_submit(
+def create_submission_script(
         sample, submit_template, variables_dict,
         submission_folder, sample_output_folder, pipeline_name,
         ignore_flags=False, remaining_args=None):
