@@ -1128,7 +1128,7 @@ class Project(AttributeDict):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
                 self.__class__.__name__, config.keys()))
-        _LOGGER.debug("Config metadata: {}")
+        _LOGGER.debug("Config metadata: {}".format(config["metadata"]))
         self.add_entries(config)
         _LOGGER.debug("{} now has {} keys: {}".format(
                 self.__class__.__name__, len(self.keys()), self.keys()))
@@ -1348,7 +1348,7 @@ class Project(AttributeDict):
             _LOGGER.log(5, "Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
-        expanded = _os.path.expandvars(maybe_relpath)
+        expanded = _os.path.expanduser(_os.path.expandvars(maybe_relpath))
         _LOGGER.log(5, "Expanded: '%s'", expanded)
         if _os.path.isabs(expanded):
             _LOGGER.log(5, "Expanded is absolute")
@@ -1834,8 +1834,7 @@ class Sample(object):
         
     def _set_assembly(self, ome, assemblies):
         if not assemblies:
-            _LOGGER.debug("Empty/null assemblies mapping: {} ({})".
-                          format(assemblies, type(assemblies)))
+            _LOGGER.debug("Empty/null assemblies mapping")
             return
         try:
             assembly = assemblies[self.organism]
