@@ -398,14 +398,20 @@ def run(prj, args, remaining_args):
             # Submit job!
             _LOGGER.debug("Attempting job submission: '%s' ('%s')",
                           sample.sample_name, pl_name)
-            submitted = cluster_submit(
-                    sample, prj.compute.submission_template,
-                    prj.compute.submission_command, submit_settings,
-                    prj.metadata.submission_subdir, sample_output_folder, 
-                    pl_name, args.time_delay, submit=True, 
-                    dry_run=args.dry_run,  ignore_flags=args.ignore_flags, 
+            submit_script, submit = cluster_submit(
+                    sample, prj.compute.submission_template, submit_settings,
+                    prj.metadata.submission_subdir, sample_output_folder,
+                    pl_name, ignore_flags=args.ignore_flags,
                     remaining_args=remaining_args)
-            if submitted:
+
+            if submit:
+                if args.dry_run:
+                    _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
+                                 submit_script)
+                else:
+                    subprocess.call(prj.compute.submission_command + " " + submit_script,
+                                    shell=True)
+                    time.sleep(args.time_delay)  # Delay next job's submission.
                 _LOGGER.debug("SUBMITTED")
                 submit_count += 1
             else:
@@ -631,16 +637,14 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 
 def cluster_submit(
-        sample, submit_template, submission_command, variables_dict,
-        submission_folder, sample_output_folder, pipeline_name, time_delay,
-        submit=False, dry_run=False, ignore_flags=False, remaining_args=None):
+        sample, submit_template, variables_dict,
+        submission_folder, sample_output_folder, pipeline_name,
+        ignore_flags=False, remaining_args=None):
     """
     Write cluster submission script to disk and submit job for given Sample.
 
     :param models.Sample sample: the Sample object for submission
     :param str submit_template: path to submission script template
-    :param str submission_command: actual command with which to execute the 
-        submission of the cluster job for the given sample
     :param variables_dict: key-value pairs to use to populate fields in 
         the submission template
     :param str submission_folder: path to the folder in which to place 
@@ -649,19 +653,12 @@ def cluster_submit(
         will write file(s), and where to search for flag file to check 
         if a sample's already been submitted
     :param str pipeline_name: name of the pipeline that the job will run
-    :param int time_delay: number of seconds by which to delay submission 
-        of next job
-    :param bool submit: whether to even attempt to actually submit the job; 
-        this is useful for skipping certain samples within a project
-    :param bool dry_run: whether the call is a test and thus the cluster job 
-        created should not actually be submitted; in this case, the return 
-        is a true proxy for whether the job would've been submitted
     :param bool ignore_flags: whether to ignore the presence of flag file(s) 
         in making the determination of whether to submit the job
     :param Iterable[str] remaining_args: arguments for this submission, 
         unconsumed by previous option/argument parsing
-    :return bool: whether the submission was done, 
-        or would've been if not a dry run
+    :return (str, bool): filepath to submission script, and whether the
+        submission should be done
     """
 
     # Create the script and logfile paths.
@@ -707,6 +704,7 @@ def cluster_submit(
         sample.to_yaml(subs_folder_path=submission_folder)
 
     # Check if job is already submitted (unless ignore_flags is set to True)
+    submit = True
     if not ignore_flags:
         flag_files = glob.glob(os.path.join(
                 sample_output_folder, pipeline_name + "*.flag"))
@@ -714,18 +712,8 @@ def cluster_submit(
             _LOGGER.info("> Not submitting, flag(s) found: {}".
                          format(flag_files))
             submit = False
-        else:
-            pass
 
-    if not submit:
-        return False
-    if dry_run:
-        _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
-                     submit_script)
-    else:
-        subprocess.call(submission_command + " " + submit_script, shell=True)
-        time.sleep(time_delay)    # Delay next job's submission.
-    return True
+    return submit_script, submit
 
 
 
