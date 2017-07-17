@@ -42,7 +42,8 @@ def parse_arguments():
     Argument Parsing.
 
     :return argparse.Namespace, list[str]: namespace parsed according to
-        arguments defined here, them undefined arguments
+        arguments defined here, and additional options arguments undefined
+        here and to be handled downstream
     """
 
     # Main looper program help text messages

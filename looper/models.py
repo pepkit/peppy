@@ -925,6 +925,13 @@ class Project(AttributeDict):
                 strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
                         proto_iface.finalize_pipeline_key_and_paths(
                                 pipeline_key)
+
+                # Skip and warn about nonexistent alleged pipeline path.
+                if not _os.path.exists(full_pipe_path):
+                    _LOGGER.warn(
+                            "Missing pipeline script: '%s'", full_pipe_path)
+                    continue
+
                 # Determine which interface and Sample subtype to use.
                 sample_subtype = \
                         proto_iface.fetch_sample_subtype(
@@ -2638,9 +2645,6 @@ class ProtocolInterface(object):
                     self.pipelines_path, script_path_with_flags)
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
-        if not _os.path.exists(script_path_only):
-            _LOGGER.warn(
-                    "Missing pipeline script: '%s'", script_path_only)
 
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
