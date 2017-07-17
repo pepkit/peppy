@@ -390,32 +390,37 @@ def run(prj, args, remaining_args):
                     _LOGGER.warn("Submission settings "
                                  "lack memory specification")
 
-            # Add the command string and job name to the submit_settings object
+            # Add command string and job name to the submit_settings object.
             submit_settings["JOBNAME"] = \
                     sample.sample_name + "_" + pipeline_key
             submit_settings["CODE"] = cmd
 
-            # Submit job!
-            _LOGGER.debug("Attempting job submission: '%s' ('%s')",
-                          sample.sample_name, pl_name)
-            submit_script, submit = create_submission_script(
+            # Create submission script (write script to disk)!
+            _LOGGER.debug("Creating submission script for pipeline %s: '%s'",
+                          pl_name, sample.sample_name)
+            submit_script = create_submission_script(
                     sample, prj.compute.submission_template, submit_settings,
-                    prj.metadata.submission_subdir, sample_output_folder,
-                    pl_name, ignore_flags=args.ignore_flags,
-                    remaining_args=remaining_args)
+                    submission_folder=prj.metadata.submission_subdir,
+                    pipeline_name=pl_name, remaining_args=remaining_args)
 
-            if submit:
+            # Determine how to update submission counts and (perhaps) submit.
+            flag_files = glob.glob(os.path.join(
+                    sample_output_folder, pl_name + "*.flag"))
+            if not args.ignore_flags and len(flag_files) > 0:
+                _LOGGER.info("> Not submitting, flag(s) found: {}".
+                             format(flag_files))
+                _LOGGER.debug("NOT SUBMITTED")
+            else:
                 if args.dry_run:
                     _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
                                  submit_script)
                 else:
-                    subprocess.call(prj.compute.submission_command + " " + submit_script,
-                                    shell=True)
+                    submission_command = "{} {}".format(
+                            prj.compute.submission_command, submit_script)
+                    subprocess.call(submission_command, shell=True)
                     time.sleep(args.time_delay)  # Delay next job's submission.
                 _LOGGER.debug("SUBMITTED")
                 submit_count += 1
-            else:
-                _LOGGER.debug("NOT SUBMITTED")
 
     # Report what went down.
     _LOGGER.info("Looper finished")
@@ -638,8 +643,7 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 def create_submission_script(
         sample, submit_template, variables_dict,
-        submission_folder, sample_output_folder, pipeline_name,
-        ignore_flags=False, remaining_args=None):
+        submission_folder, pipeline_name, remaining_args=None):
     """
     Write cluster submission script to disk and submit job for given Sample.
 
@@ -649,16 +653,10 @@ def create_submission_script(
         the submission template
     :param str submission_folder: path to the folder in which to place 
         submission files
-    :param str sample_output_folder: path to folder into which the pipeline 
-        will write file(s), and where to search for flag file to check 
-        if a sample's already been submitted
     :param str pipeline_name: name of the pipeline that the job will run
-    :param bool ignore_flags: whether to ignore the presence of flag file(s) 
-        in making the determination of whether to submit the job
     :param Iterable[str] remaining_args: arguments for this submission, 
         unconsumed by previous option/argument parsing
-    :return (str, bool): filepath to submission script, and whether the
-        submission should be done
+    :return str: filepath to submission script
     """
 
     # Create the script and logfile paths.
@@ -703,17 +701,7 @@ def create_submission_script(
                       name_sample_subtype, sample.name)
         sample.to_yaml(subs_folder_path=submission_folder)
 
-    # Check if job is already submitted (unless ignore_flags is set to True)
-    submit = True
-    if not ignore_flags:
-        flag_files = glob.glob(os.path.join(
-                sample_output_folder, pipeline_name + "*.flag"))
-        if len(flag_files) > 0:
-            _LOGGER.info("> Not submitting, flag(s) found: {}".
-                         format(flag_files))
-            submit = False
-
-    return submit_script, submit
+    return submit_script
 
 
 
