@@ -2625,11 +2625,14 @@ class ProtocolInterface(object):
         # The strict key is the script name itself, something like "ATACseq.py"
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
-        if self.pipe_iface.get_attribute(strict_pipeline_key, "path"):
-            script_path_only = self.pipe_iface.get_attribute(
-                    strict_pipeline_key, "path")[0].strip()
+        full_pipe_path = \
+                self.pipe_iface.get_attribute(strict_pipeline_key, "path")
+        if full_pipe_path:
+            script_path_only = _os.path.expanduser(_os.path.expandvars(full_pipe_path[0].strip()))
+            if _os.path.isdir(script_path_only):
+                script_path_only = _os.path.join(script_path_only, pipeline_key)
             script_path_with_flags = \
-                    " ".join([script_path_only, pipeline_key_args])
+                    "{} {}".format(script_path_only, pipeline_key_args)
         else:
             # backwards compatibility w/ v0.5
             script_path_only = strict_pipeline_key
