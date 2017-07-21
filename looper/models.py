@@ -925,6 +925,13 @@ class Project(AttributeDict):
                 strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
                         proto_iface.finalize_pipeline_key_and_paths(
                                 pipeline_key)
+
+                # Skip and warn about nonexistent alleged pipeline path.
+                if not _os.path.exists(full_pipe_path):
+                    _LOGGER.warn(
+                            "Missing pipeline script: '%s'", full_pipe_path)
+                    continue
+
                 # Determine which interface and Sample subtype to use.
                 sample_subtype = \
                         proto_iface.fetch_sample_subtype(
@@ -1128,7 +1135,7 @@ class Project(AttributeDict):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
                 self.__class__.__name__, config.keys()))
-        _LOGGER.debug("Config metadata: {}")
+        _LOGGER.debug("Config metadata: {}".format(config["metadata"]))
         self.add_entries(config)
         _LOGGER.debug("{} now has {} keys: {}".format(
                 self.__class__.__name__, len(self.keys()), self.keys()))
@@ -1348,7 +1355,7 @@ class Project(AttributeDict):
             _LOGGER.log(5, "Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
-        expanded = _os.path.expandvars(maybe_relpath)
+        expanded = _os.path.expanduser(_os.path.expandvars(maybe_relpath))
         _LOGGER.log(5, "Expanded: '%s'", expanded)
         if _os.path.isabs(expanded):
             _LOGGER.log(5, "Expanded is absolute")
@@ -1834,8 +1841,7 @@ class Sample(object):
         
     def _set_assembly(self, ome, assemblies):
         if not assemblies:
-            _LOGGER.debug("Empty/null assemblies mapping: {} ({})".
-                          format(assemblies, type(assemblies)))
+            _LOGGER.debug("Empty/null assemblies mapping")
             return
         try:
             assembly = assemblies[self.organism]
@@ -2619,11 +2625,14 @@ class ProtocolInterface(object):
         # The strict key is the script name itself, something like "ATACseq.py"
         strict_pipeline_key, _, pipeline_key_args = pipeline_key.partition(' ')
 
-        if self.pipe_iface.get_attribute(strict_pipeline_key, "path"):
-            script_path_only = self.pipe_iface.get_attribute(
-                    strict_pipeline_key, "path")[0].strip()
+        full_pipe_path = \
+                self.pipe_iface.get_attribute(strict_pipeline_key, "path")
+        if full_pipe_path:
+            script_path_only = _os.path.expanduser(_os.path.expandvars(full_pipe_path[0].strip()))
+            if _os.path.isdir(script_path_only):
+                script_path_only = _os.path.join(script_path_only, pipeline_key)
             script_path_with_flags = \
-                    " ".join([script_path_only, pipeline_key_args])
+                    "{} {}".format(script_path_only, pipeline_key_args)
         else:
             # backwards compatibility w/ v0.5
             script_path_only = strict_pipeline_key
@@ -2639,9 +2648,6 @@ class ProtocolInterface(object):
                     self.pipelines_path, script_path_with_flags)
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
-        if not _os.path.exists(script_path_only):
-            _LOGGER.warn(
-                    "Missing pipeline script: '%s'", script_path_only)
 
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
