@@ -1927,9 +1927,9 @@ class Sample(object):
                         format(self.read_type)
                 set_rtype = True
             if set_rtype:
-                _LOGGER.debug("Setting read_type for %s '%s': %s",
-                              self.__class__.__name__, self.name,
-                              set_rtype_reason)
+                _LOGGER.debug(
+                        "Setting read_type for %s '%s': %s",
+                        self.__class__.__name__, self.name, set_rtype_reason)
                 self.set_read_type(permissive=permissive)
             else:
                 _LOGGER.debug("read_type is already valid: '%s'",
@@ -2363,6 +2363,15 @@ class PipelineInterface(object):
         :return str: command-line argument string for pipeline
         """
 
+        def update_argtext(argtext, option, argument):
+            if argument is None or "" == argument:
+                _LOGGER.debug("Skipping null/empty argument for option "
+                              "'{}': {}".format(option, type(argument)))
+                return argtext
+            _LOGGER.debug("Adding argument {} for pipeline option '{}'".
+                          format(argument, option))
+            return "{} {} {}".format(argtext, option, argument)
+
         # It's undesirable to put a null value in the argument string.
         default_filepath = _os.path.join(
                 submission_folder_path, sample.generate_filename())
@@ -2408,32 +2417,31 @@ class PipelineInterface(object):
                 _LOGGER.debug("Found default for '{}': '{}'".
                               format(sample_attr, arg))
 
-            update_message = "Adding '{}' from sample attribute '{}' for " \
-                    "pipeline option/argument '{}'".format(
-                    arg, sample_attr, pipe_opt)
-            _LOGGER.debug(update_message)
-            argstring += " " + str(pipe_opt) + " " + str(arg)
+            argstring = update_argtext(
+                    argstring, option=pipe_opt, argument=arg)
 
         # Add optional arguments
         if "optional_arguments" in config:
+            _LOGGER.debug("Processing options")
             args = config["optional_arguments"]
-            for key, value in args.iteritems():
-                _LOGGER.debug("%s, %s (optional)", key, value)
-                if value is None:
-                    _LOGGER.debug("Null value for opt arg key '%s'",
-                                       str(key))
+            for pipe_opt, sample_attr in args.iteritems():
+                _LOGGER.debug("Option '%s' maps to sample attribute '%s'",
+                              pipe_opt, sample_attr)
+                if sample_attr is None or sample_attr == "":
+                    _LOGGER.debug("Null/empty sample attribute name for "
+                                  "pipeline option '{}'".format(pipe_opt))
                     continue
                 try:
-                    arg = getattr(sample, value)
+                    arg = getattr(sample, sample_attr)
                 except AttributeError:
                     _LOGGER.warn(
                         "> Note (missing attribute): '%s' requests "
-                        "sample attribute '%s' for "
-                        "OPTIONAL argument '%s'",
-                        pipeline_name, value, key)
+                        "sample attribute '%s' for option '%s'",
+                        pipeline_name, sample_attr, pipe_opt)
                     continue
+                argstring = update_argtext(
+                        argstring, option=pipe_opt, argument=arg)
 
-                argstring += " " + str(key) + " " + str(arg)
 
         _LOGGER.debug("Script args: '%s'", argstring)
 
