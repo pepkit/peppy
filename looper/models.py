@@ -89,6 +89,7 @@ IMPLICATIONS_DECLARATION = "implied_columns"
 DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
+VALID_READ_TYPES = ["single", "paired"]
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
@@ -1915,7 +1916,24 @@ class Sample(object):
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
-            self.set_read_type(permissive=permissive)
+
+            set_rtype = False
+            if not hasattr(self, "read_type"):
+                set_rtype_reason = "read_type not yet set"
+                set_rtype = True
+            elif not self.read_type or self.read_type.lower() \
+                    not in VALID_READ_TYPES:
+                set_rtype_reason = "current read_type is invalid: '{}'".\
+                        format(self.read_type)
+                set_rtype = True
+            if set_rtype:
+                _LOGGER.debug("Setting read_type for %s '%s': %s",
+                              self.__class__.__name__, self.name,
+                              set_rtype_reason)
+                self.set_read_type(permissive=permissive)
+            else:
+                _LOGGER.debug("read_type is already valid: '%s'",
+                              self.read_type)
         else:
             _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
 
