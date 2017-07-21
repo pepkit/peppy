@@ -1,7 +1,7 @@
 Changelog
 ******************************
 
-- **v0.6** (*unreleased*):
+- **v0.6** (*2017-07-21*):
 
   - New
 
@@ -15,6 +15,8 @@ Changelog
 
     - Allow tsv format for sample sheets.
   
+    - Checks that the path to a pipeline actually exists before writing the submission script. 
+
   - Changed
 
     - Changed LOOPERENV environment variable to PEPENV, generalizing it to generic models
@@ -28,6 +30,8 @@ Changelog
     - Various small bug fixes and dev improvements.
 
     - Require `setuptools` for installation, and `pandas 0.20.2`. If `numexpr` is installed, version `2.6.2` is required.
+
+    - Allows tilde in ``pipeline_interfaces``
 
 - **v0.5** (*2017-03-01*):
 
