@@ -2368,8 +2368,8 @@ class PipelineInterface(object):
                 _LOGGER.debug("Skipping null/empty argument for option "
                               "'{}': {}".format(option, type(argument)))
                 return argtext
-            _LOGGER.debug("Adding argument {} for pipeline option '{}'".
-                          format(argument, option))
+            _LOGGER.debug("Adding argument for pipeline option '{}': {}".
+                          format(option, argument))
             return "{} {} {}".format(argtext, option, argument)
 
         # It's undesirable to put a null value in the argument string.
