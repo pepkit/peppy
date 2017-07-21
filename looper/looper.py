@@ -42,7 +42,8 @@ def parse_arguments():
     Argument Parsing.
 
     :return argparse.Namespace, list[str]: namespace parsed according to
-        arguments defined here, them undefined arguments
+        arguments defined here, and additional options arguments undefined
+        here and to be handled downstream
     """
 
     # Main looper program help text messages
@@ -390,26 +391,37 @@ def run(prj, args, remaining_args):
                     _LOGGER.warn("Submission settings "
                                  "lack memory specification")
 
-            # Add the command string and job name to the submit_settings object
+            # Add command string and job name to the submit_settings object.
             submit_settings["JOBNAME"] = \
                     sample.sample_name + "_" + pipeline_key
             submit_settings["CODE"] = cmd
 
-            # Submit job!
-            _LOGGER.debug("Attempting job submission: '%s' ('%s')",
-                          sample.sample_name, pl_name)
-            submitted = cluster_submit(
-                    sample, prj.compute.submission_template,
-                    prj.compute.submission_command, submit_settings,
-                    prj.metadata.submission_subdir, sample_output_folder, 
-                    pl_name, args.time_delay, submit=True, 
-                    dry_run=args.dry_run,  ignore_flags=args.ignore_flags, 
-                    remaining_args=remaining_args)
-            if submitted:
+            # Create submission script (write script to disk)!
+            _LOGGER.debug("Creating submission script for pipeline %s: '%s'",
+                          pl_name, sample.sample_name)
+            submit_script = create_submission_script(
+                    sample, prj.compute.submission_template, submit_settings,
+                    submission_folder=prj.metadata.submission_subdir,
+                    pipeline_name=pl_name, remaining_args=remaining_args)
+
+            # Determine how to update submission counts and (perhaps) submit.
+            flag_files = glob.glob(os.path.join(
+                    sample_output_folder, pl_name + "*.flag"))
+            if not args.ignore_flags and len(flag_files) > 0:
+                _LOGGER.info("> Not submitting, flag(s) found: {}".
+                             format(flag_files))
+                _LOGGER.debug("NOT SUBMITTED")
+            else:
+                if args.dry_run:
+                    _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
+                                 submit_script)
+                else:
+                    submission_command = "{} {}".format(
+                            prj.compute.submission_command, submit_script)
+                    subprocess.call(submission_command, shell=True)
+                    time.sleep(args.time_delay)  # Delay next job's submission.
                 _LOGGER.debug("SUBMITTED")
                 submit_count += 1
-            else:
-                _LOGGER.debug("NOT SUBMITTED")
 
     # Report what went down.
     _LOGGER.info("Looper finished")
@@ -630,38 +642,22 @@ def _submission_status_text(curr, total, sample_name, sample_library):
 
 
 
-def cluster_submit(
-        sample, submit_template, submission_command, variables_dict,
-        submission_folder, sample_output_folder, pipeline_name, time_delay,
-        submit=False, dry_run=False, ignore_flags=False, remaining_args=None):
+def create_submission_script(
+        sample, submit_template, variables_dict,
+        submission_folder, pipeline_name, remaining_args=None):
     """
     Write cluster submission script to disk and submit job for given Sample.
 
     :param models.Sample sample: the Sample object for submission
     :param str submit_template: path to submission script template
-    :param str submission_command: actual command with which to execute the 
-        submission of the cluster job for the given sample
     :param variables_dict: key-value pairs to use to populate fields in 
         the submission template
     :param str submission_folder: path to the folder in which to place 
         submission files
-    :param str sample_output_folder: path to folder into which the pipeline 
-        will write file(s), and where to search for flag file to check 
-        if a sample's already been submitted
     :param str pipeline_name: name of the pipeline that the job will run
-    :param int time_delay: number of seconds by which to delay submission 
-        of next job
-    :param bool submit: whether to even attempt to actually submit the job; 
-        this is useful for skipping certain samples within a project
-    :param bool dry_run: whether the call is a test and thus the cluster job 
-        created should not actually be submitted; in this case, the return 
-        is a true proxy for whether the job would've been submitted
-    :param bool ignore_flags: whether to ignore the presence of flag file(s) 
-        in making the determination of whether to submit the job
     :param Iterable[str] remaining_args: arguments for this submission, 
         unconsumed by previous option/argument parsing
-    :return bool: whether the submission was done, 
-        or would've been if not a dry run
+    :return str: filepath to submission script
     """
 
     # Create the script and logfile paths.
@@ -706,26 +702,7 @@ def cluster_submit(
                       name_sample_subtype, sample.name)
         sample.to_yaml(subs_folder_path=submission_folder)
 
-    # Check if job is already submitted (unless ignore_flags is set to True)
-    if not ignore_flags:
-        flag_files = glob.glob(os.path.join(
-                sample_output_folder, pipeline_name + "*.flag"))
-        if len(flag_files) > 0:
-            _LOGGER.info("> Not submitting, flag(s) found: {}".
-                         format(flag_files))
-            submit = False
-        else:
-            pass
-
-    if not submit:
-        return False
-    if dry_run:
-        _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
-                     submit_script)
-    else:
-        subprocess.call(submission_command + " " + submit_script, shell=True)
-        time.sleep(time_delay)    # Delay next job's submission.
-    return True
+    return submit_script
 
 
 
