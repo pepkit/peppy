@@ -1098,15 +1098,18 @@ class Project(AttributeDict):
         samples = []
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna(), prj=self)
+
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
+            _LOGGER.debug("Merging sample")
             merge_sample(sample, self.merge_table,
                          self.data_sources, self.derived_columns)
+            _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
-            _LOGGER.debug("Setting sample's data path")
+            _LOGGER.debug("Setting sample data path")
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
