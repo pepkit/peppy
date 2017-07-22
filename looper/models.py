@@ -1102,7 +1102,7 @@ class Project(AttributeDict):
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
-            _LOGGER.debug("Merging sample")
+            _LOGGER.debug("Merging sample '%s'", sample.name)
             merge_sample(sample, self.merge_table,
                          self.data_sources, self.derived_columns)
             _LOGGER.debug("Setting sample file paths")
@@ -1806,17 +1806,26 @@ class Sample(object):
                 continue
             _LOGGER.debug("Deriving column for %s '%s': '%s'",
                           self.__class__.__name__, self.name, col)
+
             # Set a variable called {col}_key, so the
             # original source can also be retrieved.
             col_key = col + COL_KEY_SUFFIX
             col_key_val = getattr(self, col)
             _LOGGER.debug("Setting '%s' to '%s'", col_key, col_key_val)
             setattr(self, col_key, col_key_val)
+
+            # Determine the filepath for the current data source and set that
+            # attribute on this sample if it's non-empy/null.
             filepath = self.locate_data_source(
                     data_sources=project.get(DATA_SOURCES_SECTION),
                     column_name=col)
-            _LOGGER.debug("Setting '%s' to '%s'", col, filepath)
-            setattr(self, col, filepath)
+            if filepath:
+                _LOGGER.debug("Setting '%s' to '%s'", col, filepath)
+                setattr(self, col, filepath)
+            else:
+                _LOGGER.debug("Not setting null/empty value for data source "
+                              "'{}': {}".format(col, type(filepath)))
+
             self.derived_cols_done.append(col)
 
         self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
@@ -2109,9 +2118,8 @@ class Sample(object):
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
             if isinstance(obj, Project):
-                _LOGGER.debug("Attempting to store %s's %s metadata",
-                              self.__class__.__name__,
-                              Project.__class__.__name__)
+                _LOGGER.debug("Attempting to store %s's project metadata",
+                              self.__class__.__name__)
                 try:
                     proj_data = dict(obj.metadata.items())
                 except AttributeError:
@@ -2715,6 +2723,10 @@ class ProtocolInterface(object):
                     self.pipelines_path, script_path_with_flags)
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
+
+        if not _os.path.exists(script_path_only):
+            _LOGGER.warn(
+                    "Missing pipeline script: '%s'", script_path_only)
 
         return strict_pipeline_key, script_path_only, script_path_with_flags
 

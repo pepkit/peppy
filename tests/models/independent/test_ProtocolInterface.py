@@ -169,7 +169,7 @@ class PipelinePathResolutionTests:
     @pytest.mark.parametrize(
         argnames="pipe_path",
         argvalues=["nonexistent.py", "path/to/missing.py",
-                   "/abs/path/to/mythical"])
+                   "/abs/path/to/mythical-pipeline"])
     def test_warns_about_nonexistent_pipeline_script_path(
             self, atacseq_piface_data, path_config_file,
             tmpdir, pipe_path, atac_pipe_name):
