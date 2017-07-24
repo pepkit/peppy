@@ -109,7 +109,7 @@ def check_sheet(sample_file, dtype=str):
     :raises ValueError: if required column(s) is/are missing.
     """
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
-                        index_col=False, engine="python")
+                        index_col=False, engine="python", keep_default_na=False)
     req = [SAMPLE_NAME_COLNAME]
     missing = set(req) - set(df.columns)
     if len(missing) != 0:
@@ -2383,7 +2383,7 @@ class PipelineInterface(object):
                           format(option, argument))
             return "{} {} {}".format(argtext, option, argument)
 
-        # It's undesirable to put a null value in the argument string.
+
         default_filepath = _os.path.join(
                 submission_folder_path, sample.generate_filename())
         _LOGGER.debug("Default sample filepath: '%s'", default_filepath)
