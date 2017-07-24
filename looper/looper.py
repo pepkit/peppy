@@ -14,7 +14,9 @@ import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, __version__
 from .loodels import Project
-from .models import Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE
+from .models import \
+    Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+
 from .utils import alpha_cased, VersionInHelpParser
 
 try:
@@ -194,7 +196,6 @@ def run(prj, args, remaining_args):
 
     num_samples = prj.num_samples
     _start_counter(num_samples)
-    valid_read_types = ["single", "paired"]
 
     # Keep track of how many jobs have been submitted.
     job_count = 0            # Some job templates will be skipped.
@@ -266,8 +267,8 @@ def run(prj, args, remaining_args):
         # cannot be assigned (library/protocol missing).
         # pipeline_key (previously pl_id) is no longer necessarily
         # script name, it's more flexible.
-        for pipeline_interface, sample_subtype, pipeline_key, pipeline_job \
-                in submission_bundles:
+        for pipeline_interface, sample_subtype, pipeline_key, pipeline_job in \
+                submission_bundles:
             job_count += 1
 
             _LOGGER.debug("Creating %s instance: '%s'",
@@ -306,11 +307,14 @@ def run(prj, args, remaining_args):
             # Check if single_or_paired value is recognized.
             if hasattr(sample, "read_type"):
                 # Drop "-end", "_end", or "end" from end of the column value.
-                sample.read_type = re.sub(
-                    '[_\\-]?end$', '', str(sample.read_type)).lower()
-                if sample.read_type not in valid_read_types:
+                rtype = re.sub('[_\\-]?end$', '',
+                               str(sample.read_type))
+                sample.read_type = rtype.lower()
+                if sample.read_type not in VALID_READ_TYPES:
+                    _LOGGER.debug(
+                            "Invalid read type: '{}'".format(sample.read_type))
                     skip_reasons.append("read_type must be in {}".
-                                        format(valid_read_types))
+                                        format(VALID_READ_TYPES))
 
             # Identify cluster resources required for this submission.
             submit_settings = pipeline_interface.choose_resource_package(
