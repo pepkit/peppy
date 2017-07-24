@@ -190,7 +190,7 @@ class BuildSheetTests:
         if protocols:
             fuzzy_protos = {alpha_cased(p) for p in protocols}
             for _, sample_data in sheet.iterrows():
-                assert alpha_cased(sample_data.library) in fuzzy_protos
+                assert alpha_cased(sample_data.protocol) in fuzzy_protos
 
 
 
