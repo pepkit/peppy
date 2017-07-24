@@ -217,7 +217,9 @@ def run(prj, args, remaining_args):
         try:
             _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         except AttributeError:
-            print("Sample attributes: {}".format(", ".join(sample.__dict__.keys())))
+            with open("/home/vpr9v/looplog.txt", 'w') as f:
+                for attr in sample.__dict__:
+                    f.write("{}\n".format(attr))
             raise
 
         sample_output_folder = os.path.join(
