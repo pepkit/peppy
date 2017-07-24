@@ -2649,6 +2649,10 @@ class ProtocolInterface(object):
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
 
+        if not _os.path.exists(script_path_only):
+            _LOGGER.warn(
+                    "Missing pipeline script: '%s'", script_path_only)
+
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
 
