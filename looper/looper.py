@@ -212,6 +212,7 @@ def run(prj, args, remaining_args):
             alpha_cased(p)) for p in prj.protocols}
 
     for sample in prj.samples:
+        
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
 
         sample_output_folder = os.path.join(
@@ -232,7 +233,7 @@ def run(prj, args, remaining_args):
         try:
             protocol = alpha_cased(sample.protocol)
         except AttributeError:
-            skip_reasons.append("Missing 'library' attribute")
+            skip_reasons.append("Sample has no protocol")
         else:
             protocol = protocol.upper()
             _LOGGER.debug("Fetching submission bundle")
@@ -476,7 +477,12 @@ def summarize(prj):
     _start_counter(prj.num_samples)
 
     for sample in prj.samples:
-        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
+        # DEBUG
+        try:
+            _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
+        except AttributeError:
+            print("Sample attributes: {}".format(", ".join(sample.__dict__.keys())))
+            raise
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
 
@@ -618,30 +624,30 @@ class LooperCounter(object):
         self.count = 0
         self.total = total
 
-    def show(self, name, library):
+    def show(self, name, protocol):
         """
-        Display sample counts status for a particular library type.
+        Display sample counts status for a particular protocol type.
          
-        The counts are running vs. total for the library within the Project, 
+        The counts are running vs. total for the protocol within the Project, 
         and as a side-effect of the call, the running count is incremented.
         
         :param str name: name of the sample
-        :param str library: name of the library
+        :param str protocol: name of the protocol
         :return str: message suitable for logging a status update
         """
         self.count += 1
-        return Fore.CYAN + "## [{n} of {N}] {sample} ({library})".format(
-                n=self.count, N=self.total, sample=name, library=library) + \
-               Style.RESET_ALL
+        return _submission_status_text(
+                curr=self.count, total=self.total, sample_name=name,
+                sample_protocol=protocol, color=Fore.CYAN)
 
     def __str__(self):
         return "LooperCounter of size {}".format(self.total)
 
 
-def _submission_status_text(curr, total, sample_name, sample_library):
-    return Fore.BLUE + \
-           "## [{n} of {N}] {sample} ({library})".format(
-                n=curr, N=total, sample=sample_name, library=sample_library) + \
+def _submission_status_text(curr, total, sample_name, sample_protocol, color):
+    return color + \
+           "## [{n} of {N}] {sample} ({protocol})".format(
+                n=curr, N=total, sample=sample_name, protocol=sample_protocol) + \
            Style.RESET_ALL
 
 
