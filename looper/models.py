@@ -63,6 +63,7 @@ if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+import warnings
 
 import pandas as _pd
 import yaml
@@ -1703,6 +1704,13 @@ class Sample(object):
 
     @property
     def library(self):
+        """
+        Backwards-compatible alias.
+
+        :return str: The protocol / NGS library name for this Sample.
+        """
+        warnings.warn("Sample 'library' attribute is deprecated; instead, "
+                      "refer to 'protocol'", DeprecationWarning)
         return self.protocol
 
 
