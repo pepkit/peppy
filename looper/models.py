@@ -2302,7 +2302,7 @@ class PipelineInterface(object):
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
-        :param file_size: Size of input data.
+        :param file_size: Size of input data (in gigabytes).
         :type file_size: float
         :return: resource bundle appropriate for given pipeline,
             for given input file size
@@ -2369,9 +2369,9 @@ class PipelineInterface(object):
         for rp_name, rp_data in resource_packages:
             size_ante = file_size_ante(rp_name, rp_data)
             if file_size >= size_ante:
-                _LOGGER.debug(
-                        "Selected '{}' package with min file size {} for {}.".
-                        format(rp_name, size_ante, file_size))
+                msg = "Selected '{}' package with min file size {} Gb for file " \
+                      "of size {} Gb.".format(rp_name, size_ante, file_size)
+                _LOGGER.debug(msg)
                 return rp_data
 
 

@@ -212,15 +212,7 @@ def run(prj, args, remaining_args):
             alpha_cased(p)) for p in prj.protocols}
 
     for sample in prj.samples:
-
-        # DEBUG
-        try:
-            _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
-        except AttributeError:
-            with open("/home/vpr9v/looplog.txt", 'w') as f:
-                for attr in sample.__dict__:
-                    f.write("{}\n".format(attr))
-            raise
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
 
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
