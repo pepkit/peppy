@@ -212,8 +212,13 @@ def run(prj, args, remaining_args):
             alpha_cased(p)) for p in prj.protocols}
 
     for sample in prj.samples:
-        
-        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
+
+        # DEBUG
+        try:
+            _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
+        except AttributeError:
+            print("Sample attributes: {}".format(", ".join(sample.__dict__.keys())))
+            raise
 
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
@@ -477,12 +482,7 @@ def summarize(prj):
     _start_counter(prj.num_samples)
 
     for sample in prj.samples:
-        # DEBUG
-        try:
-            _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
-        except AttributeError:
-            print("Sample attributes: {}".format(", ".join(sample.__dict__.keys())))
-            raise
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
 
