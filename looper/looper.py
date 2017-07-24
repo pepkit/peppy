@@ -212,7 +212,7 @@ def run(prj, args, remaining_args):
             alpha_cased(p)) for p in prj.protocols}
 
     for sample in prj.samples:
-        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
 
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
@@ -230,7 +230,7 @@ def run(prj, args, remaining_args):
 
         # Get the base protocol-to-pipeline mappings
         try:
-            protocol = alpha_cased(sample.library)
+            protocol = alpha_cased(sample.protocol)
         except AttributeError:
             skip_reasons.append("Missing 'library' attribute")
         else:
@@ -476,7 +476,7 @@ def summarize(prj):
     _start_counter(prj.num_samples)
 
     for sample in prj.samples:
-        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
 
@@ -538,7 +538,7 @@ def destroy(prj, args, preview_flag=True):
     _start_counter(prj.num_samples)
 
     for sample in prj.samples:
-        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
         if preview_flag:
@@ -575,7 +575,7 @@ def clean(prj, args, preview_flag=True):
     _start_counter(prj.num_samples)
 
     for sample in prj.samples:
-        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.library))
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = os.path.join(
                 prj.metadata.results_subdir, sample.sample_name)
         cleanup_files = glob.glob(os.path.join(sample_output_folder,

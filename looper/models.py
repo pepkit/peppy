@@ -29,7 +29,7 @@ Explore:
     # get fastq file of first sample
     prj.samples[0].fastq
     # get all bam files of WGBS samples
-    [s.mapped for s in prj.samples if s.library == "WGBS"]
+    [s.mapped for s in prj.samples if s.protocol == "WGBS"]
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
@@ -756,7 +756,7 @@ class Project(AttributeDict):
         protos = set()
         for s in self.samples:
             try:
-                protos.add(s.library)
+                protos.add(s.protocol)
             except AttributeError:
                 _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
         return protos
@@ -1051,7 +1051,7 @@ class Project(AttributeDict):
         protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
         return _pd.DataFrame(
                 [s.as_series() for s in samples if
-                 hasattr(s, "library") and alpha_cased(s.library) in protocols])
+                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
 
 
     def make_project_dirs(self):
@@ -1432,7 +1432,10 @@ class Sample(object):
 
         # Set series attributes on self.
         for key, value in series.items():
-            setattr(self, key, value)
+            if key == "library":
+                setattr(self, "protocol", value)
+            else:
+                setattr(self, key, value)
 
         # Ensure Project reference is actual Project or AttributeDict.
         if not isinstance(self.prj, Project):
@@ -1696,6 +1699,11 @@ class Sample(object):
             return False
         # If specified, the activation flag must be set to '1'.
         return flag != "1"
+
+
+    @property
+    def library(self):
+        return self.protocol
 
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
