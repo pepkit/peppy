@@ -29,7 +29,7 @@ Explore:
     # get fastq file of first sample
     prj.samples[0].fastq
     # get all bam files of WGBS samples
-    [s.mapped for s in prj.samples if s.library == "WGBS"]
+    [s.mapped for s in prj.samples if s.protocol == "WGBS"]
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
@@ -63,6 +63,7 @@ if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+import warnings
 
 import pandas as _pd
 import yaml
@@ -756,7 +757,7 @@ class Project(AttributeDict):
         protos = set()
         for s in self.samples:
             try:
-                protos.add(s.library)
+                protos.add(s.protocol)
             except AttributeError:
                 _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
         return protos
@@ -1051,7 +1052,7 @@ class Project(AttributeDict):
         protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
         return _pd.DataFrame(
                 [s.as_series() for s in samples if
-                 hasattr(s, "library") and alpha_cased(s.library) in protocols])
+                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
 
 
     def make_project_dirs(self):
@@ -1432,7 +1433,10 @@ class Sample(object):
 
         # Set series attributes on self.
         for key, value in series.items():
-            setattr(self, key, value)
+            if key == "library":
+                setattr(self, "protocol", value)
+            else:
+                setattr(self, key, value)
 
         # Ensure Project reference is actual Project or AttributeDict.
         if not isinstance(self.prj, Project):
@@ -1696,6 +1700,18 @@ class Sample(object):
             return False
         # If specified, the activation flag must be set to '1'.
         return flag != "1"
+
+
+    @property
+    def library(self):
+        """
+        Backwards-compatible alias.
+
+        :return str: The protocol / NGS library name for this Sample.
+        """
+        warnings.warn("Sample 'library' attribute is deprecated; instead, "
+                      "refer to 'protocol'", DeprecationWarning)
+        return self.protocol
 
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
@@ -2286,7 +2302,7 @@ class PipelineInterface(object):
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
-        :param file_size: Size of input data.
+        :param file_size: Size of input data (in gigabytes).
         :type file_size: float
         :return: resource bundle appropriate for given pipeline,
             for given input file size
@@ -2353,9 +2369,9 @@ class PipelineInterface(object):
         for rp_name, rp_data in resource_packages:
             size_ante = file_size_ante(rp_name, rp_data)
             if file_size >= size_ante:
-                _LOGGER.debug(
-                        "Selected '{}' package with min file size {} for {}.".
-                        format(rp_name, size_ante, file_size))
+                msg = "Selected '{}' package with min file size {} Gb for file " \
+                      "of size {} Gb.".format(rp_name, size_ante, file_size)
+                _LOGGER.debug(msg)
                 return rp_data
 
 
