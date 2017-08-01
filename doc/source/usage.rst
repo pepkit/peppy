@@ -22,7 +22,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper [-h] [-V] {run,summarize,destroy,check,clean} ...
 	
 	looper - Loop through samples and submit pipelines.
@@ -49,7 +49,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper run [-h] [-t TIME_DELAY] [--ignore-flags] [--compute COMPUTE]
 	                  [--env ENV] [--limit LIMIT] [--file-checks] [-d]
 	                  [--sp SUBPROJECT]
@@ -82,7 +82,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper summarize [-h] [--file-checks] [-d] [--sp SUBPROJECT]
 	                        config_file
 	
@@ -103,7 +103,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper destroy [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
 	Remove all files of the project.
@@ -123,7 +123,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper check [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
 	Checks flag status of current runs.
@@ -143,7 +143,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper clean [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
 	
 	Runs clean scripts to remove intermediate files of already processed jobs.
@@ -163,7 +163,7 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0-dev
+	version: 0.6.0
 	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}] [--dbg]
 	              {run,summarize,destroy,check,clean} ...
 	

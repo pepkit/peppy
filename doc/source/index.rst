@@ -1,7 +1,7 @@
 Welcome
 ^^^^^^^^
 
-Deploying pipelines just got easier. Looper is a lightweight python toolkit that deploys your pipeline across samples with minimal effort. To get started, proceed with the :doc:`Introduction <intro>` or use the table of contents below to navigate the docs.
+Deploying pipelines just got easier. Looper is a python application that deploys pipelines across samples with minimal effort. Looper is **not** a pipeline development framework; it does not help develop pipelines, but sits a layer above the pipeline to manage projects and samples for any type of pipeline. To get started, proceed with the :doc:`Introduction <intro>`.
 
 Contents
 ^^^^^^^^
