@@ -1,9 +1,9 @@
 Extended tutorial
 ***************************************************
 
-The best way to learn is by example, so here's a quick tutorial to get you started using looper to run pre-made pipelines on a pre-made project.
+The best way to learn is by example, so here's an extended tutorial to get you started using looper to run pre-made pipelines on a pre-made project.
 
-First, install looper and pypiper (since our tutorial uses pypiper pipelines):
+First, install looper and pypiper. `Pypiper <https://pypiper.readthedocs.io>`_ is our pipeline development framework; it is not required to use looper, which can work with any command-line pipeline, but this tutorial uses pypiper pipelines so we must install it now:
 
 .. code:: bash
 
@@ -37,11 +37,9 @@ Outputs of pipeline runs will be under the directory specified in the ``output_d
 
 Inside there will be two directories:
 
--  ``results_pipeline`` [1]_ - a directory containing one directory with the output of the pipelines, for each sample.
--  ``submissions`` [2]_ - which holds yaml representations of the samples and log files of the submited jobs.
+-  ``results_pipeline`` - a directory containing one directory with the output of the pipelines, for each sample.
+-  ``submissions`` - which holds yaml representations of the samples and log files of the submited jobs.
 
-
-The sample-specific output of each pipeline type varies.
 
 To use pre-made pipelines with your project, all you have to do is :doc:`define your project <define-your-project>` using looper's standard format. To link your own, custom built pipelines, you can :doc:`connect your pipeline to looper with a pipeline interface <pipeline-interface>`.
 
@@ -50,8 +48,3 @@ In this example, we just ran one example sample (an amplicon sequencing library)
 From here to running hundreds of samples of various sample types is virtually the same effort!
 
 
-
-.. rubric:: Footnotes
-
-.. [1] This variable can also be specified in the ``results_subdir`` variable under the ``paths`` section of the project config file
-.. [2] This variable can also be specified in the ``submission_subdir`` variable under the ``paths`` section of the project config file
