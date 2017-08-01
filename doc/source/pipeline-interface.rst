@@ -7,7 +7,7 @@ Looper links to pipelines through a file called the `pipeline_interface`. If you
 Linking a looper-compatible pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Many projects will require only existing pipelines that are already looper-compatible. We maintain a (growing) list of known publicly available `looper-compatible pipelines <https://github.com/pepkit/looper_pipelines>`_ that will give you a good place to start. This list includes pipelines for data types like RNA-seq, bisulfite sequencing, etc.
+Many projects will require only existing pipelines that are already looper-compatible. We maintain a (growing) list of known publicly available `looper-compatible pipelines <https://github.com/pepkit/hello_looper/blob/master/looper_pipelines.md>`_ that will give you a good place to start. This list includes pipelines for data types like RNA-seq, bisulfite sequencing, etc.
 
 To use one of these pipelines, just clone the repository and the point your project to that pipeline's `pipeline_interface` file. You do this with the `pipeline_interfaces` attribute in the `metadata` section of your `project_config` file:
 
