@@ -29,7 +29,7 @@ Now you can run this project with looper! Just use ``looper run``:
 
 .. HINT::
 
-	If the looper executable isn't in your path, add it with ``export PATH=~/.local/bin:$PATH`` -- check out the :doc:`FAQ <faq>`.
+	If the looper executable isn't in your path, add it with ``export PATH=~/.local/bin:$PATH``.
 
 Pipeline outputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -40,11 +40,21 @@ Inside there will be two directories:
 -  ``results_pipeline`` - a directory containing one directory with the output of the pipelines, for each sample.
 -  ``submissions`` - which holds yaml representations of the samples and log files of the submited jobs.
 
-
-To use pre-made pipelines with your project, all you have to do is :doc:`define your project <define-your-project>` using looper's standard format. To link your own, custom built pipelines, you can :doc:`connect your pipeline to looper with a pipeline interface <pipeline-interface>`.
-
 In this example, we just ran one example sample (an amplicon sequencing library) through a pipeline that processes amplicon data (to determine percentage of indels in amplicon).
 
 From here to running hundreds of samples of various sample types is virtually the same effort!
+
+On your own
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To use looper on your own, you will need to prepare 2 things: your project (what data do you want to process), and your pipelines (what do you want to do with that data). The next sections provide detailed instructions on how to tell looper about these 2 things:
+
+1. **Project**. To link your project to looper, you will need to :doc:`define your project <define-your-project>` using looper's standard format. 
+
+	
+2.  **Pipelines**. You will want to either use pre-made looper-compatible pipelines, or link your own, custom built pipelines. Either way, the next section includes detailed instructions  on how to :doc:`connect your pipeline to looper <pipeline-interface>`.
+
+
+
 
 

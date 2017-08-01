@@ -1,6 +1,6 @@
 .. _project-config-file:
 
-Defining a project
+How to define a project
 =============================================
 
 To use ``looper`` with your project, you must define your project using Looper's standard project definition format. If you follow this format, then your project can be read not only by looper for submitting pipelines, but also for other tasks, like: summarizing pipeline output, analysis in R (using the ``project.init`` package), or building UCSC track hubs.
