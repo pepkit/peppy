@@ -1,7 +1,7 @@
 Welcome
 ^^^^^^^^
 
-Deploying pipelines just got easier. Looper is a python application that deploys pipelines across samples with minimal effort. Looper is **not** a pipeline development framework; it does not help develop pipelines, but sits a layer above the pipeline to manage projects and samples for any type of pipeline. To get started, proceed with the :doc:`Introduction <intro>`.
+Deploying pipelines just got easier. Looper is a python application that deploys pipelines across samples with minimal effort. Looper is **not** a pipeline development framework; it does not help develop pipelines, but sits a layer above the pipeline to manage projects and samples for any type of pipeline. To get started, proceed with the :doc:`Introduction <intro>`. If you're looking for actual pipelines, you can find a list in the `Hello, Looper! example repository <https://github.com/databio/hello_looper>`_.
 
 Contents
 ^^^^^^^^
