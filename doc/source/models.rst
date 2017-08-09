@@ -115,7 +115,7 @@ subset of them. Read on for further information.
 		def set_file_paths(self):
 			"""Sets the paths of all files for this sample."""
 			# Inherit paths from Sample by running Sample's set_file_paths()
-			super(ATACseqSample, self).set_file_paths()
+			super(ATACseqSample, self).set_file_paths(self.prj)
 
 			self.fastqc = os.path.join(self.paths.sample_root, self.name + ".fastqc.zip")
 			self.trimlog = os.path.join(self.paths.sample_root, self.name + ".trimlog.txt")
