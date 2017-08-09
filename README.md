@@ -7,11 +7,13 @@ __`Looper`__ is a pipeline submission engine that parses sample inputs and submi
 
 You can download the latest version from the [releases page](https://github.com/epigen/looper/releases).
 
+# Looper-compatible pipelines
+
+You can find a list of pre-built pipelines in the [hello looper! repository](https://github.com/pepkit/hello_looper/blob/master/looper_pipelines.md).
 
 
 # Links
 
- * Public-facing permalink: http://databio.org/looper
  * Documentation: [Read the Docs](http://looper.readthedocs.org/)
  * Source code: http://github.com/epigen/looper
 
