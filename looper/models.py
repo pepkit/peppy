@@ -1454,6 +1454,11 @@ class Sample(object):
 
         # Collect sample-specific filepaths.
         # Only when sample is added to project, can paths be added.
+        # Essentially, this provides an empty container for tool-specific
+        # filepaths, into which a pipeline may deposit such filepaths as
+        # desired. Such use provides a sort of communication interface
+        # between times and perhaps individuals (processing time vs.
+        # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
 
