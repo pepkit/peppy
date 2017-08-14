@@ -2062,16 +2062,15 @@ class Sample(object):
                               self.__class__.__name__,
                               Project.__class__.__name__)
                 proj_data = {}
-                for project_section in ["metadata", "derived_columns",
+                for sect_name in ["metadata", "derived_columns",
                                         IMPLICATIONS_DECLARATION, "trackhubs"]:
                     try:
-                        # Convert to raw dictionary for serialization.
-                        proj_data[project_section] = \
-                                dict(getattr(obj, project_section).items())
+                        section = getattr(obj, sect_name)
                     except AttributeError:
                         _LOGGER.debug("Project lacks section '%s'",
-                                      project_section)
+                                      sect_name)
                         continue
+                    proj_data[sect_name] = obj2dict(section)
                 return proj_data
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
