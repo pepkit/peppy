@@ -1452,9 +1452,8 @@ class Sample(object):
         # Not yet merged, potentially toggled when merge step is considered.
         self.merged = False
 
-        # Sample dirs
-        # Only when sample is added to project, can paths be added -
-        # This is because sample-specific files will be created in a
+        # Collect sample-specific filepaths.
+        # Only when sample is added to project, can paths be added.
         self.paths = Paths()
 
 
