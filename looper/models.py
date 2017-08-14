@@ -2061,13 +2061,17 @@ class Sample(object):
                 _LOGGER.debug("Attempting to store %s's %s metadata",
                               self.__class__.__name__,
                               Project.__class__.__name__)
-                try:
-                    proj_data = dict(obj.metadata.items())
-                except AttributeError:
-                    _LOGGER.debug("No metadata")
-                    proj_data = {}
-                else:
-                    _LOGGER.debug("Successfully stored metadata")
+                proj_data = {}
+                for project_section in ["metadata", "derived_columns",
+                                        IMPLICATIONS_DECLARATION, "trackhubs"]:
+                    try:
+                        # Convert to raw dictionary for serialization.
+                        proj_data[project_section] = \
+                                dict(getattr(obj, project_section).items())
+                    except AttributeError:
+                        _LOGGER.debug("Project lacks section '%s'",
+                                      project_section)
+                        continue
                 return proj_data
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
