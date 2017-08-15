@@ -1,7 +1,7 @@
 """ Helpers without an obvious logical home. """
 
 from argparse import ArgumentParser
-from collections import Counter, defaultdict, Iterable
+from collections import defaultdict, Iterable
 import contextlib
 import logging
 import os
@@ -48,11 +48,11 @@ def check_bam(bam, o):
         p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
         # Count paired alignments
         paired = 0
-        read_length = Counter()
+        read_lengths = defaultdict(int)
         while o > 0:  # Count down number of lines
             line = p.stdout.readline().decode().split("\t")
             flag = int(line[1])
-            read_length[len(line[9])] += 1
+            read_lengths[len(line[9])] += 1
             if 1 & flag:  # check decimal flag contains 1 (paired)
                 paired += 1
             o -= 1
@@ -64,9 +64,9 @@ def check_bam(bam, o):
                  "these attributes were not populated."
         raise OSError(reason)
 
-    _LOGGER.debug("Read lengths: {}".format(read_length))
+    _LOGGER.debug("Read lengths: {}".format(read_lengths))
     _LOGGER.debug("paired: {}".format(paired))
-    return read_length, paired
+    return read_lengths, paired
 
 
 

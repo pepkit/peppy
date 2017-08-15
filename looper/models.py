@@ -29,7 +29,7 @@ Explore:
     # get fastq file of first sample
     prj.samples[0].fastq
     # get all bam files of WGBS samples
-    [s.mapped for s in prj.samples if s.library == "WGBS"]
+    [s.mapped for s in prj.samples if s.protocol == "WGBS"]
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
@@ -56,12 +56,14 @@ import glob
 import inspect
 import itertools
 import logging
+from operator import itemgetter
 import os as _os
 import sys
 if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+import warnings
 
 import pandas as _pd
 import yaml
@@ -88,6 +90,7 @@ IMPLICATIONS_DECLARATION = "implied_columns"
 DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
+VALID_READ_TYPES = ["single", "paired"]
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
@@ -107,7 +110,7 @@ def check_sheet(sample_file, dtype=str):
     :raises ValueError: if required column(s) is/are missing.
     """
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
-                        index_col=False, engine="python")
+                        index_col=False, engine="python", keep_default_na=False)
     req = [SAMPLE_NAME_COLNAME]
     missing = set(req) - set(df.columns)
     if len(missing) != 0:
@@ -754,7 +757,7 @@ class Project(AttributeDict):
         protos = set()
         for s in self.samples:
             try:
-                protos.add(s.library)
+                protos.add(s.protocol)
             except AttributeError:
                 _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
         return protos
@@ -1049,7 +1052,7 @@ class Project(AttributeDict):
         protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
         return _pd.DataFrame(
                 [s.as_series() for s in samples if
-                 hasattr(s, "library") and alpha_cased(s.library) in protocols])
+                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
 
 
     def make_project_dirs(self):
@@ -1096,15 +1099,18 @@ class Project(AttributeDict):
         samples = []
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna(), prj=self)
+
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
+            _LOGGER.debug("Merging sample '%s'", sample.name)
             merge_sample(sample, self.merge_table,
                          self.data_sources, self.derived_columns)
+            _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
-            _LOGGER.debug("Setting sample's data path")
+            _LOGGER.debug("Setting sample data path")
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
@@ -1427,20 +1433,19 @@ class Sample(object):
 
         # Set series attributes on self.
         for key, value in series.items():
-            setattr(self, key, value)
+            if key == "library":
+                setattr(self, "protocol", value)
+            else:
+                setattr(self, key, value)
 
         # Ensure Project reference is actual Project or AttributeDict.
         if not isinstance(self.prj, Project):
             self.prj = AttributeDict(self.prj or {})
 
         # Check if required attributes exist and are not empty.
-        lacking = self.check_valid()
-        if lacking:
-            missing_kwarg = "missing"
-            empty_kwarg = "empty"
-            raise ValueError("Sample lacks attribute(s). {}={}; {}={}".
-                             format(missing_kwarg, lacking[missing_kwarg],
-                                    empty_kwarg, lacking[empty_kwarg]))
+        missing_attributes_message = self.check_valid()
+        if missing_attributes_message:
+            raise ValueError(missing_attributes_message)
 
         # Short hand for getting sample_name
         self.name = self.sample_name
@@ -1500,15 +1505,19 @@ class Sample(object):
 
         :param Iterable[str] required: collection of required sample attribute
             names, optional; if unspecified, only a name is required.
-
+        :return str: message about missing/empty attribute(s); empty string if
+            there are no missing/empty attributes
         """
-        lacking = defaultdict(list)
-        for attr in required or [SAMPLE_NAME_COLNAME]:
+        missing, empty = [], []
+        for attr in (required or [SAMPLE_NAME_COLNAME]):
             if not hasattr(self, attr):
-                lacking["missing"].append(attr)
+                missing.append(attr)
             if attr == "nan":
-                lacking["empty"].append(attr)
-        return lacking
+                empty.append(attr)
+        missing_attributes_message = \
+                "Sample lacks attribute(s). missing={}; empty={}".\
+                        format(missing, empty) if (missing or empty) else ""
+        return missing_attributes_message
 
 
     def determine_missing_requirements(self):
@@ -1697,6 +1706,18 @@ class Sample(object):
         return flag != "1"
 
 
+    @property
+    def library(self):
+        """
+        Backwards-compatible alias.
+
+        :return str: The protocol / NGS library name for this Sample.
+        """
+        warnings.warn("Sample 'library' attribute is deprecated; instead, "
+                      "refer to 'protocol'", DeprecationWarning)
+        return self.protocol
+
+
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
         """
@@ -1794,15 +1815,38 @@ class Sample(object):
         for col in project.derived_columns:
             # Only proceed if the specified column exists
             # and was not already merged or derived.
-            if hasattr(self, col) and col not in self.merged_cols \
-                    and col not in self.derived_cols_done:
-                # Set a variable called {col}_key, so the
-                # original source can also be retrieved.
-                setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
-                setattr(self, col, self.locate_data_source(
-                        data_sources=project.get(DATA_SOURCES_SECTION),
-                        column_name=col))
-                self.derived_cols_done.append(col)
+            if not hasattr(self, col):
+                _LOGGER.debug("%s lacks attribute '%s'", self.name, col)
+                continue
+            elif col in self.merged_cols:
+                _LOGGER.debug("'%s' is already merged for %s", col, self.name)
+                continue
+            elif col in self.derived_cols_done:
+                _LOGGER.debug("'%s' has been derived for %s", col, self.name)
+                continue
+            _LOGGER.debug("Deriving column for %s '%s': '%s'",
+                          self.__class__.__name__, self.name, col)
+
+            # Set a variable called {col}_key, so the
+            # original source can also be retrieved.
+            col_key = col + COL_KEY_SUFFIX
+            col_key_val = getattr(self, col)
+            _LOGGER.debug("Setting '%s' to '%s'", col_key, col_key_val)
+            setattr(self, col_key, col_key_val)
+
+            # Determine the filepath for the current data source and set that
+            # attribute on this sample if it's non-empy/null.
+            filepath = self.locate_data_source(
+                    data_sources=project.get(DATA_SOURCES_SECTION),
+                    column_name=col)
+            if filepath:
+                _LOGGER.debug("Setting '%s' to '%s'", col, filepath)
+                setattr(self, col, filepath)
+            else:
+                _LOGGER.debug("Not setting null/empty value for data source "
+                              "'{}': {}".format(col, type(filepath)))
+
+            self.derived_cols_done.append(col)
 
         self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
 
@@ -1904,7 +1948,24 @@ class Sample(object):
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
-            self.set_read_type(permissive=permissive)
+
+            set_rtype = False
+            if not hasattr(self, "read_type"):
+                set_rtype_reason = "read_type not yet set"
+                set_rtype = True
+            elif not self.read_type or self.read_type.lower() \
+                    not in VALID_READ_TYPES:
+                set_rtype_reason = "current read_type is invalid: '{}'".\
+                        format(self.read_type)
+                set_rtype = True
+            if set_rtype:
+                _LOGGER.debug(
+                        "Setting read_type for %s '%s': %s",
+                        self.__class__.__name__, self.name, set_rtype_reason)
+                self.set_read_type(permissive=permissive)
+            else:
+                _LOGGER.debug("read_type is already valid: '%s'",
+                              self.read_type)
         else:
             _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
 
@@ -1914,26 +1975,28 @@ class Sample(object):
         self.input_file_size = get_file_size(self.all_inputs)
 
 
-    def set_read_type(self, n=10, permissive=True):
+    def set_read_type(self, rlen_sample_size=10, permissive=True):
         """
         For a sample with attr `ngs_inputs` set, this sets the 
         read type (single, paired) and read length of an input file.
 
-        :param n: Number of reads to read to determine read type. Default=10.
-        :type n: int
+        :param rlen_sample_size: Number of reads to sample to infer read type,
+            default 10.
+        :type rlen_sample_size: int
         :param permissive: whether to simply log a warning or error message 
             rather than raising an exception if sample file is not found or 
-            otherwise cannot be read, default True
+            otherwise cannot be read, default True.
         :type permissive: bool
         """
+
+        # TODO: determine how return is being used and standardized (null vs. bool)
+
         # Initialize the parameters in case there is no input_file, so these
         # attributes at least exist - as long as they are not already set!
-        if not hasattr(self, "read_length"):
-            self.read_length = None
-        if not hasattr(self, "read_type"):
-            self.read_type = None
-        if not hasattr(self, "paired"):
-            self.paired = None
+        for attr in ["read_length", "read_type", "paired"]:
+            if not hasattr(self, attr):
+                _LOGGER.log(5, "Setting null for missing attribute: '%s'", attr)
+                setattr(self, attr, None)
 
         # ngs_inputs must be set
         if not self.ngs_inputs:
@@ -1941,6 +2004,7 @@ class Sample(object):
 
         ngs_paths = " ".join(self.ngs_inputs)
 
+        # Determine extant/missing filepaths.
         existing_files = list()
         missing_files = list()
         for path in ngs_paths.split(" "):
@@ -1948,6 +2012,10 @@ class Sample(object):
                 missing_files.append(path)
             else:
                 existing_files.append(path)
+        _LOGGER.debug("{} extant file(s): {}".
+                      format(len(existing_files), existing_files))
+        _LOGGER.debug("{} missing file(s): {}".
+                      format(len(missing_files), missing_files))
 
         # For samples with multiple original BAM files, check all.
         files = list()
@@ -1955,7 +2023,8 @@ class Sample(object):
         for input_file in existing_files:
             try:
                 file_type = parse_ftype(input_file)
-                read_length, paired = check_by_ftype[file_type](input_file, n)
+                read_lengths, paired = check_by_ftype[file_type](
+                        input_file, rlen_sample_size)
             except (KeyError, TypeError):
                 message = "Input file type should be one of: {}".format(
                         check_by_ftype.keys())
@@ -1984,29 +2053,40 @@ class Sample(object):
                         setattr(self, feat_name, None)
                 return
 
-            # Get most abundant read length
-            read_length = sorted(read_length)[-1]
+            # Determine most frequent read length among sample.
+            rlen, _ = sorted(read_lengths.items(), key=itemgetter(1))[-1]
+            _LOGGER.log(5,
+                    "Selected {} as most frequent read length from "
+                    "sample read length distribution: {}".format(
+                            rlen, read_lengths))
 
-            # If at least half is paired, consider paired end reads
-            if paired > (n / 2):
+            # Decision about paired-end status is majority-rule.
+            if paired > (rlen_sample_size / 2):
                 read_type = "paired"
                 paired = True
             else:
                 read_type = "single"
                 paired = False
 
-            files.append([read_length, read_type, paired])
+            files.append([rlen, read_type, paired])
 
         # Check agreement between different files
         # if all values are equal, set to that value;
         # if not, set to None and warn the user about the inconsistency
         for i, feature in enumerate(self._FEATURE_ATTR_NAMES):
-            setattr(self, feature,
-                    files[0][i] if len(set(f[i] for f in files)) == 1 else None)
+            feature_values = set(f[i] for f in files)
+            if 1 == len(feature_values):
+                feat_val = files[0][i]
+            else:
+                _LOGGER.log(5, "%d values among %d files for feature '%s'",
+                            len(feature_values), len(files), feature)
+                feat_val = None
+            _LOGGER.log(5, "Setting '%s' on %s to %s",
+                        feature, self.__class__.__name__, feat_val)
+            setattr(self, feature, feat_val)
 
             if getattr(self, feature) is None and len(existing_files) > 0:
-                _LOGGER.warn("Not all input files agree on "
-                             "feature '%s' for sample '%s'",
+                _LOGGER.warn("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
 
@@ -2128,7 +2208,7 @@ class Sample(object):
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             except yaml.representer.RepresenterError:
-                print("SERIAL: {}".format(serial))
+                _LOGGER.error("SERIALIZED SAMPLE DATA: {}".format(serial))
                 raise
             outfile.write(yaml_data)
 
@@ -2230,7 +2310,7 @@ class PipelineInterface(object):
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
-        :param file_size: Size of input data.
+        :param file_size: Size of input data (in gigabytes).
         :type file_size: float
         :return: resource bundle appropriate for given pipeline,
             for given input file size
@@ -2297,9 +2377,9 @@ class PipelineInterface(object):
         for rp_name, rp_data in resource_packages:
             size_ante = file_size_ante(rp_name, rp_data)
             if file_size >= size_ante:
-                _LOGGER.debug(
-                        "Selected '{}' package with min file size {} for {}.".
-                        format(rp_name, size_ante, file_size))
+                msg = "Selected '{}' package with min file size {} Gb for file " \
+                      "of size {} Gb.".format(rp_name, size_ante, file_size)
+                _LOGGER.debug(msg)
                 return rp_data
 
 
@@ -2318,7 +2398,16 @@ class PipelineInterface(object):
         :return str: command-line argument string for pipeline
         """
 
-        # It's undesirable to put a null value in the argument string.
+        def update_argtext(argtext, option, argument):
+            if argument is None or "" == argument:
+                _LOGGER.debug("Skipping null/empty argument for option "
+                              "'{}': {}".format(option, type(argument)))
+                return argtext
+            _LOGGER.debug("Adding argument for pipeline option '{}': {}".
+                          format(option, argument))
+            return "{} {} {}".format(argtext, option, argument)
+
+
         default_filepath = _os.path.join(
                 submission_folder_path, sample.generate_filename())
         _LOGGER.debug("Default sample filepath: '%s'", default_filepath)
@@ -2335,56 +2424,59 @@ class PipelineInterface(object):
             return argstring
 
         args = config["arguments"]
-
-        for key, value in args.iteritems():
-            if value is None:
-                _LOGGER.debug("Null value for opt arg key '%s'", str(key))
+        for pipe_opt, sample_attr in args.iteritems():
+            if sample_attr is None:
+                _LOGGER.debug("Null value for pipeline option/argument '%s'",
+                              str(pipe_opt))
                 continue
+
             try:
-               arg = getattr(sample, value)
+               arg = getattr(sample, sample_attr)
             except AttributeError:
                 _LOGGER.error(
-                    "Error (missing attribute): '%s' "
-                    "requires sample attribute '%s' "
-                    "for argument '%s'",
-                    pipeline_name, value, key)
+                        "Error (missing attribute): '%s' requires sample "
+                        "attribute '%s' for option/argument '%s'",
+                        pipeline_name, sample_attr, pipe_opt)
                 raise
 
             # It's undesirable to put a null value in the argument string.
             if arg is None:
-                _LOGGER.debug("Null value for Sample attribute: '%s'", value)
+                _LOGGER.debug("Null value for sample attribute: '%s'",
+                              sample_attr)
                 try:
-                    arg = proxies[value]
+                    arg = proxies[sample_attr]
                 except KeyError:
-                    raise ValueError("No default for null "
-                                     "Sample attribute: '{}'".format(value))
+                    reason = "No default for null sample attribute: '{}'".\
+                            format(sample_attr)
+                    raise ValueError(reason)
                 _LOGGER.debug("Found default for '{}': '{}'".
-                              format(value, arg))
+                              format(sample_attr, arg))
 
-            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".
-                          format(arg, value, key))
-            argstring += " " + str(key) + " " + str(arg)
+            argstring = update_argtext(
+                    argstring, option=pipe_opt, argument=arg)
 
         # Add optional arguments
         if "optional_arguments" in config:
+            _LOGGER.debug("Processing options")
             args = config["optional_arguments"]
-            for key, value in args.iteritems():
-                _LOGGER.debug("%s, %s (optional)", key, value)
-                if value is None:
-                    _LOGGER.debug("Null value for opt arg key '%s'",
-                                       str(key))
+            for pipe_opt, sample_attr in args.iteritems():
+                _LOGGER.debug("Option '%s' maps to sample attribute '%s'",
+                              pipe_opt, sample_attr)
+                if sample_attr is None or sample_attr == "":
+                    _LOGGER.debug("Null/empty sample attribute name for "
+                                  "pipeline option '{}'".format(pipe_opt))
                     continue
                 try:
-                    arg = getattr(sample, value)
+                    arg = getattr(sample, sample_attr)
                 except AttributeError:
                     _LOGGER.warn(
                         "> Note (missing attribute): '%s' requests "
-                        "sample attribute '%s' for "
-                        "OPTIONAL argument '%s'",
-                        pipeline_name, value, key)
+                        "sample attribute '%s' for option '%s'",
+                        pipeline_name, sample_attr, pipe_opt)
                     continue
+                argstring = update_argtext(
+                        argstring, option=pipe_opt, argument=arg)
 
-                argstring += " " + str(key) + " " + str(arg)
 
         _LOGGER.debug("Script args: '%s'", argstring)
 
