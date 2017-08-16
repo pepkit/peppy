@@ -1420,16 +1420,16 @@ class Sample(object):
         self.merged_cols = {}
         self.derived_cols_done = []
 
+        if isinstance(series, _pd.Series):
+            series = series.to_dict()
+        elif isinstance(series, Sample):
+            series = series.as_series().to_dict()
+
         # Keep a list of attributes that came from the sample sheet,
         # so we can create a minimal, ordered representation of the original.
         # This allows summarization of the sample (i.e.,
         # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
-
-        if isinstance(series, _pd.Series):
-            series = series.to_dict()
-        elif isinstance(series, Sample):
-            series = series.as_series().to_dict()
 
         # Set series attributes on self.
         for key, value in series.items():
