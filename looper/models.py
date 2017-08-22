@@ -109,6 +109,14 @@ def check_sheet(sample_file, dtype=str):
     :raises IOError: if given annotations file can't be read.
     :raises ValueError: if required column(s) is/are missing.
     """
+    # Although no null value replacements or supplements are being passed,
+    # toggling the keep_default_na value to False solved an issue with 'nan'
+    # and/or 'None' as an argument for an option in the pipeline command
+    # that's generated from a Sample's attributes.
+    #
+    # See https://github.com/epigen/looper/issues/159 for the original issue
+    # and https://github.com/epigen/looper/pull/160 for the pull request
+    # that resolved it.
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
                         index_col=False, engine="python", keep_default_na=False)
     req = [SAMPLE_NAME_COLNAME]
