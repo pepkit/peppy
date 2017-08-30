@@ -1,7 +1,11 @@
 How to link a pipeline to your project
 =============================================
 
-Looper links to pipelines through a file called the `pipeline_interface`. If you're using pre-made looper pipelines, you don't need to create a new interface; you just use the one that comes with the pipeline. If you need to link a new pipeline to looper, then you'll need to create a new pipeline interface file. The instructions below show you how to use pipelines in either category.
+Looper links to pipelines through a file called the `pipeline_interface`. How you use this depends on if you're using an existing pipeline or building a new pipeline. 
+
+* **If you're using pre-made looper pipelines**, you don't need to create a new interface; you just point your project at the one that comes with the pipeline. See the first section below, `Linking a looper-compatible pipeline`.
+
+* **If you need to link a new pipeline to looper**, then you'll need to create a new pipeline interface file. See the second section below, `Linking a custom pipeline`.
 
 
 Linking a looper-compatible pipeline
@@ -14,7 +18,7 @@ To use one of these pipelines, just clone the repository and the point your proj
 .. code-block:: yaml
 
   metadata:
-    pipeline_interfaces: path/to/pipeline_interface.yaml
+    pipeline_interfaces: /path/to/pipeline_interface.yaml
 
 This value should be the absolute path to the pipeline interface file. After that, you just need to make sure your project definition provides all the necessary sample metadata that is required by the pipeline you want to use. For example, you will need to make sure your sample annotation sheet specifies the correct value under `protocol` that your linked pipeline understands. These details are specific to each pipeline and should be defined in the pipeline's README.
 
@@ -24,7 +28,7 @@ Linking a custom pipeline
 
 .. HINT:: 
 
-	If you're just a pipeline **user**, you don't need to worry about this section. This is for those who develop pipelines, or those who want to use a currently defined looper project to submit to an existing pipeline that isn't already configured for looper.
+	If you're just a pipeline **user**, you don't need to worry about this section. This is for those who want to configure a new pipeline or an existing pipeline that isn't already looper-compatible.
 
 Looper can connect samples to any pipeline, as long as it runs on the command line and uses text command-line arguments. These pipelines could be simple shell scripts, python scripts, perl scripts, or even pipelines built using a framework. Typically, we use python pipelines built using the `pypiper <http://pypiper.readthedocs.io>`_ package, which provides some additional power to looper, but this is optional.
 

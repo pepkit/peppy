@@ -41,6 +41,6 @@ Now, to test looper, follow the commands in the `Hello, Looper! example reposito
 
 .. HINT::
 
-	If the looper executable isn't in your path, add it with ``export PATH=~/.local/bin:$PATH`` -- check out the :doc:`FAQ <faq>`.
+	If the looper executable isn't in your path, add it with ``export PATH=~/.local/bin:$PATH``.
 
 Now just read the explanation in the `Hello, Looper! example repository <https://github.com/databio/hello_looper>`_ to understand what you've accomplished.
