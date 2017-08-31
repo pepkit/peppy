@@ -472,6 +472,7 @@ def summarize(prj):
     import csv
     columns = []
     stats = []
+    figs = []
 
     _start_counter(prj.num_samples)
 
@@ -506,6 +507,29 @@ def summarize(prj):
         stats.append(sample_stats)
         columns.extend(t.key.tolist())
 
+    for sample in prj.samples:
+        _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
+        sample_output_folder = os.path.join(
+                prj.metadata.results_subdir, sample.sample_name)
+        # Now process any reported figures
+        figs_file = os.path.join(sample_output_folder, "figures.tsv")
+        if os.path.isfile(figs_file):
+            _LOGGER.info("Found figures file: '%s'", figs_file)
+        else:
+            _LOGGER.warn("No figures file '%s'", figs_file)
+            continue        
+
+        t = _pd.read_table(
+            figs_file, header=None, names=['key', 'value', 'pl'])
+
+        t.drop_duplicates(subset=['key', 'pl'], keep='last', inplace=True)
+
+        t.loc[:, 'plkey'] = t['pl'] + ":" + t['key']
+        dupes = t.duplicated(subset=['key'], keep=False)
+        t.loc[dupes, 'key'] = t.loc[dupes, 'plkey']
+
+        figs.append(t)
+
     # all samples are parsed. Produce file.
 
     tsv_outfile_path = os.path.join(prj.metadata.output_dir, prj.name)
@@ -524,6 +548,21 @@ def summarize(prj):
 
     tsv_outfile.close()
 
+    figs_tsv_path = "{root}_figs_summary.tsv".format(
+        root=os.path.join(prj.metadata.output_dir, prj.name))
+
+
+    figs_html_path = "{root}_figs_summary.html".format(
+        root=os.path.join(prj.metadata.output_dir, prj.name))
+
+    figs_html_file = open(figs_html_path, 'w')
+
+    img_code ="<h1>{key}</h1><a href='{path}'><img src='{path}'></a>\n"
+    for fig in figs:
+        figs_html_file.write(img_code.format(
+            key=str(fig['key']), path=fig['value']))
+
+    figs_html_file.close()
     _LOGGER.info("Summary (n=" + str(len(stats)) + "): " + tsv_outfile_path)
 
 
