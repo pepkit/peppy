@@ -22,7 +22,7 @@ Looper **is not a pipeline workflow engine**, which is used to build pipelines. 
 Why should I use looper?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The philosophical rationale for looper is that it **decouples sample handling from pipeline processing**. This creates a modular system with the benefits inherent to systems that subscribe to `the unix philosophy <https://en.wikipedia.org/wiki/Unix_philosophy>`_. In many published bioinformatics pipelines, sample handling (submitting different samples to a cluster) is delicately intertwined with pipeline commands (running the actual code on a single sample). Often, it is impossible to separate sample handling from the pipeline itself. This approach leads to several challenges that can be reduced by separating the two:
+The philosophical rationale for looper is that it **decouples sample handling from pipeline processing**. This creates a modular system that subscribes to `the unix philosophy <https://en.wikipedia.org/wiki/Unix_philosophy>`_, which provides many benefits. In many published bioinformatics pipelines, sample handling (submitting different samples to a cluster) is delicately intertwined with pipeline commands (running the actual code on a single sample). Often, it is impossible to divide sample handling from the pipeline itself. This approach leads to several challenges that can be reduced by separating the two:
 
 	* running a pipeline on just a few samples or just a single test case for debugging may require a full-blown distributed compute environment if the system is not set up to work locally.
 

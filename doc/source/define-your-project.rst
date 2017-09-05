@@ -3,7 +3,7 @@
 How to define a project
 =============================================
 
-To use ``looper`` with your project, you must define your project using Looper's standard project definition format. If you follow this format, then your project can be read not only by looper for submitting pipelines, but also for other tasks, like: summarizing pipeline output, analysis in R (using the ``project.init`` package), or building UCSC track hubs.
+To use ``looper`` with your project, you must define your project using Looper's standard project definition format. If you follow this format, then your project can be read not only by looper for submitting pipelines, but also for other tasks, like: summarizing pipeline output, analysis in R (using the pending `pepr package <http://github.com/pepkit/pepr>`_), or building UCSC track hubs.
 
 The format is simple and modular, so you only need to define the components you plan to use. You need to supply 2 files:
 
