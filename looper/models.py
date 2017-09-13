@@ -1770,10 +1770,10 @@ class Sample(object):
         try:
             regex = data_sources[source_key]
         except KeyError:
-            _LOGGER.warn(
-                    "Config lacks entry for data_source key: '{}' "
+            _LOGGER.debug(
+                    "{}: config lacks entry for data_source key: '{}' "
                     "in column '{}'; known: {}".format(
-                    source_key, column_name, data_sources.keys()))
+                    self.name, source_key, column_name, data_sources.keys()))
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
