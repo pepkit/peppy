@@ -257,8 +257,9 @@ def run(prj, args, remaining_args, get_samples=None):
                 submission_bundles = submission_bundle_by_protocol[protocol]
             except KeyError:
                 skip_reasons.append("No pipeline found for protocol")
-            if not submission_bundles:
-                skip_reasons.append("No submission bundle for protocol")
+            else:
+                if not submission_bundles:
+                    skip_reasons.append("No submission bundle for protocol")
 
         if skip_reasons:
             _LOGGER.warn("> Not submitted: {}".format(", ".join(skip_reasons)))
