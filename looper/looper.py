@@ -160,7 +160,6 @@ def parse_arguments():
                 "--include-protocols", nargs='*', dest="include_protocols",
                 help="Operate only on samples associated with these protocols; "
                      "if not provided, all samples are used.")
-        subparser.add_argument("")
         subparser.add_argument(
                 "--sp", dest="subproject",
                 help="Name of subproject to use, as designated in the "
