@@ -151,7 +151,7 @@ def parse_arguments():
                 "-d", "--dry-run", dest="dry_run",
                 action="store_true",
                 help="Don't actually submit the project/subproject.")
-        protocols = subparser.add_mutually_exclusive_argument_group()
+        protocols = subparser.add_mutually_exclusive_group()
         protocols.add_argument(
                 "--exclude-protocols", nargs='*', dest="exclude_protocols",
                 help="Operate only on samples that either lack a protocol or "
@@ -690,7 +690,7 @@ def destroy(prj, args, preview_flag=True, get_samples=None):
 
     # Finally, run the true destroy:
 
-    return destroy(prj, args, preview_flag=False)
+    return destroy(prj, args, preview_flag=False, get_samples=get_samples)
 
 
 
@@ -862,25 +862,17 @@ def uniqify(seq):
 
 
 
-def check(prj, get_samples=None):
+def check(prj):
     """
     Check Project status, based on flag files.
     
     :param Project prj: Project for which to inquire about status
-    :param callable get_samples: strategy for looping over samples, optional; 
-        if provided, this should accept a Project as an argument and return 
-        a collection of Samples; if not provided, the ordinary project 
-        version of this concept (over all of its Samples) is used
     """
 
+    # TODO: resume here to hook into specific protocols, and if we want
+    # TODO (continued): to just use Python rather than shelling out.
     from collections import defaultdict
-
-    samples = prj.samples if get_samples is None else get_samples(prj)
-    names_by_protocol = defaultdict(list)
-    names_by_flag = defaultdict(list)
-    for s in samples:
-        p = getattr(s, "protocol", "")
-        names_by_protocol[p] = s.name
+    flags_by_protocol = defaultdict(list)
 
     # prefix
     pf = "ls " + prj.metadata.results_subdir + "/"
@@ -950,23 +942,25 @@ def main():
                     "to at least one pipelines location that exists?")
             return
         try:
-            run(prj, args, remaining_args, get_samples)
+            run(prj, args, remaining_args, get_samples=get_samples)
         except IOError:
             _LOGGER.error("{} pipelines_dir: '{}'".format(
                     prj.__class__.__name__, prj.metadata.pipelines_dir))
             raise
 
     if args.command == "destroy":
-        return destroy(prj, args, get_samples)
+        return destroy(prj, args, get_samples=get_samples)
 
     if args.command == "summarize":
-        summarize(prj, get_samples)
+        summarize(prj, get_samples=get_samples)
 
     if args.command == "check":
-        check(prj, get_samples)
+        # TODO: hook in fixed samples once protocol differentiation is
+        # TODO (continued) figured out (related to #175).
+        check(prj)
 
     if args.command == "clean":
-        clean(prj, args, get_samples)
+        clean(prj, args, get_samples=get_samples)
 
 
 
