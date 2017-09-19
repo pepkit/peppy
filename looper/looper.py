@@ -456,7 +456,7 @@ def run(prj, args, remaining_args, get_samples=None):
     # Report what went down.
     _LOGGER.info("Looper finished")
     _LOGGER.info("Samples generating jobs: %d of %d",
-                 len(processed_samples), num_samples)
+                 len(processed_samples), len(samples))
     _LOGGER.info("Jobs submitted: %d of %d", submit_count, job_count)
     if args.dry_run:
         _LOGGER.info("Dry run. No jobs were actually submitted.")
