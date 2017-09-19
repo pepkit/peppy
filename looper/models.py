@@ -141,6 +141,62 @@ def copy(obj):
     return obj
 
 
+def fetch_samples(proj, inclusion=None, exclusion=None):
+    """
+    Collect samples of particular protocol(s).
+
+    Protocols can't be both positively selected for and negatively
+    selected against. That is, it makes no sense and is not allowed to
+    specify both inclusion and exclusion protocols. On the other hand, if
+    neither is provided, all of the Project's Samples are returned.
+    If inclusion is specified, Samples without a protocol will be excluded,
+    but if exclusion is specified, protocol-less Samples will be included.
+
+    :param Project proj: the Project with Samples to fetch
+    :param Iterable[str] | str inclusion: protocol(s) of interest;
+        if specified, a Sample must
+    :param Iterable[str] | str exclusion: protocol(s) to include
+    :return list[Sample]: Collection of this Project's samples with
+        protocol that either matches one of those in inclusion, or either
+        lacks a protocol or does not match one of those in exclusion
+    :raise ValueError: if both inclusion and exclusion protocols are
+        specified
+    """
+
+    # Intersection between inclusion and exclusion is nonsense user error.
+    if not (inclusion is None or exclusion is None):
+        raise ValueError("Specify only inclusion or exclusion protocols, "
+                         "not both.")
+
+
+    # Ensure that we're working with sets.
+    def make_set(maybe_set):
+        if isinstance(maybe_set, str):
+            return {maybe_set}
+        else:
+            return set(maybe_set or {})
+
+
+    inclusion = make_set(inclusion)
+    exclusion = make_set(exclusion)
+
+    if not inclusion and not exclusion:
+        # Simple; keep all samples.  In this case, this function simply
+        # offers a list rather than an iterator.
+        return list(proj.samples)
+
+    if not inclusion:
+        # Loose; keep all samples not in the exclusion.
+        def keep(s):
+            return not hasattr(s,
+                               "protocol") or s.protocol not in exclusion
+    else:
+        # Strict; keep only samples in the inclusion.
+        def keep(s):
+            return hasattr(s, "protocol") and s.protocol in inclusion
+
+    return [sample for sample in proj.samples if keep(sample)]
+
 
 def include_in_repr(attr, klazz):
     """
@@ -337,6 +393,20 @@ class Paths(object):
 
     def __repr__(self):
         return "Paths object."
+
+
+
+class ProjectContext(object):
+    def __init__(self, prj, include_protocols=None, exclude_protocols=None):
+        self.prj = prj
+        self.include = include_protocols
+        self.exclude = exclude_protocols
+    def __enter__(self):
+        self.cached_method = self.prj.samples
+        self.prj.samples = fetch_samples(
+                self.prj, inclusion=self.include, exclusion=self.exclude)
+    def __exit__(self, *args):
+        self.prj.samples = self.cached_method
 
 
 
@@ -835,6 +905,22 @@ class Project(AttributeDict):
         return config_folder
 
 
+    def build_sheet(self, *protocols):
+        """
+        Create all Sample object for this project for the given protocol(s).
+
+        :return pandas.core.frame.DataFrame: DataFrame with from base version
+            of each of this Project's samples, for indicated protocol(s) if
+            given, else all of this Project's samples
+        """
+        # Use all protocols if none are explicitly specified.
+        samples = self.samples
+        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
+        return _pd.DataFrame(
+                [s.as_series() for s in samples if
+                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
+
+
     def build_submission_bundles(self, protocol, priority=True):
         """
         Create pipelines to submit for each sample of a particular protocol.
@@ -1047,22 +1133,6 @@ class Project(AttributeDict):
             return pipeline_argtext
 
 
-    def build_sheet(self, *protocols):
-        """
-        Create all Sample object for this project for the given protocol(s).
-
-        :return pandas.core.frame.DataFrame: DataFrame with from base version
-            of each of this Project's samples, for indicated protocol(s) if
-            given, else all of this Project's samples
-        """
-        # Use all protocols if none are explicitly specified.
-        samples = self.samples
-        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
-        return _pd.DataFrame(
-                [s.as_series() for s in samples if
-                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
-
-
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -1271,6 +1341,16 @@ class Project(AttributeDict):
             raise _MissingMetadataException(
                     missing_section=SAMPLE_ANNOTATIONS_KEY, 
                     path_config_file=self.config_file)
+
+
+    def sample_folder(self, sample):
+        """
+        Get the path to this Project's root folder for the given Sample.
+
+        :param Sample sample: the Sample for which to get root folder path
+        :return str: this Project's root folder for the given Sample
+        """
+        return _os.path.join(self.metadata.results_subdir, sample.name)
 
 
     def set_compute(self, setting):
@@ -1860,8 +1940,7 @@ class Sample(object):
 
         # Parent
         self.results_subdir = project.metadata.results_subdir
-        self.paths.sample_root = _os.path.join(
-                project.metadata.results_subdir, self.sample_name)
+        self.paths.sample_root = project.sample_folder(self)
 
         # Track url
         bigwig_filename = self.name + ".bigWig"
