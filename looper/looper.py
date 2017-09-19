@@ -249,7 +249,7 @@ def run(prj, args, remaining_args):
                 skip_reasons.append("No submission bundle for protocol")
 
         if skip_reasons:
-            _LOGGER.warn("> Not submitted: {}".format(skip_reasons))
+            _LOGGER.warn("> Not submitted: {}".format(", ".join(skip_reasons)))
             failures.append([skip_reasons, sample.sample_name])
             continue
 
@@ -442,9 +442,10 @@ def run(prj, args, remaining_args):
         _LOGGER.info("%d sample(s) with submission failure.", len(failures))
         sample_by_reason = aggregate_exec_skip_reasons(failures)
         _LOGGER.info("{} unique reasons for submission failure: {}".format(
-                len(sample_by_reason),
-                list(sample_by_reason.keys())))
-        _LOGGER.info("Samples by failure: {}".format(dict(sample_by_reason)))
+                len(sample_by_reason), ", ".join(sample_by_reason.keys())))
+        _LOGGER.info("Samples by failure:\n{}".format(
+            "\n".join(["{}: {}".format(failure, ", ".join(samples))
+                       for failure, samples in sample_by_reason.items()])))
 
 
 
