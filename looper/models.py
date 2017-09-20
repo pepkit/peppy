@@ -766,9 +766,12 @@ class Project(AttributeDict):
             raise
 
         self.merge_table = None
+
         # Basic sample maker will handle name uniqueness check.
-        self._samples = None if defer_sample_construction \
-                else self._make_basic_samples()
+        if defer_sample_construction:
+            self._samples = None
+        else:
+            self._set_basic_samples()
 
 
     def __repr__(self):
@@ -879,7 +882,7 @@ class Project(AttributeDict):
         if self._samples is None:
             _LOGGER.debug("Building basic sample object(s) for %s",
                           self.__class__.__name__)
-            self._samples = self._make_basic_samples()
+            self._set_basic_samples()
         _LOGGER.debug("%s has %d basic sample object(s)",
                       self.__class__.__name__, len(self._samples))
         return self._samples
@@ -1170,7 +1173,7 @@ class Project(AttributeDict):
                                  str(e))
 
 
-    def _make_basic_samples(self):
+    def _set_basic_samples(self):
         """ Build the base Sample objects from the annotations sheet data. """
 
         # This should be executed just once, establishing the Project's
@@ -1218,10 +1221,9 @@ class Project(AttributeDict):
                 _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
 
-        # Handle non-unique names situation.
+        # Set samples and handle non-unique names situation.
+        self._samples = samples
         self._check_unique_samples()
-
-        return samples
 
 
     def parse_config_file(self, subproject=None):
