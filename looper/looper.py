@@ -506,6 +506,7 @@ def _iter_proj(prj, get_samples=None):
     return samples
 
 
+
 def summarize(prj, get_samples=None):
     """
     Grab the report_results stats files from each sample and collate them.

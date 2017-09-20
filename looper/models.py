@@ -173,9 +173,10 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
     # Ensure that we're working with sets.
     def make_set(maybe_set):
         if isinstance(maybe_set, str):
-            return {maybe_set}
+            items = [maybe_set]
         else:
-            return set(maybe_set or {})
+            items = maybe_set or []
+        return {alpha_cased(i) for i in items}
 
 
     inclusion = make_set(inclusion)
@@ -186,15 +187,19 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
         # offers a list rather than an iterator.
         return list(proj.samples)
 
+    # Use the attr check here rather than exception block in case the
+    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # an exception to arise, not to catch it as if the Sample lacks "protocol"
     if not inclusion:
         # Loose; keep all samples not in the exclusion.
         def keep(s):
-            return not hasattr(s,
-                               "protocol") or s.protocol not in exclusion
+            return not hasattr(s, "protocol") or \
+                   alpha_cased(s.protocol) not in exclusion
     else:
         # Strict; keep only samples in the inclusion.
         def keep(s):
-            return hasattr(s, "protocol") and s.protocol in inclusion
+            return hasattr(s, "protocol") and \
+                   alpha_cased(s.protocol) in inclusion
 
     return [sample for sample in proj.samples if keep(sample)]
 
