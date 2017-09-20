@@ -1078,6 +1078,19 @@ class Project(AttributeDict):
             return list(itertools.chain(*job_submission_bundles))
 
 
+    def _check_unique_samples(self):
+        """ Handle scenario in which sample names are not unique. """
+        # Defining this here but then calling out to the repeats counter has
+        # a couple of advantages. We get an unbound, isolated method (the
+        # Project-external repeat sample name counter), but we can still
+        # do this check from the sample builder, yet have it be override-able.
+        num_samples_by_name = count_repeat_samples(self)
+        if num_samples_by_name:
+            _LOGGER.warn("Non-unique sample names:\n{}".format(
+                    "\n".join("{}: {}".format(name, n) for name, n
+                              in num_samples_by_name.items())))
+
+
     def finalize_pipelines_directory(self, pipe_path=""):
         """
         Finalize the establishment of a path to this project's pipelines.
@@ -1158,19 +1171,6 @@ class Project(AttributeDict):
         else:
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
-
-
-    def _check_unique_samples(self):
-        """ Handle scenario in which sample names are not unique. """
-        # Defining this here but then calling out to the repeats counter has
-        # a couple of advantages. We get an unbound, isolated method (the
-        # Project-external repeat sample name counter), but we can still
-        # do this check from the sample builder, yet have it be override-able.
-        num_samples_by_name = count_repeat_samples(self)
-        if num_samples_by_name:
-            _LOGGER.warn("Non-unique sample names:\n{}".format(
-                    "\n".join("{}: {}".format(name, n) for name, n
-                              in num_samples_by_name.items())))
 
 
     def make_project_dirs(self):
