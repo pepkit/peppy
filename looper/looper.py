@@ -251,15 +251,11 @@ def run(prj, args, remaining_args, get_samples=None):
             skip_reasons.append("Sample has no protocol")
         else:
             protocol = protocol.upper()
-            _LOGGER.debug("Fetching submission bundle")
-            try:
-                _LOGGER.debug("Using '%s' as protocol key", protocol)
-                submission_bundles = submission_bundle_by_protocol[protocol]
-            except KeyError:
-                skip_reasons.append("No pipeline found for protocol")
-            else:
-                if not submission_bundles:
-                    skip_reasons.append("No submission bundle for protocol")
+            _LOGGER.debug("Fetching submission bundle, "
+                          "using '%s' as protocol key", protocol)
+            submission_bundles = submission_bundle_by_protocol.get(protocol)
+            if not submission_bundles:
+                skip_reasons.append("No submission bundle for protocol")
 
         if skip_reasons:
             _LOGGER.warn("> Not submitted: {}".format(", ".join(skip_reasons)))
