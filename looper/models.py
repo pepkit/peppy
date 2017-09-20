@@ -883,8 +883,6 @@ class Project(AttributeDict):
             _LOGGER.debug("Building basic sample object(s) for %s",
                           self.__class__.__name__)
             self._set_basic_samples()
-        _LOGGER.debug("%s has %d basic sample object(s)",
-                      self.__class__.__name__, len(self._samples))
         return self._samples
 
 

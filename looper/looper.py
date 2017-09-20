@@ -222,7 +222,7 @@ def run(prj, args, remaining_args, get_samples=None):
     failures = []
 
     _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
-                 format(list(prj.protocols)))
+                 format(", ".join(prj.protocols)))
     submission_bundle_by_protocol = {
             alpha_cased(p): prj.build_submission_bundles(alpha_cased(p))
             for p in protocols
