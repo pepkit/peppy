@@ -209,8 +209,7 @@ def run(prj, args, remaining_args, get_samples=None):
         version of this concept (over all of its Samples) is used
     """
 
-    samples = prj.samples if get_samples is None else get_samples(prj)
-    _start_counter(len(samples))
+    samples = _iter_proj(prj, get_samples)
     protocols = {s.protocol for s in samples if hasattr(s, "protocol")}
 
     _LOGGER.info("Protocols: %s", ", ".join(protocols))
@@ -230,7 +229,7 @@ def run(prj, args, remaining_args, get_samples=None):
             for p in protocols
     }
 
-    for sample in prj.samples:
+    for sample in samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
 
         sample_output_folder = prj.sample_folder(sample)
@@ -359,7 +358,7 @@ def run(prj, args, remaining_args, get_samples=None):
 
             # Append arguments for this pipeline
             # Sample-level arguments are handled by the pipeline interface.
-            try: 
+            try:
                 argstring = pipeline_interface.get_arg_string(
                         pipeline_name=pipeline_key, sample=sample,
                         submission_folder_path=prj.metadata.submission_subdir)
@@ -386,12 +385,12 @@ def run(prj, args, remaining_args, get_samples=None):
             cmd += argstring
 
             if pipeline_interface.uses_looper_args(pipeline_key):
-                # These are looper_args, -C, -O, -M, and -P. If the pipeline 
-                # implements these arguments, then it lists looper_args=True, 
+                # These are looper_args, -C, -O, -M, and -P. If the pipeline
+                # implements these arguments, then it lists looper_args=True,
                 # and we add the arguments to the command string.
 
                 if hasattr(prj, "pipeline_config"):
-                    # Index with 'pipeline_key' instead of 'pipeline' 
+                    # Index with 'pipeline_key' instead of 'pipeline'
                     # because we don't care about parameters here.
                     if hasattr(prj.pipeline_config, pipeline_key):
                         # First priority: pipeline config in project config
@@ -472,12 +471,12 @@ def run(prj, args, remaining_args, get_samples=None):
 
 def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     """
-    Collect the reasons for skipping submission/execution of each sample 
-    
-    :param Iterable[(Iterable[str], str)] skip_reasons_sample_pairs: pairs of 
-        collection of reasons for which a sample was skipped for submission, 
+    Collect the reasons for skipping submission/execution of each sample
+
+    :param Iterable[(Iterable[str], str)] skip_reasons_sample_pairs: pairs of
+        collection of reasons for which a sample was skipped for submission,
         and the name of the sample itself
-    :return Mapping[str, Iterable[str]]: mapping from explanation to 
+    :return Mapping[str, Iterable[str]]: mapping from explanation to
         collection of names of samples to which it pertains
     """
     from collections import defaultdict
@@ -489,15 +488,33 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
 
 
 
+def _iter_proj(prj, get_samples=None):
+    """
+    Initialize iteration for a looper program, over Samples from a Project.
+
+    :param Project prj: Project with which to work, of which the Samples
+        operated on will be a subset
+    :param callable get_samples: strategy for looping over samples, optional;
+        if provided, this should accept a Project as an argument and return
+        a collection of Samples; if not provided, the ordinary project
+        version of this concept (over all of its Samples) is used
+    :return Iterable[Sample]: collection of Samples to iterate over,
+        performing arbitrary operations on each one
+    """
+    samples = prj.samples if get_samples is None else get_samples(prj)
+    _start_counter(len(samples))
+    return samples
+
+
 def summarize(prj, get_samples=None):
     """
     Grab the report_results stats files from each sample and collate them.
     The result is a single matrix (written as a csv file).
 
     :param Project prj: the Project to summarize
-    :param callable get_samples: strategy for looping over samples, optional; 
-        if provided, this should accept a Project as an argument and return 
-        a collection of Samples; if not provided, the ordinary project 
+    :param callable get_samples: strategy for looping over samples, optional;
+        if provided, this should accept a Project as an argument and return
+        a collection of Samples; if not provided, the ordinary project
         version of this concept (over all of its Samples) is used
     """
 
@@ -506,8 +523,7 @@ def summarize(prj, get_samples=None):
     stats = []
     figs = []
 
-    samples = prj.samples if get_samples is None else get_samples(prj)
-    _start_counter(len(samples))
+    samples = _iter_proj(prj, get_samples)
 
     for sample in samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
@@ -539,7 +555,7 @@ def summarize(prj, get_samples=None):
         stats.append(sample_stats)
         columns.extend(t.key.tolist())
 
-    for sample in prj.samples:
+    for sample in samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = prj.sample_folder(sample)
         # Now process any reported figures
@@ -548,7 +564,7 @@ def summarize(prj, get_samples=None):
             _LOGGER.info("Found figures file: '%s'", figs_file)
         else:
             _LOGGER.warn("No figures file '%s'", figs_file)
-            continue        
+            continue
 
         t = _pd.read_table(
             figs_file, header=None, names=['key', 'value', 'pl'])
@@ -605,16 +621,15 @@ def clean(prj, args, preview_flag=True, get_samples=None):
     :param Project prj: current working Project
     :param argparse.Namespace args: command-line options and arguments
     :param bool preview_flag: whether to halt before actually removing files
-    :param callable get_samples: strategy for looping over samples, optional; 
-        if provided, this should accept a Project as an argument and return 
-        a collection of Samples; if not provided, the ordinary project 
+    :param callable get_samples: strategy for looping over samples, optional;
+        if provided, this should accept a Project as an argument and return
+        a collection of Samples; if not provided, the ordinary project
         version of this concept (over all of its Samples) is used
     """
 
     _LOGGER.info("Files to clean:")
 
-    samples = prj.samples if get_samples is None else get_samples(prj)
-    _start_counter(len(samples))
+    samples = _iter_proj(prj, get_samples)
 
     for sample in samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
@@ -661,8 +676,7 @@ def destroy(prj, args, preview_flag=True, get_samples=None):
 
     _LOGGER.info("Results to destroy:")
 
-    samples = prj.samples if get_samples is None else get_samples(prj)
-    _start_counter(len(samples))
+    samples = _iter_proj(prj, get_samples)
 
     for sample in samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
