@@ -141,6 +141,22 @@ def copy(obj):
     return obj
 
 
+
+def count_repeat_samples(prj):
+    """
+    Collect replicated Sample names and occurrence counts in given Project.
+
+    :param Project prj: Project to investigate for non-uniquely-named Samples
+    :return Mapping[str, int]: occurrence count by sample name, for names with
+        attached to at least two of the Project's Samples
+    """
+    from collections import Counter
+
+    return {name: n for name, n in Counter(s.name for s in prj.samples).items()
+            if n > 1}
+
+
+
 def fetch_samples(proj, inclusion=None, exclusion=None):
     """
     Collect samples of particular protocol(s).
@@ -196,6 +212,7 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
             return hasattr(s, "protocol") and s.protocol in inclusion
 
     return [sample for sample in proj.samples if keep(sample)]
+
 
 
 def include_in_repr(attr, klazz):
@@ -764,6 +781,7 @@ class Project(AttributeDict):
             raise
 
         self.merge_table = None
+        # Basic sample maker will handle name uniqueness check.
         self._samples = None if defer_sample_construction \
                 else self._make_basic_samples()
 
@@ -789,6 +807,12 @@ class Project(AttributeDict):
         """ Path to default compute environment settings file. """
         return _os.path.join(
                 self.templates_folder, "default_compute_settings.yaml")
+
+
+    @property
+    def has_unique_sample_names(self):
+        """ Determine whether this Project's Samples are uniquely named. """
+        return not bool(count_repeat_samples(self))
 
 
     @property
@@ -1136,6 +1160,19 @@ class Project(AttributeDict):
             return pipeline_argtext
 
 
+    def _check_unique_samples(self):
+        """ Handle scenario in which sample names are not unique. """
+        # Defining this here but then calling out to the repeats counter has
+        # a couple of advantages. We get an unbound, isolated method (the
+        # Project-external repeat sample name counter), but we can still
+        # do this check from the sample builder, yet have it be override-able.
+        num_samples_by_name = count_repeat_samples(self)
+        if num_samples_by_name:
+            _LOGGER.warn("Non-unique sample names:\n{}".format(
+                    "\n".join("{}: {}".format(name, n) for name, n
+                              in num_samples_by_name.items())))
+
+
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -1200,6 +1237,9 @@ class Project(AttributeDict):
             else:
                 _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
+
+        # Handle non-unique names situation.
+        self._check_unique_samples()
 
         return samples
 
