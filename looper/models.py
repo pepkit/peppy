@@ -49,7 +49,7 @@ Explore:
 # TODO: the examples changes would involve library and output_dir.
 
 from collections import \
-    defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
+    Counter, defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
     OrderedDict as _OrderedDict
 from functools import partial
 import glob
@@ -139,21 +139,6 @@ def copy(obj):
         return deepcopy(self)
     obj.copy = copy
     return obj
-
-
-
-def count_repeat_samples(prj):
-    """
-    Collect replicated Sample names and occurrence counts in given Project.
-
-    :param Project prj: Project to investigate for non-uniquely-named Samples
-    :return Mapping[str, int]: occurrence count by sample name, for names with
-        attached to at least two of the Project's Samples
-    """
-    from collections import Counter
-
-    return {name: n for name, n in Counter(s.name for s in prj.samples).items()
-            if n > 1}
 
 
 
@@ -810,12 +795,6 @@ class Project(AttributeDict):
 
 
     @property
-    def has_unique_sample_names(self):
-        """ Determine whether this Project's Samples are uniquely named. """
-        return not bool(count_repeat_samples(self))
-
-
-    @property
     def num_samples(self):
         """ Number of samples available in this Project. """
         return sum(1 for _ in self.sample_names)
@@ -1084,11 +1063,12 @@ class Project(AttributeDict):
         # a couple of advantages. We get an unbound, isolated method (the
         # Project-external repeat sample name counter), but we can still
         # do this check from the sample builder, yet have it be override-able.
-        num_samples_by_name = count_repeat_samples(self)
-        if num_samples_by_name:
-            _LOGGER.warn("Non-unique sample names:\n{}".format(
-                    "\n".join("{}: {}".format(name, n) for name, n
-                              in num_samples_by_name.items())))
+        repeats = {name: n for name, n in Counter(
+                s.name for s in self._samples).items() if n > 1}
+        if repeats:
+            histogram_text = "\n".join(
+                    "{}: {}".format(name, n) for name, n in repeats.items())
+            _LOGGER.warn("Non-unique sample names:\n{}".format(histogram_text))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
