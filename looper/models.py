@@ -169,7 +169,6 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
         raise ValueError("Specify only inclusion or exclusion protocols, "
                          "not both.")
 
-
     # Ensure that we're working with sets.
     def make_set(maybe_set):
         if isinstance(maybe_set, str):
