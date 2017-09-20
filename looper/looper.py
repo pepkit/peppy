@@ -213,6 +213,8 @@ def run(prj, args, remaining_args, get_samples=None):
     _start_counter(len(samples))
     protocols = {s.protocol for s in samples if hasattr(s, "protocol")}
 
+    _LOGGER.info("Protocols: %s", ", ".join(protocols))
+
     # Keep track of how many jobs have been submitted.
     job_count = 0            # Some job templates will be skipped.
     submit_count = 0         # Some jobs won't be submitted.
