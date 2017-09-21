@@ -170,22 +170,16 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
         raise TypeError("Specify only inclusion or exclusion protocols, "
                          "not both.")
 
-    # Ensure that we're working with sets.
-    def make_set(maybe_set):
-        if isinstance(maybe_set, str):
-            items = [maybe_set]
-        else:
-            items = maybe_set or []
-        return {alpha_cased(i) for i in items}
-
-
-    inclusion = make_set(inclusion)
-    exclusion = make_set(exclusion)
-
     if not inclusion and not exclusion:
         # Simple; keep all samples.  In this case, this function simply
         # offers a list rather than an iterator.
         return list(proj.samples)
+
+    # Ensure that we're working with sets.
+    def make_set(items):
+        if isinstance(items, str):
+            items = [items]
+        return {alpha_cased(i) for i in items}
 
     # Use the attr check here rather than exception block in case the
     # hypothetical AttributeError would occur in alpha_cased; we want such
@@ -194,14 +188,14 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
         # Loose; keep all samples not in the exclusion.
         def keep(s):
             return not hasattr(s, "protocol") or \
-                   alpha_cased(s.protocol) not in exclusion
+                   alpha_cased(s.protocol) not in make_set(exclusion)
     else:
         # Strict; keep only samples in the inclusion.
         def keep(s):
             return hasattr(s, "protocol") and \
-                   alpha_cased(s.protocol) in inclusion
+                   alpha_cased(s.protocol) in make_set(inclusion)
 
-    return [sample for sample in proj.samples if keep(sample)]
+    return list(filter(keep, proj.samples))
 
 
 
