@@ -179,9 +179,14 @@ class ProtocolInclusionTests:
         _assert_samples(expected_sample_names, observed)
 
 
-    def test_complete_intersection_with_inclusion(self, vary_protocol_name):
+    def test_complete_intersection_with_inclusion(
+            self, samples, vary_protocol_name):
         """ Project with Sample set a subset of inclusion has all fetched. """
-        pass
+        prj = mock.MagicMock(samples=samples)
+        expected = {s.name for s in samples}
+        observed = fetch_samples(
+            prj, inclusion=list(map(vary_protocol_name, BASIC_PROTOCOL_NAMES)))
+        _assert_samples(expected, observed)
 
 
     def test_samples_without_protocol_are_not_included(self):
@@ -226,5 +231,5 @@ def _assert_samples(expected_names, observed_samples):
     observed = set(observed_samples)
     expected_names = set(expected_names)
     assert all([isinstance(s, Sample) for s in observed])
-    observed_names = set(s.name for s in observed)
+    observed_names = {s.name for s in observed}
     assert expected_names == observed_names
