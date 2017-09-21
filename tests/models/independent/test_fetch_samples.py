@@ -195,11 +195,16 @@ class ProtocolInclusionTests:
 
 
     @pytest.mark.parametrize(
-        argnames="inclusion",
-        argvalues=["ATAC-Seq", ("ChIP-Seq", "ATAC-Seq", "RNA-Seq")])
+        argnames=["inclusion", "expected_names"],
+        argvalues=[("ATAC-Seq", {}),
+                   (("ChIP-Seq", "ATAC-Seq", "RNA-Seq"),
+                    {"chip1", "rna_SE", "rna_PE"})])
     def test_samples_without_protocol_are_not_included(
-            self, samples, inclusion):
+            self, samples, inclusion, expected_names):
         """ Inclusion does not grab Sample lacking protocol. """
+
+        # Note that the expectations fixture isn't used here since this does
+        # not fit the generic framework in which that one applies.
 
         prj = mock.MagicMock(samples=samples)
 
@@ -207,14 +212,6 @@ class ProtocolInclusionTests:
         for s in samples:
             if alpha_cased(s.protocol) == alpha_cased("ATAC-Seq"):
                 delattr(s, "protocol")
-
-        # Be careful that argument values don't change.
-        if inclusion == "ATAC-Seq":
-            # Nothing left without ATAC-Seq.
-            expected_names = []
-        else:
-            # ChIP-Seq sample and RNA samples should be included
-            expected_names = {"chip1", "rna_SE", "rna_PE"}
 
         observed = fetch_samples(prj, inclusion=inclusion)
         _assert_samples(expected_names, observed)\
@@ -230,19 +227,45 @@ class ProtocolExclusionTests:
     # name for each Sample.
 
 
-    def test_empty_intersection_with_exclusion(self, vary_protocol_name):
+    @pytest.mark.parametrize(
+        argnames="exclusion", 
+        argvalues=["mystery_protocol", ["wacky-protocol", "BrandNewProtocol"]])
+    def test_empty_intersection_with_exclusion(
+            self, samples, exclusion, vary_protocol_name):
         """ Empty intersection with exclusion means all Samples remain. """
-        pass
+        prj = mock.MagicMock(samples=samples)
+        expected = {s.name for s in samples}
+        observed = fetch_samples(prj, exclusion=exclusion)
+        _assert_samples(expected, observed)
 
 
-    def test_partial_intersection_with_exclusion(self, vary_protocol_name):
+    @pytest.mark.parametrize(
+        argnames="exclusion", argvalues=["ChIP-Seq", ("RNA-Seq", "RRBS")])
+    def test_partial_intersection_with_exclusion(
+            self, samples, exclusion, vary_protocol_name, expected_sample_names):
         """ Sensitivity and specificity for negative protocol selection. """
-        pass
+
+        # Mock out the Project instance.
+        prj = mock.MagicMock(samples=samples)
+
+        # Handle both input types.
+        if isinstance(exclusion, str):
+            exclusion = vary_protocol_name(exclusion)
+        else:
+            exclusion = list(map(vary_protocol_name, exclusion))
+
+        # Make the call and the relevant assertions.
+        observed = fetch_samples(prj, exclusion=exclusion)
+        _assert_samples(expected_sample_names, observed)
 
 
-    def test_complete_intersection_with_exclusion(self, vary_protocol_name):
+    def test_complete_intersection_with_exclusion(
+            self, samples, vary_protocol_name):
         """ Comprehensive exclusion can leave no Samples. """
-        pass
+        prj = mock.MagicMock(samples=samples)
+        observed = fetch_samples(
+            prj, exclusion=list(map(vary_protocol_name, BASIC_PROTOCOL_NAMES)))
+        _assert_samples([], observed)
 
 
     def test_samples_without_protocol_are_not_excluded(self):
