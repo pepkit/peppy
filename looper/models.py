@@ -225,6 +225,10 @@ def is_url(maybe_url):
     return urlparse(maybe_url).scheme != ""
 
 
+def make_independent_data(prj):
+    return {section: prj[section]}
+
+
 
 def merge_sample(sample, merge_table, data_sources, derived_columns):
     """
@@ -401,14 +405,24 @@ class Paths(object):
 # TODO (cont.) strategy mechanism in the looper CLI module, for specifying
 # TODO (cont.) protocols with which to select samples over which to iterate.
 class ProjectContext(object):
+
     def __init__(self, prj, include_protocols=None, exclude_protocols=None):
         self.prj = prj
         self.include = include_protocols
         self.exclude = exclude_protocols
+
+    def __getattr__(self, item):
+        if item in ["prj", "include", "exclude", "cached_method"]:
+            return self.__dict__[item]
+        else:
+            return getattr(self.prj, item)
+
     def __enter__(self):
-        self.cached_method = self.prj.samples
+        self.cached_method = getattr(self.prj, "samples")
         self.prj.samples = fetch_samples(
                 self.prj, inclusion=self.include, exclusion=self.exclude)
+        return self.prj
+
     def __exit__(self, *args):
         self.prj.samples = self.cached_method
 
