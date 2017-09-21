@@ -160,13 +160,14 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
     :return list[Sample]: Collection of this Project's samples with
         protocol that either matches one of those in inclusion, or either
         lacks a protocol or does not match one of those in exclusion
-    :raise ValueError: if both inclusion and exclusion protocols are
-        specified
+    :raise TypeError: if both inclusion and exclusion protocols are
+        specified; TypeError since it's basically providing two arguments
+        when only one is accepted, so remain consistent with vanilla Python2
     """
 
     # Intersection between inclusion and exclusion is nonsense user error.
-    if not (inclusion is None or exclusion is None):
-        raise ValueError("Specify only inclusion or exclusion protocols, "
+    if inclusion and exclusion:
+        raise TypeError("Specify only inclusion or exclusion protocols, "
                          "not both.")
 
     # Ensure that we're working with sets.
