@@ -19,8 +19,7 @@ PROTOCOL_BY_SAMPLE = {
         ("chip1", "ChIP-Seq"), ("WGBS-1", "WGBS"), ("RRBS-1", "RRBS"),
         ("rna_SE", "RNA-seq"), ("rna_PE", "RNA-seq")]
 }
-BASIC_PROTOCOL_NAMES = set(map(
-    alpha_cased, itertools.chain(*PROTOCOL_BY_SAMPLE.values())))
+BASIC_PROTOCOL_NAMES = set(map(alpha_cased, PROTOCOL_BY_SAMPLE.values()))
 
 
 
@@ -139,6 +138,11 @@ def test_no_filter(inclusion, exclusion, samples):
 class ProtocolInclusionTests:
     """ Samples can be selected for by protocol. """
 
+    # Note that even if the vary_protocol_name "parameter" to a test case
+    # function appears to go unnoticed, it's likely present so that the
+    # samples fixture can use its value to accordingly adjust the protocol
+    # name for each Sample.
+
 
     @pytest.mark.parametrize(
         argnames="inclusion",
@@ -184,19 +188,47 @@ class ProtocolInclusionTests:
         """ Project with Sample set a subset of inclusion has all fetched. """
         prj = mock.MagicMock(samples=samples)
         expected = {s.name for s in samples}
-        observed = fetch_samples(
-            prj, inclusion=list(map(vary_protocol_name, BASIC_PROTOCOL_NAMES)))
+        inclusion_protocols = list(map(vary_protocol_name, BASIC_PROTOCOL_NAMES))
+        print("Inclusion protocols: {}".format(inclusion_protocols))
+        observed = fetch_samples(prj, inclusion=inclusion_protocols)
         _assert_samples(expected, observed)
 
 
-    def test_samples_without_protocol_are_not_included(self):
+    @pytest.mark.parametrize(
+        argnames="inclusion",
+        argvalues=["ATAC-Seq", ("ChIP-Seq", "ATAC-Seq", "RNA-Seq")])
+    def test_samples_without_protocol_are_not_included(
+            self, samples, inclusion):
         """ Inclusion does not grab Sample lacking protocol. """
-        pass
+
+        prj = mock.MagicMock(samples=samples)
+
+        # Remove protocol for ATAC-Seq samples.
+        for s in samples:
+            if alpha_cased(s.protocol) == alpha_cased("ATAC-Seq"):
+                delattr(s, "protocol")
+
+        # Be careful that argument values don't change.
+        if inclusion == "ATAC-Seq":
+            # Nothing left without ATAC-Seq.
+            expected_names = []
+        else:
+            # ChIP-Seq sample and RNA samples should be included
+            expected_names = {"chip1", "rna_SE", "rna_PE"}
+
+        observed = fetch_samples(prj, inclusion=inclusion)
+        _assert_samples(expected_names, observed)\
 
 
 
 class ProtocolExclusionTests:
     """ Samples can be selected against by protocol. """
+
+    # Note that even if the vary_protocol_name "parameter" to a test case
+    # function appears to go unnoticed, it's likely present so that the
+    # samples fixture can use its value to accordingly adjust the protocol
+    # name for each Sample.
+
 
     def test_empty_intersection_with_exclusion(self, vary_protocol_name):
         """ Empty intersection with exclusion means all Samples remain. """
