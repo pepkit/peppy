@@ -14,7 +14,7 @@ __email__ = "vreuter@virginia.edu"
 
 
 PROTOCOL_BY_SAMPLE = {
-    sample_name: alpha_cased(protocol) for sample_name, protocol in [
+    sample_name: protocol for sample_name, protocol in [
         ("atac_A", "ATAC-Seq"), ("atac_B", "ATAC-Seq"),
         ("chip1", "ChIP-Seq"), ("WGBS-1", "WGBS"), ("RRBS-1", "RRBS"),
         ("rna_SE", "RNA-seq"), ("rna_PE", "RNA-seq")]
@@ -268,9 +268,51 @@ class ProtocolExclusionTests:
         _assert_samples([], observed)
 
 
-    def test_samples_without_protocol_are_not_excluded(self):
+    @pytest.mark.parametrize(
+        argnames="spare_via_anonymity",
+        argvalues=["ChIP-Seq", "ATAC-Seq", ["RNA-seq", "WGBS", "RRBS"]],
+        ids=lambda spared: str(spared))
+    def test_samples_without_protocol_are_not_excluded(
+            self, samples, spare_via_anonymity, vary_protocol_name):
         """ Negative selection on protocol leaves Samples without protocol. """
-        pass
+        # Strategy: specify all of the protocols as exclusions, then allow
+        # the parameterization to specify which are to be "spared" exclusion
+        # by removing the protocol attribute
+
+        print("Spare input: {}".format(spare_via_anonymity))
+
+        # Account for varied argument types, and contextualize the protocol
+        # names with the test case parameterization. That is, vary them as they
+        # were in the creation of the value supplied via the samples fixture.
+        if isinstance(spare_via_anonymity, str):
+            spare_via_anonymity = [spare_via_anonymity]
+        spare_via_anonymity = list(map(vary_protocol_name, spare_via_anonymity))
+
+        print("Modified spare: {}".format(spare_via_anonymity))
+
+        # Remove the protocols designated for sparing (from exclusion).
+        for s in samples:
+            if s.protocol in spare_via_anonymity:
+                delattr(s, "protocol")
+
+        print("Protocols on samples: {}".format(
+            {s.protocol for s in samples if hasattr(s, "protocol")}))
+        print("Protocols to spare: {}".format(spare_via_anonymity))
+        print("Non-protocol Samples: {}".format(
+            {s.name for s in samples if not hasattr(s, "protocol")}))
+
+        # Mock out the project with the updated Sample objects.
+        prj = mock.MagicMock(samples=samples)
+
+        # Expected names are associated with protocols spared exclusion.
+        sample_names_by_protocol = _group_samples_by_protocol()
+        expected_names = set(itertools.chain.from_iterable(
+            sample_names_by_protocol[alpha_cased(p)] for p in spare_via_anonymity))
+
+        # Make the call and relevant assertions.
+        observed = fetch_samples(
+            prj, exclusion=list(map(vary_protocol_name, BASIC_PROTOCOL_NAMES)))
+        _assert_samples(expected_names, observed)
 
 
 
