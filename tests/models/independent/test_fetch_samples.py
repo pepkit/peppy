@@ -325,8 +325,7 @@ def _assert_samples(expected_names, observed_samples):
     :param Iterable[Sample] observed_samples: collection of Sample objects,
         e.g. obtained with fetch_samples(), to which assertions apply
     """
-    observed = set(observed_samples)
     expected_names = set(expected_names)
-    assert all([isinstance(s, Sample) for s in observed])
-    observed_names = {s.name for s in observed}
+    assert all([isinstance(s, Sample) for s in observed_samples])
+    observed_names = {s.name for s in observed_samples}
     assert expected_names == observed_names
