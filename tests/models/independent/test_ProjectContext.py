@@ -84,16 +84,23 @@ class ProjectContextTests:
                    (("WGBS", "RRBS"), {WGBS_NAME, RRBS_NAME}),
                    ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})],
         ids=lambda (inclusion, expected): "{}-{}".format(inclusion, expected))
-    def test_inclusion(self, samples, project, expected_names, inclusion):
+    def test_inclusion(self, samples, project, inclusion, expected_names):
         """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)
         with ProjectContext(project, include_protocols=inclusion) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
-    def test_exclusion(self):
+    @pytest.mark.parametrize(
+        argnames=["exclusion", "expected_names"],
+        argvalues=[({"RNA", "CHIP"}, {ATAC_NAME, WGBS_NAME, RRBS_NAME}),
+                   ("ATAC", {CHIP_NAME, RNA_NAME, WGBS_NAME, RRBS_NAME}),
+                   ({"WGBS", "RRBS"}, {ATAC_NAME, CHIP_NAME, RNA_NAME})])
+    def test_exclusion(self, samples, project, exclusion, expected_names):
         """ Sample objects can be selected against by protocol. """
-        pass
+        _assert_samples(samples, project.samples)
+        with ProjectContext(project, exclude_protocols=exclusion) as prj:
+            _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
     def test_restoration(self):
