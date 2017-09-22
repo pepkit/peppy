@@ -2,9 +2,13 @@
 
 from collections import defaultdict
 import itertools
+import os
+
 import mock
 import pytest
-from looper.models import fetch_samples, Sample
+import yaml
+
+from looper.models import fetch_samples, Project, Sample
 from looper.utils import alpha_cased
 
 
@@ -50,7 +54,7 @@ def _group_samples_by_protocol():
 
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def expected_sample_names(request):
     """
     Generate expected sample names for a test case's fetch_samples() call.
@@ -84,7 +88,7 @@ def expected_sample_names(request):
 
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def samples(request):
     """
     Create collection of Samples, useful for mocking a Project.
@@ -99,6 +103,56 @@ def samples(request):
     return [Sample({"sample_name": sn, "protocol": vary_proto_name(p)})
             for sn, p in PROTOCOL_BY_SAMPLE.items()]
 
+
+
+def _write_project_files(project_folder, all_samples, sp_samples, sp_name):
+    """
+    Write key project files.
+
+    :param str project_folder: temp folder (i.e., tmpdir.strpath) for test case
+    :param Iterable[Sample] all_samples: collection of samples for the
+        main Project sample annotations
+    :param Iterable[Sample] sp_samples: collection of samples for the
+        subproject
+    :return str: Project config file
+    """
+
+    # Create paths.
+    metadir = os.path.join(project_folder, "metadata")
+    outdir = os.path.join(project_folder, "output")
+    pipedir = os.path.join(project_folder, "pipelines")
+    # So that parsing pipeline interfaces is skipped, don't create pipedir.
+    map(os.makedirs, [metadir, outdir])
+    confpath = os.path.join(metadir, "conf.yaml")
+    annspath = os.path.join(metadir, "anns.csv")
+    path_sp_anns = os.path.join(metadir, "sp-anns.csv")
+
+    # Parse name and protocol from actual Sample objects.
+    def itersamples(samples):
+        for s in samples:
+            yield s.sample_name, getattr(s, "protocol", "")
+
+    def write_anns(path, samples):
+        with open(path, 'w') as anns:
+            anns.write("sample_name,protocol\n")
+            anns.write("\n".join(map(
+                lambda (sn, p): "{},{}".format(sn, p), itersamples(samples))))
+
+    # Write the Project config and sample annotation files.
+    conf_data = {
+        "metadata": {
+            "sample_annotation": annspath, "output_dir": outdir,
+            "pipeline_interfaces": pipedir},
+        "subprojects": {sp_name: {
+            "metadata": {"sample_annotation": path_sp_anns}}}
+    }
+    with open(confpath, 'w') as conf:
+        yaml.dump(conf_data, conf)
+    write_anns(annspath, all_samples)
+    write_anns(path_sp_anns, sp_samples)
+
+    return confpath
+    
 
 
 @pytest.mark.parametrize(
@@ -214,7 +268,22 @@ class ProtocolInclusionTests:
                 delattr(s, "protocol")
 
         observed = fetch_samples(prj, inclusion=inclusion)
-        _assert_samples(expected_names, observed)\
+        _assert_samples(expected_names, observed)
+        
+    
+    @pytest.mark.parametrize(
+        argnames="inclusion", argvalues=["ATAC-Seq", {"WGBS", "RRBS"}])
+    def test_equivalence_with_subproject(self, tmpdir, samples, inclusion):
+        """ Selection for protocol(s) is like specific subproject. """
+        sp_name = "atac"
+        confpath = _write_project_files(
+            tmpdir.strpath, all_samples=samples, sp_name=sp_name,
+            sp_samples=list(filter(lambda s: s.protocol in inclusion, samples)))
+        full_project = Project(confpath)
+        subproject = Project(confpath, subproject=sp_name)
+        expected = {s.name for s in subproject.samples}
+        observed = fetch_samples(full_project, inclusion=inclusion)
+        _assert_samples(expected, observed_samples=observed)
 
 
 
