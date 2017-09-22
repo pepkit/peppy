@@ -63,7 +63,6 @@ if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
-import types
 import warnings
 
 import pandas as _pd
@@ -203,6 +202,13 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
 def grab_independent_data(prj):
     """
     From the given Project, grab Sample-independent data.
+
+    There are some aspects of a Project of which it's beneficial for a Sample
+    to be aware, particularly for post-hoc analysis. Since Sample objects
+    within a Project are mutually independent, though, each doesn't need to
+    know about any of the others. A Project manages its, Sample instances,
+    so for each Sample knowledge of Project data is limited. This method
+    facilitates adoption of that conceptual model.
 
     :param Project prj: Project from which to grab data
     :return Mapping: Sample-independent data sections from given Project
@@ -427,19 +433,19 @@ class ProjectContext(object):
         self.exclude = exclude_protocols
 
     def __getattr__(self, item):
+        if item == "samples":
+            return fetch_samples(
+                self.prj, inclusion=self.include, exclusion=self.exclude)
         if item in ["prj", "include", "exclude", "cached_method"]:
             return self.__dict__[item]
         else:
             return getattr(self.prj, item)
 
     def __enter__(self):
-        self.cached_method = getattr(self.prj, "samples")
-        self.prj.samples = types.MethodType(lambda _: fetch_samples(
-                self.prj, inclusion=self.include, exclusion=self.exclude), self.prj)
-        return self.prj
+        return self
 
     def __exit__(self, *args):
-        self.prj.samples = self.cached_method
+        pass
 
 
 
