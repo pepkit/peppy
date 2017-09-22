@@ -63,6 +63,7 @@ if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+import types
 import warnings
 
 import pandas as _pd
@@ -199,6 +200,24 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
 
 
 
+def grab_independent_data(prj):
+    """
+    From the given Project, grab Sample-independent data.
+
+    :param Project prj: Project from which to grab data
+    :return Mapping: Sample-independent data sections from given Project
+    """
+    data = {}
+    for section in ["metadata", "derived_columns",
+                    IMPLICATIONS_DECLARATION, "trackhubs"]:
+        if hasattr(prj, section):
+            data[section] = getattr(prj, section)
+        else:
+            _LOGGER.debug("Project lacks section '%s', skipping", section)
+    return data
+
+
+
 def include_in_repr(attr, klazz):
     """
     Determine whether to include attribute in an object's text representation.
@@ -223,10 +242,6 @@ def is_url(maybe_url):
     :return bool: whether path appears to be a URL
     """
     return urlparse(maybe_url).scheme != ""
-
-
-def make_independent_data(prj):
-    return {section: prj[section]}
 
 
 
@@ -419,8 +434,8 @@ class ProjectContext(object):
 
     def __enter__(self):
         self.cached_method = getattr(self.prj, "samples")
-        self.prj.samples = fetch_samples(
-                self.prj, inclusion=self.include, exclusion=self.exclude)
+        self.prj.samples = types.MethodType(lambda _: fetch_samples(
+                self.prj, inclusion=self.include, exclusion=self.exclude), self.prj)
         return self.prj
 
     def __exit__(self, *args):
