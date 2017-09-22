@@ -233,7 +233,7 @@ class Runner(LooperProgram):
         }
 
         for sample in self.prj.samples:
-            _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
+            _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
 
             sample_output_folder = self.prj.sample_folder(sample)
             _LOGGER.debug("Sample output folder: '%s'", sample_output_folder)
@@ -735,7 +735,7 @@ def run(prj, args, remaining_args):
     # Report what went down.
     _LOGGER.info("Looper finished")
     _LOGGER.info("Samples generating jobs: %d of %d",
-                 len(processed_samples), len(samples))
+                 len(processed_samples), len(prj.samples))
     _LOGGER.info("Jobs submitted: %d of %d", submit_count, job_count)
     if args.dry_run:
         _LOGGER.info("Dry run. No jobs were actually submitted.")
