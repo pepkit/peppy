@@ -198,7 +198,7 @@ def parse_arguments():
 
 
 
-def run(prj, args, remaining_args, get_samples=None):
+def run(prj, args, remaining_args):
     """
     Main Looper function: Submit jobs for samples in project.
 
@@ -207,14 +207,9 @@ def run(prj, args, remaining_args, get_samples=None):
     :param Iterable[str] remaining_args: arguments given to this module's 
         parser that were not defined as options it should parse, 
         to be passed on to parser(s) elsewhere
-    :param callable get_samples: strategy for looping over samples, optional; 
-        if provided, this should accept a Project as an argument and return 
-        a collection of Samples; if not provided, the ordinary project 
-        version of this concept (over all of its Samples) is used
     """
 
-    samples = _iter_proj(prj, get_samples)
-    protocols = {s.protocol for s in samples if hasattr(s, "protocol")}
+    protocols = {s.protocol for s in prj.samples if hasattr(s, "protocol")}
 
     _LOGGER.info("Protocols: %s", ", ".join(protocols))
 
@@ -233,7 +228,7 @@ def run(prj, args, remaining_args, get_samples=None):
             for p in protocols
     }
 
-    for sample in samples:
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
 
         sample_output_folder = prj.sample_folder(sample)
@@ -492,35 +487,12 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
 
 
 
-def _iter_proj(prj, get_samples=None):
-    """
-    Initialize iteration for a looper program, over Samples from a Project.
-
-    :param Project prj: Project with which to work, of which the Samples
-        operated on will be a subset
-    :param callable get_samples: strategy for looping over samples, optional;
-        if provided, this should accept a Project as an argument and return
-        a collection of Samples; if not provided, the ordinary project
-        version of this concept (over all of its Samples) is used
-    :return Iterable[Sample]: collection of Samples to iterate over,
-        performing arbitrary operations on each one
-    """
-    samples = prj.samples if get_samples is None else get_samples(prj)
-    _start_counter(len(samples))
-    return samples
-
-
-
-def summarize(prj, get_samples=None):
+def summarize(prj):
     """
     Grab the report_results stats files from each sample and collate them.
     The result is a single matrix (written as a csv file).
 
     :param Project prj: the Project to summarize
-    :param callable get_samples: strategy for looping over samples, optional;
-        if provided, this should accept a Project as an argument and return
-        a collection of Samples; if not provided, the ordinary project
-        version of this concept (over all of its Samples) is used
     """
 
     import csv
@@ -528,9 +500,7 @@ def summarize(prj, get_samples=None):
     stats = []
     figs = []
 
-    samples = _iter_proj(prj, get_samples)
-
-    for sample in samples:
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = prj.sample_folder(sample)
 
@@ -560,7 +530,7 @@ def summarize(prj, get_samples=None):
         stats.append(sample_stats)
         columns.extend(t.key.tolist())
 
-    for sample in samples:
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = prj.sample_folder(sample)
         # Now process any reported figures
@@ -619,24 +589,18 @@ def summarize(prj, get_samples=None):
 
 
 
-def clean(prj, args, preview_flag=True, get_samples=None):
+def clean(prj, args, preview_flag=True):
     """
     Remove all project's intermediate files (defined by pypiper clean scripts).
 
     :param Project prj: current working Project
     :param argparse.Namespace args: command-line options and arguments
     :param bool preview_flag: whether to halt before actually removing files
-    :param callable get_samples: strategy for looping over samples, optional;
-        if provided, this should accept a Project as an argument and return
-        a collection of Samples; if not provided, the ordinary project
-        version of this concept (over all of its Samples) is used
     """
 
     _LOGGER.info("Files to clean:")
 
-    samples = _iter_proj(prj, get_samples)
-
-    for sample in samples:
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = prj.sample_folder(sample)
         cleanup_files = glob.glob(os.path.join(sample_output_folder,
@@ -666,24 +630,18 @@ def clean(prj, args, preview_flag=True, get_samples=None):
 
 
 
-def destroy(prj, args, preview_flag=True, get_samples=None):
+def destroy(prj, args, preview_flag=True):
     """
     Completely removes all output files and folders produced by any pipelines.
 
     :param Project prj: current working Project
     :param argparse.Namespace args: command-line options and arguments
     :param bool preview_flag: whether to halt before actually removing files
-    :param callable get_samples: strategy for looping over samples, optional;
-        if provided, this should accept a Project as an argument and return
-        a collection of Samples; if not provided, the ordinary project
-        version of this concept (over all of its Samples) is used
     """
 
     _LOGGER.info("Results to destroy:")
 
-    samples = _iter_proj(prj, get_samples)
-
-    for sample in samples:
+    for sample in prj.samples:
         _LOGGER.info(_COUNTER.show(sample.sample_name, sample.protocol))
         sample_output_folder = prj.sample_folder(sample)
         if preview_flag:
@@ -707,7 +665,7 @@ def destroy(prj, args, preview_flag=True, get_samples=None):
 
     # Finally, run the true destroy:
 
-    return destroy(prj, args, preview_flag=False, get_samples=get_samples)
+    return destroy(prj, args, preview_flag=False)
 
 
 
@@ -938,9 +896,6 @@ def main():
 
     _LOGGER.info("Results subdir: " + prj.metadata.results_subdir)
 
-    get_samples = partial(fetch_samples,
-        inclusion=args.include_protocols, exclusion=args.exclude_protocols)
-
     with ProjectContext(prj,
             include_protocols=args.include_protocols,
             exclude_protocols=args.exclude_protocols) as prj:
@@ -963,17 +918,17 @@ def main():
                         "to at least one pipelines location that exists?")
                 return
             try:
-                run(prj, args, remaining_args, get_samples=get_samples)
+                run(prj, args, remaining_args)
             except IOError:
                 _LOGGER.error("{} pipelines_dir: '{}'".format(
                         prj.__class__.__name__, prj.metadata.pipelines_dir))
                 raise
 
         if args.command == "destroy":
-            return destroy(prj, args, get_samples=get_samples)
+            return destroy(prj, args)
 
         if args.command == "summarize":
-            summarize(prj, get_samples=get_samples)
+            summarize(prj)
 
         if args.command == "check":
             # TODO: hook in fixed samples once protocol differentiation is
@@ -981,7 +936,7 @@ def main():
             check(prj)
 
         if args.command == "clean":
-            clean(prj, args, get_samples=get_samples)
+            clean(prj, args)
 
 
 
