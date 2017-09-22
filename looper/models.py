@@ -436,7 +436,7 @@ class ProjectContext(object):
         if item == "samples":
             return fetch_samples(
                 self.prj, inclusion=self.include, exclusion=self.exclude)
-        if item in ["prj", "include", "exclude", "cached_method"]:
+        if item in ["prj", "include", "exclude"]:
             return self.__dict__[item]
         else:
             return getattr(self.prj, item)

@@ -15,6 +15,16 @@ CHIP_NAME = "chip1"
 RNA_NAME = "rna_PE"
 WGBS_NAME = "wgbs-hs"
 RRBS_NAME = "rrbs_mm"
+ADD_PROJECT_DATA = {
+    "genome": {"organism": {
+        "mouse": "mm10", "human": "hg38", "rat": "rn6"}},
+    "data_sources": {"src": "{sample}-{flowcell}.bam"},
+    "derived_columns": ["data_source"],
+    "pipeline_args": {"--epilog": None},
+    "implied_columns": {"organism": "assembly"},
+    "user": "test-user",
+    "email": "tester@domain.org",
+}
 
 
 @pytest.fixture
@@ -56,6 +66,10 @@ def project(request, sample_names, protocols, tmpdir):
     annspath = os.path.join(metadir, "anns.csv")
     conf_data = {"metadata": {
             "sample_annotation": annspath, "output_dir": outdir}}
+
+    # Provide a hook for a test case to add data.
+    if "add_project_data" in request.fixturenames:
+        conf_data.update(request.getfixturevalue("add_project_data"))
 
     with open(confpath, 'w') as conf:
         yaml.dump(conf_data, conf)
@@ -119,14 +133,28 @@ class ProjectContextTests:
         _assert_samples(samples, project.samples)
 
 
-    def test_access_to_project_attributes(self):
+
+    @pytest.mark.parametrize(
+        argnames="add_project_data", argvalues=[ADD_PROJECT_DATA])
+    @pytest.mark.parametrize(
+        argnames="attr_name", argvalues=list(ADD_PROJECT_DATA.keys()))
+    def test_access_to_project_attributes(
+            self, project, add_project_data, attr_name):
         """ Context manager routes attribute requests through Project. """
-        pass
+        # add_project_data is used by the project fixture.
+        with ProjectContext(project) as prj:
+            assert getattr(project, attr_name) is getattr(prj, attr_name)
 
 
-    def test_access_to_non_project_attributes(self):
+    @pytest.mark.parametrize(
+        argnames="attr_name", argvalues=["include", "exclude", "prj"])
+    def test_access_to_non_project_attributes(self, project, attr_name):
         """ Certain attributes are on the context manager itself. """
-        pass
+        # add_project_data is used by the project fixture.
+        with ProjectContext(project) as prj:
+            # No inclusion/exclusion protocols --> those attributes are null.
+            assert getattr(prj, attr_name) is \
+                   (project if attr_name == "prj" else None)
 
 
 
