@@ -49,7 +49,7 @@ Explore:
 # TODO: the examples changes would involve library and output_dir.
 
 from collections import \
-    defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
+    Counter, defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
     OrderedDict as _OrderedDict
 from functools import partial
 import glob
@@ -139,6 +139,88 @@ def copy(obj):
         return deepcopy(self)
     obj.copy = copy
     return obj
+
+
+
+def fetch_samples(proj, inclusion=None, exclusion=None):
+    """
+    Collect samples of particular protocol(s).
+
+    Protocols can't be both positively selected for and negatively
+    selected against. That is, it makes no sense and is not allowed to
+    specify both inclusion and exclusion protocols. On the other hand, if
+    neither is provided, all of the Project's Samples are returned.
+    If inclusion is specified, Samples without a protocol will be excluded,
+    but if exclusion is specified, protocol-less Samples will be included.
+
+    :param Project proj: the Project with Samples to fetch
+    :param Iterable[str] | str inclusion: protocol(s) of interest;
+        if specified, a Sample must
+    :param Iterable[str] | str exclusion: protocol(s) to include
+    :return list[Sample]: Collection of this Project's samples with
+        protocol that either matches one of those in inclusion, or either
+        lacks a protocol or does not match one of those in exclusion
+    :raise TypeError: if both inclusion and exclusion protocols are
+        specified; TypeError since it's basically providing two arguments
+        when only one is accepted, so remain consistent with vanilla Python2
+    """
+
+    # Intersection between inclusion and exclusion is nonsense user error.
+    if inclusion and exclusion:
+        raise TypeError("Specify only inclusion or exclusion protocols, "
+                         "not both.")
+
+    if not inclusion and not exclusion:
+        # Simple; keep all samples.  In this case, this function simply
+        # offers a list rather than an iterator.
+        return list(proj.samples)
+
+    # Ensure that we're working with sets.
+    def make_set(items):
+        if isinstance(items, str):
+            items = [items]
+        return {alpha_cased(i) for i in items}
+
+    # Use the attr check here rather than exception block in case the
+    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # an exception to arise, not to catch it as if the Sample lacks "protocol"
+    if not inclusion:
+        # Loose; keep all samples not in the exclusion.
+        def keep(s):
+            return not hasattr(s, "protocol") or \
+                   alpha_cased(s.protocol) not in make_set(exclusion)
+    else:
+        # Strict; keep only samples in the inclusion.
+        def keep(s):
+            return hasattr(s, "protocol") and \
+                   alpha_cased(s.protocol) in make_set(inclusion)
+
+    return list(filter(keep, proj.samples))
+
+
+
+def grab_independent_data(prj):
+    """
+    From the given Project, grab Sample-independent data.
+
+    There are some aspects of a Project of which it's beneficial for a Sample
+    to be aware, particularly for post-hoc analysis. Since Sample objects
+    within a Project are mutually independent, though, each doesn't need to
+    know about any of the others. A Project manages its, Sample instances,
+    so for each Sample knowledge of Project data is limited. This method
+    facilitates adoption of that conceptual model.
+
+    :param Project prj: Project from which to grab data
+    :return Mapping: Sample-independent data sections from given Project
+    """
+    data = {}
+    for section in ["metadata", "derived_columns",
+                    IMPLICATIONS_DECLARATION, "trackhubs"]:
+        if hasattr(prj, section):
+            data[section] = getattr(prj, section)
+        else:
+            _LOGGER.debug("Project lacks section '%s', skipping", section)
+    return data
 
 
 
@@ -337,6 +419,30 @@ class Paths(object):
 
     def __repr__(self):
         return "Paths object."
+
+
+
+class ProjectContext(object):
+
+    def __init__(self, prj, include_protocols=None, exclude_protocols=None):
+        self.prj = prj
+        self.include = include_protocols
+        self.exclude = exclude_protocols
+
+    def __getattr__(self, item):
+        if item == "samples":
+            return fetch_samples(
+                self.prj, inclusion=self.include, exclusion=self.exclude)
+        if item in ["prj", "include", "exclude"]:
+            return self.__dict__[item]
+        else:
+            return getattr(self.prj, item)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
 
 
 
@@ -691,8 +797,12 @@ class Project(AttributeDict):
             raise
 
         self.merge_table = None
-        self._samples = None if defer_sample_construction \
-                else self._make_basic_samples()
+
+        # Basic sample maker will handle name uniqueness check.
+        if defer_sample_construction:
+            self._samples = None
+        else:
+            self._set_basic_samples()
 
 
     def __repr__(self):
@@ -803,9 +913,7 @@ class Project(AttributeDict):
         if self._samples is None:
             _LOGGER.debug("Building basic sample object(s) for %s",
                           self.__class__.__name__)
-            self._samples = self._make_basic_samples()
-        _LOGGER.debug("%s has %d basic sample object(s)",
-                      self.__class__.__name__, len(self._samples))
+            self._set_basic_samples()
         return self._samples
 
 
@@ -833,6 +941,22 @@ class Project(AttributeDict):
         config_dirpath = _os.path.dirname(path_config_file)
         _, config_folder = _os.path.split(config_dirpath)
         return config_folder
+
+
+    def build_sheet(self, *protocols):
+        """
+        Create all Sample object for this project for the given protocol(s).
+
+        :return pandas.core.frame.DataFrame: DataFrame with from base version
+            of each of this Project's samples, for indicated protocol(s) if
+            given, else all of this Project's samples
+        """
+        # Use all protocols if none are explicitly specified.
+        samples = self.samples
+        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
+        return _pd.DataFrame(
+                [s.as_series() for s in samples if
+                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
 
 
     def build_submission_bundles(self, protocol, priority=True):
@@ -965,6 +1089,20 @@ class Project(AttributeDict):
             return list(itertools.chain(*job_submission_bundles))
 
 
+    def _check_unique_samples(self):
+        """ Handle scenario in which sample names are not unique. """
+        # Defining this here but then calling out to the repeats counter has
+        # a couple of advantages. We get an unbound, isolated method (the
+        # Project-external repeat sample name counter), but we can still
+        # do this check from the sample builder, yet have it be override-able.
+        repeats = {name: n for name, n in Counter(
+                s.name for s in self._samples).items() if n > 1}
+        if repeats:
+            histogram_text = "\n".join(
+                    "{}: {}".format(name, n) for name, n in repeats.items())
+            _LOGGER.warn("Non-unique sample names:\n{}".format(histogram_text))
+
+
     def finalize_pipelines_directory(self, pipe_path=""):
         """
         Finalize the establishment of a path to this project's pipelines.
@@ -1047,22 +1185,6 @@ class Project(AttributeDict):
             return pipeline_argtext
 
 
-    def build_sheet(self, *protocols):
-        """
-        Create all Sample object for this project for the given protocol(s).
-
-        :return pandas.core.frame.DataFrame: DataFrame with from base version
-            of each of this Project's samples, for indicated protocol(s) if
-            given, else all of this Project's samples
-        """
-        # Use all protocols if none are explicitly specified.
-        samples = self.samples
-        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
-        return _pd.DataFrame(
-                [s.as_series() for s in samples if
-                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
-
-
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -1080,7 +1202,7 @@ class Project(AttributeDict):
                                  str(e))
 
 
-    def _make_basic_samples(self):
+    def _set_basic_samples(self):
         """ Build the base Sample objects from the annotations sheet data. """
 
         # This should be executed just once, establishing the Project's
@@ -1128,7 +1250,9 @@ class Project(AttributeDict):
                 _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
 
-        return samples
+        # Set samples and handle non-unique names situation.
+        self._samples = samples
+        self._check_unique_samples()
 
 
     def parse_config_file(self, subproject=None):
@@ -1271,6 +1395,16 @@ class Project(AttributeDict):
             raise _MissingMetadataException(
                     missing_section=SAMPLE_ANNOTATIONS_KEY, 
                     path_config_file=self.config_file)
+
+
+    def sample_folder(self, sample):
+        """
+        Get the path to this Project's root folder for the given Sample.
+
+        :param Sample sample: the Sample for which to get root folder path
+        :return str: this Project's root folder for the given Sample
+        """
+        return _os.path.join(self.metadata.results_subdir, sample.name)
 
 
     def set_compute(self, setting):
@@ -1860,8 +1994,7 @@ class Sample(object):
 
         # Parent
         self.results_subdir = project.metadata.results_subdir
-        self.paths.sample_root = _os.path.join(
-                project.metadata.results_subdir, self.sample_name)
+        self.paths.sample_root = project.sample_folder(self)
 
         # Track url
         bigwig_filename = self.name + ".bigWig"
