@@ -422,9 +422,6 @@ class Paths(object):
 
 
 
-# TODO: consider removing; currently unused, an alternative to the get_samples
-# TODO (cont.) strategy mechanism in the looper CLI module, for specifying
-# TODO (cont.) protocols with which to select samples over which to iterate.
 class ProjectContext(object):
 
     def __init__(self, prj, include_protocols=None, exclude_protocols=None):

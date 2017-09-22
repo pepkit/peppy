@@ -105,11 +105,11 @@ def samples(request):
 
 
 
-def _write_project_files(project_folder, all_samples, sp_samples, sp_name):
+def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
     """
     Write key project files.
 
-    :param str project_folder: temp folder (i.e., tmpdir.strpath) for test case
+    :param py._path.local.LocalPath tmpdir: tmpdir fixture from test case
     :param Iterable[Sample] all_samples: collection of samples for the
         main Project sample annotations
     :param Iterable[Sample] sp_samples: collection of samples for the
@@ -117,41 +117,41 @@ def _write_project_files(project_folder, all_samples, sp_samples, sp_name):
     :return str: Project config file
     """
 
-    # Create paths.
-    metadir = os.path.join(project_folder, "metadata")
-    outdir = os.path.join(project_folder, "output")
-    pipedir = os.path.join(project_folder, "pipelines")
-    # So that parsing pipeline interfaces is skipped, don't create pipedir.
-    map(os.makedirs, [metadir, outdir])
-    confpath = os.path.join(metadir, "conf.yaml")
-    annspath = os.path.join(metadir, "anns.csv")
-    path_sp_anns = os.path.join(metadir, "sp-anns.csv")
-
     # Parse name and protocol from actual Sample objects.
-    def itersamples(samples):
-        for s in samples:
-            yield s.sample_name, getattr(s, "protocol", "")
+    def sample_data(samples):
+        return [(s.sample_name, getattr(s, "protocol", "")) for s in samples]
 
-    def write_anns(path, samples):
-        with open(path, 'w') as anns:
-            anns.write("sample_name,protocol\n")
-            anns.write("\n".join(map(
-                lambda (sn, p): "{},{}".format(sn, p), itersamples(samples))))
+    def write_anns(fh, samples):
+        fh.write("\n".join(map(
+            lambda name_proto_pair: "{},{}".format(*name_proto_pair),
+            [("sample_name", "protocol")] + sample_data(samples))))
 
-    # Write the Project config and sample annotation files.
+    # Create paths.
+    metadir = tmpdir.mkdir("metadata")
+
+    # Write annotations
+    full_anns = metadir.join("anns.csv")
+    write_anns(full_anns, all_samples)
+    sp_anns = metadir.join("sp-anns.csv")
+    write_anns(sp_anns, sp_samples)
+
+    # So that parsing pipeline interfaces is skipped, don't create pipedir.
+    pipe_path = os.path.join(tmpdir.strpath, "pipelines")
+    outdir = tmpdir.mkdir("output")
+
     conf_data = {
         "metadata": {
-            "sample_annotation": annspath, "output_dir": outdir,
-            "pipeline_interfaces": pipedir},
+            "sample_annotation": full_anns.strpath, "output_dir": outdir.strpath,
+            "pipeline_interfaces": pipe_path},
         "subprojects": {sp_name: {
-            "metadata": {"sample_annotation": path_sp_anns}}}
+            "metadata": {"sample_annotation": sp_anns.strpath}}}
     }
-    with open(confpath, 'w') as conf:
-        yaml.dump(conf_data, conf)
-    write_anns(annspath, all_samples)
-    write_anns(path_sp_anns, sp_samples)
 
-    return confpath
+    conf = metadir.join("conf.yaml")
+    with open(conf.strpath, 'w') as f:
+        yaml.dump(conf_data, f)
+
+    return conf.strpath
     
 
 
@@ -272,14 +272,21 @@ class ProtocolInclusionTests:
         
     
     @pytest.mark.parametrize(
-        argnames="inclusion", argvalues=["ATAC-Seq", {"WGBS", "RRBS"}])
+        argnames="inclusion", argvalues=["ATAC-Seq", {"WGBS", "RRBS"}],
+        ids=lambda protos: str(protos))
     def test_equivalence_with_subproject(self, tmpdir, samples, inclusion):
         """ Selection for protocol(s) is like specific subproject. """
         sp_name = "atac"
         confpath = _write_project_files(
-            tmpdir.strpath, all_samples=samples, sp_name=sp_name,
+            tmpdir, all_samples=samples, sp_name=sp_name,
             sp_samples=list(filter(lambda s: s.protocol in inclusion, samples)))
-        full_project = Project(confpath)
+        # DEBUG
+        try:
+            full_project = Project(confpath)
+        except Exception:
+            with open(os.path.join(tmpdir.strpath, "metadata", "anns.csv"), 'r') as f:
+                print(f.readlines())
+            raise
         subproject = Project(confpath, subproject=sp_name)
         expected = {s.name for s in subproject.samples}
         observed = fetch_samples(full_project, inclusion=inclusion)

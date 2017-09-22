@@ -55,29 +55,46 @@ def protocol_by_sample(sample_names, protocols):
 
 @pytest.fixture
 def project(request, sample_names, protocols, tmpdir):
+    """
+    Provide test case with a basic Project instance.
 
-    outdir = os.path.join(tmpdir.strpath, "output")
-    metadir = os.path.join(tmpdir.strpath, "metadata")
-    # So that it's just skipped, deliberately don't create this.
-    pipedir = os.path.join(tmpdir.strpath, "pipelines")
-    map(os.makedirs, [outdir, metadir])
+    The Sample data written to the annotation sheet file is determined
+    by the sample_names and protocols fixures.
 
-    confpath = os.path.join(metadir, "conf.yaml")
-    annspath = os.path.join(metadir, "anns.csv")
+    :param pytest.fixtures.FixtureRequest request: test case requesting this
+        basic Project fixture
+    :param Iterable[str] sample_names: names of samples, to write to an
+        annotations sheet file
+    :param Iterable[str] protocols: name of protocol for each sample, also
+        to be written to the annotations sheet file; the number of elements
+        should match the number of sample names
+    :param py._path.local.LocalPath tmpdir: temporary directory fixture
+    :return Project: basic Project instance with files written, from the
+        data provided by the fixtures
+    """
+
+    outdir = tmpdir.mkdir("output")
+    metadir = tmpdir.mkdir("metadata")
+
+    # Write annotations file.
+    anns_data = [("sample_name", "protocol")] + \
+                list(zip(sample_names, protocols))
+    anns = metadir.join("anns.csv")
+    anns.write("\n".join(["{},{}".format(sn, p) for sn, p in anns_data]))
+
+    # Create config data.
     conf_data = {"metadata": {
-            "sample_annotation": annspath, "output_dir": outdir}}
-
+        "sample_annotation": anns.strpath, "output_dir": outdir.strpath}}
     # Provide a hook for a test case to add data.
     if "add_project_data" in request.fixturenames:
         conf_data.update(request.getfixturevalue("add_project_data"))
 
-    with open(confpath, 'w') as conf:
-        yaml.dump(conf_data, conf)
-    anns_data = [("sample_name", "protocol")] + list(zip(sample_names, protocols))
-    with open(annspath, 'w') as anns:
-        anns.write("\n".join(["{},{}".format(sn, p) for sn, p in anns_data]))
+    # Write the config file.
+    conf = metadir.join("conf.yaml")
+    with open(conf.strpath, 'w') as f:
+        yaml.dump(conf_data, f)
 
-    return Project(confpath)
+    return Project(conf.strpath)
 
 
 
@@ -97,7 +114,7 @@ class ProjectContextTests:
         argvalues=[("ATAC", {"atac-PE"}),
                    (("WGBS", "RRBS"), {WGBS_NAME, RRBS_NAME}),
                    ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})],
-        ids=lambda (inclusion, expected): "{}-{}".format(inclusion, expected))
+        ids=lambda incl_exp_pair: "{}-{}".format(*incl_exp_pair))
     def test_inclusion(self, samples, project, inclusion, expected_names):
         """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)
@@ -121,7 +138,7 @@ class ProjectContextTests:
         argnames=["selection", "selection_type"],
         argvalues=[({"CHIP", "WGBS", "RRBS"}, "exclude_protocols"),
                    ({"WGBS", "ATAC"}, "include_protocols")],
-        ids=lambda (protos, sel_type): "{}:{}".format(protos, sel_type))
+        ids=lambda proto_seltype_pair: "{}:{}".format(*proto_seltype_pair))
     def test_restoration(self, samples, project, selection, selection_type):
         """ After exiting the context, original Project samples restore. """
         _assert_samples(samples, project.samples)
@@ -168,7 +185,7 @@ def _assert_samples(expected_samples, observed_samples):
         object instances
     """
     assert len(expected_samples) == len(observed_samples)
-    assert all(map(lambda (s1, s2): s1.name == s2.name,
+    assert all(map(lambda samples: samples[0].name == samples[1].name,
                    zip(expected_samples, observed_samples)))
 
 

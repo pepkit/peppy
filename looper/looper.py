@@ -19,13 +19,15 @@ from .utils import alpha_cased, VersionInHelpParser
 
 try:
     from .models import \
-        fetch_samples, PipelineInterface, ProtocolMapper, Sample, \
-        COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+        fetch_samples, PipelineInterface, ProjectContext, ProtocolMapper, \
+        Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
+        VALID_READ_TYPES
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from models import \
-        fetch_samples, PipelineInterface, ProtocolMapper, Sample, \
-        COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+        fetch_samples, PipelineInterface, ProjectContext, ProtocolMapper, \
+        Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
+        VALID_READ_TYPES
 
 from colorama import init
 init()
@@ -937,43 +939,47 @@ def main():
     get_samples = partial(fetch_samples,
         inclusion=args.include_protocols, exclusion=args.exclude_protocols)
 
-    if args.command == "run":
-        if args.compute:
-            prj.set_compute(args.compute)
+    with ProjectContext(prj,
+            include_protocols=args.include_protocols,
+            exclude_protocols=args.exclude_protocols) as prj:
 
-        # TODO split here, spawning separate run process for each
-        # pipelines directory in project metadata pipelines directory.
+        if args.command == "run":
+            if args.compute:
+                prj.set_compute(args.compute)
 
-        if not hasattr(prj.metadata, "pipelines_dir") or \
-                        len(prj.metadata.pipelines_dir) == 0:
-            raise AttributeError(
-                    "Looper requires at least one pipeline(s) location.")
+            # TODO split here, spawning separate run process for each
+            # pipelines directory in project metadata pipelines directory.
 
-        if not prj.interfaces_by_protocol:
-            _LOGGER.error(
-                    "The Project knows no protocols. Does it point "
-                    "to at least one pipelines location that exists?")
-            return
-        try:
-            run(prj, args, remaining_args, get_samples=get_samples)
-        except IOError:
-            _LOGGER.error("{} pipelines_dir: '{}'".format(
-                    prj.__class__.__name__, prj.metadata.pipelines_dir))
-            raise
+            if not hasattr(prj.metadata, "pipelines_dir") or \
+                            len(prj.metadata.pipelines_dir) == 0:
+                raise AttributeError(
+                        "Looper requires at least one pipeline(s) location.")
 
-    if args.command == "destroy":
-        return destroy(prj, args, get_samples=get_samples)
+            if not prj.interfaces_by_protocol:
+                _LOGGER.error(
+                        "The Project knows no protocols. Does it point "
+                        "to at least one pipelines location that exists?")
+                return
+            try:
+                run(prj, args, remaining_args, get_samples=get_samples)
+            except IOError:
+                _LOGGER.error("{} pipelines_dir: '{}'".format(
+                        prj.__class__.__name__, prj.metadata.pipelines_dir))
+                raise
 
-    if args.command == "summarize":
-        summarize(prj, get_samples=get_samples)
+        if args.command == "destroy":
+            return destroy(prj, args, get_samples=get_samples)
 
-    if args.command == "check":
-        # TODO: hook in fixed samples once protocol differentiation is
-        # TODO (continued) figured out (related to #175).
-        check(prj)
+        if args.command == "summarize":
+            summarize(prj, get_samples=get_samples)
 
-    if args.command == "clean":
-        clean(prj, args, get_samples=get_samples)
+        if args.command == "check":
+            # TODO: hook in fixed samples once protocol differentiation is
+            # TODO (continued) figured out (related to #175).
+            check(prj)
+
+        if args.command == "clean":
+            clean(prj, args, get_samples=get_samples)
 
 
 
