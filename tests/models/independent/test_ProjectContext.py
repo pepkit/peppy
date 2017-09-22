@@ -103,9 +103,20 @@ class ProjectContextTests:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
-    def test_restoration(self):
+    @pytest.mark.parametrize(
+        argnames=["selection", "selection_type"],
+        argvalues=[({"CHIP", "WGBS", "RRBS"}, "exclude_protocols"),
+                   ({"WGBS", "ATAC"}, "include_protocols")],
+        ids=lambda (protos, sel_type): "{}:{}".format(protos, sel_type))
+    def test_restoration(self, samples, project, selection, selection_type):
         """ After exiting the context, original Project samples restore. """
-        pass
+        _assert_samples(samples, project.samples)
+        with ProjectContext(project, **{selection_type: selection}) as prj:
+            # Ensure that the context manager has changed something about
+            # the collection of sample names.
+            assert {s.name for s in prj.samples} != {s.name for s in samples}
+        # Ensure the restoration of the original samples.
+        _assert_samples(samples, project.samples)
 
 
     def test_access_to_project_attributes(self):
