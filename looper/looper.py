@@ -303,7 +303,7 @@ class Runner(LooperProgram):
                 # instead be accomplished here, disallowing a Project to be passed
                 # to the Sample, as it appears that use of the Project reference
                 # within Sample has been factored out.
-                sample.self.prj = grab_independent_data(self.prj)
+                sample.prj = grab_independent_data(self.prj)
 
                 # The current sample is active.
                 # For each pipeline submission consideration, start fresh.
