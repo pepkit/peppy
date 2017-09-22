@@ -19,13 +19,15 @@ from .utils import alpha_cased, VersionInHelpParser
 
 try:
     from .models import \
-        fetch_samples, PipelineInterface, ProjectContext, ProtocolMapper, \
+        fetch_samples, grab_independent_data, \
+        PipelineInterface, ProjectContext, ProtocolMapper, \
         Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
         VALID_READ_TYPES
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from models import \
-        fetch_samples, PipelineInterface, ProjectContext, ProtocolMapper, \
+        fetch_samples, grab_independent_data, \
+        PipelineInterface, ProjectContext, ProtocolMapper, \
         Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
         VALID_READ_TYPES
 
@@ -300,7 +302,7 @@ def run(prj, args, remaining_args, get_samples=None):
             # instead be accomplished here, disallowing a Project to be passed
             # to the Sample, as it appears that use of the Project reference
             # within Sample has been factored out.
-            sample.prj = prj
+            sample.prj = grab_independent_data(prj)
 
             # The current sample is active.
             # For each pipeline submission consideration, start fresh.
