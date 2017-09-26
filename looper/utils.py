@@ -76,6 +76,26 @@ def check_fastq(fastq, o):
 
 
 
+def check_sample_sheet_row_count(sheet, filepath):
+    """
+    Quick-and-dirt proxy for Sample count validation.
+
+    Check that that the number of rows in a DataFrame (representing the
+    Sample annotations sheet) seems correct given the number of lines in
+    the file from which it was parsed/built.
+
+    :param pandas.core.frame.DataFrame sheet: the sample annotations sheet
+    :param str filepath: the path from which the sheet was built
+    :return bool: flag indicating whether Sample (row) count seems correct
+    """
+    with open(filepath, 'r') as f:
+        lines = f.readlines()
+    # Always deduct 1 line for header; accommodate final whitespace line.
+    deduction = 2 if "" == lines[-1].strip() else 1
+    return len(sheet) == len(lines) - deduction
+
+
+
 def expandpath(path):
     """
     Expand a filesystem path that may or may not contain user/env vars.
