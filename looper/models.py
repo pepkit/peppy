@@ -2378,12 +2378,16 @@ class PipelineInterface(object):
     """
     def __init__(self, config):
         if isinstance(config, Mapping):
+            # Unified pipeline_interface.yaml file (protocol mappings
+            # and the actual pipeline interface data)
             _LOGGER.debug("Creating %s with preparsed data",
                          self.__class__.__name__)
             self.pipe_iface_file = None
             self.pipe_iface_config = config
 
         else:
+            # More likely old-style, with protocol_mapping in its own file,
+            # separate from the actual pipeline interface data
             _LOGGER.debug("Parsing '%s' for PipelineInterface config data",
                          config)
             self.pipe_iface_file = config
@@ -2687,8 +2691,9 @@ class PipelineInterface(object):
             return self.pipe_iface_config[pipeline_name] or {}
         except KeyError:
             _LOGGER.error(
-                "Missing pipeline description: '%s' not found in '%s'",
-                pipeline_name, self.pipe_iface_file)
+                "Missing pipeline description: %s not found; %d known: %s",
+                pipeline_name, len(self.pipe_iface_config),
+                ", ".format(self.pipe_iface_config.keys()))
             # TODO: use defaults or force user to define this?
             raise _MissingPipelineConfigurationException(pipeline_name)
 
@@ -2735,7 +2740,13 @@ class ProtocolInterface(object):
 
             with open(interface_data_source, 'r') as interface_file:
                 iface = yaml.load(interface_file)
-            for name, value in self._parse_iface_data(iface):
+            try:
+                iface_data = self._parse_iface_data(iface)
+            except Exception:
+                _LOGGER.error("Error parsing data from pipeline interface "
+                              "file: %s", interface_data_source)
+                raise
+            for name, value in iface_data:
                 setattr(self, name, value)
 
         elif _os.path.isdir(interface_data_source):
