@@ -19,14 +19,14 @@ from .utils import alpha_cased, VersionInHelpParser
 
 try:
     from .models import \
-        fetch_samples, grab_independent_data, \
+        fetch_samples, grab_independent_data, sample_folder, \
         PipelineInterface, ProjectContext, ProtocolMapper, \
         Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
         VALID_READ_TYPES
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from models import \
-        fetch_samples, grab_independent_data, \
+        fetch_samples, grab_independent_data, sample_folder, \
         PipelineInterface, ProjectContext, ProtocolMapper, \
         Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
         VALID_READ_TYPES
@@ -233,7 +233,7 @@ class Cleaner(Executor):
 
         for sample in self.prj.samples:
             _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
-            sample_output_folder = self.prj.sample_folder(sample)
+            sample_output_folder = sample_folder(self.prj, sample)
             cleanup_files = glob.glob(os.path.join(sample_output_folder,
                                                    "*_cleanup.sh"))
             if preview_flag:
@@ -279,7 +279,7 @@ class Destroyer(Executor):
         for sample in self.prj.samples:
             _LOGGER.info(
                 self.counter.show(sample.sample_name, sample.protocol))
-            sample_output_folder = self.prj.sample_folder(sample)
+            sample_output_folder = sample_folder(self.prj, sample)
             if preview_flag:
                 # Preview: Don't actually delete, just show files.
                 _LOGGER.info(str(sample_output_folder))
@@ -340,7 +340,7 @@ class Runner(Executor):
         for sample in self.prj.samples:
             _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
 
-            sample_output_folder = self.prj.sample_folder(sample)
+            sample_output_folder = sample_folder(self.prj, sample)
             _LOGGER.debug("Sample output folder: '%s'", sample_output_folder)
             skip_reasons = []
 
@@ -597,7 +597,7 @@ class Summarizer(Executor):
 
         for sample in self.prj.samples:
             _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
-            sample_output_folder = self.prj.sample_folder(sample)
+            sample_output_folder = sample_folder(self.prj, sample)
 
             # Grab the basic info from the annotation sheet for this sample.
             # This will correspond to a row in the output.
@@ -629,7 +629,7 @@ class Summarizer(Executor):
 
         for sample in self.prj.samples:
             _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
-            sample_output_folder = self.prj.sample_folder(sample)
+            sample_output_folder = sample_folder(self.prj, sample)
             # Now process any reported figures
             figs_file = os.path.join(sample_output_folder, "figures.tsv")
             if os.path.isfile(figs_file):

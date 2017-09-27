@@ -385,6 +385,18 @@ def process_pipeline_interfaces(pipeline_interface_locations):
 
 
 
+def sample_folder(prj, sample):
+    """
+    Get the path to this Project's root folder for the given Sample.
+
+    :param AttributeDict | Project prj: project with which sample is associated
+    :param Sample sample: the Sample for which to get root folder path
+    :return str: this Project's root folder for the given Sample
+    """
+    return _os.path.join(prj.metadata.results_subdir, sample.name)
+
+
+
 # Collect PipelineInterface, Sample type, pipeline path, and script with flags.
 SubmissionBundle = namedtuple(
     "SubmissionBundle",
@@ -1404,16 +1416,6 @@ class Project(AttributeDict):
                     path_config_file=self.config_file)
 
 
-    def sample_folder(self, sample):
-        """
-        Get the path to this Project's root folder for the given Sample.
-
-        :param Sample sample: the Sample for which to get root folder path
-        :return str: this Project's root folder for the given Sample
-        """
-        return _os.path.join(self.metadata.results_subdir, sample.name)
-
-
     def set_compute(self, setting):
         """
         Set the compute attributes according to the
@@ -2001,7 +2003,7 @@ class Sample(object):
 
         # Parent
         self.results_subdir = project.metadata.results_subdir
-        self.paths.sample_root = project.sample_folder(self)
+        self.paths.sample_root = sample_folder(project, self)
 
         # Track url
         bigwig_filename = self.name + ".bigWig"
