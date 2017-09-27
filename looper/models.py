@@ -751,7 +751,6 @@ class Project(AttributeDict):
         self.setdefault("data_sources", None)
 
         self.name = self.infer_name(self.config_file)
-        self.subproject = subproject
 
         # Set project's directory structure
         if not dry:
