@@ -423,19 +423,25 @@ class Paths(object):
 
 
 class ProjectContext(object):
+    """ Wrap a Project to provide protocol-specific Sample selection. """
 
     def __init__(self, prj, include_protocols=None, exclude_protocols=None):
+        """ Project and what to include/exclude defines the context. """
         self.prj = prj
         self.include = include_protocols
         self.exclude = exclude_protocols
 
     def __getattr__(self, item):
+        """ Samples are context-specific; other requests are handled
+        locally or dispatched to Project. """
         if item == "samples":
             return fetch_samples(
                 self.prj, inclusion=self.include, exclusion=self.exclude)
         if item in ["prj", "include", "exclude"]:
+            # Attributes requests that this context/wrapper handles
             return self.__dict__[item]
         else:
+            # Dispatch attribute request to Project.
             return getattr(self.prj, item)
 
     def __enter__(self):
