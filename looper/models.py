@@ -2538,7 +2538,7 @@ class PipelineInterface(object):
     def get_arg_string(self, pipeline_name, sample,
                        submission_folder_path="", **null_replacements):
         """
-        For a given pipeline and sample, return the argument string
+        For a given pipeline and sample, return the argument string.
 
         :param str pipeline_name: Name of pipeline.
         :param Sample sample: current sample for which job is being built
@@ -2622,7 +2622,7 @@ class PipelineInterface(object):
                     arg = getattr(sample, sample_attr)
                 except AttributeError:
                     _LOGGER.warn(
-                        "> Note (missing attribute): '%s' requests "
+                        "> Note (missing optional attribute): '%s' requests "
                         "sample attribute '%s' for option '%s'",
                         pipeline_name, sample_attr, pipe_opt)
                     continue
