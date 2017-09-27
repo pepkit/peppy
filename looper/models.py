@@ -302,8 +302,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     for _, row in merge_rows.iterrows():
         row_dict = row.to_dict()
         for col in merge_rows.columns:
-            if col == SAMPLE_NAME_COLNAME or \
-                            col not in derived_columns:
+            if col == SAMPLE_NAME_COLNAME or col not in derived_columns:
                 _LOGGER.log(5, "Skipping column: '%s'", col)
                 continue
             # Initialize key in parent dict.
@@ -316,11 +315,9 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
         _LOGGER.log(5, "Adding derived columns")
         # Also add in any derived cols present.
         for col in derived_columns:
-            # Skip over attributes that the sample
-            # either lacks, and those covered by the
-            # data from the current (row's) data.
-            if not hasattr(sample, col) or \
-                            col in row_dict:
+            # Skip over any attributes that the sample lacks or that are
+            # covered by the data from the current (row's) data.
+            if not hasattr(sample, col) or col in row_dict:
                 _LOGGER.log(5, "Skipping column: '%s'", col)
                 continue
             # Map column name key to sample's value
@@ -344,12 +341,11 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
                 _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
                 continue
             _LOGGER.log(5, "merge: sample '%s'; %s=%s",
-                          str(sample.name), str(key), str(val))
+                        str(sample.name), str(key), str(val))
             if not key in merged_cols:
                 new_val = str(val).rstrip()
             else:
-                new_val = "{} {}".format(
-                    merged_cols[key], str(val)).strip()
+                new_val = "{} {}".format(merged_cols[key], str(val)).strip()
             merged_cols[key] = new_val  # 2)
 
     # Don't update sample_name.
