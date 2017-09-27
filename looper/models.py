@@ -779,6 +779,7 @@ class Project(AttributeDict):
         path_anns_file = self.metadata.sample_annotation
         _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
         try:
+            _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
             self.sheet = check_sheet(path_anns_file)
         except IOError:
             _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
@@ -805,7 +806,10 @@ class Project(AttributeDict):
 
 
     def __repr__(self):
+        """ Self-represent in the interpreter. """
+        # First, parameterize the attribute filtration function by the class.
         include = partial(include_in_repr, klazz=self.__class__)
+        # Then iterate over items, filtering what to include in representation.
         return repr({k: v for k, v in self.__dict__.items() if include(k)})
 
 
