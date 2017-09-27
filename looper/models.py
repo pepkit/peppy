@@ -1220,6 +1220,8 @@ class Project(AttributeDict):
             if self.merge_table is None:
                 if self.metadata.merge_table and \
                         _os.path.isfile(self.metadata.merge_table):
+                    _LOGGER.info("Reading merge table: %s",
+                                 self.metadata.merge_table)
                     self.merge_table = _pd.read_table(
                         self.metadata.merge_table,
                         sep=None, engine="python")
