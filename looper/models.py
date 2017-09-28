@@ -336,25 +336,32 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
                           "{}, {}, {}".format(col, row_dict[col],
                                               getattr(sample, col)))
 
-        # Since we are now jamming multiple (merged)
-        # entries into a single attribute, we have to
-        # join them into a space-delimited string
-        # and then set to sample attribute.
+        # Since we are now jamming multiple (merged) entries into a single
+        # attribute on a Sample, we have to join the individual items into a
+        # space-delimited string and then use that value as the Sample
+        # attribute. The intended use case for this sort of merge is for
+        # multiple data source paths associated with a single Sample, hence
+        # the choice of space-delimited string as the joined-/merged-entry
+        # format--it's what's most amenable to use in building up an argument
+        # string for a pipeline command.
         for key, val in row_dict.items():
             if key == SAMPLE_NAME_COLNAME or not val:
                 _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
                 continue
-            _LOGGER.log(5, "merge: sample '%s'; %s=%s",
+            _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
                         str(sample.name), str(key), str(val))
             if not key in merged_cols:
                 new_val = str(val).rstrip()
             else:
                 new_val = "{} {}".format(merged_cols[key], str(val)).strip()
             merged_cols[key] = new_val  # 2)
+            _LOGGER.log(5, "Stored '%s' as value for '%s' in merged_cols",
+                        new_val, key)
 
     # Don't update sample_name.
     merged_cols.pop(SAMPLE_NAME_COLNAME, None)
 
+    _LOGGER.log(5, "Updating Sample {}: {}".format(sample.name, merged_cols))
     sample.update(merged_cols)  # 3)
     sample.merged_cols = merged_cols
     sample.merged = True
