@@ -1244,8 +1244,20 @@ class Project(AttributeDict):
         else:
             _LOGGER.debug("No merge table")
 
-        # Create the Samples.
+        # Set samples and handle non-unique names situation.
+        self._samples = self._merge_samples()
+        self._check_unique_samples()
+
+
+    def _merge_samples(self):
+        """
+        Merge this Project's Sample object and set file paths.
+
+        :return list[Sample]: collection of this Project's Sample objects
+        """
+
         samples = []
+
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna(), prj=self)
 
@@ -1269,9 +1281,7 @@ class Project(AttributeDict):
                 _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
 
-        # Set samples and handle non-unique names situation.
-        self._samples = samples
-        self._check_unique_samples()
+        return samples
 
 
     def parse_config_file(self, subproject=None):
