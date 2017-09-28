@@ -291,6 +291,7 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     derived_columns = set(derived_columns)
     _LOGGER.log(5, "%d rows to merge", len(merge_rows))
 
+    _LOGGER.log(5, "Merge rows dict: {}".format(merge_rows.to_dict()))
 
     # For each row in the merge table of this sample:
     # 1) populate any derived columns
@@ -309,8 +310,10 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
             col_key = col + COL_KEY_SUFFIX
             merged_cols[col_key] = ""
             row_dict[col_key] = row_dict[col]
-            row_dict[col] = sample.locate_data_source(
-                    data_sources, col, row_dict[col], row_dict)  # 1)
+            data_src_path = sample.locate_data_source(
+                    data_sources, col, source_key=row_dict[col],
+                    extra_vars=row_dict)  # 1)
+            row_dict[col] = data_src_path
 
         _LOGGER.log(5, "Adding derived columns")
         # Also add in any derived cols present.
@@ -327,7 +330,8 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
             # Map the column name itself to the
             # populated data source template string.
             row_dict[col] = sample.locate_data_source(
-                    data_sources, col, getattr(sample, col), row_dict)
+                    data_sources, col, source_key=getattr(sample, col),
+                    extra_vars=row_dict)
             _LOGGER.debug("PROBLEM adding derived column: "
                           "{}, {}, {}".format(col, row_dict[col],
                                               getattr(sample, col)))
