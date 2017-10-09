@@ -1668,8 +1668,8 @@ class Sample(object):
 
         :return list[str]: paths to data sources / input file for this Sample.
         """
-        return self.data_source.split(" ")
-    
+        return self.data_source.split(" ") if self.data_source else []
+
 
     def as_series(self):
         """

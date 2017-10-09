@@ -1,7 +1,7 @@
 """ Tests for the Sample. """
 
 import os
-import tempfile
+import yaml
 import mock
 import numpy as np
 from pandas import Series
@@ -190,3 +190,27 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
     # The sample folders creation call should do nothing.
     s.make_sample_dirs()
     assert all([os.path.exists(p) for p in s.paths])
+
+
+
+@pytest.mark.parametrize(
+    argnames="files",
+    argvalues=[[],
+               ["dummy-input-file.bam"],
+               ["input1_R1.fastq", "input1_R2.fastq"]])
+@pytest.mark.parametrize(
+    argnames="test_type", argvalues=["in_memory", "to_disk"])
+def test_input_files(files, test_type, tmpdir):
+    """ Test for access to Sample input files. """
+    file_text = " ".join(files)
+    sample_data = {"sample_name": "test-sample", "data_source": file_text}
+    s = Sample(sample_data)
+    assert file_text == s.data_source
+    assert files == s.input_file_paths
+    if test_type == "to_disk":
+        path_sample_file = tmpdir.join("test-sample.yaml").strpath
+        s.to_yaml(path_sample_file)
+        with open(path_sample_file) as sf:
+            reloaded_sample_data = yaml.load(sf)
+        s_reloaded = Sample(reloaded_sample_data)
+        assert files == s_reloaded.input_file_paths
