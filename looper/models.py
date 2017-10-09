@@ -1661,6 +1661,16 @@ class Sample(object):
         return "Sample '{}'".format(self.name)
 
 
+    @property
+    def input_file_paths(self):
+        """
+        List the sample's data source / input files
+
+        :return list[str]: paths to data sources / input file for this Sample.
+        """
+        return self.data_source.split(" ")
+    
+
     def as_series(self):
         """
         Returns a `pandas.Series` object with all the sample's attributes.
