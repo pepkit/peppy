@@ -19,14 +19,14 @@ from .utils import alpha_cased, VersionInHelpParser
 
 try:
     from .models import \
-        fetch_samples, grab_independent_data, sample_folder, \
+        fetch_samples, grab_project_data, sample_folder, \
         PipelineInterface, ProjectContext, ProtocolMapper, \
         Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
         VALID_READ_TYPES
 except:
     sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
     from models import \
-        fetch_samples, grab_independent_data, sample_folder, \
+        fetch_samples, grab_project_data, sample_folder, \
         PipelineInterface, ProjectContext, ProtocolMapper, \
         Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
         VALID_READ_TYPES
@@ -386,7 +386,7 @@ class Runner(Executor):
             # Store the base Sample data for reuse in creating subtype(s).
             sample_data = sample.as_series()
 
-            # Go through all pipelines to submit for this protocol.
+            # Go through all pipelines to submit for this sample's protocol.
             # Note: control flow doesn't reach this point if variable "pipelines"
             # cannot be assigned (library/protocol missing).
             # pipeline_key (previously pl_id) is no longer necessarily
@@ -408,7 +408,7 @@ class Runner(Executor):
                 # instead be accomplished here, disallowing a Project to be passed
                 # to the Sample, as it appears that use of the Project reference
                 # within Sample has been factored out.
-                sample.prj = grab_independent_data(self.prj)
+                sample.prj = grab_project_data(self.prj)
 
                 # The current sample is active.
                 # For each pipeline submission consideration, start fresh.
@@ -877,35 +877,54 @@ def uniqify(seq):
 
 
 
-def check(prj):
+def fetch_flag_files(prj):
     """
-    Check Project status, based on flag files.
-    
-    :param Project prj: Project for which to inquire about status
+    Find all flag file paths for the given project.
+
+    :param Project | AttributeDict prj: full Project or AttributeDict with
+        similar metadata and access/usage pattern
+    :return Mapping[str, list[str]]: collection of filepaths associated with
+        particular flag for samples within the given project
     """
 
-    # TODO: resume here to hook into specific protocols, and if we want
-    # TODO (continued): to just use Python rather than shelling out.
-    from collections import defaultdict
-    flags_by_protocol = defaultdict(list)
+    def _glob_expr(flag):
+        return os.path.join(
+            prj.metadata.results_subdir, "*", "{}.flag".format(flag))
 
-    # prefix
-    pf = "ls " + prj.metadata.results_subdir + "/"
-    cmd = os.path.join(pf + "*/*.flag | xargs -n1 basename | sort | uniq -c")
-    _LOGGER.info(cmd)
-    subprocess.call(cmd, shell=True)
+    # TODO: import from pep.
+    flags = ["completed", "running", "failed", "waiting", "partial"]
 
-    flags = ["completed", "running", "failed", "waiting"]
+    return {f: glob.glob(_glob_expr(f)) for f in flags}
 
-    counts = {}
-    for f in flags:
-        counts[f] = int(subprocess.check_output(
-                pf + "*/*" + f + ".flag 2> /dev/null | wc -l", shell=True))
 
-    for f, count in counts.items():
-        if 0 < count < 30:
-            _LOGGER.info(f + " (" + str(count) + ")")
-            subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell=True)
+
+class Checker(Executor):
+
+    def __call__(self, max_file_count=30):
+        """
+        Check Project status, based on flag files.
+
+        :param Project prj: Project for which to inquire about status
+        :param int max_file_count: maximum number of filepaths to display for a
+            given flag
+        """
+
+        from operator import itemgetter
+
+        # Collect the files by flag and sort by flag name.
+        files_by_flag = fetch_flag_files(self.prj)
+        flags_with_files = sorted(files_by_flag.items(), key=itemgetter(0))
+
+        # For each flag, output occurrence count.
+        for flag, files in flags_with_files:
+            if 0 == len(files):
+                continue
+            _LOGGER.info("%s: %d", flag.upper(), len(files))
+
+        # For each flag, output filepath(s) if not overly verbose.
+        for flag, files in flags_with_files:
+            if 0 < len(files) <= max_file_count:
+                _LOGGER.info("%s (%d):\n%s", flag.upper(), len(files), "\n".join(files))
 
 
 
@@ -966,7 +985,7 @@ def main():
         if args.command == "check":
             # TODO: hook in fixed samples once protocol differentiation is
             # TODO (continued) figured out (related to #175).
-            check(prj)
+            Checker(prj)()
 
         if args.command == "clean":
             return Cleaner(prj)(args)

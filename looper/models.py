@@ -199,7 +199,7 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
 
 
 
-def grab_independent_data(prj):
+def grab_project_data(prj):
     """
     From the given Project, grab Sample-independent data.
 
