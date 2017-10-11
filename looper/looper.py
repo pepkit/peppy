@@ -15,21 +15,12 @@ import time
 import pandas as _pd
 from . import setup_looper_logger, LOGGING_LEVEL, __version__
 from .loodels import Project
-from .utils import alpha_cased, VersionInHelpParser
+from .models import \
+    grab_project_data, ProjectContext, Sample, \
+    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+from .utils import \
+    alpha_cased, fetch_flag_files, sample_folder, VersionInHelpParser
 
-try:
-    from .models import \
-        fetch_samples, grab_project_data, sample_folder, \
-        PipelineInterface, ProjectContext, ProtocolMapper, \
-        Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
-        VALID_READ_TYPES
-except:
-    sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
-    from models import \
-        fetch_samples, grab_project_data, sample_folder, \
-        PipelineInterface, ProjectContext, ProtocolMapper, \
-        Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
-        VALID_READ_TYPES
 
 from colorama import init
 init()
@@ -874,27 +865,6 @@ def uniqify(seq):
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
-
-
-
-def fetch_flag_files(prj):
-    """
-    Find all flag file paths for the given project.
-
-    :param Project | AttributeDict prj: full Project or AttributeDict with
-        similar metadata and access/usage pattern
-    :return Mapping[str, list[str]]: collection of filepaths associated with
-        particular flag for samples within the given project
-    """
-
-    def _glob_expr(flag):
-        return os.path.join(
-            prj.metadata.results_subdir, "*", "{}.flag".format(flag))
-
-    # TODO: import from pep.
-    flags = ["completed", "running", "failed", "waiting", "partial"]
-
-    return {f: glob.glob(_glob_expr(f)) for f in flags}
 
 
 
