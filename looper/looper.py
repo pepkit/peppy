@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, __version__
+from . import setup_looper_logger, FLAGS, LOGGING_LEVEL, __version__
 from .loodels import Project
 from .models import \
     grab_project_data, ProjectContext, Sample, \
@@ -130,6 +130,14 @@ def parse_arguments():
     destroy_subparser = add_subparser("destroy")
     check_subparser = add_subparser("check")
     clean_subparser = add_subparser("clean")
+
+    check_subparser.add_argument(
+            "-A", "--all-folders", action="store_true",
+            help="Check status for all project's output folders, not just "
+                 "those for samples specified in the config file used")
+    check_subparser.add_argument(
+            "-F", "--flags", nargs='*',
+            help="Check on only these flags/status values.")
 
     # Common arguments
     for subparser in [run_subparser, summarize_subparser,
@@ -870,19 +878,30 @@ def uniqify(seq):
 
 class Checker(Executor):
 
-    def __call__(self, max_file_count=30):
+    def __call__(self, flags=FLAGS, all_folders=False, max_file_count=30):
         """
         Check Project status, based on flag files.
 
-        :param Project prj: Project for which to inquire about status
-        :param int max_file_count: maximum number of filepaths to display for a
-            given flag
+        :param Iterable[str] | str flags:
+        :param bool all_folders: Whether to check flags in all folders, not
+            just those for samples in the config file from which the Project
+            was created.
+        :param int max_file_count: Maximum number of filepaths to display for a
+            given flag.
         """
 
         from operator import itemgetter
 
+        flags = [flags] if isinstance(flags, str) else list(flags)
+
         # Collect the files by flag and sort by flag name.
-        files_by_flag = fetch_flag_files(self.prj)
+        if all_folders:
+            def _glob_expr(flag_name):
+                flag_file_name = "{}.flag".format(flag_name)
+                return os.path.join(self.prj.metadata.results_subdir, "*", flag_file_name)
+            files_by_flag = [(f, _glob_expr(f)) for f in flags]
+        else:
+            files_by_flag = fetch_flag_files(self.prj)
         flags_with_files = sorted(files_by_flag.items(), key=itemgetter(0))
 
         # For each flag, output occurrence count.

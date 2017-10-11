@@ -3,14 +3,16 @@
 from argparse import ArgumentParser
 from collections import defaultdict, Iterable
 import contextlib
-import glob
 import logging
 import os
 import random
 import string
 import subprocess as sp
+
 import yaml
+
 from ._version import __version__
+from . import FLAGS
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,19 +110,20 @@ def expandpath(path):
 
 
 
-def fetch_flag_files(prj):
+def fetch_flag_files(prj, flags=FLAGS):
     """
     Find all flag file paths for the given project.
 
     :param Project | AttributeDict prj: full Project or AttributeDict with
         similar metadata and access/usage pattern
+    :param Iterable[str] | str flags: Collection of flag names or single flag name
+        for which to fetch files
     :return Mapping[str, list[str]]: collection of filepaths associated with
         particular flag for samples within the given project
     """
-    # TODO: import from pep.
-    flags = ["completed", "running", "failed", "waiting", "partial"]
 
     # Just create the filenames once, and pair once with flag name.
+    flags = [flags] if isinstance(flags, str) else list(flags)
     files = ["{}.flag".format(f) for f in flags]
     flag_file_pairs = list(zip(flags, files))
 
@@ -136,7 +139,7 @@ def fetch_flag_files(prj):
             flag_path = os.path.join(folder, flag_file)
             if os.path.isfile(flag_path):
                 files_by_flag[flag].append(flag_path)
-    
+
     return files_by_flag
 
 
