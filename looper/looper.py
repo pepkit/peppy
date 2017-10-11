@@ -136,7 +136,7 @@ def parse_arguments():
             help="Check status for all project's output folders, not just "
                  "those for samples specified in the config file used")
     check_subparser.add_argument(
-            "-F", "--flags", nargs='*',
+            "-F", "--flags", nargs='*', default=FLAGS,
             help="Check on only these flags/status values.")
 
     # Common arguments
@@ -878,11 +878,12 @@ def uniqify(seq):
 
 class Checker(Executor):
 
-    def __call__(self, flags=FLAGS, all_folders=False, max_file_count=30):
+    def __call__(self, flags=None, all_folders=False, max_file_count=30):
         """
         Check Project status, based on flag files.
 
-        :param Iterable[str] | str flags:
+        :param Iterable[str] | str flags: Names of flags to check, optional;
+            if unspecified, all known flags will be checked.
         :param bool all_folders: Whether to check flags in all folders, not
             just those for samples in the config file from which the Project
             was created.
@@ -890,30 +891,46 @@ class Checker(Executor):
             given flag.
         """
 
-        from operator import itemgetter
+        # Handle single or multiple flags, and alphabetize.
+        flags = sorted([flags] if isinstance(flags, str) else list(flags or FLAGS))
 
-        flags = [flags] if isinstance(flags, str) else list(flags)
+        _LOGGER.info("Checking all project {} for these flags: {}".format(
+                     "folders" if all_folders else "samples",
+                     ", ".join(["'{}'".format(f) for f in flags])))
 
         # Collect the files by flag and sort by flag name.
         if all_folders:
             def _glob_expr(flag_name):
                 flag_file_name = "{}.flag".format(flag_name)
-                return os.path.join(self.prj.metadata.results_subdir, "*", flag_file_name)
-            files_by_flag = [(f, _glob_expr(f)) for f in flags]
+                return os.path.join(self.prj.metadata.results_subdir,
+                                    "*", flag_file_name)
+            files_by_flag = {f: _glob_expr(f) for f in flags}
         else:
-            files_by_flag = fetch_flag_files(self.prj)
-        flags_with_files = sorted(files_by_flag.items(), key=itemgetter(0))
+            files_by_flag = fetch_flag_files(self.prj, flags)
 
         # For each flag, output occurrence count.
-        for flag, files in flags_with_files:
+        for flag in flags:
+            """
+            Skip output for flags with no files.
             if 0 == len(files):
                 continue
-            _LOGGER.info("%s: %d", flag.upper(), len(files))
+            """
+            _LOGGER.info("%s: %d", flag.upper(), len(files_by_flag[flag]))
 
         # For each flag, output filepath(s) if not overly verbose.
-        for flag, files in flags_with_files:
+        for flag in flags:
+            try:
+                files = files_by_flag[flag]
+            except:
+                # No files for flag.
+                continue
+            # Regardless of whether 0-count flags are previously reported,
+            # don't report an empty file list for a flag that's absent.
+            # If the flag-to-files mapping is defaultdict, absent flag (key)
+            # will fetch an empty collection, so check for length of 0.
             if 0 < len(files) <= max_file_count:
-                _LOGGER.info("%s (%d):\n%s", flag.upper(), len(files), "\n".join(files))
+                _LOGGER.info("%s (%d):\n%s", flag.upper(),
+                             len(files), "\n".join(files))
 
 
 
@@ -974,7 +991,7 @@ def main():
         if args.command == "check":
             # TODO: hook in fixed samples once protocol differentiation is
             # TODO (continued) figured out (related to #175).
-            Checker(prj)()
+            Checker(prj)(flags=args.flags)
 
         if args.command == "clean":
             return Cleaner(prj)(args)
