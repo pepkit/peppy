@@ -13,23 +13,14 @@ import subprocess
 import sys
 import time
 import pandas as _pd
-from . import setup_looper_logger, LOGGING_LEVEL, __version__
+from . import setup_looper_logger, FLAGS, LOGGING_LEVEL, __version__
 from .loodels import Project
-from .utils import alpha_cased, VersionInHelpParser
+from .models import \
+    grab_project_data, ProjectContext, Sample, \
+    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+from .utils import \
+    alpha_cased, fetch_flag_files, sample_folder, VersionInHelpParser
 
-try:
-    from .models import \
-        fetch_samples, grab_independent_data, sample_folder, \
-        PipelineInterface, ProjectContext, ProtocolMapper, \
-        Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
-        VALID_READ_TYPES
-except:
-    sys.path.append(os.path.join(os.path.dirname(__file__), "looper"))
-    from models import \
-        fetch_samples, grab_independent_data, sample_folder, \
-        PipelineInterface, ProjectContext, ProtocolMapper, \
-        Sample, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
-        VALID_READ_TYPES
 
 from colorama import init
 init()
@@ -139,6 +130,14 @@ def parse_arguments():
     destroy_subparser = add_subparser("destroy")
     check_subparser = add_subparser("check")
     clean_subparser = add_subparser("clean")
+
+    check_subparser.add_argument(
+            "-A", "--all-folders", action="store_true",
+            help="Check status for all project's output folders, not just "
+                 "those for samples specified in the config file used")
+    check_subparser.add_argument(
+            "-F", "--flags", nargs='*', default=FLAGS,
+            help="Check on only these flags/status values.")
 
     # Common arguments
     for subparser in [run_subparser, summarize_subparser,
@@ -386,7 +385,7 @@ class Runner(Executor):
             # Store the base Sample data for reuse in creating subtype(s).
             sample_data = sample.as_series()
 
-            # Go through all pipelines to submit for this protocol.
+            # Go through all pipelines to submit for this sample's protocol.
             # Note: control flow doesn't reach this point if variable "pipelines"
             # cannot be assigned (library/protocol missing).
             # pipeline_key (previously pl_id) is no longer necessarily
@@ -408,7 +407,7 @@ class Runner(Executor):
                 # instead be accomplished here, disallowing a Project to be passed
                 # to the Sample, as it appears that use of the Project reference
                 # within Sample has been factored out.
-                sample.prj = grab_independent_data(self.prj)
+                sample.prj = grab_project_data(self.prj)
 
                 # The current sample is active.
                 # For each pipeline submission consideration, start fresh.
@@ -877,35 +876,61 @@ def uniqify(seq):
 
 
 
-def check(prj):
-    """
-    Check Project status, based on flag files.
-    
-    :param Project prj: Project for which to inquire about status
-    """
+class Checker(Executor):
 
-    # TODO: resume here to hook into specific protocols, and if we want
-    # TODO (continued): to just use Python rather than shelling out.
-    from collections import defaultdict
-    flags_by_protocol = defaultdict(list)
+    def __call__(self, flags=None, all_folders=False, max_file_count=30):
+        """
+        Check Project status, based on flag files.
 
-    # prefix
-    pf = "ls " + prj.metadata.results_subdir + "/"
-    cmd = os.path.join(pf + "*/*.flag | xargs -n1 basename | sort | uniq -c")
-    _LOGGER.info(cmd)
-    subprocess.call(cmd, shell=True)
+        :param Iterable[str] | str flags: Names of flags to check, optional;
+            if unspecified, all known flags will be checked.
+        :param bool all_folders: Whether to check flags in all folders, not
+            just those for samples in the config file from which the Project
+            was created.
+        :param int max_file_count: Maximum number of filepaths to display for a
+            given flag.
+        """
 
-    flags = ["completed", "running", "failed", "waiting"]
+        # Handle single or multiple flags, and alphabetize.
+        flags = sorted([flags] if isinstance(flags, str) else list(flags or FLAGS))
 
-    counts = {}
-    for f in flags:
-        counts[f] = int(subprocess.check_output(
-                pf + "*/*" + f + ".flag 2> /dev/null | wc -l", shell=True))
+        _LOGGER.info("Checking all project {} for these flags: {}".format(
+                     "folders" if all_folders else "samples",
+                     ", ".join(["'{}'".format(f) for f in flags])))
 
-    for f, count in counts.items():
-        if 0 < count < 30:
-            _LOGGER.info(f + " (" + str(count) + ")")
-            subprocess.call(pf + "*/*" + f + ".flag 2> /dev/null", shell=True)
+        # Collect the files by flag and sort by flag name.
+        if all_folders:
+            def _glob_expr(flag_name):
+                flag_file_name = "{}.flag".format(flag_name)
+                return os.path.join(self.prj.metadata.results_subdir,
+                                    "*", flag_file_name)
+            files_by_flag = {f: _glob_expr(f) for f in flags}
+        else:
+            files_by_flag = fetch_flag_files(self.prj, flags)
+
+        # For each flag, output occurrence count.
+        for flag in flags:
+            """
+            Skip output for flags with no files.
+            if 0 == len(files):
+                continue
+            """
+            _LOGGER.info("%s: %d", flag.upper(), len(files_by_flag[flag]))
+
+        # For each flag, output filepath(s) if not overly verbose.
+        for flag in flags:
+            try:
+                files = files_by_flag[flag]
+            except:
+                # No files for flag.
+                continue
+            # Regardless of whether 0-count flags are previously reported,
+            # don't report an empty file list for a flag that's absent.
+            # If the flag-to-files mapping is defaultdict, absent flag (key)
+            # will fetch an empty collection, so check for length of 0.
+            if 0 < len(files) <= max_file_count:
+                _LOGGER.info("%s (%d):\n%s", flag.upper(),
+                             len(files), "\n".join(files))
 
 
 
@@ -966,7 +991,7 @@ def main():
         if args.command == "check":
             # TODO: hook in fixed samples once protocol differentiation is
             # TODO (continued) figured out (related to #175).
-            check(prj)
+            Checker(prj)(flags=args.flags)
 
         if args.command == "clean":
             return Cleaner(prj)(args)

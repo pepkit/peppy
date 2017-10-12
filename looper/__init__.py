@@ -13,6 +13,9 @@ from sys import stdout
 from ._version import __version__
 
 
+# TODO: import from pep.
+FLAGS = ["completed", "running", "failed", "waiting", "partial"]
+
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
 

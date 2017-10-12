@@ -71,7 +71,7 @@ import yaml
 from .utils import \
     alpha_cased, check_bam, check_fastq, expandpath, \
     get_file_size, import_from_source, parse_ftype, partition, \
-    standard_stream_redirector
+    sample_folder, standard_stream_redirector
 
 
 # TODO: decide if we want to denote functions for export.
@@ -199,7 +199,7 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
 
 
 
-def grab_independent_data(prj):
+def grab_project_data(prj):
     """
     From the given Project, grab Sample-independent data.
 
@@ -393,18 +393,6 @@ def process_pipeline_interfaces(pipeline_interface_locations):
             _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
             interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
     return interface_by_protocol
-
-
-
-def sample_folder(prj, sample):
-    """
-    Get the path to this Project's root folder for the given Sample.
-
-    :param AttributeDict | Project prj: project with which sample is associated
-    :param Sample sample: the Sample for which to get root folder path
-    :return str: this Project's root folder for the given Sample
-    """
-    return _os.path.join(prj.metadata.results_subdir, sample.name)
 
 
 
