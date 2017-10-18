@@ -2311,17 +2311,7 @@ class Sample(object):
                 _LOGGER.debug("Attempting to store %s's %s metadata",
                               self.__class__.__name__,
                               Project.__class__.__name__)
-                proj_data = {}
-                for sect_name in ["metadata", "derived_columns",
-                                        IMPLICATIONS_DECLARATION, "trackhubs"]:
-                    try:
-                        section = getattr(obj, sect_name)
-                    except AttributeError:
-                        _LOGGER.debug("Project lacks section '%s'",
-                                      sect_name)
-                        continue
-                    proj_data[sect_name] = obj2dict(section)
-                return proj_data
+                return grab_project_data(obj)
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
