@@ -667,7 +667,8 @@ class Project(AttributeDict):
         for their  attributes (read type, read length) 
         if this is not set in sample metadata.
     :type file_checks: bool
-    :param compute_env_file: Looperenv YAML file specifying compute settings.
+    :param compute_env_file: Environment configuration YAML file specifying
+        compute settings.
     :type compute_env_file: str
     :param no_environment_exception: type of exception to raise if environment
         settings can't be established, optional; if null (the default),
