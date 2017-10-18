@@ -2311,7 +2311,7 @@ class Sample(object):
                 _LOGGER.debug("Attempting to store %s's %s metadata",
                               self.__class__.__name__,
                               Project.__class__.__name__)
-                return grab_project_data(obj)
+                return {k: obj2dict(v) for k, v in grab_project_data(obj).items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
