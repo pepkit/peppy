@@ -280,11 +280,12 @@ class ProtocolInclusionTests:
         confpath = _write_project_files(
             tmpdir, all_samples=samples, sp_name=sp_name,
             sp_samples=list(filter(lambda s: s.protocol in inclusion, samples)))
-        # DEBUG
         try:
             full_project = Project(confpath)
         except Exception:
-            with open(os.path.join(tmpdir.strpath, "metadata", "anns.csv"), 'r') as f:
+            anns_file = os.path.join(tmpdir.strpath, "metadata", "anns.csv")
+            print("Annotations file lines:")
+            with open(anns_file, 'r') as f:
                 print(f.readlines())
             raise
         subproject = Project(confpath, subproject=sp_name)
