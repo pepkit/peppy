@@ -486,8 +486,7 @@ class AttributeDict(MutableMapping):
         self.__dict__["_force_nulls"] = _force_nulls
         # Return requested attribute name if not set?
         self.__dict__["_attribute_identity"] = _attribute_identity
-        if entries:
-            self.add_entries(entries)
+        self.add_entries(entries)
 
 
     def add_entries(self, entries):
@@ -497,6 +496,8 @@ class AttributeDict(MutableMapping):
         :param Iterable[(object, object)] | Mapping | pandas.Series entries:
             collection of pairs of keys and values
         """
+        if entries is None:
+            return
         _LOGGER.log(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
@@ -971,11 +972,25 @@ class Project(AttributeDict):
             given, else all of this Project's samples
         """
         # Use all protocols if none are explicitly specified.
-        samples = self.samples
         protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
+        include_samples = []
+        for s in self.samples:
+            try:
+                proto = s.protocol
+            except AttributeError:
+                include_samples.append(s)
+                continue
+            check_proto = alpha_cased(proto)
+            if check_proto in protocols:
+                include_samples.append(s)
+            else:
+                _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
+        return _pd.DataFrame(include_samples)
+        """
         return _pd.DataFrame(
                 [s.as_series() for s in samples if
                  hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
+        """
 
 
     def build_submission_bundles(self, protocol, priority=True):
@@ -1555,7 +1570,7 @@ class Project(AttributeDict):
 
 
 @copy
-class Sample(object):
+class Sample(AttributeDict):
     """
     Class to model Samples based on a pandas Series.
 
@@ -1578,7 +1593,17 @@ class Sample(object):
     # but complications with serializing and code maintenance
     # made me go back and implement it as a top-level object
     def __init__(self, series, prj=None):
-        super(Sample, self).__init__()
+
+        # Create data, handling library/protocol.
+        data = dict(series)
+        try:
+            protocol = data.pop("library")
+        except KeyError:
+            pass
+        else:
+            data["protocol"] = protocol
+        super(Sample, self).__init__(entries=data)
+
         self.prj = prj
         self.merged_cols = {}
         self.derived_cols_done = []
@@ -1593,13 +1618,6 @@ class Sample(object):
         # This allows summarization of the sample (i.e.,
         # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
-
-        # Set series attributes on self.
-        for key, value in series.items():
-            if key == "library":
-                setattr(self, "protocol", value)
-            else:
-                setattr(self, key, value)
 
         # Ensure Project reference is actual Project or AttributeDict.
         if not isinstance(self.prj, Project):
@@ -1649,6 +1667,10 @@ class Sample(object):
 
 
     def __repr__(self):
+        return "Sample '{}': {}".format(self.name, self.__dict__)
+
+
+    def __str__(self):
         return "Sample '{}'".format(self.name)
 
 
@@ -2300,34 +2322,41 @@ class Sample(object):
         self.yaml_file = path
 
 
-        def obj2dict(obj,
-                     to_skip=("samples", "sheet", "sheet_attributes")):
+        def obj2dict(obj, name=None,
+                to_skip=("merge_table", "samples", "sheet", "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
 
             :param object obj: what to serialize to write to YAML.
+            :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
+            if name:
+                _LOGGER.debug("Converting to dict: '{}'".format(name))
             if isinstance(obj, Project):
                 _LOGGER.debug("Attempting to store %s's %s metadata",
                               self.__class__.__name__,
                               Project.__class__.__name__)
-                return {k: obj2dict(v) for k, v in grab_project_data(obj).items()}
+                return {k: obj2dict(v, name=k)
+                        for k, v in grab_project_data(obj).items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
-                return {k: obj2dict(v) for k, v in obj.__dict__.items()
+                return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
                         if k not in to_skip and
                         (k not in ATTRDICT_METADATA or
                          v != ATTRDICT_METADATA[k])}
             elif isinstance(obj, Mapping):
-                return {k: obj2dict(v)
+                return {k: obj2dict(v, name=k)
                         for k, v in obj.items() if k not in to_skip}
             elif isinstance(obj, (Paths, Sample)):
-                return {k: obj2dict(v)
+                return {k: obj2dict(v, name=k)
                         for k, v in obj.__dict__.items() if
                         k not in to_skip}
+            elif isinstance(obj, _pd.Series):
+                _LOGGER.warn("Serializing series as mapping, not array-like")
+                return obj.to_dict()
             elif hasattr(obj, 'dtype'):  # numpy data types
                 # TODO: this fails with ValueError for multi-element array.
                 return obj.item()
