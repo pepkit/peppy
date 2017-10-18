@@ -494,13 +494,15 @@ class AttributeDict(MutableMapping):
         """
         Update this `AttributeDict` with provided key-value pairs.
 
-        :param collections.Iterable | collections.Mapping entries: collection
-            of pairs of keys and values
+        :param Iterable[(object, object)] | Mapping | pandas.Series entries:
+            collection of pairs of keys and values
         """
         _LOGGER.log(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
+        elif isinstance(entries, _pd.Series):
+            entries = entries.to_dict()
         try:
             entries_iter = entries.items()
         except AttributeError:
