@@ -1656,16 +1656,6 @@ class Sample(AttributeDict):
         return not self == other
 
 
-    def __getitem__(self, item):
-        """
-        Provides dict-style access to attributes
-        """
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            raise KeyError(item)
-
-
     def __repr__(self):
         return "Sample '{}': {}".format(self.name, self.__dict__)
 
@@ -2338,8 +2328,10 @@ class Sample(AttributeDict):
                 _LOGGER.debug("Attempting to store %s's %s metadata",
                               self.__class__.__name__,
                               Project.__class__.__name__)
-                return {k: obj2dict(v, name=k)
-                        for k, v in grab_project_data(obj).items()}
+                prj_data = grab_project_data(obj)
+                _LOGGER.debug("{} data: {}".format(
+                        obj.__class__.__name__, prj_data))
+                return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
