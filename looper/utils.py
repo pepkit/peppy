@@ -12,7 +12,7 @@ import subprocess as sp
 import yaml
 
 from ._version import __version__
-from . import FLAGS
+from . import FLAGS, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -185,6 +185,35 @@ def get_file_size(filename):
         return 0.0
     else:
         return float(total_bytes) / (1024 ** 3)
+
+
+
+def grab_project_data(prj):
+    """
+    From the given Project, grab Sample-independent data.
+
+    There are some aspects of a Project of which it's beneficial for a Sample
+    to be aware, particularly for post-hoc analysis. Since Sample objects
+    within a Project are mutually independent, though, each doesn't need to
+    know about any of the others. A Project manages its, Sample instances,
+    so for each Sample knowledge of Project data is limited. This method
+    facilitates adoption of that conceptual model.
+
+    :param Project prj: Project from which to grab data
+    :return Mapping: Sample-independent data sections from given Project
+    """
+
+    if not prj:
+        return {}
+
+    data = {}
+    for section in SAMPLE_INDEPENDENT_PROJECT_SECTIONS:
+        try:
+            data[section] = prj[section]
+        except KeyError:
+            _LOGGER.debug("Project lacks section '%s', skipping", section)
+
+    return data
 
 
 

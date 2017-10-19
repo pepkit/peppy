@@ -68,10 +68,11 @@ import warnings
 import pandas as _pd
 import yaml
 
+from . import IMPLICATIONS_DECLARATION
 from .utils import \
     alpha_cased, check_bam, check_fastq, expandpath, \
-    get_file_size, import_from_source, parse_ftype, partition, \
-    sample_folder, standard_stream_redirector
+    get_file_size, grab_project_data, import_from_source, parse_ftype, \
+    partition, sample_folder, standard_stream_redirector
 
 
 # TODO: decide if we want to denote functions for export.
@@ -86,7 +87,6 @@ DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
-IMPLICATIONS_DECLARATION = "implied_columns"
 DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
@@ -196,31 +196,6 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
                    alpha_cased(s.protocol) in make_set(inclusion)
 
     return list(filter(keep, proj.samples))
-
-
-
-def grab_project_data(prj):
-    """
-    From the given Project, grab Sample-independent data.
-
-    There are some aspects of a Project of which it's beneficial for a Sample
-    to be aware, particularly for post-hoc analysis. Since Sample objects
-    within a Project are mutually independent, though, each doesn't need to
-    know about any of the others. A Project manages its, Sample instances,
-    so for each Sample knowledge of Project data is limited. This method
-    facilitates adoption of that conceptual model.
-
-    :param Project prj: Project from which to grab data
-    :return Mapping: Sample-independent data sections from given Project
-    """
-    data = {}
-    for section in ["metadata", "derived_columns",
-                    IMPLICATIONS_DECLARATION, "trackhubs"]:
-        if hasattr(prj, section):
-            data[section] = getattr(prj, section)
-        else:
-            _LOGGER.debug("Project lacks section '%s', skipping", section)
-    return data
 
 
 
