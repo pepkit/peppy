@@ -6,7 +6,7 @@ from looper import \
     IMPLICATIONS_DECLARATION, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 from looper.models import AttributeDict, Project
 from looper.utils import grab_project_data
-from helpers import named_param, nonempty_powerset
+from tests.helpers import named_param, nonempty_powerset
 
 
 __author__ = "Vince Reuter"
