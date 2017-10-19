@@ -2286,6 +2286,8 @@ class Sample(AttributeDict):
                       self.__class__.__name__, path)
         self.yaml_file = path
 
+        def _is_project(obj, name=None):
+            return name == "prj"
 
         def obj2dict(obj, name=None,
                 to_skip=("merge_table", "samples", "sheet", "sheet_attributes")):
@@ -2299,13 +2301,11 @@ class Sample(AttributeDict):
             """
             if name:
                 _LOGGER.debug("Converting to dict: '{}'".format(name))
-            if isinstance(obj, Project):
-                _LOGGER.debug("Attempting to store %s's %s metadata",
-                              self.__class__.__name__,
-                              Project.__class__.__name__)
+            if _is_project(obj, name):
+                _LOGGER.debug("Attempting to store %s's project metadata",
+                              self.__class__.__name__)
                 prj_data = grab_project_data(obj)
-                _LOGGER.debug("{} data: {}".format(
-                        obj.__class__.__name__, prj_data))
+                _LOGGER.debug("Sample's project data: {}".format(prj_data))
                 return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
