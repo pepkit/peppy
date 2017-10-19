@@ -24,6 +24,12 @@ class _DummyProject(Project):
 
 @pytest.fixture
 def basic_project_data():
+    """
+    Provide a basic collection of Sample-independent data.
+
+    :return dict[str, object]: Mapping from Project section name to
+        value or collection of values.
+    """
     return {
         "metadata": {
             "sample_annotation": "anns.csv",
@@ -96,23 +102,23 @@ class GrabProjectDataTests:
             self, sample_independent_data, extra_data, data_type):
         """ Only Project data defined as Sample-independent is retrieved. """
 
-        # DEBUG
-        print("type(extra_data): {}".format(type(extra_data)))
-        print("list(map(type, extra_data)): {}".format(list(map(type, extra_data))))
-
+        # Create the data to pass the the argument to the call under test.
         data = copy.deepcopy(sample_independent_data)
         data_updates = {}
         for extra in extra_data:
             data_updates.update(extra)
         data.update(data_updates)
+
+        # Convert to the correct argument type for this test case.
         p = data_type(data)
+
+        # Make the equivalence assertion.
         expected = sample_independent_data
         observed = grab_project_data(p)
         try:
             assert expected == observed
         except AssertionError:
+            # If the test fails, make the diff easier to read.
             print("EXPECTED: {}".format(expected))
             print("OBSERVED: {}".format(observed))
-            # Determine what the data look like.
-            print("P: {}".format(p))
             raise
