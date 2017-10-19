@@ -2287,6 +2287,7 @@ class Sample(AttributeDict):
         self.yaml_file = path
 
         def _is_project(obj, name=None):
+            """ Determine if item to prep for disk is Sample's project. """
             return name == "prj"
 
         def obj2dict(obj, name=None,
