@@ -426,6 +426,9 @@ class ProjectContext(object):
             # Dispatch attribute request to Project.
             return getattr(self.prj, item)
 
+    def __getitem__(self, item):
+        return self.prj[item]
+
     def __enter__(self):
         return self
 
