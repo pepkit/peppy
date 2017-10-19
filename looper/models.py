@@ -2304,7 +2304,7 @@ class Sample(AttributeDict):
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
             if name:
-                _LOGGER.debug("Converting to dict: '{}'".format(name))
+                _LOGGER.log(5, "Converting to dict: '{}'".format(name))
             if _is_project(obj, name):
                 _LOGGER.debug("Attempting to store %s's project metadata",
                               self.__class__.__name__)
