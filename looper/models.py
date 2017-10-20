@@ -1970,7 +1970,7 @@ class Sample(AttributeDict):
                 _os.makedirs(path)
 
 
-    def set_file_paths(self, project):
+    def set_file_paths(self, project=None):
         """
         Sets the paths of all files for this sample.
 
@@ -1978,6 +1978,8 @@ class Sample(AttributeDict):
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
+
+        project = project or self.prj
 
         for col in project.derived_columns:
             # Only proceed if the specified column exists
