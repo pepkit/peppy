@@ -7,7 +7,7 @@ import numpy as np
 from pandas import Series
 import pytest
 import looper
-from looper.models import Sample, SAMPLE_NAME_COLNAME
+from looper.models import AttributeDict, Sample, SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"
@@ -214,3 +214,40 @@ def test_input_files(files, test_type, tmpdir):
             reloaded_sample_data = yaml.load(sf)
         s_reloaded = Sample(reloaded_sample_data)
         assert files == s_reloaded.input_file_paths
+
+
+
+class SetFilePathsTests:
+    """ Tests for setting Sample file paths. """
+
+
+    @pytest.fixture
+    def sample_data(self):
+        return {SAMPLE_NAME_COLNAME: "arbitrary_sample"}
+
+
+    @pytest.mark.parametrize(
+            argnames="prj_data", argvalues=[
+                {"metadata": {"sample_annotation": "anns.csv",
+                    "output_dir": "outdir", "submission_subdir": "submission"}},
+                {"metadata": {"sample_annotation": "annotations.csv",
+                    "output_dir": "outfolder", "results_subdir": "results"}}])
+    @pytest.mark.parametrize(
+            argnames="prj_type", argvalues=[dict, AttributeDict, Series])
+    def test_accepts_its_own_project_context(
+            self, sample_data, prj_data, prj_type):
+        p = prj_type(prj_data)
+        s = Sample(p)
+
+
+
+    def test_infers_its_own_project_context(self):
+        pass
+
+
+    def test_prefers_foreign_project_context(self):
+        pass
+
+
+    def test_no_derived_columns(self):
+        pass

@@ -1981,7 +1981,7 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
-        for col in project.derived_columns:
+        for col in (project.derived_columns or []):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if not hasattr(self, col):
