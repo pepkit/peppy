@@ -3110,6 +3110,10 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
     """
     base_type = Sample
 
+    _, ext = _os.path.splitext(pipeline_filepath)
+    if ext != ".py":
+        return base_type
+
     try:
         _LOGGER.debug("Attempting to import module defined by {}".
                       format(pipeline_filepath))
