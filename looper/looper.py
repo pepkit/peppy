@@ -121,7 +121,7 @@ def parse_arguments():
             default=os.getenv("{}".format(COMPUTE_SETTINGS_VARNAME), ""),
             help="Employ looper environment compute settings.")
     run_subparser.add_argument(
-            "--limit", dest="limit",
+            "--limit", dest="limit", default=None,
             type=int,
             help="Limit to n samples.")
 
@@ -336,7 +336,12 @@ class Runner(Executor):
             for p in protocols
         }
 
-        for sample in self.prj.samples:
+        if args.limit is not None and args.limit < 0:
+            raise ValueError(
+                "Invalid number of samples to run: {}".format(args.limit))
+
+        upper_sample_bound = min(args.limit, len(self.prj.samples))
+        for sample in self.prj.samples[:upper_sample_bound]:
             _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
 
             sample_output_folder = sample_folder(self.prj, sample)
