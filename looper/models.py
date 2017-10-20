@@ -479,7 +479,6 @@ class AttributeDict(MutableMapping):
         """
         if entries is None:
             return
-        _LOGGER.log(5, "Adding entries {}".format(entries))
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
@@ -555,26 +554,16 @@ class AttributeDict(MutableMapping):
         :raises _MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
-        _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
-                    format(key, str(value)))
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
-                _LOGGER.log(5, "Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            _LOGGER.log(5, "'{}' now has keys {}".
-                          format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            _LOGGER.log(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
-        else:
-            _LOGGER.log(5, "Not setting {k} to {v}; _force_nulls: {nulls}".
-                        format(k=key, v=value,
-                               nulls=self.__dict__["_force_nulls"]))
 
 
     def __getitem__(self, item):
