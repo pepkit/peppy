@@ -226,23 +226,24 @@ def is_url(maybe_url):
 
 
 
-def merge_sample(sample, merge_table, data_sources, derived_columns):
+def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
     """
     Use merge table data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
     :param merge_table: data with which to alter Sample
-    :param Mapping data_sources: collection of named paths to data locations
-    :param Iterable[str] derived_columns: names of column for which
-        corresponding Sample attribute's value is data-derived
+    :param Mapping data_sources: collection of named paths to data locations,
+        optional
+    :param Iterable[str] derived_columns: names of columns for which
+        corresponding Sample attribute's value is data-derived, optional
     :return Set[str]: names of columns that were merged
     """
 
-    merged_cols = {}
+    merged_attrs = {}
 
     if merge_table is None:
         _LOGGER.log(5, "No data for sample merge, skipping")
-        return merged_cols
+        return merged_attrs
 
     if SAMPLE_NAME_COLNAME not in merge_table.columns:
         raise KeyError(
@@ -251,22 +252,20 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
 
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
+    
+    # Hash derived columns for faster lookup in case of many samples/columns.
+    derived_columns = set(derived_columns or [])
     _LOGGER.debug("Merging Sample with derived columns: {}".
                   format(derived_columns))
 
-    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
-                     getattr(sample, SAMPLE_NAME_COLNAME)
-    merge_rows = merge_table[sample_indexer]
-
-    if len(merge_rows) == 0:
+    sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
+    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == sample_name
+    this_sample_rows = merge_table[sample_indexer]
+    if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
-        return merged_cols
-
-    # Hash derived columns for faster lookup in case of many samples/columns.
-    derived_columns = set(derived_columns)
-    _LOGGER.log(5, "%d rows to merge", len(merge_rows))
-
-    _LOGGER.log(5, "Merge rows dict: {}".format(merge_rows.to_dict()))
+        return merged_attrs
+    _LOGGER.log(5, "%d rows to merge", len(this_sample_rows))
+    _LOGGER.log(5, "Merge rows dict: {}".format(this_sample_rows.to_dict()))
 
     # For each row in the merge table of this sample:
     # 1) populate any derived columns
@@ -274,42 +273,46 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     # 3) update the sample values with the merge table
     # Keep track of merged cols,
     # so we don't re-derive them later.
-    merged_cols = {key: "" for key in merge_rows.columns}
-    for _, row in merge_rows.iterrows():
-        row_dict = row.to_dict()
-        for col in merge_rows.columns:
-            if col == SAMPLE_NAME_COLNAME or col not in derived_columns:
-                _LOGGER.log(5, "Skipping column: '%s'", col)
+    merged_attrs = {key: "" for key in this_sample_rows.columns}
+    
+    for _, row in this_sample_rows.iterrows():
+        rowdata = row.to_dict()
+        for attr_name, attr_value in rowdata.items():
+            if attr_name == SAMPLE_NAME_COLNAME or \
+                            attr_name not in derived_columns:
+                _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
+            
             # Initialize key in parent dict.
-            col_key = col + COL_KEY_SUFFIX
-            merged_cols[col_key] = ""
-            row_dict[col_key] = row_dict[col]
+            col_key = attr_name + COL_KEY_SUFFIX
+            merged_attrs[col_key] = ""
+            rowdata[col_key] = attr_value
             data_src_path = sample.locate_data_source(
-                    data_sources, col, source_key=row_dict[col],
-                    extra_vars=row_dict)  # 1)
-            row_dict[col] = data_src_path
+                    data_sources, attr_name, source_key=rowdata[attr_name],
+                    extra_vars=rowdata)  # 1)
+            rowdata[attr_name] = data_src_path
 
         _LOGGER.log(5, "Adding derived columns")
-        # Also add in any derived cols present.
-        for col in derived_columns:
+        
+        for attr in derived_columns:
+            
             # Skip over any attributes that the sample lacks or that are
             # covered by the data from the current (row's) data.
-            if not hasattr(sample, col) or col in row_dict:
-                _LOGGER.log(5, "Skipping column: '%s'", col)
+            if not hasattr(sample, attr) or attr in rowdata:
+                _LOGGER.log(5, "Skipping column: '%s'", attr)
                 continue
-            # Map column name key to sample's value
-            # for the attribute given by column name.
-            col_key = col + COL_KEY_SUFFIX
-            row_dict[col_key] = getattr(sample, col)
-            # Map the column name itself to the
-            # populated data source template string.
-            row_dict[col] = sample.locate_data_source(
-                    data_sources, col, source_key=getattr(sample, col),
-                    extra_vars=row_dict)
+            
+            # Map key to sample's value for the attribute given by column name.
+            col_key = attr + COL_KEY_SUFFIX
+            rowdata[col_key] = getattr(sample, attr)
+            # Map the col/attr name itself to the populated data source 
+            # template string.
+            rowdata[attr] = sample.locate_data_source(
+                    data_sources, attr, source_key=getattr(sample, attr),
+                    extra_vars=rowdata)
             _LOGGER.debug("PROBLEM adding derived column: "
-                          "{}, {}, {}".format(col, row_dict[col],
-                                              getattr(sample, col)))
+                          "{}, {}, {}".format(attr, rowdata[attr],
+                                              getattr(sample, attr)))
 
         # Since we are now jamming multiple (merged) entries into a single
         # attribute on a Sample, we have to join the individual items into a
@@ -319,26 +322,26 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
         # the choice of space-delimited string as the joined-/merged-entry
         # format--it's what's most amenable to use in building up an argument
         # string for a pipeline command.
-        for key, val in row_dict.items():
-            if key == SAMPLE_NAME_COLNAME or not val:
-                _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
+        for attname, attval in rowdata.items():
+            if attname == SAMPLE_NAME_COLNAME or not attval:
+                _LOGGER.log(5, "Skipping KV: {}={}".format(attname, attval))
                 continue
             _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
-                        str(sample.name), str(key), str(val))
-            if not key in merged_cols:
-                new_val = str(val).rstrip()
+                        str(sample.name), str(attname), str(attval))
+            if attname not in merged_attrs:
+                new_attval = str(attval).rstrip()
             else:
-                new_val = "{} {}".format(merged_cols[key], str(val)).strip()
-            merged_cols[key] = new_val  # 2)
-            _LOGGER.log(5, "Stored '%s' as value for '%s' in merged_cols",
-                        new_val, key)
+                new_attval = "{} {}".format(merged_attrs[attname], str(attval)).strip()
+            merged_attrs[attname] = new_attval  # 2)
+            _LOGGER.log(5, "Stored '%s' as value for '%s' in merged_attrs",
+                        new_attval, attname)
 
-    # Don't update sample_name.
-    merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+    # If present, remove sample name from the data with which to update sample.
+    merged_attrs.pop(SAMPLE_NAME_COLNAME, None)
 
-    _LOGGER.log(5, "Updating Sample {}: {}".format(sample.name, merged_cols))
-    sample.update(merged_cols)  # 3)
-    sample.merged_cols = merged_cols
+    _LOGGER.log(5, "Updating Sample {}: {}".format(sample.name, merged_attrs))
+    sample.update(merged_attrs)  # 3)
+    sample.merged_cols = merged_attrs
     sample.merged = True
 
     return sample
@@ -1911,8 +1914,7 @@ class Sample(AttributeDict):
         """
 
         if not data_sources:
-            # TODO: should this be a null/empty-string return, or actual error?
-            raise ValueError("No data sources")
+            return None
 
         if not source_key:
             try:
@@ -2000,7 +2002,7 @@ class Sample(AttributeDict):
             setattr(self, col_key, col_key_val)
 
             # Determine the filepath for the current data source and set that
-            # attribute on this sample if it's non-empy/null.
+            # attribute on this sample if it's non-empty/null.
             filepath = self.locate_data_source(
                     data_sources=project.get(DATA_SOURCES_SECTION),
                     column_name=col)
