@@ -1182,6 +1182,8 @@ class Project(AttributeDict):
             return " ".join(optargs_texts)
 
         default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
+        _LOGGER.debug("Creating additional argstring text for pipeline '%s'",
+                      pipeline_name)
         pipeline_argtext = create_argtext(pipeline_name)
 
         if not pipeline_argtext:
@@ -2592,8 +2594,11 @@ class PipelineInterface(object):
         args = config["arguments"]
         for pipe_opt, sample_attr in args.iteritems():
             if sample_attr is None:
-                _LOGGER.debug("Null value for pipeline option/argument '%s'",
+                _LOGGER.debug("Option '%s' is not mapped to a sample "
+                              "attribute, so it will be added to the pipeline "
+                              "argument string as a flag-like option.",
                               str(pipe_opt))
+                argstring += " {}".format(pipe_opt)
                 continue
 
             try:
