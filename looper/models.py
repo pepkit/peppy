@@ -277,12 +277,17 @@ def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
     
     for _, row in this_sample_rows.iterrows():
         rowdata = row.to_dict()
-        for attr_name, attr_value in rowdata.items():
+
+        # Iterate over column names to avoid Python3 RuntimeError for
+        # during-iteration change of dictionary size.
+        for attr_name in this_sample_rows.columns:
             if attr_name == SAMPLE_NAME_COLNAME or \
                             attr_name not in derived_columns:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
-            
+
+            attr_value = rowdata[attr_name]
+
             # Initialize key in parent dict.
             col_key = attr_name + COL_KEY_SUFFIX
             merged_attrs[col_key] = ""
