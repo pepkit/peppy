@@ -8,6 +8,7 @@ from pandas import Series
 import pytest
 import looper
 from looper.models import AttributeDict, Sample, SAMPLE_NAME_COLNAME
+from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
@@ -220,25 +221,28 @@ def test_input_files(files, test_type, tmpdir):
 class SetFilePathsTests:
     """ Tests for setting Sample file paths. """
 
-
-    @pytest.fixture
-    def sample_data(self):
-        return {SAMPLE_NAME_COLNAME: "arbitrary_sample"}
+    SRC_KEY = "src"
 
 
     @pytest.mark.parametrize(
             argnames="prj_data", argvalues=[
                 {"metadata": {"sample_annotation": "anns.csv",
-                    "output_dir": "outdir", "submission_subdir": "submission"}},
+                    "output_dir": "outdir",
+                    "results_subdir": "results_pipeline",
+                    "submission_subdir": "submission"},
+                 "data_sources": {SRC_KEY: "arbitrary-filepath"}},
                 {"metadata": {"sample_annotation": "annotations.csv",
-                    "output_dir": "outfolder", "results_subdir": "results"}}])
-    @pytest.mark.parametrize(
-            argnames="prj_type", argvalues=[dict, AttributeDict, Series])
-    def test_accepts_its_own_project_context(
-            self, sample_data, prj_data, prj_type):
-        p = prj_type(prj_data)
-        s = Sample(p)
-
+                    "output_dir": "outfolder",
+                    "submission_subdir": "submission",
+                    "results_subdir": "results"},
+                 "data_sources": {SRC_KEY: "just-testing"}}])
+    def test_accepts_its_own_project_context(self, prj_data):
+        sample_data = AttributeDict(
+                {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data})
+        s1, s2 = Sample(sample_data), Sample(sample_data)
+        implicit = s1.set_file_paths()
+        explicit = s2.set_file_paths(sample_data.prj)
+        assert implicit == explicit
 
 
     def test_infers_its_own_project_context(self):
@@ -251,3 +255,39 @@ class SetFilePathsTests:
 
     def test_no_derived_columns(self):
         pass
+
+
+
+class LocateDataSourceTests:
+    """ Tests for determining data source filepath. """
+
+    SOURCE_KEYS = ["src1", "src2"]
+    PATH_BY_KEY = {"src1": "pathA", "src2": "pathB"}
+
+
+    @pytest.fixture
+    def prj_data(self):
+        data = {"metadata": {"sample_annotation": "anns.csv"}}
+        data.update({"data_sources": self.PATH_BY_KEY})
+        return data
+
+
+    @named_param(
+        argnames="colname",
+        argvalues=["data_source", "data", "src", "input", "filepath"])
+    @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
+    @named_param(argnames="data_type", argvalues=[dict, AttributeDict])
+    @named_param(argnames="include_data_sources", argvalues=[False, True])
+    def test_accuracy_and_allows_empty_data_sources(
+            self, colname, src_key, prj_data, data_type, include_data_sources):
+        sample_data = data_type(
+            {SAMPLE_NAME_COLNAME: "random-sample",
+             "prj": prj_data, colname: src_key})
+        s = Sample(sample_data)
+        data_sources = s.prj.data_sources if include_data_sources else None
+        path = s.locate_data_source(
+                data_sources, column_name=colname, source_key=src_key)
+        if include_data_sources:
+            assert self.PATH_BY_KEY[src_key] == path
+        else:
+            assert path is None

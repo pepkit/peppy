@@ -1963,14 +1963,15 @@ class Sample(AttributeDict):
         """
         Sets the paths of all files for this sample.
 
-        :param Project project: object with pointers to data paths and such
+        :param AttributeDict project: object with pointers to data paths and
+            such, either full Project or AttributeDict with sufficient data
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
 
         project = project or self.prj
 
-        for col in (project.derived_columns or []):
+        for col in project.get("derived_columns", []):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if not hasattr(self, col):
