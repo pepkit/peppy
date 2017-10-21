@@ -1,5 +1,6 @@
 """ Tests for the Sample. """
 
+import copy
 import os
 import yaml
 import mock
@@ -7,7 +8,9 @@ import numpy as np
 from pandas import Series
 import pytest
 import looper
-from looper.models import AttributeDict, Sample, SAMPLE_NAME_COLNAME
+from looper.models import \
+    AttributeDict, Sample, DATA_SOURCE_COLNAME, \
+    DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
 from tests.helpers import named_param
 
 
@@ -123,6 +126,7 @@ class SampleRequirementsTests:
         argnames="has_name", argvalues=[False, True],
         ids=lambda has_name: "has_name: {}".format(has_name))
     def test_requires_sample_name(self, has_name, data_type):
+        """ Construction of sample requires data with sample name. """
         data = {}
         sample_name = "test-sample"
         if has_name:
@@ -204,7 +208,8 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
 def test_input_files(files, test_type, tmpdir):
     """ Test for access to Sample input files. """
     file_text = " ".join(files)
-    sample_data = {"sample_name": "test-sample", "data_source": file_text}
+    sample_data = {"sample_name": "test-sample",
+                   DATA_SOURCE_COLNAME: file_text}
     s = Sample(sample_data)
     assert file_text == s.data_source
     assert files == s.input_file_paths
@@ -221,40 +226,103 @@ def test_input_files(files, test_type, tmpdir):
 class SetFilePathsTests:
     """ Tests for setting Sample file paths. """
 
-    SRC_KEY = "src"
+
+    SOURCE_KEYS = ["src1", "src2"]
+    DATA_SOURCES = {"src1": "pathA", "src2": "pathB"}
 
 
-    @pytest.mark.parametrize(
-            argnames="prj_data", argvalues=[
-                {"metadata": {"sample_annotation": "anns.csv",
-                    "output_dir": "outdir",
-                    "results_subdir": "results_pipeline",
-                    "submission_subdir": "submission"},
-                 "data_sources": {SRC_KEY: "arbitrary-filepath"}},
-                {"metadata": {"sample_annotation": "annotations.csv",
-                    "output_dir": "outfolder",
-                    "submission_subdir": "submission",
-                    "results_subdir": "results"},
-                 "data_sources": {SRC_KEY: "just-testing"}}])
-    def test_accepts_its_own_project_context(self, prj_data):
+    @pytest.fixture
+    def prj_data(self, request):
+        """ Provide test case with some basic Project data. """
+        if "data_src_attr" in request.fixturenames:
+            data_src = request.getfixturevalue("data_src_attr")
+        else:
+            data_src = DATA_SOURCE_COLNAME
+        return {
+            "metadata": {
+                "sample_annotation": "anns.csv", "output_dir": "outdir",
+                "results_subdir": "results_pipeline",
+                "submission_subdir": "submission"},
+            DATA_SOURCES_SECTION: self.DATA_SOURCES,
+            "derived_columns": [data_src]}
+
+
+    @named_param(
+        argnames="data_src_attr",
+        argvalues=[DATA_SOURCE_COLNAME, "src", "filepath", "data"])
+    @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
+    @named_param(argnames="explicit", argvalues=[False, True])
+    def test_equivalence_between_implicit_and_explicit_prj(
+            self, prj_data, data_src_attr, src_key, explicit):
+        """ Passing Sample's project is equivalent to its inference. """
+        
+        # Explicitly-passed object needs to at least be an AttributeDict.
         sample_data = AttributeDict(
-                {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data})
-        s1, s2 = Sample(sample_data), Sample(sample_data)
-        implicit = s1.set_file_paths()
-        explicit = s2.set_file_paths(sample_data.prj)
-        assert implicit == explicit
+                {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
+                 data_src_attr: src_key, "derived_columns": [data_src_attr]})
+        
+        # Create the samples and make the calls under test.
+        s = Sample(sample_data)
+        if explicit:
+            s.set_file_paths(sample_data.prj)
+        else:
+            s.set_file_paths()
+        
+        # Check results.
+        expected = self.DATA_SOURCES[src_key]
+        observed = getattr(s, data_src_attr)
+        assert expected == observed
 
 
-    def test_infers_its_own_project_context(self):
-        pass
+    def test_prefers_explicit_project_context(self, prj_data):
+        """ Explicit project data overrides any pre-stored project data. """
+        prj_data_modified = AttributeDict(copy.deepcopy(prj_data))
+        new_src = "src3"
+        new_src_val = "newpath"
+        assert new_src not in prj_data[DATA_SOURCES_SECTION]
+        prj_data_modified[DATA_SOURCES_SECTION][new_src] = new_src_val
+        sample_data = AttributeDict(
+            {SAMPLE_NAME_COLNAME: "random-sample",
+             "prj": prj_data, DATA_SOURCE_COLNAME: new_src})
+        s = Sample(sample_data)
+        s.set_file_paths(prj_data_modified)
+        assert new_src_val == getattr(s, DATA_SOURCE_COLNAME)
 
 
-    def test_prefers_foreign_project_context(self):
-        pass
+    @named_param(argnames="exclude_derived_columns", argvalues=[False, True])
+    def test_no_derived_columns(self, prj_data, exclude_derived_columns):
+        """ Passing Sample's project is equivalent to its inference. """
 
+        # Here we're disinterested in parameterization w.r.t. data source key,
+        # so make it constant.
+        src_key = self.SOURCE_KEYS[0]
 
-    def test_no_derived_columns(self):
-        pass
+        # Explicitly-passed object needs to at least be an AttributeDict.
+        if exclude_derived_columns:
+            prj_data.pop("derived_columns")
+        sample_data = {
+                SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
+                DATA_SOURCE_COLNAME: src_key}
+        sample_data = AttributeDict(sample_data)
+        s = Sample(sample_data)
+
+        assert not hasattr(s, src_key)
+        assert src_key not in s
+
+        # Create the samples and make the calls under test.
+        s = Sample(sample_data)
+        s.set_file_paths()
+
+        # Check results.
+        putative_new_attr = self.DATA_SOURCES[src_key]
+        if exclude_derived_columns:
+            # The value to which the source key maps won't have been added.
+            assert not hasattr(s, putative_new_attr)
+            assert putative_new_attr not in s
+        else:
+            # The value to which the source key maps will have been added.
+            assert putative_new_attr == getattr(s, DATA_SOURCE_COLNAME)
+            assert putative_new_attr == s[DATA_SOURCE_COLNAME]
 
 
 
@@ -267,19 +335,21 @@ class LocateDataSourceTests:
 
     @pytest.fixture
     def prj_data(self):
+        """ Provide basic Project data to test case. """
         data = {"metadata": {"sample_annotation": "anns.csv"}}
-        data.update({"data_sources": self.PATH_BY_KEY})
+        data.update({DATA_SOURCES_SECTION: self.PATH_BY_KEY})
         return data
 
 
     @named_param(
         argnames="colname",
-        argvalues=["data_source", "data", "src", "input", "filepath"])
+        argvalues=[DATA_SOURCE_COLNAME, "data", "src", "input", "filepath"])
     @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
     @named_param(argnames="data_type", argvalues=[dict, AttributeDict])
     @named_param(argnames="include_data_sources", argvalues=[False, True])
     def test_accuracy_and_allows_empty_data_sources(
             self, colname, src_key, prj_data, data_type, include_data_sources):
+        """ Locator is accurate and does not require data source map. """
         sample_data = data_type(
             {SAMPLE_NAME_COLNAME: "random-sample",
              "prj": prj_data, colname: src_key})
