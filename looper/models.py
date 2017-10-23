@@ -1976,6 +1976,8 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
+        self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
+
         for col in project.get("derived_columns", []):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
@@ -2011,8 +2013,6 @@ class Sample(AttributeDict):
                               "'{}': {}".format(col, type(filepath)))
 
             self.derived_cols_done.append(col)
-
-        self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
 
         # Parent
         self.results_subdir = project.metadata.results_subdir
