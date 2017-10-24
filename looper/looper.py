@@ -50,17 +50,6 @@ def parse_arguments():
             "'%(prog)s <subcommand> -h'"
     additional_description += "\nhttps://github.com/epigen/looper"
 
-    # Accommodate detailed help.
-    preparser = argparse.ArgumentParser(add_help=False)
-    preparser.add_argument("--details", action="store_true", default=False)
-    args, remaining_args = preparser.parse_known_args()
-    if args.details:
-        suppress_details = False
-    else:
-        suppress_details = argparse.SUPPRESS
-        additional_description += \
-                "\n  For debug options, type: '%(prog)s -h --details'"
-
     parser = VersionInHelpParser(
             description=banner,
             epilog=additional_description,
@@ -73,18 +62,17 @@ def parse_arguments():
     # Logging control
     parser.add_argument(
             "--logfile", dest="logfile",
-            help=suppress_details or "Optional output file for looper logs")
+            help="Optional output file for looper logs")
     parser.add_argument(
             "--verbosity", dest="verbosity",
             type=int, choices=range(len(_LEVEL_BY_VERBOSITY)),
-            help=suppress_details or "Choose level of verbosity")
+            help="Choose level of verbosity")
     parser.add_argument(
             "--logging-level", dest="logging_level",
             help=argparse.SUPPRESS)
     parser.add_argument(
-            "--dbg", dest="dbg",
-            action="store_true",
-            help=suppress_details or "Turn on debug mode")
+            "--dbg", dest="dbg", action="store_true",
+            help="Turn on debug mode")
 
     # Individual subcommands
     msg_by_cmd = {
