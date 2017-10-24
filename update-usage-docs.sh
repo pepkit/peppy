@@ -1,3 +1,4 @@
+#!/bin/bash
 cp doc/source/usage.template usage.template
 #looper --help > USAGE.temp 2>&1
 
