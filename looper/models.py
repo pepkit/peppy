@@ -362,7 +362,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
         pipeline interface and protocol mappings information. Each such file
         should be have a pipelines section and a protocol mappings section
         whereas each folder should have a file for each of those sections.
-    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol 
+    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol
         name to interface(s) for which that protocol is mapped
     """
     interface_by_protocol = defaultdict(list)
@@ -2528,9 +2528,10 @@ class PipelineInterface(object):
         if "file_size" in default_resource_package:
             del default_resource_package["file_size"]
         resources[DEFAULT_COMPUTE_RESOURCES_NAME]["min_file_size"] = 0
-        # Sort packages by descending file size minimum to return first
-        # package for which given file size satisfies the minimum.
+
         try:
+            # Sort packages by descending file size minimum to return first
+            # package for which given file size satisfies the minimum.
             resource_packages = sorted(
                 resources.items(),
                 key=lambda name_and_data: file_size_ante(*name_and_data),
@@ -2732,7 +2733,7 @@ class ProtocolInterface(object):
     the location(s) from which the PipelineInterface and ProtocolMapper came.
 
     :param interface_data_source: location (e.g., code repository) of pipelines
-    :type interface_data_source: str
+    :type interface_data_source: str | Mapping
 
     """
 
