@@ -383,6 +383,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
 SubmissionBundle = namedtuple(
     "SubmissionBundle",
     field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
+SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX = 2
 
 
 
@@ -2487,6 +2488,9 @@ class PipelineInterface(object):
         :raises _InvalidResourceSpecificationException: if no default
             resource package specification is provided
         """
+
+        # Ensure that we have a numeric value before attempting comparison.
+        file_size = float(file_size)
 
         if file_size < 0:
             raise ValueError("Attempted selection of resource package for "

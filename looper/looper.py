@@ -5,6 +5,7 @@ Looper: a pipeline submission engine. https://github.com/epigen/looper
 
 import abc
 import argparse
+from collections import defaultdict
 import glob
 import logging
 import os
@@ -17,7 +18,8 @@ from . import setup_looper_logger, FLAGS, LOGGING_LEVEL, __version__
 from .loodels import Project
 from .models import \
     grab_project_data, ProjectContext, Sample, \
-    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
+    SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX, VALID_READ_TYPES
 from .utils import \
     alpha_cased, fetch_flag_files, sample_folder, VersionInHelpParser
 
@@ -296,9 +298,203 @@ class Destroyer(Executor):
 
 
 
+def create_pipeline_submissions(
+        prj, data_bundle_pairs, update_partition, extra_args, lump_size=1):
+    """
+    Submit samples for a particular pipeline.
+
+    :param AttributeDict prj:
+    :param Iterable[Mapping, tuple] data_bundle_pairs:
+    :param callable update_partition:
+    :param extra_args:
+    :param int lump_size: number of commands to lump into one script, i.e.
+        job submission; default 1
+    :return str, Iterable[Mapping[str, object]], Iterable[[str, str]]:
+    """
+
+    # TODO: permit collection of sample data and subtype pairs, and
+    # perhaps pipeline job, but only permit one pipeline key and pipeline interface.
+    # This will eliminate the need and hassle of checking/enforcing key
+    # and name uniqueness.
+
+    from collections import Counter
+
+    if not data_bundle_pairs:
+        raise ValueError("Empty submission collection")
+    pl_keys = [bundle[SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX]
+               for _, bundle in data_bundle_pairs]
+    first_pl_key = pl_keys[0]
+    discordance = Counter(filter(lambda pk: pk != first_pl_key, pl_keys))
+    if discordance:
+        raise ValueError("Discordant pipeline keys; first was '{}': {}".
+                         format(first_pl_key, discordance))
+
+    failures = []
+    settings = []
+
+    # Pipeline name is the key used for flag checking.
+    # It's used not just to log the message here but is also returned
+    # to the caller for use in flag checking. Set once, on first time through
+    # the loop, then validate subsequent observations for agreement.
+    pipeline_name = None
+
+    for sample_data, submission_bundle in data_bundle_pairs:
+        pl_iface, subtype, pl_key, pl_job = submission_bundle
+
+        # Since pipeline name is ultimately used for flag checking, enforce
+        # name uniformity. This is reasonable since we pre-test pipeline
+        # key uniformity.
+        pl_name = pl_iface.get_pipeline_name(pl_key)
+        if pipeline_name is None:
+            pipeline_name = pl_name
+        elif pl_name != pipeline_name:
+            errmsg = "Mismatched pipeline name for same submission batch; " \
+                     "key '{}' mapped to '{}' while '{}' mapped to '{}'".\
+                    format(first_pl_key, pipeline_name, pl_key, pl_name)
+            raise ValueError(errmsg)
+
+        sample = subtype(sample_data)
+        _LOGGER.debug("Created %s instance: '%s'",
+                      subtype.__name__, sample.sample_name)
+        sample.prj = grab_project_data(prj)
+
+        # The current sample is active.
+        # For each pipeline submission consideration, start fresh.
+        skip_reasons = []
+
+        _LOGGER.debug("Setting pipeline attributes for job '{}' "
+                      "(PL_ID: '{}')".format(pl_job, pl_key))
+        try:
+            # Add pipeline-specific attributes.
+            sample.set_pipeline_attributes(pl_iface, pipeline_name=pl_key)
+        except AttributeError:
+            # TODO: inform about WHICH missing attribute(s).
+            fail_message = "Pipeline required attribute(s) missing"
+            _LOGGER.warn("> Not submitted: %s", fail_message)
+            skip_reasons.append(fail_message)
+
+        # Check for any missing requirements before submitting.
+        _LOGGER.debug("Determining missing requirements")
+        error_type, missing_reqs_msg = \
+            sample.determine_missing_requirements()
+        if missing_reqs_msg:
+            if prj.permissive:
+                _LOGGER.warn(missing_reqs_msg)
+            else:
+                raise error_type(missing_reqs_msg)
+            _LOGGER.warn("> Not submitted: %s", missing_reqs_msg)
+            skip_reasons.append(missing_reqs_msg)
+
+        # Check if single_or_paired value is recognized.
+        if hasattr(sample, "read_type"):
+            # Drop "-end", "_end", or "end" from end of the column value.
+            rtype = re.sub('[_\\-]?end$', '',
+                           str(sample.read_type))
+            sample.read_type = rtype.lower()
+            if sample.read_type not in VALID_READ_TYPES:
+                _LOGGER.debug(
+                    "Invalid read type: '{}'".format(sample.read_type))
+                skip_reasons.append("read_type must be in {}".
+                                    format(VALID_READ_TYPES))
+
+        # Identify cluster resources required for this submission.
+        submit_settings = pl_iface.choose_resource_package(
+            pl_key, sample.input_file_size)
+
+        # Reset the partition if it was specified on the command-line.
+        submit_settings = update_partition(submit_settings)
+
+        # Build up command line string; begin with base pipeline job.
+        cmd = pl_job
+
+        # Append arguments for this pipeline
+        # Sample-level arguments are handled by the pipeline interface.
+        try:
+            argstring = pl_iface.get_arg_string(
+                pipeline_name=pl_key, sample=sample,
+                submission_folder_path=prj.metadata.submission_subdir)
+        except AttributeError:
+            # TODO: inform about which missing attribute(s).
+            fail_message = "Required attribute(s) missing " \
+                           "for pipeline arguments string"
+            _LOGGER.warn("> Not submitted: %s", fail_message)
+            skip_reasons.append(fail_message)
+        else:
+            argstring += " "
+
+        if skip_reasons:
+            # Sample is active, but we've at least 1 pipeline skip reason.
+            failures.append([skip_reasons, sample.sample_name])
+            continue
+
+        _LOGGER.info("> Building submission for Pipeline: '{}' "
+                     "(input: {:.2f} Gb)".format(
+            pl_job, sample.input_file_size))
+
+        # Project-level arguments (sample-agnostic) are handled separately.
+        argstring += prj.get_arg_string(pl_key)
+        cmd += argstring
+
+        if pl_iface.uses_looper_args(pl_key):
+            # These are looper_args, -C, -O, -M, and -P. If the pipeline
+            # implements these arguments, then it lists looper_args=True,
+            # and we add the arguments to the command string.
+
+            if hasattr(prj, "pipeline_config"):
+                # Index with 'pl_key' instead of 'pipeline'
+                # because we don't care about parameters here.
+                if hasattr(prj.pipeline_config, pl_key):
+                    # First priority: pipeline config in project config
+                    pl_config_file = getattr(prj.pipeline_config,
+                                             pl_key)
+                    # Make sure it's a file (it could be provided as null.)
+                    if pl_config_file:
+                        if not os.path.isfile(pl_config_file):
+                            _LOGGER.error(
+                                "Pipeline config file specified "
+                                "but not found: %s", pl_config_file)
+                            raise IOError(pl_config_file)
+                        _LOGGER.info("Found config file: %s",
+                                     pl_config_file)
+                        # Append arg for config file if found
+                        cmd += " -C " + pl_config_file
+
+            cmd += " -O " + prj.metadata.results_subdir
+            if int(submit_settings.setdefault("cores", 1)) > 1:
+                cmd += " -P " + submit_settings["cores"]
+            try:
+                if float(submit_settings["mem"]) > 1:
+                    cmd += " -M " + submit_settings["mem"]
+            except KeyError:
+                _LOGGER.warn("Submission settings lack "
+                             "memory specification")
+
+        # Add command string and job name to the submit_settings object.
+        submit_settings["JOBNAME"] = "{}_{}".format(sample.name, pl_key)
+        submit_settings["CODE"] = cmd
+
+        settings.append(submit_settings)
+
+        """
+        # Create submission script (write script to disk)!
+        _LOGGER.debug(
+            "Creating submission script for pipeline %s: '%s'",
+            pl_name, sample.sample_name)
+        submit_script = create_submission_script(
+            sample, template_values=submit_settings,
+            template=prj.compute.submission_template,
+            submission_folder=prj.metadata.submission_subdir,
+            pipeline_name=pl_name, extra_args=extra_args)
+        scripts.append(submit_script)
+        """
+
+    return pipeline_name, scripts, failures
+
+
+
 class Runner(Executor):
     """ The true submitter of pipelines """
-    
+
     def __call__(self, args, remaining_args):
         """
         Do the Sample submission.
@@ -308,12 +504,13 @@ class Runner(Executor):
         :param list remaining_args: command-line options and arguments not 
             recognized by looper, germane to samples/pipelines
         """
+
         protocols = {s.protocol for s in self.prj.samples if hasattr(s, "protocol")}
 
         _LOGGER.info("Protocols: %s", ", ".join(protocols))
 
         # Keep track of how many jobs have been submitted.
-        job_count = 0  # Some job templates will be skipped.
+        num_jobs = 0  # Some job templates will be skipped.
         submit_count = 0  # Some jobs won't be submitted.
         processed_samples = set()
 
@@ -348,9 +545,15 @@ class Runner(Executor):
                 ss["partition"] = partition
                 return ss
 
+        sample_data_bundle_pair_by_pipeline_key = defaultdict(list)
 
         for sample in self.prj.samples[:upper_sample_bound]:
-            _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
+            # First, step through the samples and determine whether any
+            # should be skipped entirely, based on sample attributes alone
+            # and independent of anything about any of its pipelines.
+
+            _LOGGER.info(self.counter.show(
+                    sample.sample_name, sample.protocol))
 
             sample_output_folder = sample_folder(self.prj, sample)
             _LOGGER.debug("Sample output folder: '%s'", sample_output_folder)
@@ -374,8 +577,8 @@ class Runner(Executor):
                 protocol = protocol.upper()
                 _LOGGER.debug("Fetching submission bundle, "
                               "using '%s' as protocol key", protocol)
-                submission_bundles = submission_bundle_by_protocol.get(
-                    protocol)
+                submission_bundles = \
+                        submission_bundle_by_protocol.get(protocol)
                 if not submission_bundles:
                     skip_reasons.append("No submission bundle for protocol")
 
@@ -385,8 +588,8 @@ class Runner(Executor):
                 failures.append([skip_reasons, sample.sample_name])
                 continue
 
-            # TODO: determine what to do with subtype(s) here.
             # Processing preconditions have been met.
+            # Add this sampleto the processed collection.
             processed_samples.add(sample.sample_name)
 
             # At this point, we have a generic Sample; write that to disk
@@ -398,189 +601,62 @@ class Runner(Executor):
             # Store the base Sample data for reuse in creating subtype(s).
             sample_data = sample.as_series()
 
-            # Go through all pipelines to submit for this sample's protocol.
-            # Note: control flow doesn't reach this point if variable "pipelines"
-            # cannot be assigned (library/protocol missing).
-            # pipeline_key (previously pl_id) is no longer necessarily
-            # script name, it's more flexible.
-            for pipeline_interface, sample_subtype, pipeline_key, pipeline_job in \
-                    submission_bundles:
-                job_count += 1
+            # Each submission bundle corresponds to a particular pipeline
+            # by which this sample should be processed. Pair the sample
+            # data with the group/bundle of objects that will be used to
+            # submit it.
+            for sb in submission_bundles:
+                pl_key = sb[SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX]
+                data_bundle_pair = (sample_data, sb)
+                # Key by pipeline so that we can lump submissions for a
+                # single pipeline together if desired.
+                sample_data_bundle_pair_by_pipeline_key[pl_key].\
+                        append(data_bundle_pair)
 
-                _LOGGER.debug("Creating %s instance: '%s'",
-                              sample_subtype.__name__, sample.sample_name)
-                sample = sample_subtype(sample_data)
+        # Iterate over collection in which each pipeline key is mapped to
+        # a collection of pairs of sample data and job submission bundle.
+        for pl_key, data_bundle_pairs in \
+                sample_data_bundle_pair_by_pipeline_key.items():
+            num_jobs += len(data_bundle_pairs)
 
-                # The full Project reference is provided here, but this sample
-                # is only in existence for the duration of the outer loop. Plus,
-                # when the Sample is written to disk as a YAML file, only certain
-                # sections that are more likely to be of use in downstream analysis
-                # are written. Nonetheless, it seems possible that this sort of
-                # bare-bones inclusion of Project data within the Sample could
-                # instead be accomplished here, disallowing a Project to be passed
-                # to the Sample, as it appears that use of the Project reference
-                # within Sample has been factored out.
-                sample.prj = grab_project_data(self.prj)
+            _LOGGER.info("Creating submissions for pipeline: '%s'", pl_key)
 
-                # The current sample is active.
-                # For each pipeline submission consideration, start fresh.
-                skip_reasons = []
+            pl_name, settings, fail_reason_sample_pairs = \
+                create_pipeline_submissions(
+                    self.prj, data_bundle_pairs, update_partition,
+                    extra_args=remaining_args)
+            failures.extend(fail_reason_sample_pairs)
 
-                _LOGGER.debug("Setting pipeline attributes for job '{}' "
-                              "(PL_ID: '{}')".format(pipeline_job,
-                                                     pipeline_key))
-                try:
-                    # Add pipeline-specific attributes.
-                    sample.set_pipeline_attributes(
-                        pipeline_interface, pipeline_name=pipeline_key)
-                except AttributeError:
-                    # TODO: inform about WHICH missing attribute(s).
-                    fail_message = "Pipeline required attribute(s) missing"
-                    _LOGGER.warn("> Not submitted: %s", fail_message)
-                    skip_reasons.append(fail_message)
-
-                # Check for any missing requirements before submitting.
-                _LOGGER.debug("Determining missing requirements")
-                error_type, missing_reqs_msg = \
-                    sample.determine_missing_requirements()
-                if missing_reqs_msg:
-                    if self.prj.permissive:
-                        _LOGGER.warn(missing_reqs_msg)
-                    else:
-                        raise error_type(missing_reqs_msg)
-                    _LOGGER.warn("> Not submitted: %s", missing_reqs_msg)
-                    skip_reasons.append(missing_reqs_msg)
-
-                # Check if single_or_paired value is recognized.
-                if hasattr(sample, "read_type"):
-                    # Drop "-end", "_end", or "end" from end of the column value.
-                    rtype = re.sub('[_\\-]?end$', '',
-                                   str(sample.read_type))
-                    sample.read_type = rtype.lower()
-                    if sample.read_type not in VALID_READ_TYPES:
-                        _LOGGER.debug(
-                            "Invalid read type: '{}'".format(sample.read_type))
-                        skip_reasons.append("read_type must be in {}".
-                                            format(VALID_READ_TYPES))
-
-                # Identify cluster resources required for this submission.
-                submit_settings = pipeline_interface.choose_resource_package(
-                    pipeline_key, sample.input_file_size)
-
-                # Reset the partition if it was specified on the command-line.
-                submit_settings = update_partition(submit_settings)
-
-                # Pipeline name is the key used for flag checking.
-                pl_name = pipeline_interface.get_pipeline_name(pipeline_key)
-
-                # Build up command line string; begin with base pipeline job.
-                cmd = pipeline_job
-
-                # Append arguments for this pipeline
-                # Sample-level arguments are handled by the pipeline interface.
-                try:
-                    argstring = pipeline_interface.get_arg_string(
-                        pipeline_name=pipeline_key, sample=sample,
-                        submission_folder_path=self.prj.metadata.submission_subdir)
-                except AttributeError:
-                    # TODO: inform about which missing attribute(s).
-                    fail_message = "Required attribute(s) missing " \
-                                   "for pipeline arguments string"
-                    _LOGGER.warn("> Not submitted: %s", fail_message)
-                    skip_reasons.append(fail_message)
-                else:
-                    argstring += " "
-
-                if skip_reasons:
-                    # Sample is active, but we've at least 1 pipeline skip reason.
-                    failures.append([skip_reasons, sample.sample_name])
-                    continue
-
-                _LOGGER.info("> Building submission for Pipeline: '{}' "
-                             "(input: {:.2f} Gb)".format(pipeline_job,
-                                                         sample.input_file_size))
-
-                # Project-level arguments (sample-agnostic) are handled separately.
-                argstring += self.prj.get_arg_string(pipeline_key)
-                cmd += argstring
-
-                if pipeline_interface.uses_looper_args(pipeline_key):
-                    # These are looper_args, -C, -O, -M, and -P. If the pipeline
-                    # implements these arguments, then it lists looper_args=True,
-                    # and we add the arguments to the command string.
-
-                    if hasattr(self.prj, "pipeline_config"):
-                        # Index with 'pipeline_key' instead of 'pipeline'
-                        # because we don't care about parameters here.
-                        if hasattr(self.prj.pipeline_config, pipeline_key):
-                            # First priority: pipeline config in project config
-                            pl_config_file = getattr(self.prj.pipeline_config,
-                                                     pipeline_key)
-                            # Make sure it's a file (it could be provided as null.)
-                            if pl_config_file:
-                                if not os.path.isfile(pl_config_file):
-                                    _LOGGER.error(
-                                        "Pipeline config file specified "
-                                        "but not found: %s",
-                                        str(pl_config_file))
-                                    raise IOError(pl_config_file)
-                                _LOGGER.info("Found config file: %s",
-                                             str(getattr(self.prj.pipeline_config,
-                                                         pipeline_key)))
-                                # Append arg for config file if found
-                                cmd += " -C " + pl_config_file
-
-                    cmd += " -O " + self.prj.metadata.results_subdir
-                    if int(submit_settings.setdefault("cores", 1)) > 1:
-                        cmd += " -P " + submit_settings["cores"]
-                    try:
-                        if float(submit_settings["mem"]) > 1:
-                            cmd += " -M " + submit_settings["mem"]
-                    except KeyError:
-                        _LOGGER.warn("Submission settings "
-                                     "lack memory specification")
-
-                # Add command string and job name to the submit_settings object.
-                submit_settings["JOBNAME"] = \
-                    sample.sample_name + "_" + pipeline_key
-                submit_settings["CODE"] = cmd
-
-                # Create submission script (write script to disk)!
-                _LOGGER.debug(
-                    "Creating submission script for pipeline %s: '%s'",
-                    pl_name, sample.sample_name)
-                submit_script = create_submission_script(
-                    sample, template_values=submit_settings, 
-                    template=self.prj.compute.submission_template,
-                    submission_folder=self.prj.metadata.submission_subdir,
-                    pipeline_name=pl_name, remaining_args=remaining_args)
-
+            for submit_script in scripts:
                 # Determine how to update submission counts and (perhaps) submit.
                 flag_files = glob.glob(os.path.join(
                     sample_output_folder, pl_name + "*.flag"))
                 if not args.ignore_flags and len(flag_files) > 0:
                     _LOGGER.info("> Not submitting, flag(s) found: {}".
                                  format(flag_files))
+                    # Message more directly analogous to the one for a sample
+                    # that's submitted, for debugging clarity.
                     _LOGGER.debug("NOT SUBMITTED")
+                    continue
+
+                if args.dry_run:
+                    _LOGGER.info(
+                        "> DRY RUN: I would have submitted this: '%s'",
+                        submit_script)
                 else:
-                    if args.dry_run:
-                        _LOGGER.info(
-                            "> DRY RUN: I would have submitted this: '%s'",
-                            submit_script)
-                    else:
-                        submission_command = "{} {}".format(
-                            self.prj.compute.submission_command, submit_script)
-                        subprocess.call(submission_command, shell=True)
-                        # Delay next job's submission.
-                        time.sleep(args.time_delay)
-                    _LOGGER.debug("SUBMITTED")
-                    submit_count += 1
+                    submission_command = "{} {}".format(
+                        self.prj.compute.submission_command, submit_script)
+                    subprocess.call(submission_command, shell=True)
+                    # Delay next job's submission.
+                    time.sleep(args.time_delay)
+                _LOGGER.debug("SUBMITTED")
+                submit_count += 1
 
         # Report what went down.
         _LOGGER.info("Looper finished")
         _LOGGER.info("Samples generating jobs: %d of %d",
                      len(processed_samples), len(self.prj.samples))
-        _LOGGER.info("Jobs submitted: %d of %d", submit_count, job_count)
+        _LOGGER.info("Jobs submitted: %d of %d", submit_count, num_jobs)
         if args.dry_run:
             _LOGGER.info("Dry run. No jobs were actually submitted.")
         if failures:
@@ -707,7 +783,6 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     :return Mapping[str, Iterable[str]]: mapping from explanation to
         collection of names of samples to which it pertains
     """
-    from collections import defaultdict
     samples_by_skip_reason = defaultdict(list)
     for skip_reasons, sample in skip_reasons_sample_pairs:
         for reason in set(skip_reasons):
@@ -762,7 +837,7 @@ def _submission_status_text(curr, total, sample_name, sample_protocol, color):
 
 def create_submission_script(
         sample, template_values, template,
-        submission_folder, pipeline_name, remaining_args=None):
+        submission_folder, pipeline_name, extra_args=None):
     """
     Write cluster submission script to disk and submit job for given Sample.
 
@@ -773,7 +848,7 @@ def create_submission_script(
     :param str submission_folder: path to the folder in which to place 
         submission files
     :param str pipeline_name: name of the pipeline that the job will run
-    :param Iterable[str] remaining_args: arguments for this submission, 
+    :param Iterable[str] extra_args: arguments for this submission, 
         unconsumed by previous option/argument parsing
     :return str: filepath to submission script
     """
@@ -793,7 +868,7 @@ def create_submission_script(
     # Add additional arguments, populate template fields, and write to disk.
     with open(template, 'r') as handle:
         filedata = handle.read()
-    template_values["CODE"] += " " + str(" ".join(remaining_args or []))
+    template_values["CODE"] += " " + str(" ".join(extra_args or []))
     for key, value in template_values.items():
         # Here we add brackets around the key names and use uppercase because
         # this is how they are encoded as variables in the submit templates.
