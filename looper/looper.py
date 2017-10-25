@@ -112,6 +112,9 @@ def parse_arguments():
             "--limit", dest="limit", default=None,
             type=int,
             help="Limit to n samples.")
+    run_subparser.add_argument(
+            "--lump", type=int, default=1,
+            help="Number of individual scripts grouped into single submission")
 
     # Other commands
     summarize_subparser = add_subparser("summarize")
@@ -324,11 +327,28 @@ class Runner(Executor):
             for p in protocols
         }
 
-        if args.limit is not None and args.limit < 0:
+        # Determine number of samples eligible for processing.
+        num_samples = len(self.prj.samples)
+        if args.limit is None:
+            upper_sample_bound = num_samples
+        elif args.limit < 0:
             raise ValueError(
                 "Invalid number of samples to run: {}".format(args.limit))
+        else:
+            upper_sample_bound = min(args.limit, num_samples)
+        _LOGGER.debug("Limiting to %d of %d samples", upper_sample_bound, num_samples)
 
-        upper_sample_bound = min(args.limit, len(self.prj.samples))
+        try:
+            partition = self.prj.compute.partition
+        except AttributeError:
+            _LOGGER.debug("No partition to set")
+            update_partition = lambda ss: ss
+        else:
+            def update_partition(ss):
+                ss["partition"] = partition
+                return ss
+
+
         for sample in self.prj.samples[:upper_sample_bound]:
             _LOGGER.info(self.counter.show(sample.sample_name, sample.protocol))
 
@@ -448,15 +468,12 @@ class Runner(Executor):
                     pipeline_key, sample.input_file_size)
 
                 # Reset the partition if it was specified on the command-line.
-                try:
-                    submit_settings["partition"] = self.prj.compute.partition
-                except AttributeError:
-                    _LOGGER.debug("No partition to reset")
+                submit_settings = update_partition(submit_settings)
 
                 # Pipeline name is the key used for flag checking.
                 pl_name = pipeline_interface.get_pipeline_name(pipeline_key)
 
-                # Build basic command line string
+                # Build up command line string; begin with base pipeline job.
                 cmd = pipeline_job
 
                 # Append arguments for this pipeline
@@ -533,7 +550,8 @@ class Runner(Executor):
                     "Creating submission script for pipeline %s: '%s'",
                     pl_name, sample.sample_name)
                 submit_script = create_submission_script(
-                    sample, self.prj.compute.submission_template, submit_settings,
+                    sample, template_values=submit_settings, 
+                    template=self.prj.compute.submission_template,
                     submission_folder=self.prj.metadata.submission_subdir,
                     pipeline_name=pl_name, remaining_args=remaining_args)
 
@@ -553,8 +571,8 @@ class Runner(Executor):
                         submission_command = "{} {}".format(
                             self.prj.compute.submission_command, submit_script)
                         subprocess.call(submission_command, shell=True)
-                        time.sleep(
-                            args.time_delay)  # Delay next job's submission.
+                        # Delay next job's submission.
+                        time.sleep(args.time_delay)
                     _LOGGER.debug("SUBMITTED")
                     submit_count += 1
 
@@ -574,6 +592,7 @@ class Runner(Executor):
             _LOGGER.info("Samples by failure:\n{}".format(
                 "\n".join(["{}: {}".format(failure, ", ".join(samples))
                            for failure, samples in sample_by_reason.items()])))
+
 
 
 class Summarizer(Executor):
@@ -742,15 +761,15 @@ def _submission_status_text(curr, total, sample_name, sample_protocol, color):
 
 
 def create_submission_script(
-        sample, submit_template, variables_dict,
+        sample, template_values, template,
         submission_folder, pipeline_name, remaining_args=None):
     """
     Write cluster submission script to disk and submit job for given Sample.
 
     :param models.Sample sample: the Sample object for submission
-    :param str submit_template: path to submission script template
-    :param variables_dict: key-value pairs to use to populate fields in 
-        the submission template
+    :param Mapping[str, str] template_values: key-value pairs with which to 
+        populate fields in the submission template
+    :param str template: path to submission script template
     :param str submission_folder: path to the folder in which to place 
         submission files
     :param str pipeline_name: name of the pipeline that the job will run
@@ -763,7 +782,7 @@ def create_submission_script(
     submission_base = os.path.join(
         submission_folder, "{}_{}".format(sample.sample_name, pipeline_name))
     submit_script = submission_base + ".sub"
-    variables_dict["LOGFILE"] = submission_base + ".log"
+    template_values["LOGFILE"] = submission_base + ".log"
 
     # Prepare and write submission script.
     _LOGGER.info("> script: " + submit_script + " ")
@@ -772,10 +791,10 @@ def create_submission_script(
         os.makedirs(submit_script_dirpath)
 
     # Add additional arguments, populate template fields, and write to disk.
-    with open(submit_template, 'r') as handle:
+    with open(template, 'r') as handle:
         filedata = handle.read()
-    variables_dict["CODE"] += " " + str(" ".join(remaining_args or []))
-    for key, value in variables_dict.items():
+    template_values["CODE"] += " " + str(" ".join(remaining_args or []))
+    for key, value in template_values.items():
         # Here we add brackets around the key names and use uppercase because
         # this is how they are encoded as variables in the submit templates.
         filedata = filedata.replace("{" + str(key).upper() + "}", str(value))
