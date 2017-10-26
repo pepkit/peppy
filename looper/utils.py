@@ -159,7 +159,7 @@ def fetch_flag_files(prj=None, results_folder="", flags=FLAGS):
             # DEBUG
             print("SAMPLE FOLDER: {}".format(folder))
             # Check each candidate flag for existence, collecting it if present.
-            for flag, flag_file in flag_suffix_pairs:
+            for flag, suffix in flag_suffix_pairs:
                 flag_expr = os.path.join(folder, suffix)
                 # DEBUG
                 print("GLOB: {}".format(flag_expr))
