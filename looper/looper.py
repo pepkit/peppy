@@ -1098,11 +1098,6 @@ class Checker(Executor):
 
         # For each flag, output occurrence count.
         for flag in flags:
-            """
-            Skip output for flags with no files.
-            if 0 == len(files):
-                continue
-            """
             _LOGGER.info("%s: %d", flag.upper(), len(files_by_flag[flag]))
 
         # For each flag, output filepath(s) if not overly verbose.
