@@ -142,30 +142,18 @@ def fetch_flag_files(prj=None, results_folder="", flags=FLAGS):
     files_by_flag = defaultdict(list)
 
     if prj is None:
-        # DEBUG
-        print("USING RESULTS FOLDER: {}".format(results_folder))
         for flag, suffix in flag_suffix_pairs:
             flag_expr= os.path.join(results_folder, "*", suffix)
-            print("GLOB: {}".format(flag_expr))
             flags_present = glob.glob(flag_expr)
-            print("FLAGS PRESENT: {}".format(flags_present))
             files_by_flag[flag] = flags_present
     else:
-        # DEBUG
-        print("USING PROJECT")
         # Iterate over samples to collect flag files.
         for s in prj.samples:
             folder = sample_folder(prj, s)
-            # DEBUG
-            print("SAMPLE FOLDER: {}".format(folder))
             # Check each candidate flag for existence, collecting it if present.
             for flag, suffix in flag_suffix_pairs:
                 flag_expr = os.path.join(folder, suffix)
-                # DEBUG
-                print("GLOB: {}".format(flag_expr))
                 flags_present = glob.glob(flag_expr)
-                # DEBUG
-                print("FLAGS: {}".format(flags_present))
                 files_by_flag[flag].extend(flags_present)
 
 

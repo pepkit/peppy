@@ -509,10 +509,9 @@ def create_pipeline_submissions(
         # Fore each sample, the entire command consists of the base pipeline 
         # job, arguments determined by the specific sample itself, arguments 
         # related to the project, and then looper options/arguments.
-        # DEBUG
-        assert pl_job is not None
-        assert prj_argtext is not None
-        assert looper_argtext is not None
+        assert all(map(lambda cmd_part: cmd_part is not None,
+                       [pl_job, prj_argtext, looper_argtext])), \
+                "No command component may be null"
         curr_lump_cmds = [pl_job + astring + prj_argtext + looper_argtext
                           for _, astring in curr_lump]
 
