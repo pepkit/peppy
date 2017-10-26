@@ -19,7 +19,7 @@ FLAGS = ["completed", "running", "failed", "waiting", "partial"]
 IMPLICATIONS_DECLARATION = "implied_columns"
 SAMPLE_INDEPENDENT_PROJECT_SECTIONS = \
         ["metadata", "derived_columns", IMPLICATIONS_DECLARATION, "trackhubs"]
-
+SAMPLE_NAME_COLNAME = "sample_name"
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
 

@@ -68,7 +68,7 @@ import warnings
 import pandas as _pd
 import yaml
 
-from . import IMPLICATIONS_DECLARATION
+from . import IMPLICATIONS_DECLARATION, SAMPLE_NAME_COLNAME
 from .utils import \
     alpha_cased, check_bam, check_fastq, expandpath, \
     get_file_size, grab_project_data, import_from_source, parse_ftype, \
@@ -85,7 +85,6 @@ __all__ = __functions__ + __classes__
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
 DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 DATA_SOURCE_COLNAME = "data_source"
-SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"

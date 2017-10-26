@@ -12,7 +12,7 @@ import subprocess as sp
 import yaml
 
 from ._version import __version__
-from . import FLAGS, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from . import FLAGS, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -339,10 +339,12 @@ def sample_folder(prj, sample):
     Get the path to this Project's root folder for the given Sample.
 
     :param AttributeDict | Project prj: project with which sample is associated
-    :param Sample sample: the Sample for which to get root folder path
+    :param Mapping sample: Sample or sample data for which to get root output
+        folder path.
     :return str: this Project's root folder for the given Sample
     """
-    return os.path.join(prj.metadata.results_subdir, sample.name)
+    return os.path.join(prj.metadata.results_subdir,
+                        sample[SAMPLE_NAME_COLNAME])
 
 
 

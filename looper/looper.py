@@ -19,7 +19,8 @@ from . import setup_looper_logger, FLAGS, LOGGING_LEVEL, __version__
 from .loodels import Project
 from .models import \
     grab_project_data, ProjectContext, Sample, \
-    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
+    SAMPLE_NAME_COLNAME, VALID_READ_TYPES
 from .utils import \
     alpha_cased, fetch_flag_files, sample_folder, VersionInHelpParser
 
@@ -115,7 +116,7 @@ def parse_arguments():
             type=int,
             help="Limit to n samples.")
     run_subparser.add_argument(
-            "--lump", type=int, default=1,
+            "--lump-size", type=int, default=1,
             help="Number of individual scripts grouped into single submission")
 
     # Other commands
@@ -342,12 +343,14 @@ def create_looper_args_text(prj, pl_key, submission_settings):
             looper_argtext += " -M " + submission_settings["mem"]
     except KeyError:
         _LOGGER.warn("Submission settings lack memory specification")
+
+    return looper_argtext
     
 
 
 def create_pipeline_submissions(
         pl_key, pl_job, pl_iface, sample_subtype, sample_data_bundles,
-        prj, update_partition, extra_args, lump_size=1):
+        prj, update_partition, extra_args, lump_size=1, ignore_flags=False):
     """
     Submit samples for a particular pipeline.
 
@@ -363,10 +366,12 @@ def create_pipeline_submissions(
     :param Project prj: Project with which the samples are associated
     :param callable update_partition: function with which to update
         partition setting
-    :param extra_args: 
+    :param extra_args: additional arguments to add to command string
+    :param bool ignore_flags: whether to disregard flag files that exist for
+        a sample for this pipeline and generate a submission script anyway
     :param int lump_size: number of commands to lump into one script, i.e.
         job submission; default 1
-    :return str, Iterable[Mapping[str, object]], Iterable[[str, str]]:
+    :return str, Iterable[str], Iterable[[str, str]]:
     """
 
     pl_name = pl_iface.get_pipeline_name(pl_key)
@@ -383,6 +388,17 @@ def create_pipeline_submissions(
     lump_index = 0
 
     for sdata in sample_data_bundles:
+
+        sfolder = sample_folder(prj, sample=sdata)
+        flag_files = glob.glob(os.path.join(sfolder, pl_name + "*.flag"))
+        if not ignore_flags and len(flag_files) > 0:
+            _LOGGER.info("> Not including sample '%s' in submission script "
+                         "for pipeline '%s', flag(s) found: %s",
+                         sdata[SAMPLE_NAME_COLNAME])
+            # Message more directly analogous to the one for a sample
+            # that's submitted, for debugging clarity.
+            _LOGGER.debug("NOT SUBMITTED")
+            continue
 
         sample = sample_subtype(sdata)
         _LOGGER.debug("Created %s instance: '%s'",
@@ -493,6 +509,10 @@ def create_pipeline_submissions(
         # Fore each sample, the entire command consists of the base pipeline 
         # job, arguments determined by the specific sample itself, arguments 
         # related to the project, and then looper options/arguments.
+        # DEBUG
+        assert pl_job is not None
+        assert prj_argtext is not None
+        assert looper_argtext is not None
         curr_lump_cmds = [pl_job + astring + prj_argtext + looper_argtext
                           for _, astring in curr_lump]
 
@@ -592,8 +612,6 @@ class Runner(Executor):
             _LOGGER.info(self.counter.show(
                     sample.sample_name, sample.protocol))
 
-            sample_output_folder = sample_folder(self.prj, sample)
-            _LOGGER.debug("Sample output folder: '%s'", sample_output_folder)
             skip_reasons = []
 
             # Don't submit samples with duplicate names.
@@ -626,7 +644,7 @@ class Runner(Executor):
                 continue
 
             # Processing preconditions have been met.
-            # Add this sampleto the processed collection.
+            # Add this sample to the processed collection.
             processed_samples.add(sample.sample_name)
 
             # At this point, we have a generic Sample; write that to disk
@@ -657,31 +675,34 @@ class Runner(Executor):
                set(script_subtype_iface_trio_by_pipeline_key.keys()), \
                 "Collections of strict pipeline keys must be equal for " \
                 "mapping to sample data and for mapping to submission data."
+
+        # Now that we've remapped in terms of pipelines, we can submit
+        # samples for processing in a per-pipeline fashion, facilitating
+        # grouping of multiple samples into individual jobs, with one or
+        # more jobs per pipeline.
         for pl_key in sample_data_by_pipeline_key.keys():
-            submission_data = script_subtype_iface_trio_by_pipeline_key[pl_key]
+
+            # Extract the base pipeline command, sample subtype to use for
+            # this pipeline, and the associated pipeline interface.
+            pl_job, sample_subtype, pl_iface = \
+                    script_subtype_iface_trio_by_pipeline_key[pl_key]
+
+            # Pull of the collection of sample data bundles associated with
+            # the current pipeline key; here sample_data is actually a
+            # collection of mappings.
             sample_data = sample_data_by_pipeline_key[pl_key]
             num_jobs += len(sample_data)
 
             _LOGGER.info("Creating submissions for pipeline: '%s'", pl_key)
 
-            pl_name, settings, fail_reason_sample_pairs = \
+            pl_name, scripts, fail_reason_sample_pairs = \
                 create_pipeline_submissions(
-                    self.prj, submission_data, sample_data, update_partition,
-                    extra_args=remaining_args)
+                    pl_key, pl_job, pl_iface, sample_subtype, sample_data,
+                    self.prj, update_partition, extra_args=remaining_args,
+                    lump_size=args.lump_size, ignore_flags=args.ignore_flags)
             failures.extend(fail_reason_sample_pairs)
 
             for submit_script in scripts:
-                # Determine how to update submission counts and (perhaps) submit.
-                flag_files = glob.glob(os.path.join(
-                    sample_output_folder, pl_name + "*.flag"))
-                if not args.ignore_flags and len(flag_files) > 0:
-                    _LOGGER.info("> Not submitting, flag(s) found: {}".
-                                 format(flag_files))
-                    # Message more directly analogous to the one for a sample
-                    # that's submitted, for debugging clarity.
-                    _LOGGER.debug("NOT SUBMITTED")
-                    continue
-
                 if args.dry_run:
                     _LOGGER.info(
                         "> DRY RUN: I would have submitted this: '%s'",
