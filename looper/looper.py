@@ -1086,15 +1086,10 @@ class Checker(Executor):
 
         # Collect the files by flag and sort by flag name.
         if all_folders:
-            files_by_flag = {}
-            for f in flags:
-                flag_file_name = "{}.flag".format(f)
-                # Match all sample folders, all pipelines.
-                files = os.path.join(self.prj.metadata.results_subdir,
-                                     "*", "*" + flag_file_name)
-                files_by_flag[f] = files
+            files_by_flag = fetch_flag_files(
+                results_folder=self.prj.metadata.results_subdir, flags=flags)
         else:
-            files_by_flag = fetch_flag_files(self.prj, flags)
+            files_by_flag = fetch_flag_files(prj=self.prj, flags=flags)
 
         # For each flag, output occurrence count.
         for flag in flags:
