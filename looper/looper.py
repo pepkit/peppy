@@ -675,6 +675,10 @@ class Runner(Executor):
                 "Collections of strict pipeline keys must be equal for " \
                 "mapping to sample data and for mapping to submission data."
 
+        _LOGGER.debug("Processing {} pipeline keys: {}".format(
+                len(sample_data_by_pipeline_key),
+                sample_data_by_pipeline_key.keys()))
+
         # Now that we've remapped in terms of pipelines, we can submit
         # samples for processing in a per-pipeline fashion, facilitating
         # grouping of multiple samples into individual jobs, with one or
