@@ -135,8 +135,8 @@ def fetch_flag_files(prj=None, results_folder="", flags=FLAGS):
 
     # Just create the filenames once, and pair once with flag name.
     flags = [flags] if isinstance(flags, str) else list(flags)
-    files = ["{}.flag".format(f) for f in flags]
-    flag_file_pairs = list(zip(flags, files))
+    flagfile_suffices = ["*{}.flag".format(f) for f in flags]
+    flag_suffix_pairs = list(zip(flags, flagfile_suffices))
 
     # Collect the flag file paths by flag name.
     files_by_flag = defaultdict(list)
@@ -144,8 +144,8 @@ def fetch_flag_files(prj=None, results_folder="", flags=FLAGS):
     if prj is None:
         # DEBUG
         print("USING RESULTS FOLDER: {}".format(results_folder))
-        for flag, filename in flag_file_pairs:
-            flag_expr= os.path.join(results_folder, "*", "*" + filename)
+        for flag, suffix in flag_suffix_pairs:
+            flag_expr= os.path.join(results_folder, "*", suffix)
             print("GLOB: {}".format(flag_expr))
             flags_present = glob.glob(flag_expr)
             print("FLAGS PRESENT: {}".format(flags_present))
@@ -159,8 +159,8 @@ def fetch_flag_files(prj=None, results_folder="", flags=FLAGS):
             # DEBUG
             print("SAMPLE FOLDER: {}".format(folder))
             # Check each candidate flag for existence, collecting it if present.
-            for flag, flag_file in flag_file_pairs:
-                flag_expr = os.path.join(folder, flag_file)
+            for flag, flag_file in flag_suffix_pairs:
+                flag_expr = os.path.join(folder, suffix)
                 # DEBUG
                 print("GLOB: {}".format(flag_expr))
                 flags_present = glob.glob(flag_expr)
