@@ -1086,11 +1086,13 @@ class Checker(Executor):
 
         # Collect the files by flag and sort by flag name.
         if all_folders:
-            def _glob_expr(flag_name):
-                flag_file_name = "{}.flag".format(flag_name)
-                return os.path.join(self.prj.metadata.results_subdir,
-                                    "*", flag_file_name)
-            files_by_flag = {f: _glob_expr(f) for f in flags}
+            files_by_flag = {}
+            for f in flags:
+                flag_file_name = "{}.flag".format(f)
+                # Match all sample folders, all pipelines.
+                files = os.path.join(self.prj.metadata.results_subdir,
+                                     "*", "*" + flag_file_name)
+                files_by_flag[f] = files
         else:
             files_by_flag = fetch_flag_files(self.prj, flags)
 
