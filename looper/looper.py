@@ -1078,17 +1078,17 @@ class Checker(Executor):
         """
 
         # Handle single or multiple flags, and alphabetize.
-        flags = sorted([flags] if isinstance(flags, str) else list(flags or FLAGS))
-
-        _LOGGER.info("Checking all project {} for these flags: {}".format(
-                     "folders" if all_folders else "samples",
-                     ", ".join(["'{}'".format(f) for f in flags])))
+        flags = sorted([flags] if isinstance(flags, str)
+                       else list(flags or FLAGS))
+        flag_text = ", ".join(flags)
 
         # Collect the files by flag and sort by flag name.
         if all_folders:
+            _LOGGER.info("Checking project folders for flags: %s", flag_text)
             files_by_flag = fetch_flag_files(
                 results_folder=self.prj.metadata.results_subdir, flags=flags)
         else:
+            _LOGGER.info("Checking project samples for flags: %s", flag_text)
             files_by_flag = fetch_flag_files(prj=self.prj, flags=flags)
 
         # For each flag, output occurrence count.
