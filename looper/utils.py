@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 from collections import defaultdict, Iterable
 import contextlib
+import glob
 import logging
 import os
 import random
@@ -136,9 +137,10 @@ def fetch_flag_files(prj, flags=FLAGS):
 
         # Check each candidate flag for existence, collecting it if present.
         for flag, flag_file in flag_file_pairs:
-            flag_path = os.path.join(folder, flag_file)
-            if os.path.isfile(flag_path):
-                files_by_flag[flag].append(flag_path)
+            flag_expr = os.path.join(folder, flag_file)
+            flag_file_paths = glob.glob(flag_expr)
+            flags_present = [f for f in flag_file_paths if os.path.isfile(f)]
+            files_by_flag[flag].extend(flags_present)
 
     return files_by_flag
 
