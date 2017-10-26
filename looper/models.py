@@ -984,7 +984,7 @@ class Project(AttributeDict):
         :param bool priority: to only submit pipeline(s) from the first of the
             pipelines location(s) (indicated in the project config file) that
             has a match for the given protocol; optional, default True
-        :return Iterable[(PipelineInterface, str, str)]:
+        :return Iterable[(PipelineInterface, type, str, str)]:
         :raises AssertionError: if there's a failure in the attempt to
             partition an interface's pipeline scripts into disjoint subsets of
             those already mapped and those not yet mapped
@@ -1005,6 +1005,9 @@ class Project(AttributeDict):
         pipeline_keys_used = set()
         _LOGGER.debug("Building pipelines for {} PIs...".
                       format(len(protocol_interfaces)))
+
+        bundle_by_strict_pipe_key = {}
+
         for proto_iface in protocol_interfaces:
             # Short-circuit if we care only about the highest-priority match
             # for pipeline submission. That is, if the intent is to submit
@@ -1062,6 +1065,8 @@ class Project(AttributeDict):
                           format(len(new_scripts), protocol,
                                  proto_iface.source, new_scripts))
 
+            pl_iface = proto_iface.pipe_iface
+
             # For each pipeline script to which this protocol will pertain,
             # create the new jobs/submission bundles.
             new_jobs = []
@@ -1081,10 +1086,25 @@ class Project(AttributeDict):
                 sample_subtype = \
                         proto_iface.fetch_sample_subtype(
                                 protocol, strict_pipe_key, full_pipe_path)
+
                 # Package the pipeline's interface, subtype, command, and key.
                 submission_bundle = SubmissionBundle(
-                        proto_iface.pipe_iface, sample_subtype,
-                        strict_pipe_key, full_pipe_path_with_flags)
+                        pl_iface, sample_subtype, strict_pipe_key,
+                        full_pipe_path_with_flags)
+
+                # Enforce bundle unqiueness for each strict pipeline key.
+                maybe_new_bundle = (full_pipe_path_with_flags,
+                                    sample_subtype, pl_iface)
+                old_bundle = bundle_by_strict_pipe_key.setdefault(
+                        strict_pipe_key, maybe_new_bundle)
+                if old_bundle != maybe_new_bundle:
+                    errmsg = "Strict pipeline key '{}' maps to more than " \
+                            "one combination of pipeline script + flags, " \
+                            "sample subtype, and pipeline interface. " \
+                             "'{}'\n{}".format(
+                            strict_pipe_key, maybe_new_bundle, old_bundle)
+                    raise ValueError(errmsg)
+
                 # Add this bundle to the collection of ones relevant for the
                 # current ProtocolInterface.
                 new_jobs.append(submission_bundle)
