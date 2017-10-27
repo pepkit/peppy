@@ -747,7 +747,7 @@ class Runner(Executor):
             _LOGGER.info("{} unique reasons for submission failure: {}".format(
                 len(sample_by_reason), ", ".join(sample_by_reason.keys())))
             _LOGGER.info("Samples by failure:\n{}".format(
-                "\n".join(["{}: {}".format(failure, ", ".join(samples))
+                "\n".join(["### {} ###\n{}".format(failure, "\n".join(samples))
                            for failure, samples in sample_by_reason.items()])))
 
 
