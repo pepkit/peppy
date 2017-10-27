@@ -2152,6 +2152,7 @@ class Sample(AttributeDict):
         # Assign values for actual inputs attributes.
         self.required_inputs = self.get_attr_values("required_inputs_attr")
         self.all_inputs = self.get_attr_values("all_inputs_attr")
+        _LOGGER.debug("All '{}' inputs: {}".format(self.name, self.all_inputs))
         self.input_file_size = get_file_size(self.all_inputs)
 
 
@@ -2515,8 +2516,10 @@ class PipelineInterface(object):
         try:
             resources = self._select_pipeline(pipeline_name)["resources"]
         except KeyError:
-            _LOGGER.warn("No resources found for pipeline '%s' in file '%s'",
-                         pipeline_name, self.pipe_iface_file)
+            msg = "No resources for pipeline '{}'".format(pipeline_name)
+            if self.pipe_iface_file is not None:
+                msg += " in file '{}'".format(self.pipe_iface_file)
+            _LOGGER.warn(msg)
             return {}
 
         # Require default resource package specification.
