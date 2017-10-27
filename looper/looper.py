@@ -5,8 +5,9 @@ Looper: a pipeline submission engine. https://github.com/epigen/looper
 
 import abc
 import argparse
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import copy
+from functools import partial
 import glob
 import logging
 import os
@@ -348,9 +349,9 @@ def create_looper_args_text(prj, pl_key, submission_settings):
     
 
 
-def create_pipeline_submissions(
+def lump_cmds(
         pl_key, pl_job, pl_iface, sample_subtype, sample_data_bundles,
-        prj, update_partition, extra_args, lump_size=1, ignore_flags=False):
+        prj, update_partition, lump_size=1, ignore_flags=False):
     """
     Submit samples for a particular pipeline.
 
@@ -366,26 +367,27 @@ def create_pipeline_submissions(
     :param Project prj: Project with which the samples are associated
     :param callable update_partition: function with which to update
         partition setting
-    :param extra_args: additional arguments to add to command string
     :param bool ignore_flags: whether to disregard flag files that exist for
         a sample for this pipeline and generate a submission script anyway
     :param int lump_size: number of commands to lump into one script, i.e.
         job submission; default 1
-    :return str, Iterable[str], Iterable[[str, str]]:
+    :return (Iterable[(str, Iterable[Sample], dict)], Iterable[str]): pair
+        in which the first element is a collection of tuples, each of which
+        represents a job for submission and thus consists of a job name, a
+        collection of samples, and a mapping of submission settings; the
+        other item returned is a collection of failure messages
     """
 
     pl_name = pl_iface.get_pipeline_name(pl_key)
 
-    scripts = []
-    failures = []
-    num_submissions = 0
 
     # Collect pairs of Sample and submission command so that we can place 
     # multiple commands within a single cluster submission script, and thus 
     # group processing of multiple samples for this pipeline into a single 
     # cluster job.
+    failures = []
+    job_cmd_lumps = []
     curr_lump = []
-    lump_index = 0
 
     for sdata in sample_data_bundles:
 
@@ -464,8 +466,8 @@ def create_pipeline_submissions(
             failures.append([skip_reasons, sample.sample_name])
             continue
 
-        _LOGGER.info("> Building submission for pipeline job '{}' to "
-                     "process sample '{}' (input: {:.2f} Gb)".format(
+        _LOGGER.info("> Building submission to '{}' for sample '{}'"
+                     " (input: {:.2f} Gb)".format(
                 pl_job.rstrip(), sample.name, sample.input_file_size))
 
 
@@ -483,7 +485,6 @@ def create_pipeline_submissions(
         _LOGGER.debug("Determining submission settings")
         total_input_size = sum(
                 [float(sample.input_file_size) for file_size, _ in curr_lump])
-        
         _LOGGER.debug("Creating submission script for sample '%s' "
                       "to pipeline '%s'", total_input_size, pl_name)
 
@@ -519,7 +520,7 @@ def create_pipeline_submissions(
         if 1 == lump_size:
             jobname = "{}_{}".format(sample.sample_name, pl_key)
         else:
-            jobname = "{}_{}".format(pl_key, lump_index)
+            jobname = "{}_{}".format(pl_key, len(job_cmd_lumps))
         submit_settings["JOBNAME"] = jobname
         submit_settings["CODE"] = "\n".join(curr_lump_cmds)
 
@@ -530,17 +531,15 @@ def create_pipeline_submissions(
         _LOGGER.debug(status_message)
 
         samples = [s for s, _ in curr_lump]
-        submit_script = create_submission_script(
-                samples, template_values=submit_settings, 
-                template=prj.compute.submission_template, 
-                submission_folder=prj.metadata.submission_subdir, 
-                jobname=jobname, extra_args=extra_args)
-        scripts.append(submit_script)
-        num_submissions += len(samples)
+        job_cmd_lumps.append(JobCmdGroup(jobname, samples, submit_settings))
         curr_lump = []
-        lump_index += 1
 
-    return num_submissions, scripts, failures
+    return job_cmd_lumps, failures
+
+
+# Encapsulate the items needed for a job submission.
+JobCmdGroup = namedtuple(
+        "JobCmdGroup", field_names=["name", "samples", "settings"])
 
 
 
@@ -694,16 +693,31 @@ class Runner(Executor):
             # the current pipeline key; here sample_data is actually a
             # collection of mappings.
             sample_data = sample_data_by_pipeline_key[pl_key]
-            num_jobs += len(sample_data)
 
             _LOGGER.info("Creating submissions for pipeline: '%s'", pl_key)
 
-            pl_name, scripts, fail_reason_sample_pairs = \
-                create_pipeline_submissions(
+            job_cmd_lumps, fail_reason_sample_pairs = \
+                lump_cmds(
                     pl_key, pl_job, pl_iface, sample_subtype, sample_data,
-                    self.prj, update_partition, extra_args=remaining_args,
-                    lump_size=args.lump_size, ignore_flags=args.ignore_flags)
+                    self.prj, update_partition, lump_size=args.lump_size,
+                    ignore_flags=args.ignore_flags)
+
+            # Update job count and failures based on this pipeline.
+            num_jobs += len(job_cmd_lumps)
             failures.extend(fail_reason_sample_pairs)
+
+            create_script = partial(
+                create_submission_script,
+                template=self.prj.compute.submission_template,
+                submission_folder=self.prj.metadata.submission_subdir,
+                extra_args=remaining_args)
+
+            # Leave as loop rather than comprehension for now in case
+            # we need to count individual samples.
+            scripts = []
+            for jobname, samples, settings in job_cmd_lumps:
+                s = create_script(samples, settings, jobname=jobname)
+                scripts.append(s)
 
             for submit_script in scripts:
                 if args.dry_run:
