@@ -34,7 +34,8 @@ from colorama import Fore, Style
 # That is, greater verbosity setting corresponds to lower logging level.
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
                        logging.INFO, logging.DEBUG]
-
+_FAIL_DISPLAY_PROPORTION_THRESHOLD = 0.5
+_MAX_FAIL_SAMPLE_DISPLAY = 20
 _LOGGER = logging.getLogger()
 
 
@@ -759,10 +760,19 @@ class Runner(Executor):
             sample_by_reason = aggregate_exec_skip_reasons(failures)
             _LOGGER.info("{} unique reasons for submission failure: {}".format(
                 len(sample_by_reason), ", ".join(sample_by_reason.keys())))
+
+            full_fail_msgs = map(create_failure_message,
+                                 sample_by_reason.items())
             _LOGGER.info("Samples by failure:\n{}".format(
-                "\n".join(["### Reason: {} ###\n{}".format(failure,
-                                                           "\n".join(samples))
-                           for failure, samples in sample_by_reason.items()])))
+                "\n".join(full_fail_msgs)))
+
+
+def create_failure_message(reason, samples):
+    """ Explain lack of submission for a single reason, 1 or more samples. """
+    color = Fore.LIGHTRED_EX
+    reason_text = color + reason + Style.RESET_ALL
+    samples_text = ", ".join(samples)
+    return "{}: {}".format(reason_text, samples_text)
 
 
 
@@ -771,7 +781,7 @@ def validate_submission_bundles(bundles):
     """
     Ensure that each pipeline key uniquely maps to a submission bundle.
 
-    That is, each 'strict' pipeline key should have the same pipeline path + 
+    That is, each 'strict' pipeline key should have the same pipeline path +
     flags, the same sable subtype, and the same pipeline interface.
 
     :param Iterable[(PipelineInterface, type, str, str)] bundles: collection
