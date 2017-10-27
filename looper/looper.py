@@ -776,37 +776,6 @@ def create_failure_message(reason, samples):
 
 
 
-# TODO: remove once validation is assured in build_submission_bundles
-def validate_submission_bundles(bundles):
-    """
-    Ensure that each pipeline key uniquely maps to a submission bundle.
-
-    That is, each 'strict' pipeline key should have the same pipeline path +
-    flags, the same sable subtype, and the same pipeline interface.
-
-    :param Iterable[(PipelineInterface, type, str, str)] bundles: collection
-        of tuples of pipeline interface, sample subtype, strict pipeline key,
-        and pipeline script path + flags
-    :return bool: True if the validation succeeds
-    :raise ValueError: if the validation fails
-    """
-    submission_data_by_key = {}
-    for pl_iface, sample_subtype, strict_pipe_key, \
-            pipe_path_with_flags in bundles:
-        new_sub_data = (pipe_path_with_flags, sample_subtype, pl_iface)
-        old_sub_data = submission_data_by_key.setdefault(
-                strict_pipe_key, new_sub_data)
-        if new_sub_data != old_sub_data:
-            raise ValueError(
-                    "Submission data mismatch; pipeline key '{}' maps "
-                    "to at least two different submission bundles: {}\n{}".
-                    format(strict_pipe_key, new_sub_data, old_sub_data))
-    return True
-
-
-
-
-
 class Summarizer(Executor):
     """ Project/Sample output summarizer """
     
