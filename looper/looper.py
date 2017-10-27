@@ -381,6 +381,64 @@ def lump_cmds(
     pl_name = pl_iface.get_pipeline_name(pl_key)
 
 
+    # Process a single group of (perhaps just one) commands.
+    def proc_lump(sample_argstring_pairs):
+
+        _LOGGER.debug("Determining submission settings")
+        total_input_size = sum(
+            [float(sample.input_file_size)
+             for file_size, _ in sample_argstring_pairs])
+        _LOGGER.debug("Creating submission script for sample '%s' "
+                      "to pipeline '%s'", total_input_size, pl_name)
+
+        # Identify cluster resources required for this submission.
+        submit_settings = pl_iface.choose_resource_package(
+            pl_key, total_input_size)
+
+        # Reset the partition if it was specified on the command-line.
+        submit_settings = update_partition(submit_settings)
+
+        if pl_iface.uses_looper_args(pl_key):
+            # These are looper_args, -C, -O, -M, and -P. If the pipeline
+            # implements these arguments, then it lists looper_args=True,
+            # and we add the arguments to the command string.
+            looper_argtext = create_looper_args_text(
+                prj, pl_key, submit_settings)
+        else:
+            looper_argtext = ""
+
+        # Project-level arguments (sample-agnostic) are handled separately.
+        prj_argtext = prj.get_arg_string(pl_key)
+
+        # Fore each sample, the entire command consists of the base pipeline 
+        # job, arguments determined by the specific sample itself, arguments 
+        # related to the project, and then looper options/arguments.
+        assert all(map(lambda cmd_part: cmd_part is not None,
+                       [pl_job, prj_argtext, looper_argtext])), \
+            "No command component may be null"
+        commands = [pl_job + astring + prj_argtext + looper_argtext
+                          for _, astring in sample_argstring_pairs]
+
+        # Add command string and job name to the submit_settings object.
+        if 1 == lump_size:
+            jobname = "{}_{}".format(sample.sample_name, pl_key)
+        else:
+            jobname = "{}_{}".format(pl_key, len(job_cmd_lumps))
+        submit_settings["JOBNAME"] = jobname
+        submit_settings["CODE"] = "\n".join(commands)
+
+        status_message = "Creating submission script for pipeline {}".\
+                format(pl_name)
+        if 1 != lump_size:
+            num_cmds = len(sample_argstring_pairs)
+            status_message += " ({} commands)".format(num_cmds)
+        _LOGGER.debug(status_message)
+
+        samples = [s for s, _ in sample_argstring_pairs]
+
+        return JobCmdGroup(jobname, samples, submit_settings)
+
+
     # Collect pairs of Sample and submission command so that we can place 
     # multiple commands within a single cluster submission script, and thus 
     # group processing of multiple samples for this pipeline into a single 
@@ -478,61 +536,17 @@ def lump_cmds(
             # We've not yet reached capacity for this lump.
             _LOGGER.debug("Growing lump")
             continue
-            
-        # Once control flow hits here, we're finished accumulating the 
-        # sample and argument strings for the current lump, so it's time 
+
+        # Once control flow hits here, we're finished accumulating the
+        # sample and argument strings for the current lump, so it's time
         # to determine the submission settings and create the script.
-        _LOGGER.debug("Determining submission settings")
-        total_input_size = sum(
-                [float(sample.input_file_size) for file_size, _ in curr_lump])
-        _LOGGER.debug("Creating submission script for sample '%s' "
-                      "to pipeline '%s'", total_input_size, pl_name)
-
-        # Identify cluster resources required for this submission.
-        submit_settings = pl_iface.choose_resource_package(
-                pl_key, total_input_size)
-
-        # Reset the partition if it was specified on the command-line.
-        submit_settings = update_partition(submit_settings)
-
-        if pl_iface.uses_looper_args(pl_key):
-            # These are looper_args, -C, -O, -M, and -P. If the pipeline
-            # implements these arguments, then it lists looper_args=True,
-            # and we add the arguments to the command string.
-            looper_argtext = create_looper_args_text(
-                    prj, pl_key, submit_settings)
-        else:
-            looper_argtext = ""
-
-        # Project-level arguments (sample-agnostic) are handled separately.
-        prj_argtext = prj.get_arg_string(pl_key)
-
-        # Fore each sample, the entire command consists of the base pipeline 
-        # job, arguments determined by the specific sample itself, arguments 
-        # related to the project, and then looper options/arguments.
-        assert all(map(lambda cmd_part: cmd_part is not None,
-                       [pl_job, prj_argtext, looper_argtext])), \
-                "No command component may be null"
-        curr_lump_cmds = [pl_job + astring + prj_argtext + looper_argtext
-                          for _, astring in curr_lump]
-
-        # Add command string and job name to the submit_settings object.
-        if 1 == lump_size:
-            jobname = "{}_{}".format(sample.sample_name, pl_key)
-        else:
-            jobname = "{}_{}".format(pl_key, len(job_cmd_lumps))
-        submit_settings["JOBNAME"] = jobname
-        submit_settings["CODE"] = "\n".join(curr_lump_cmds)
-
-        status_message = "Creating submission script for pipeline {}".\
-                format(pl_name)
-        if 1 != lump_size:
-            status_message += " ({} commands)".format(len(curr_lump))
-        _LOGGER.debug(status_message)
-
-        samples = [s for s, _ in curr_lump]
-        job_cmd_lumps.append(JobCmdGroup(jobname, samples, submit_settings))
+        job_submission_group = proc_lump(curr_lump)
+        job_cmd_lumps.append(job_submission_group)
         curr_lump = []
+    
+    # Handle the final lump, which may or may not be empty.
+    if curr_lump:
+        job_cmd_lumps.append(proc_lump(curr_lump))
 
     return job_cmd_lumps, failures
 
@@ -556,17 +570,13 @@ class Runner(Executor):
             recognized by looper, germane to samples/pipelines
         """
 
-        protocols = {s.protocol for s in self.prj.samples if hasattr(s, "protocol")}
+        protocols = {s.protocol for s in self.prj.samples
+                     if hasattr(s, "protocol")}
 
         _LOGGER.info("Protocols: %s", ", ".join(protocols))
 
-        # Keep track of how many jobs have been submitted.
-        num_jobs = 0  # Some job templates will be skipped.
-        submit_count = 0  # Some jobs won't be submitted.
-        processed_samples = set()
-
-        # Create a problem list so we can keep track and show them at the end.
-        failures = []
+        failures = []  # Create problem list so we can show them at the end.
+        processed_samples = set()  # Enforce one-time processing.
 
         _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
                      format(", ".join(self.prj.protocols)))
@@ -584,7 +594,8 @@ class Runner(Executor):
                 "Invalid number of samples to run: {}".format(args.limit))
         else:
             upper_sample_bound = min(args.limit, num_samples)
-        _LOGGER.debug("Limiting to %d of %d samples", upper_sample_bound, num_samples)
+        _LOGGER.debug("Limiting to %d of %d samples",
+                      upper_sample_bound, num_samples)
 
         try:
             partition = self.prj.compute.partition
@@ -678,6 +689,10 @@ class Runner(Executor):
                 len(sample_data_by_pipeline_key),
                 sample_data_by_pipeline_key.keys()))
 
+        # Keep track of how many jobs have been submitted.
+        num_jobs = 0  # Some job templates will be skipped.
+        submit_count = 0  # For various reasons, some jobs won't be submitted.
+
         # Now that we've remapped in terms of pipelines, we can submit
         # samples for processing in a per-pipeline fashion, facilitating
         # grouping of multiple samples into individual jobs, with one or
@@ -747,7 +762,8 @@ class Runner(Executor):
             _LOGGER.info("{} unique reasons for submission failure: {}".format(
                 len(sample_by_reason), ", ".join(sample_by_reason.keys())))
             _LOGGER.info("Samples by failure:\n{}".format(
-                "\n".join(["### {} ###\n{}".format(failure, "\n".join(samples))
+                "\n".join(["### Reason: {} ###\n{}".format(failure,
+                                                           "\n".join(samples))
                            for failure, samples in sample_by_reason.items()])))
 
 
