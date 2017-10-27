@@ -383,13 +383,12 @@ def lump_cmds(
 
     # Process a single group of (perhaps just one) commands.
     def proc_lump(sample_argstring_pairs):
-
-        _LOGGER.debug("Determining submission settings")
         total_input_size = sum(
             [float(sample.input_file_size)
              for file_size, _ in sample_argstring_pairs])
-        _LOGGER.debug("Creating submission script for sample '%s' "
-                      "to pipeline '%s'", total_input_size, pl_name)
+        _LOGGER.debug("Determining submission settings for lump of %d "
+                      "sample(s): %.2f",
+                      len(sample_argstring_pairs), total_input_size)
 
         # Identify cluster resources required for this submission.
         submit_settings = pl_iface.choose_resource_package(
@@ -426,13 +425,6 @@ def lump_cmds(
             jobname = "{}_{}".format(pl_key, len(job_cmd_lumps))
         submit_settings["JOBNAME"] = jobname
         submit_settings["CODE"] = "\n".join(commands)
-
-        status_message = "Creating submission script for pipeline {}".\
-                format(pl_name)
-        if 1 != lump_size:
-            num_cmds = len(sample_argstring_pairs)
-            status_message += " ({} commands)".format(num_cmds)
-        _LOGGER.debug(status_message)
 
         samples = [s for s, _ in sample_argstring_pairs]
 
@@ -677,13 +669,8 @@ class Runner(Executor):
                 pipe_name = pl_iface.get_pipeline_name(pl_key)
                 pipe_names.append(pipe_name)
 
-            # DEBUG
-            print("INPUT FILE SIZE: {} ({})".format(
-                sample.input_file_size, type(sample.input_file_size)))
-
-            _LOGGER.info("Pipelines for sample '%s' (%.2f Gb):\n%s",
-                         sample.name, sample.input_file_size,
-                         "\n".join(pipe_names))
+            _LOGGER.info("Pipelines for sample %s:\n%s",
+                         sample.name, "\n".join(pipe_names))
 
         # Iterate over collection in which each pipeline key is mapped to
         # a collection of pairs of sample data and job submission bundle.
@@ -716,7 +703,7 @@ class Runner(Executor):
             # collection of mappings.
             sample_data = sample_data_by_pipeline_key[pl_key]
 
-            _LOGGER.info("Creating submissions for pipeline: '%s'", pl_key)
+            _LOGGER.info("Creating job(s) for pipeline: '%s'", pl_key)
 
             job_cmd_lumps, fail_reason_sample_pairs = \
                 lump_cmds(
