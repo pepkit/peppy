@@ -71,8 +71,8 @@ import yaml
 from . import IMPLICATIONS_DECLARATION, SAMPLE_NAME_COLNAME
 from .utils import \
     alpha_cased, check_bam, check_fastq, expandpath, \
-    get_file_size, grab_project_data, import_from_source, parse_ftype, \
-    partition, sample_folder, standard_stream_redirector
+    get_file_size, grab_project_data, import_from_source, is_command_callable, \
+    parse_ftype, partition, sample_folder, standard_stream_redirector
 
 
 # TODO: decide if we want to denote functions for export.
@@ -2946,7 +2946,8 @@ class ProtocolInterface(object):
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
 
-        if not _os.path.exists(script_path_only):
+        if not (_os.path.exists(script_path_only) or \
+                is_command_callable(script_path_only)):
             _LOGGER.warn(
                     "Missing pipeline script: '%s'", script_path_only)
 

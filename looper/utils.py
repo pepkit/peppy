@@ -520,6 +520,6 @@ def is_command_callable(command, name=""):
 
     if code != 0:
         alias_value = " ('{}') ".format(name) if name else " "
-        _LOGGER.debug("Command{0}is not callable: {1}".
+        _LOGGER.debug("Command '{0}' is not callable: {1}".
                       format(alias_value, command))
     return not bool(code)
