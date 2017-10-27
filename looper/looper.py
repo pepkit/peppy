@@ -387,9 +387,9 @@ def lump_cmds(
         total_input_size = sum(
             [float(sample.input_file_size)
              for file_size, _ in sample_argstring_pairs])
-        _LOGGER.debug("Determining submission settings for lump of %d "
-                      "sample(s): %.2f",
-                      len(sample_argstring_pairs), total_input_size)
+        _LOGGER.info("Determining submission settings for lump of %d "
+                     "sample(s): %.2f", len(sample_argstring_pairs),
+                     total_input_size)
 
         # Identify cluster resources required for this submission.
         submit_settings = pl_iface.choose_resource_package(
