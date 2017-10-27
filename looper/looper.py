@@ -464,9 +464,9 @@ def create_pipeline_submissions(
             failures.append([skip_reasons, sample.sample_name])
             continue
 
-        _LOGGER.info("> Building submission for Pipeline: '{}' "
-                     "(input: {:.2f} Gb)".format(
-                pl_job, sample.input_file_size))
+        _LOGGER.info("> Building submission for pipeline job '{}' to "
+                     "process sample '{}' (input: {:.2f} Gb)".format(
+                pl_job.rstrip(), sample.name, sample.input_file_size))
 
 
         # Add this Sample and its argument string (to append to the base 
