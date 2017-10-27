@@ -732,24 +732,21 @@ class Runner(Executor):
                 template=self.prj.compute.submission_template,
                 submission_folder=self.prj.metadata.submission_subdir)
 
-            # Leave as loop rather than comprehension for now in case
-            # we need to count individual samples.
-            scripts = []
             for jobname, samples, settings in job_cmd_lumps:
-                s = create_script(samples, settings, jobname=jobname)
-                scripts.append(s)
-
-            for submit_script in scripts:
+                script = create_script(samples, settings, jobname=jobname)
                 if args.dry_run:
                     _LOGGER.info(
-                        "> DRY RUN: I would have submitted this: '%s'",
-                        submit_script)
+                            "> DRY RUN: I would have submitted this: '%s'",
+                            script)
                 else:
                     submission_command = "{} {}".format(
-                        self.prj.compute.submission_command, submit_script)
+                        self.prj.compute.submission_command, script)
                     subprocess.call(submission_command, shell=True)
                     # Delay next job's submission.
                     time.sleep(args.time_delay)
+                # Message as if submitted and increment the count as such
+                # for validation in dry run context, though the true submit
+                # step does not occur.
                 _LOGGER.debug("SUBMITTED")
                 submit_count += 1
 

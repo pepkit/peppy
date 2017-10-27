@@ -90,6 +90,8 @@ DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
 VALID_READ_TYPES = ["single", "paired"]
+REQUIRED_INPUTS_ATTR_NAME = "required_inputs_attr"
+ALL_INPUTS_ATTR_NAME = "all_inputs_attr"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
@@ -314,6 +316,9 @@ def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
             rowdata[attr] = sample.locate_data_source(
                     data_sources, attr, source_key=getattr(sample, attr),
                     extra_vars=rowdata)
+
+        # TODO: this (below) is where we could maintain grouped values
+        # TODO (cont.): as a collection and defer the true merger.
 
         # Since we are now jamming multiple (merged) entries into a single
         # attribute on a Sample, we have to join the individual items into a
@@ -2108,8 +2113,8 @@ class Sample(AttributeDict):
         # These attributes are then queried to populate values
         # for the primary entries.
         req_attr_names = [("ngs_input_files", "ngs_inputs_attr"),
-                          ("required_input_files", "required_inputs_attr"),
-                          ("all_input_files", "all_inputs_attr")]
+                          ("required_input_files", REQUIRED_INPUTS_ATTR_NAME),
+                          ("all_input_files", ALL_INPUTS_ATTR_NAME)]
         for name_src_attr, name_dst_attr in req_attr_names:
             _LOGGER.log(5, "Value of '%s' will be assigned to '%s'",
                         name_src_attr, name_dst_attr)
@@ -2120,8 +2125,9 @@ class Sample(AttributeDict):
 
         # Post-processing of input attribute assignments.
         # Ensure that there's a valid all_inputs_attr.
-        if not self.all_inputs_attr:
-            self.all_inputs_attr = self.required_inputs_attr
+        if not getattr(self, ALL_INPUTS_ATTR_NAME):
+            required_inputs = getattr(self, REQUIRED_INPUTS_ATTR_NAME)
+            setattr(self, ALL_INPUTS_ATTR_NAME, required_inputs)
         # Convert attribute keys into values.
         if self.ngs_inputs_attr:
             _LOGGER.log(5, "Handling NGS input attributes: '%s'", self.name)
@@ -2144,14 +2150,14 @@ class Sample(AttributeDict):
                         self.__class__.__name__, self.name, set_rtype_reason)
                 self.set_read_type(permissive=permissive)
             else:
-                _LOGGER.debug("read_type is already valid: '%s'",
+                _LOGGER.debug("read_type is already valid: '%s'", 
                               self.read_type)
         else:
             _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
 
         # Assign values for actual inputs attributes.
-        self.required_inputs = self.get_attr_values("required_inputs_attr")
-        self.all_inputs = self.get_attr_values("all_inputs_attr")
+        self.required_inputs = self.get_attr_values(REQUIRED_INPUTS_ATTR_NAME)
+        self.all_inputs = self.get_attr_values(ALL_INPUTS_ATTR_NAME)
         _LOGGER.debug("All '{}' inputs: {}".format(self.name, self.all_inputs))
         self.input_file_size = get_file_size(self.all_inputs)
 
