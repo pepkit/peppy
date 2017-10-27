@@ -757,12 +757,12 @@ class Runner(Executor):
         if failures:
             _LOGGER.info("%d sample(s) with submission failure.",
                          len(failures))
-            sample_by_reason = aggregate_exec_skip_reasons(failures)
+            samples_by_reason = aggregate_exec_skip_reasons(failures)
             _LOGGER.info("{} unique reasons for submission failure: {}".format(
-                len(sample_by_reason), ", ".join(sample_by_reason.keys())))
+                len(samples_by_reason), ", ".join(samples_by_reason.keys())))
 
-            full_fail_msgs = map(create_failure_message,
-                                 sample_by_reason.items())
+            full_fail_msgs = [create_failure_message(reason, samples) 
+                              for reason, samples in samples_by_reason.items()]
             _LOGGER.info("Samples by failure:\n{}".format(
                 "\n".join(full_fail_msgs)))
 
