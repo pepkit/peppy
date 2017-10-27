@@ -352,7 +352,7 @@ def create_looper_args_text(prj, pl_key, submission_settings):
 
 def lump_cmds(
         pl_key, pl_job, pl_iface, sample_subtype, sample_data_bundles,
-        prj, update_partition, lump_size=1, ignore_flags=False):
+        prj, update_partition, extra_args, lump_size=1, ignore_flags=False):
     """
     Submit samples for a particular pipeline.
 
@@ -368,10 +368,12 @@ def lump_cmds(
     :param Project prj: Project with which the samples are associated
     :param callable update_partition: function with which to update
         partition setting
-    :param bool ignore_flags: whether to disregard flag files that exist for
-        a sample for this pipeline and generate a submission script anyway
+    :param Iterable extra_args: Additional arguments to add to each
+        command, in the order given
     :param int lump_size: number of commands to lump into one script, i.e.
         job submission; default 1
+    :param bool ignore_flags: whether to disregard flag files that exist for
+        a sample for this pipeline and generate a submission script anyway
     :return (Iterable[(str, Iterable[Sample], dict)], Iterable[str]): pair
         in which the first element is a collection of tuples, each of which
         represents a job for submission and thus consists of a job name, a
@@ -380,7 +382,7 @@ def lump_cmds(
     """
 
     pl_name = pl_iface.get_pipeline_name(pl_key)
-
+    extra_args_text = " {}".format(" ".join(extra_args)) if extra_args else ""
 
     # Process a single group of (perhaps just one) commands.
     def proc_lump(sample_argstring_pairs):
@@ -416,8 +418,13 @@ def lump_cmds(
         assert all(map(lambda cmd_part: cmd_part is not None,
                        [pl_job, prj_argtext, looper_argtext])), \
             "No command component may be null"
-        commands = [pl_job + astring + prj_argtext + looper_argtext
-                          for _, astring in sample_argstring_pairs]
+
+        # TODO: make this such that it's not relying on each command
+        # TODO (cont.) component having a trailing spac (or use a
+        # TODO (cont.) build_command()-like function)
+        commands = [pl_job + astring + prj_argtext +
+                    looper_argtext + extra_args_text
+                    for _, astring in sample_argstring_pairs]
 
         # Add command string and job name to the submit_settings object.
         if 1 == lump_size:
@@ -713,8 +720,8 @@ class Runner(Executor):
             job_cmd_lumps, fail_reason_sample_pairs = \
                 lump_cmds(
                     pl_key, pl_job, pl_iface, sample_subtype, sample_data,
-                    self.prj, update_partition, lump_size=args.lump_size,
-                    ignore_flags=args.ignore_flags)
+                    self.prj, update_partition, extra_args=remaining_args,
+                    lump_size=args.lump_size, ignore_flags=args.ignore_flags)
 
             # Update job count and failures based on this pipeline.
             num_jobs += len(job_cmd_lumps)
@@ -723,8 +730,7 @@ class Runner(Executor):
             create_script = partial(
                 create_submission_script,
                 template=self.prj.compute.submission_template,
-                submission_folder=self.prj.metadata.submission_subdir,
-                extra_args=remaining_args)
+                submission_folder=self.prj.metadata.submission_subdir)
 
             # Leave as loop rather than comprehension for now in case
             # we need to count individual samples.
@@ -941,8 +947,7 @@ def _submission_status_text(curr, total, sample_name, sample_protocol, color):
 
 
 def create_submission_script(
-        samples, template_values, template, submission_folder, jobname,
-        extra_args=None):
+        samples, template_values, template, submission_folder, jobname):
     """
     Write cluster submission script to disk and submit job for given Sample.
 
@@ -954,8 +959,6 @@ def create_submission_script(
         submission files
     :param str jobname: name for the job that will be create/submitted when 
         this script is executed
-    :param Iterable[str] extra_args: arguments for this submission, 
-        unconsumed by previous option/argument parsing
     :return str: filepath to submission script
     """
 
@@ -993,8 +996,6 @@ def create_submission_script(
     # Add additional arguments, populate template fields, and write to disk.
     with open(template, 'r') as handle:
         filedata = handle.read()
-
-    template_values["CODE"] += " " + str(" ".join(extra_args or []))
 
     for key, value in template_values.items():
         # Here we add brackets around the key names and use uppercase because
