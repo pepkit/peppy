@@ -524,11 +524,6 @@ def lump_cmds(
             failures.append([skip_reasons, sample.sample_name])
             continue
 
-        _LOGGER.info("> Building submission to '{}' for sample '{}'"
-                     " (input: {:.2f} Gb)".format(
-                pl_job.rstrip(), sample.name, sample.input_file_size))
-
-
         # Add this Sample and its argument string (to append to the base 
         # pipeline command) to the current lump.
         curr_lump.append((sample, argstring))
@@ -549,6 +544,7 @@ def lump_cmds(
         job_cmd_lumps.append(proc_lump(curr_lump))
 
     return job_cmd_lumps, failures
+
 
 
 # Encapsulate the items needed for a job submission.
@@ -669,6 +665,7 @@ class Runner(Executor):
             # by which this sample should be processed. Pair the sample
             # data with the group/bundle of objects that will be used to
             # submit it.
+            pipe_names = []
             for pl_iface, sample_subtype, pl_key, flagged_script in \
                     submission_bundles:
                 submit_data_trio = (flagged_script, sample_subtype, pl_iface)
@@ -677,6 +674,16 @@ class Runner(Executor):
                 # Key by pipeline so that we can lump submissions for a
                 # single pipeline together if desired.
                 sample_data_by_pipeline_key[pl_key].append(sample_data)
+                pipe_name = pl_iface.get_pipeline_name(pl_key)
+                pipe_names.append(pipe_name)
+
+            # DEBUG
+            print("INPUT FILE SIZE: {} ({})".format(
+                sample.input_file_size, type(sample.input_file_size)))
+
+            _LOGGER.info("Pipelines for sample '%s' (%.2f Gb):\n%s",
+                         sample.name, sample.input_file_size,
+                         "\n".join(pipe_names))
 
         # Iterate over collection in which each pipeline key is mapped to
         # a collection of pairs of sample data and job submission bundle.
