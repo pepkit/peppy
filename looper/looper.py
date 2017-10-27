@@ -509,10 +509,9 @@ def create_pipeline_submissions(
         # Fore each sample, the entire command consists of the base pipeline 
         # job, arguments determined by the specific sample itself, arguments 
         # related to the project, and then looper options/arguments.
-        # DEBUG
-        assert pl_job is not None
-        assert prj_argtext is not None
-        assert looper_argtext is not None
+        assert all(map(lambda cmd_part: cmd_part is not None,
+                       [pl_job, prj_argtext, looper_argtext])), \
+                "No command component may be null"
         curr_lump_cmds = [pl_job + astring + prj_argtext + looper_argtext
                           for _, astring in curr_lump]
 
@@ -675,6 +674,10 @@ class Runner(Executor):
                set(script_subtype_iface_trio_by_pipeline_key.keys()), \
                 "Collections of strict pipeline keys must be equal for " \
                 "mapping to sample data and for mapping to submission data."
+
+        _LOGGER.debug("Processing {} pipeline keys: {}".format(
+                len(sample_data_by_pipeline_key),
+                sample_data_by_pipeline_key.keys()))
 
         # Now that we've remapped in terms of pipelines, we can submit
         # samples for processing in a per-pipeline fashion, facilitating
@@ -1078,29 +1081,21 @@ class Checker(Executor):
         """
 
         # Handle single or multiple flags, and alphabetize.
-        flags = sorted([flags] if isinstance(flags, str) else list(flags or FLAGS))
-
-        _LOGGER.info("Checking all project {} for these flags: {}".format(
-                     "folders" if all_folders else "samples",
-                     ", ".join(["'{}'".format(f) for f in flags])))
+        flags = sorted([flags] if isinstance(flags, str)
+                       else list(flags or FLAGS))
+        flag_text = ", ".join(flags)
 
         # Collect the files by flag and sort by flag name.
         if all_folders:
-            def _glob_expr(flag_name):
-                flag_file_name = "{}.flag".format(flag_name)
-                return os.path.join(self.prj.metadata.results_subdir,
-                                    "*", flag_file_name)
-            files_by_flag = {f: _glob_expr(f) for f in flags}
+            _LOGGER.info("Checking project folders for flags: %s", flag_text)
+            files_by_flag = fetch_flag_files(
+                results_folder=self.prj.metadata.results_subdir, flags=flags)
         else:
-            files_by_flag = fetch_flag_files(self.prj, flags)
+            _LOGGER.info("Checking project samples for flags: %s", flag_text)
+            files_by_flag = fetch_flag_files(prj=self.prj, flags=flags)
 
         # For each flag, output occurrence count.
         for flag in flags:
-            """
-            Skip output for flags with no files.
-            if 0 == len(files):
-                continue
-            """
             _LOGGER.info("%s: %d", flag.upper(), len(files_by_flag[flag]))
 
         # For each flag, output filepath(s) if not overly verbose.

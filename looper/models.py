@@ -314,9 +314,6 @@ def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
             rowdata[attr] = sample.locate_data_source(
                     data_sources, attr, source_key=getattr(sample, attr),
                     extra_vars=rowdata)
-            _LOGGER.debug("PROBLEM adding derived column: "
-                          "{}, {}, {}".format(attr, rowdata[attr],
-                                              getattr(sample, attr)))
 
         # Since we are now jamming multiple (merged) entries into a single
         # attribute on a Sample, we have to join the individual items into a

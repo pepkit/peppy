@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 from collections import defaultdict, Iterable
 import contextlib
+import glob
 import logging
 import os
 import random
@@ -110,35 +111,51 @@ def expandpath(path):
 
 
 
-def fetch_flag_files(prj, flags=FLAGS):
+def fetch_flag_files(prj=None, results_folder="", flags=FLAGS):
     """
     Find all flag file paths for the given project.
 
     :param Project | AttributeDict prj: full Project or AttributeDict with
         similar metadata and access/usage pattern
-    :param Iterable[str] | str flags: Collection of flag names or single flag name
-        for which to fetch files
+    :param str results_folder: path to results folder, corresponding to the
+        1:1 sample:folder notion that a looper Project has. That is, this
+        function uses the assumption that if rootdir rather than project is
+        provided, the structure of the file tree rooted at rootdir is such
+        that any flag files to be found are not directly within rootdir but
+        are directly within on of its first layer of subfolders.
+    :param Iterable[str] | str flags: Collection of flag names or single flag
+        name for which to fetch files
     :return Mapping[str, list[str]]: collection of filepaths associated with
         particular flag for samples within the given project
+    :raise TypeError: if neither or both of project and rootdir are given
     """
+
+    if not (prj or results_folder) or (prj and results_folder):
+        raise TypeError("Need EITHER project OR rootdir")
 
     # Just create the filenames once, and pair once with flag name.
     flags = [flags] if isinstance(flags, str) else list(flags)
-    files = ["{}.flag".format(f) for f in flags]
-    flag_file_pairs = list(zip(flags, files))
+    flagfile_suffices = ["*{}.flag".format(f) for f in flags]
+    flag_suffix_pairs = list(zip(flags, flagfile_suffices))
 
     # Collect the flag file paths by flag name.
     files_by_flag = defaultdict(list)
 
-    # Iterate over samples to collect flag files.
-    for s in prj.samples:
-        folder = sample_folder(prj, s)
+    if prj is None:
+        for flag, suffix in flag_suffix_pairs:
+            flag_expr= os.path.join(results_folder, "*", suffix)
+            flags_present = glob.glob(flag_expr)
+            files_by_flag[flag] = flags_present
+    else:
+        # Iterate over samples to collect flag files.
+        for s in prj.samples:
+            folder = sample_folder(prj, s)
+            # Check each candidate flag for existence, collecting it if present.
+            for flag, suffix in flag_suffix_pairs:
+                flag_expr = os.path.join(folder, suffix)
+                flags_present = glob.glob(flag_expr)
+                files_by_flag[flag].extend(flags_present)
 
-        # Check each candidate flag for existence, collecting it if present.
-        for flag, flag_file in flag_file_pairs:
-            flag_path = os.path.join(folder, flag_file)
-            if os.path.isfile(flag_path):
-                files_by_flag[flag].append(flag_path)
 
     return files_by_flag
 
