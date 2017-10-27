@@ -422,7 +422,7 @@ def lump_cmds(
         if 1 == lump_size:
             jobname = "{}_{}".format(sample.sample_name, pl_key)
         else:
-            jobname = "{}_{}".format(pl_key, len(job_cmd_lumps))
+            jobname = "{}_lump{}".format(pl_key, len(job_cmd_lumps))
         submit_settings["JOBNAME"] = jobname
         submit_settings["CODE"] = "\n".join(commands)
 
@@ -669,8 +669,12 @@ class Runner(Executor):
                 pipe_name = pl_iface.get_pipeline_name(pl_key)
                 pipe_names.append(pipe_name)
 
-            _LOGGER.info("Pipelines for sample %s:\n%s",
-                         sample.name, "\n".join(pipe_names))
+            # Place single pipeline name inline; for each sample with multiple
+            # pipelines, put each pipeline name on a separate line.
+            _LOGGER.info("%d pipeline(s) for sample %s:%s%s",
+                         len(pipe_names), sample.name,
+                         "\n" if len(pipe_names) > 1 else " ",
+                         "\n".join(['{}'.format(pn) for pn in pipe_names]))
 
         # Iterate over collection in which each pipeline key is mapped to
         # a collection of pairs of sample data and job submission bundle.
