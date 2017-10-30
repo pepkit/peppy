@@ -389,7 +389,9 @@ class SubmissionConductor(object):
         if not os.path.isdir(script_dirpath):
             os.makedirs(script_dirpath)
 
-        _LOGGER.info("> script: '%s'", submission_script)
+        sample_names_text = ", ".join(s.name for s, _ in self._pool)
+        _LOGGER.info("> Submission script for %d sample(s): '%s' (%s)",
+                     len(self._pool), sample_names_text, submission_script)
         with open(submission_script, 'w') as sub_file:
             sub_file.write(script_data)
 
