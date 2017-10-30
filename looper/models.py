@@ -1680,6 +1680,8 @@ class Sample(AttributeDict):
         :return pandas.core.series.Series: pandas Series representation
             of this Sample, with its attributes.
         """
+        # Note that this preserves metadata, but it could be excluded
+        # with self.items() rather than self.__dict__.
         return _pd.Series(self.__dict__)
 
 

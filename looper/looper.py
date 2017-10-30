@@ -8,6 +8,7 @@ import argparse
 from collections import defaultdict, namedtuple
 from functools import partial
 import glob
+import itertools
 import logging
 import os
 import re
@@ -21,6 +22,7 @@ from .models import \
     grab_project_data, ProjectContext, Sample, \
     COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
     SAMPLE_NAME_COLNAME, VALID_READ_TYPES
+from .submission_manager import SubmissionConductor
 from .utils import \
     alpha_cased, create_looper_args_text, fetch_flag_files, sample_folder, \
     VersionInHelpParser
@@ -118,7 +120,11 @@ def parse_arguments():
             type=int,
             help="Limit to n samples.")
     run_subparser.add_argument(
-            "--lump-size", type=int, default=1,
+            "--lump", type=float,
+            help="Maximum total input file size for a lump/batch of commands "
+                 "in a single job")
+    run_subparser.add_argument(
+            "--lump-N", type=int,
             help="Number of individual scripts grouped into single submission")
 
     # Other commands
@@ -527,10 +533,32 @@ class Runner(Executor):
 
         _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
                      format(", ".join(self.prj.protocols)))
-        submission_bundle_by_protocol = {
+
+
+        # TODO: if this is removed, make sure that the validation logic of
+        # only allowing one pipeline interface per pipeline key is maintained.
+        submission_bundles_by_protocol = {
             alpha_cased(p): self.prj.build_submission_bundles(alpha_cased(p))
             for p in protocols
         }
+
+        # Job submissions are managed on a per-pipeline basis so that
+        # individual commands (samples) may be lumped into a single job.
+        submission_conductors = {}
+        pipe_keys_by_protocol = defaultdict(list)
+        for proto in protocols:
+            proto_key = alpha_cased(proto)
+            submission_bundles = self.prj.build_submission_bundles(proto_key)
+            for pl_iface, sample_subtype, pl_key, script_with_flags in \
+                    submission_bundles:
+                conductor = SubmissionConductor(
+                        pl_key, pl_iface, script_with_flags, self.prj,
+                        args.dry_run, args.time_delay, sample_subtype,
+                        remaining_args, args.ignore_flags,
+                        self.prj.compute.partition,
+                        max_cmds=args.lump_N, max_size=args.lump)
+                submission_conductors[pl_key] = conductor
+                pipe_keys_by_protocol[proto_key].append(pl_key)
 
         # Determine number of samples eligible for processing.
         num_samples = len(self.prj.samples)
@@ -544,30 +572,17 @@ class Runner(Executor):
         _LOGGER.debug("Limiting to %d of %d samples",
                       upper_sample_bound, num_samples)
 
-        try:
-            partition = self.prj.compute.partition
-        except AttributeError:
-            _LOGGER.debug("No partition to set")
-            update_partition = lambda ss: ss
-        else:
-            def update_partition(ss):
-                ss["partition"] = partition
-                return ss
-
-        # Each strict pipeline key maps to the same script + flags, the same 
-        # Sample subtype, and the same PipelineInterface.
-        script_subtype_iface_trio_by_pipeline_key = {}
-        # Collect Sample data by strict pipeline key for submission.
-        sample_data_by_pipeline_key = defaultdict(list)
+        num_commands_possible = 0
 
         for sample in self.prj.samples[:upper_sample_bound]:
             # First, step through the samples and determine whether any
             # should be skipped entirely, based on sample attributes alone
             # and independent of anything about any of its pipelines.
 
+            # Start by displaying the sample index and a fresh collection
+            # of sample-skipping reasons.
             _LOGGER.info(self.counter.show(
                     sample.sample_name, sample.protocol))
-
             skip_reasons = []
 
             # Don't submit samples with duplicate names.
@@ -576,10 +591,11 @@ class Runner(Executor):
 
             # Check if sample should be run.
             if sample.is_dormant():
-                skip_reasons.append("Inactive status (via {})".
-                                    format(SAMPLE_EXECUTION_TOGGLE))
+                skip_reasons.append(
+                        "Inactive status (via '{}' column/attribute)".
+                        format(SAMPLE_EXECUTION_TOGGLE))
 
-            # Get the base protocol-to-pipeline mappings
+            # Get the base protocol-to-pipeline mappings.
             try:
                 protocol = alpha_cased(sample.protocol)
             except AttributeError:
@@ -589,8 +605,10 @@ class Runner(Executor):
                 _LOGGER.debug("Fetching submission bundle, "
                               "using '%s' as protocol key", protocol)
                 submission_bundles = \
-                        submission_bundle_by_protocol.get(protocol)
+                        submission_bundles_by_protocol.get(protocol)
                 if not submission_bundles:
+                    # TODO: note protocol? If so, group all such messages into
+                    # TODO (cont.) one message block, or separate?
                     skip_reasons.append("No submission bundle for protocol")
 
             if skip_reasons:
@@ -609,107 +627,35 @@ class Runner(Executor):
             # that the file is fresh, with respect to this run of looper.
             sample.to_yaml(subs_folder_path=self.prj.metadata.submission_subdir)
 
-            # Store the base Sample data for reuse in creating subtype(s).
-            sample_data = sample.as_series()
+            pipe_keys = pipe_keys_by_protocol[alpha_cased(sample.protocol)]
+            _LOGGER.info("Considering %d pipeline(s)", len(pipe_keys))
 
-            # Each submission bundle corresponds to a particular pipeline
-            # by which this sample should be processed. Pair the sample
-            # data with the group/bundle of objects that will be used to
-            # submit it.
-            pipe_names = []
-            for pl_iface, sample_subtype, pl_key, script_with_flags in \
-                    submission_bundles:
-                submit_data_trio = (script_with_flags, sample_subtype, pl_iface)
-                script_subtype_iface_trio_by_pipeline_key.setdefault(
-                        pl_key, submit_data_trio)
-                # Key by pipeline so that we can lump submissions for a
-                # single pipeline together if desired.
-                sample_data_by_pipeline_key[pl_key].append(sample_data)
-                pipe_name = pl_iface.get_pipeline_name(pl_key)
-                pipe_names.append(pipe_name)
+            pl_fails = []
+            for pl_key in pipe_keys:
+                num_commands_possible += 1
+                # TODO: of interest to track failures by pipeline?
+                conductor = submission_conductors[pl_key]
+                # TODO: check return value from add() to determine whether
+                # TODO (cont.) to grow the failures list.
+                curr_pl_fails = conductor.add(sample)
+                pl_fails.extend(curr_pl_fails)
+            if pl_fails:
+                failures.append([pl_fails, sample.name])
 
-                # TODO: determine submission viability here, and do the
-                # TODO (cont.) script attribution so that script comes up
-                # right after the sample or group of samples
-
-            # Place single pipeline name inline; for each sample with multiple
-            # pipelines, put each pipeline name on a separate line.
-            _LOGGER.info("%d pipeline(s) for sample %s:%s%s",
-                         len(pipe_names), sample.name,
-                         "\n" if len(pipe_names) > 1 else " ",
-                         "\n".join(['{}'.format(pn) for pn in pipe_names]))
-
-        # Iterate over collection in which each pipeline key is mapped to
-        # a collection of pairs of sample data and job submission bundle.
-        assert set(sample_data_by_pipeline_key.keys()) == \
-               set(script_subtype_iface_trio_by_pipeline_key.keys()), \
-                "Collections of strict pipeline keys must be equal for " \
-                "mapping to sample data and for mapping to submission data."
-
-        _LOGGER.debug("Processing {} pipeline keys: {}".format(
-                len(sample_data_by_pipeline_key),
-                sample_data_by_pipeline_key.keys()))
-
-        # Keep track of how many jobs have been submitted.
-        num_jobs = 0  # Some job templates will be skipped.
-        submit_count = 0  # For various reasons, some jobs won't be submitted.
-
-        # Now that we've remapped in terms of pipelines, we can submit
-        # samples for processing in a per-pipeline fashion, facilitating
-        # grouping of multiple samples into individual jobs, with one or
-        # more jobs per pipeline.
-        for pl_key in sample_data_by_pipeline_key.keys():
-
-            # Extract the base pipeline command, sample subtype to use for
-            # this pipeline, and the associated pipeline interface.
-            pl_job, sample_subtype, pl_iface = \
-                    script_subtype_iface_trio_by_pipeline_key[pl_key]
-
-            # Pull of the collection of sample data bundles associated with
-            # the current pipeline key; here sample_data is actually a
-            # collection of mappings.
-            sample_data = sample_data_by_pipeline_key[pl_key]
-
-            _LOGGER.info("Creating job(s) for pipeline: '%s'", pl_key)
-
-            job_cmd_lumps, fail_reason_sample_pairs = \
-                lump_cmds(
-                    pl_key, pl_job, pl_iface, sample_subtype, sample_data,
-                    self.prj, update_partition, extra_args=remaining_args,
-                    lump_size=args.lump_size, ignore_flags=args.ignore_flags)
-
-            # Update job count and failures based on this pipeline.
-            num_jobs += len(job_cmd_lumps)
-            failures.extend(fail_reason_sample_pairs)
-
-            create_script = partial(
-                create_submission_script,
-                template=self.prj.compute.submission_template,
-                submission_folder=self.prj.metadata.submission_subdir)
-
-            for jobname, samples, settings in job_cmd_lumps:
-                script = create_script(samples, settings, jobname=jobname)
-                if args.dry_run:
-                    _LOGGER.info(
-                            "> DRY RUN: I would have submitted this: '%s'",
-                            script)
-                else:
-                    submission_command = "{} {}".format(
-                        self.prj.compute.submission_command, script)
-                    subprocess.call(submission_command, shell=True)
-                    # Delay next job's submission.
-                    time.sleep(args.time_delay)
-                # Message as if submitted and increment the count as such
-                # for validation in dry run context, though the true submit
-                # step does not occur.
-                _LOGGER.debug("SUBMITTED")
-                submit_count += 1
+        job_sub_total = 0
+        cmd_sub_total = 0
+        for conductor in submission_conductors.values():
+            conductor.submit(force=True)
+            job_sub_total += conductor.num_job_submissions
+            cmd_sub_total += conductor.num_cmd_submissions
 
         # Report what went down.
         _LOGGER.info("Looper finished")
-        _LOGGER.info("Samples generating jobs: %d of %d",
+        _LOGGER.info("Samples qualified for job generation: %d of %d",
                      len(processed_samples), len(self.prj.samples))
-        _LOGGER.info("Jobs submitted: %d of %d", submit_count, num_jobs)
+        _LOGGER.info("Commands submitted: %d of %d",
+                     cmd_sub_total, num_commands_possible)
+        _LOGGER.info("Job submitted: %d", job_sub_total)
         if args.dry_run:
             _LOGGER.info("Dry run. No jobs were actually submitted.")
         if failures:
@@ -723,6 +669,7 @@ class Runner(Executor):
                               for reason, samples in samples_by_reason.items()]
             _LOGGER.info("Samples by failure:\n{}".format(
                 "\n".join(full_fail_msgs)))
+
 
 
 def create_failure_message(reason, samples):
@@ -848,6 +795,9 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     """
     samples_by_skip_reason = defaultdict(list)
     for skip_reasons, sample in skip_reasons_sample_pairs:
+        # DEBUG
+        print("SKIP REASONS: {}".format(skip_reasons))
+
         for reason in set(skip_reasons):
             samples_by_skip_reason[reason].append(sample)
     return samples_by_skip_reason
