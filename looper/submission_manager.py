@@ -269,7 +269,7 @@ class SubmissionConductor(object):
 
         elif force or self.is_full:
             _LOGGER.info("Determining submission settings for %d sample(s) "
-                         "(%.2f Gb)", len(self._pool), self._curr_size)
+                         "(%.3f Gb)", len(self._pool), self._curr_size)
             settings = self.pl_iface.choose_resource_package(
                 self.pl_key, self._curr_size)
             if self.partition:
@@ -390,7 +390,7 @@ class SubmissionConductor(object):
             os.makedirs(script_dirpath)
 
         sample_names_text = ", ".join(s.name for s, _ in self._pool)
-        _LOGGER.info("> Submission script for %d sample(s): '%s'\n%s",
+        _LOGGER.info("> Submission script for %d sample(s) -- '%s':\n%s",
                      len(self._pool), submission_script, sample_names_text)
         with open(submission_script, 'w') as sub_file:
             sub_file.write(script_data)
