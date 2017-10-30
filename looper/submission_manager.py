@@ -206,15 +206,17 @@ class SubmissionConductor(object):
                 
             # Check for any missing requirements before submitting.
             _LOGGER.debug("Determining missing requirements")
-            error_type, missing_reqs_msg = \
+            error_type, missing_reqs_general, missing_reqs_specific = \
                 sample.determine_missing_requirements()
+            missing_reqs_msg = "{}: {}".format(
+                    missing_reqs_general, missing_reqs_specific)
             if missing_reqs_msg:
                 if self.prj.permissive:
                     _LOGGER.warn(missing_reqs_msg)
                 else:
                     raise error_type(missing_reqs_msg)
                 _LOGGER.warn("> Not submitted: %s", missing_reqs_msg)
-                skip_reasons.append(missing_reqs_msg)
+                skip_reasons.append(missing_reqs_general)
 
             # Check if single_or_paired value is recognized.
             if hasattr(sample, "read_type"):
@@ -243,7 +245,8 @@ class SubmissionConductor(object):
                 
             if not skip_reasons:
                 self._pool.append((sample, argstring))
-                self._curr_size += float(sample.input_file_size)
+                this_sample_size = float(sample.input_file_size)
+                self._curr_size += this_sample_size
 
         if self.automatic and self.is_full:
             self.submit()
@@ -269,7 +272,7 @@ class SubmissionConductor(object):
 
         elif force or self.is_full:
             _LOGGER.info("Determining submission settings for %d sample(s) "
-                         "(%.3f Gb)", len(self._pool), self._curr_size)
+                         "(%.8f Gb)", len(self._pool), self._curr_size)
             settings = self.pl_iface.choose_resource_package(
                 self.pl_key, self._curr_size)
             if self.partition:
@@ -325,8 +328,8 @@ class SubmissionConductor(object):
             self._reset_pool()
 
         else:
-            _LOGGER.info("No submission (pool is not full and submission "
-                         "was not forced): %s", self.pl_name)
+            _LOGGER.debug("No submission (pool is not full and submission "
+                          "was not forced): %s", self.pl_name)
             submitted = False
 
         return submitted

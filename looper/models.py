@@ -1691,8 +1691,9 @@ class Sample(AttributeDict):
 
         :param Iterable[str] required: collection of required sample attribute
             names, optional; if unspecified, only a name is required.
-        :return str: message about missing/empty attribute(s); empty string if
-            there are no missing/empty attributes
+        :return (Exception | NoneType, str, str): exception and messages about
+            what's missing/empty; null with empty messages if there was nothing
+            exceptional or required inputs are absent or not set
         """
         missing, empty = [], []
         for attr in (required or [SAMPLE_NAME_COLNAME]):
@@ -1715,15 +1716,17 @@ class Sample(AttributeDict):
             is detected
         """
 
+        null_return = (None, "", "")
+
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
             _LOGGER.warn("You must run set_pipeline_attributes "
                          "before determine_missing_requirements")
-            return None, ""
+            return null_return
 
         if not self.required_inputs:
             _LOGGER.debug("No required inputs")
-            return None, ""
+            return null_return
 
         # First, attributes
         missing, empty = [], []
@@ -1745,9 +1748,10 @@ class Sample(AttributeDict):
                               format(file_attribute, attval))
 
         if missing or empty:
-            return AttributeError, \
-                   "Missing attributes: {}. Empty attributes: {}".\
-                    format(missing, empty)
+            reason_key = "Missing attributes, empty attributes"
+            reason_detail = "(missing) {}; (empty) {}".format(
+                    ", ".join(missing), ", ".join(empty))
+            return AttributeError, reason_key, reason_detail
 
         # Second, files
         missing_files = []
@@ -1762,11 +1766,11 @@ class Sample(AttributeDict):
                     missing_files.append(path)
 
         if not missing_files:
-            return None, ""
+            return null_return
         else:
-            missing_message = \
-                    "Missing file(s): {}".format(", ".join(missing_files))
-            return IOError, missing_message
+            reason_key = "Missing file(s)"
+            reason_detail = ", ".join(missing_files)
+            return IOError, reason_key, reason_detail
 
 
     def generate_filename(self, delimiter="_"):
