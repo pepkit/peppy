@@ -208,9 +208,9 @@ class SubmissionConductor(object):
             _LOGGER.debug("Determining missing requirements")
             error_type, missing_reqs_general, missing_reqs_specific = \
                 sample.determine_missing_requirements()
-            missing_reqs_msg = "{}: {}".format(
+            if missing_reqs_general:
+                missing_reqs_msg = "{}: {}".format(
                     missing_reqs_general, missing_reqs_specific)
-            if missing_reqs_msg:
                 if self.prj.permissive:
                     _LOGGER.warn(missing_reqs_msg)
                 else:
