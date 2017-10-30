@@ -119,8 +119,11 @@ class SampleWrtProjectCtorTests:
         observed_required_inputs = [os.path.basename(f)
                                     for f in sample.required_inputs]
         assert expected_required_inputs == observed_required_inputs
-        error_type, error_message = sample.determine_missing_requirements()
-        assert error_type is None and not error_message
+        error_type, error_general, error_specific = \
+                sample.determine_missing_requirements()
+        assert error_type is None
+        assert not error_general
+        assert not error_specific
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -135,8 +138,11 @@ class SampleWrtProjectCtorTests:
                                                   [sample_index][0])
         observed_required_input_basename = \
             os.path.basename(sample.required_inputs[0])
-        error_type, error_message = sample.determine_missing_requirements()
-        assert error_type is None and not error_message
+        error_type, error_general, error_specific = \
+                sample.determine_missing_requirements()
+        assert error_type is None
+        assert not error_general
+        assert not error_specific
         assert 1 == len(sample.required_inputs)
         assert expected_required_input_basename == \
                observed_required_input_basename
