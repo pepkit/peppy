@@ -124,7 +124,7 @@ def parse_arguments():
             help="Maximum total input file size for a lump/batch of commands "
                  "in a single job")
     run_subparser.add_argument(
-            "--lump-N", type=int,
+            "--lumpn", type=int,
             help="Number of individual scripts grouped into single submission")
 
     # Other commands
@@ -434,7 +434,7 @@ def lump_cmds(
         except AttributeError:
             # TODO: inform about WHICH missing attribute(s).
             fail_message = "Pipeline required attribute(s) missing"
-            _LOGGER.warn("> Not submitted: %s", fail_message)
+            _LOGGER.warn("> Not submitted (%s)", fail_message)
             skip_reasons.append(fail_message)
 
         # Check for any missing requirements before submitting.
@@ -446,7 +446,7 @@ def lump_cmds(
                 _LOGGER.warn(missing_reqs_msg)
             else:
                 raise error_type(missing_reqs_msg)
-            _LOGGER.warn("> Not submitted: %s", missing_reqs_msg)
+            _LOGGER.warn("> Not submitted: (%s)", missing_reqs_msg)
             skip_reasons.append(missing_reqs_msg)
 
         # Check if single_or_paired value is recognized.
@@ -471,7 +471,7 @@ def lump_cmds(
             # TODO: inform about which missing attribute(s).
             fail_message = "Required attribute(s) missing " \
                            "for pipeline arguments string"
-            _LOGGER.warn("> Not submitted: %s", fail_message)
+            _LOGGER.warn("> Not submitted: (%s)", fail_message)
             skip_reasons.append(fail_message)
         else:
             argstring += " "
@@ -556,7 +556,7 @@ class Runner(Executor):
                         args.dry_run, args.time_delay, sample_subtype,
                         remaining_args, args.ignore_flags,
                         self.prj.compute.partition,
-                        max_cmds=args.lump_N, max_size=args.lump)
+                        max_cmds=args.lumpn, max_size=args.lump)
                 submission_conductors[pl_key] = conductor
                 pipe_keys_by_protocol[proto_key].append(pl_key)
 
@@ -628,7 +628,7 @@ class Runner(Executor):
             sample.to_yaml(subs_folder_path=self.prj.metadata.submission_subdir)
 
             pipe_keys = pipe_keys_by_protocol[alpha_cased(sample.protocol)]
-            _LOGGER.info("Considering %d pipeline(s)", len(pipe_keys))
+            _LOGGER.debug("Considering %d pipeline(s)", len(pipe_keys))
 
             pl_fails = []
             for pl_key in pipe_keys:

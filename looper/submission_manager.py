@@ -267,12 +267,12 @@ class SubmissionConductor(object):
         """
 
         if not self._pool:
-            _LOGGER.info("No submission (no pooled samples): %s", self.pl_name)
+            _LOGGER.debug("No submission (no pooled samples): %s", self.pl_name)
             submitted = False
 
         elif force or self.is_full:
             _LOGGER.info("Determining submission settings for %d sample(s) "
-                         "(%.8f Gb)", len(self._pool), self._curr_size)
+                         "(%.2f Gb)", len(self._pool), self._curr_size)
             settings = self.pl_iface.choose_resource_package(
                 self.pl_key, self._curr_size)
             if self.partition:
@@ -345,8 +345,11 @@ class SubmissionConductor(object):
             name = sample.name
         else:
             # Note the order in which the increment of submission count and
-            # the call to this function can influence naming.
-            name = "lump{}".format(self.num_job_submissions)
+            # the call to this function can influence naming. Make the jobname
+            # generation call (this method) before incrementing the
+            # submission counter, but add 1 to the index so that we get a
+            # name concordant with 1-based, not 0-based indexing.
+            name = "lump{}".format(self.num_job_submissions + 1)
         return "{}_{}".format(self.pl_key, name)
 
 
@@ -358,10 +361,23 @@ class SubmissionConductor(object):
 
 
     def _write_script(self, template_values, prj_argtext, looper_argtext):
+        """
+        Create the script for job submission.
+
+        :param Mapping template_values: Collection of template placeholder
+            keys and the values with which to replace them.
+        :param str prj_argtext: Command text related to Project data.
+        :param str looper_argtext: Command text related to looper arguments.
+        :return str: Path to the job submission script created.
+        """
+
+        # Determine the command text for the project, looper, and extra args.
         extra_parts = list(filter(
                 lambda cmd_part: bool(cmd_part),
                 [prj_argtext, looper_argtext, self.extra_args_text]))
         extra_parts_text = " ".join(extra_parts)
+
+        # Create the individual commands to lump into this job.
         commands = []
         for _, argstring in self._pool:
             if argstring:
@@ -374,6 +390,7 @@ class SubmissionConductor(object):
                 cmd = base
             commands.append(cmd)
 
+
         jobname = self._jobname()
         submission_base = os.path.join(
                 self.prj.metadata.submission_subdir, jobname)
@@ -383,18 +400,18 @@ class SubmissionConductor(object):
         template_values["LOGFILE"] = logfile
 
         script_data = copy.copy(self._template)
+
         for k, v in template_values.items():
             placeholder = "{" + str(k).upper() + "}"
-            script_data.replace(placeholder, str(v))
+            script_data = script_data.replace(placeholder, str(v))
 
         submission_script = submission_base + ".sub"
         script_dirpath = os.path.dirname(submission_script)
         if not os.path.isdir(script_dirpath):
             os.makedirs(script_dirpath)
 
-        sample_names_text = ", ".join(s.name for s, _ in self._pool)
-        _LOGGER.info("> Submission script for %d sample(s) -- '%s':\n%s",
-                     len(self._pool), submission_script, sample_names_text)
+        _LOGGER.info("> Submission script for %d sample(s): '%s'",
+                     len(self._pool), submission_script)
         with open(submission_script, 'w') as sub_file:
             sub_file.write(script_data)
 
