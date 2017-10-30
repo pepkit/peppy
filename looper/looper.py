@@ -655,7 +655,7 @@ class Runner(Executor):
                      len(processed_samples), len(self.prj.samples))
         _LOGGER.info("Commands submitted: %d of %d",
                      cmd_sub_total, num_commands_possible)
-        _LOGGER.info("Job submitted: %d", job_sub_total)
+        _LOGGER.info("Jobs submitted: %d", job_sub_total)
         if args.dry_run:
             _LOGGER.info("Dry run. No jobs were actually submitted.")
         if failures:
@@ -795,9 +795,6 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
     """
     samples_by_skip_reason = defaultdict(list)
     for skip_reasons, sample in skip_reasons_sample_pairs:
-        # DEBUG
-        print("SKIP REASONS: {}".format(skip_reasons))
-
         for reason in set(skip_reasons):
             samples_by_skip_reason[reason].append(sample)
     return samples_by_skip_reason
