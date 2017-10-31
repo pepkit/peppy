@@ -460,7 +460,8 @@ class Runner(Executor):
             # that the file is fresh, with respect to this run of looper.
             sample.to_yaml(subs_folder_path=self.prj.metadata.submission_subdir)
 
-            pipe_keys = pipe_keys_by_protocol[alpha_cased(sample.protocol)]
+            pipe_keys = pipe_keys_by_protocol.get(alpha_cased(sample.protocol)) \
+                        or pipe_keys_by_protocol.get(GENERIC_PROTOCOL_KEY)
             _LOGGER.debug("Considering %d pipeline(s)", len(pipe_keys))
 
             pl_fails = []
