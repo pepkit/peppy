@@ -440,7 +440,8 @@ class Runner(Executor):
             except AttributeError:
                 skip_reasons.append("Sample has no protocol")
             else:
-                if protocol not in mapped_protos:
+                if protocol not in mapped_protos and \
+                        GENERIC_PROTOCOL_KEY not in mapped_protos:
                     skip_reasons.append("No pipeline for protocol")
 
             if skip_reasons:
