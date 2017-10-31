@@ -14,7 +14,9 @@ import subprocess as sp
 import yaml
 
 from ._version import __version__
-from . import FLAGS, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from . import \
+    FLAGS, GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, \
+    SAMPLE_NAME_COLNAME
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,7 +39,8 @@ def alpha_cased(text, lower=False):
     :param bool lower: whether to convert to lowercase; default uppercase.
     :return str: input filtered to just letters, with homogenized case.
     """
-    text = "".join(filter(lambda c: c.isalpha(), text))
+    text = "".join(filter(
+            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
     return text.lower() if lower else text.upper()
 
 

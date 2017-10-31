@@ -370,7 +370,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
     for pipe_iface_location in pipeline_interface_locations:
         if not _os.path.exists(pipe_iface_location):
             _LOGGER.warn("Ignoring nonexistent pipeline interface "
-                         "location '%s'", pipe_iface_location)
+                         "location: '%s'", pipe_iface_location)
             continue
         proto_iface = ProtocolInterface(pipe_iface_location)
         for proto_name in proto_iface.protomap:
@@ -963,11 +963,6 @@ class Project(AttributeDict):
             else:
                 _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
         return _pd.DataFrame(include_samples)
-        """
-        return _pd.DataFrame(
-                [s.as_series() for s in samples if
-                 hasattr(s, "protocol") and alpha_cased(s.protocol) in protocols])
-        """
 
 
     def build_submission_bundles(self, protocol, priority=True):
@@ -991,6 +986,12 @@ class Project(AttributeDict):
             those already mapped and those not yet mapped
         """
 
+        if not priority:
+            raise NotImplementedError(
+                "Currently, only prioritized protocol mapping is supported "
+                "(i.e., pipeline interfaces collection is a prioritized list, "
+                "so only the first interface with a protocol match is used.)")
+
         # Pull out the collection of interfaces (potentially one from each of
         # the locations indicated in the project configuration file) as a
         # sort of pool of information about possible ways in which to submit
@@ -1010,11 +1011,12 @@ class Project(AttributeDict):
         bundle_by_strict_pipe_key = {}
 
         for proto_iface in protocol_interfaces:
-            # Short-circuit if we care only about the highest-priority match
-            # for pipeline submission. That is, if the intent is to submit
-            # pipeline(s) from a single location for each sample of the given
-            # protocol, we can stop searching the pool of pipeline interface
-            # information once we've found a match for the protocol.
+            # "Break"-like mechanism for short-circuiting if we care only
+            # about the highest-priority match for pipeline submission.
+            # That is, if the intent is to submit pipeline(s) from a single
+            # location for each sample of the given protocol, we can stop
+            # searching the pool of pipeline interface information once we've
+            # found a match for the protocol.
             if priority and len(job_submission_bundles) > 0:
                 return job_submission_bundles[0]
 

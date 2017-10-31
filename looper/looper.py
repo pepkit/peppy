@@ -12,7 +12,9 @@ import os
 import subprocess
 import sys
 import pandas as _pd
-from . import setup_looper_logger, FLAGS, LOGGING_LEVEL, __version__
+from . import \
+    setup_looper_logger, FLAGS, GENERIC_PROTOCOL_KEY, \
+    LOGGING_LEVEL, __version__
 from .loodels import Project
 from .models import \
     ProjectContext, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE
@@ -445,7 +447,8 @@ class Runner(Executor):
                 _LOGGER.debug("Fetching submission bundle, "
                               "using '%s' as protocol key", protocol)
                 submission_bundles = \
-                        submission_bundles_by_protocol.get(protocol)
+                        submission_bundles_by_protocol.get(protocol) or \
+                        submission_bundles_by_protocol.get(GENERIC_PROTOCOL_KEY)
                 if not submission_bundles:
                     # TODO: note protocol? If so, group all such messages into
                     # TODO (cont.) one message block, or separate?

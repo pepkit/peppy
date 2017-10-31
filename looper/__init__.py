@@ -16,6 +16,7 @@ from ._version import __version__
 # TODO: import from pep.
 FLAGS = ["completed", "running", "failed", "waiting", "partial"]
 
+GENERIC_PROTOCOL_KEY = "*"
 IMPLICATIONS_DECLARATION = "implied_columns"
 SAMPLE_INDEPENDENT_PROJECT_SECTIONS = \
         ["metadata", "derived_columns", IMPLICATIONS_DECLARATION, "trackhubs"]
