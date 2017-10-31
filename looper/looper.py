@@ -5,27 +5,20 @@ Looper: a pipeline submission engine. https://github.com/epigen/looper
 
 import abc
 import argparse
-from collections import defaultdict, namedtuple
-from functools import partial
+from collections import defaultdict
 import glob
-import itertools
 import logging
 import os
-import re
 import subprocess
 import sys
-import time
 import pandas as _pd
 from . import setup_looper_logger, FLAGS, LOGGING_LEVEL, __version__
 from .loodels import Project
 from .models import \
-    grab_project_data, ProjectContext, Sample, \
-    COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE, \
-    SAMPLE_NAME_COLNAME, VALID_READ_TYPES
+    ProjectContext, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE
 from .submission_manager import SubmissionConductor
 from .utils import \
-    alpha_cased, create_looper_args_text, fetch_flag_files, sample_folder, \
-    VersionInHelpParser
+    alpha_cased, fetch_flag_files, sample_folder, VersionInHelpParser
 
 
 from colorama import init
@@ -220,6 +213,56 @@ class Executor(object):
 
 
 
+class Checker(Executor):
+
+    def __call__(self, flags=None, all_folders=False, max_file_count=30):
+        """
+        Check Project status, based on flag files.
+
+        :param Iterable[str] | str flags: Names of flags to check, optional;
+            if unspecified, all known flags will be checked.
+        :param bool all_folders: Whether to check flags in all folders, not
+            just those for samples in the config file from which the Project
+            was created.
+        :param int max_file_count: Maximum number of filepaths to display for a
+            given flag.
+        """
+
+        # Handle single or multiple flags, and alphabetize.
+        flags = sorted([flags] if isinstance(flags, str)
+                       else list(flags or FLAGS))
+        flag_text = ", ".join(flags)
+
+        # Collect the files by flag and sort by flag name.
+        if all_folders:
+            _LOGGER.info("Checking project folders for flags: %s", flag_text)
+            files_by_flag = fetch_flag_files(
+                results_folder=self.prj.metadata.results_subdir, flags=flags)
+        else:
+            _LOGGER.info("Checking project samples for flags: %s", flag_text)
+            files_by_flag = fetch_flag_files(prj=self.prj, flags=flags)
+
+        # For each flag, output occurrence count.
+        for flag in flags:
+            _LOGGER.info("%s: %d", flag.upper(), len(files_by_flag[flag]))
+
+        # For each flag, output filepath(s) if not overly verbose.
+        for flag in flags:
+            try:
+                files = files_by_flag[flag]
+            except:
+                # No files for flag.
+                continue
+            # Regardless of whether 0-count flags are previously reported,
+            # don't report an empty file list for a flag that's absent.
+            # If the flag-to-files mapping is defaultdict, absent flag (key)
+            # will fetch an empty collection, so check for length of 0.
+            if 0 < len(files) <= max_file_count:
+                _LOGGER.info("%s (%d):\n%s", flag.upper(),
+                             len(files), "\n".join(files))
+
+
+
 class Cleaner(Executor):
     """ Remove all intermediate files (defined by pypiper clean scripts). """
     
@@ -304,209 +347,6 @@ class Destroyer(Executor):
 
         # Finally, run the true destroy:
         return self(args, preview_flag=False)
-
-
-
-def lump_cmds(
-        pl_key, pl_job, pl_iface, sample_subtype, sample_data_bundles,
-        prj, update_partition, extra_args, lump_size=1, ignore_flags=False):
-    """
-    Submit samples for a particular pipeline.
-
-    :param pl_key: strict pipeline key, used for accessing interface data
-    :param str pl_job: script + flags (command-like) for the job(s) to submit
-    :param PipelineInterface pl_iface: pipeline interface with which each 
-        submission generated here is associated; determines resource request
-    :param type sample_subtype: the type of each Sample to create for 
-        submission, perhaps determining how it's represented on disk and 
-        thus how it's presented to each pipeline for processing
-    :param Iterable[Mapping] sample_data_bundles: collection of mappings,
-        each containing data for a single sample
-    :param Project prj: Project with which the samples are associated
-    :param callable update_partition: function with which to update
-        partition setting
-    :param Iterable extra_args: Additional arguments to add to each
-        command, in the order given
-    :param int lump_size: number of commands to lump into one script, i.e.
-        job submission; default 1
-    :param bool ignore_flags: whether to disregard flag files that exist for
-        a sample for this pipeline and generate a submission script anyway
-    :return (Iterable[(str, Iterable[Sample], dict)], Iterable[str]): pair
-        in which the first element is a collection of tuples, each of which
-        represents a job for submission and thus consists of a job name, a
-        collection of samples, and a mapping of submission settings; the
-        other item returned is a collection of failure messages
-    """
-
-    pl_name = pl_iface.get_pipeline_name(pl_key)
-    extra_args_text = " {}".format(" ".join(extra_args)) if extra_args else ""
-
-    # Process a single group of (perhaps just one) commands.
-    def proc_lump(sample_argstring_pairs):
-        total_input_size = sum(
-            [float(sample.input_file_size)
-             for file_size, _ in sample_argstring_pairs])
-        _LOGGER.info("Determining submission settings for lump of %d "
-                     "sample(s): %.2f", len(sample_argstring_pairs),
-                     total_input_size)
-
-        # Identify cluster resources required for this submission.
-        submit_settings = pl_iface.choose_resource_package(
-            pl_key, total_input_size)
-
-        # Reset the partition if it was specified on the command-line.
-        submit_settings = update_partition(submit_settings)
-
-        if pl_iface.uses_looper_args(pl_key):
-            # These are looper_args, -C, -O, -M, and -P. If the pipeline
-            # implements these arguments, then it lists looper_args=True,
-            # and we add the arguments to the command string.
-            looper_argtext = create_looper_args_text(
-                    pl_key, submit_settings, prj)
-        else:
-            looper_argtext = ""
-
-        # Project-level arguments (sample-agnostic) are handled separately.
-        prj_argtext = prj.get_arg_string(pl_key)
-
-        # Fore each sample, the entire command consists of the base pipeline 
-        # job, arguments determined by the specific sample itself, arguments 
-        # related to the project, and then looper options/arguments.
-        assert all(map(lambda cmd_part: cmd_part is not None,
-                       [pl_job, prj_argtext, looper_argtext])), \
-            "No command component may be null"
-
-        # TODO: make this such that it's not relying on each command
-        # TODO (cont.) component having a trailing spac (or use a
-        # TODO (cont.) build_command()-like function)
-        commands = [pl_job + astring + prj_argtext +
-                    looper_argtext + extra_args_text
-                    for _, astring in sample_argstring_pairs]
-
-        # Add command string and job name to the submit_settings object.
-        if 1 == lump_size:
-            jobname = "{}_{}".format(sample.sample_name, pl_key)
-        else:
-            jobname = "{}_lump{}".format(pl_key, len(job_cmd_lumps))
-        submit_settings["JOBNAME"] = jobname
-        submit_settings["CODE"] = "\n".join(commands)
-
-        samples = [s for s, _ in sample_argstring_pairs]
-
-        return JobCmdGroup(jobname, samples, submit_settings)
-
-
-    # Collect pairs of Sample and submission command so that we can place 
-    # multiple commands within a single cluster submission script, and thus 
-    # group processing of multiple samples for this pipeline into a single 
-    # cluster job.
-    failures = []
-    job_cmd_lumps = []
-    curr_lump = []
-
-    for sdata in sample_data_bundles:
-
-        sfolder = sample_folder(prj, sample=sdata)
-        flag_files = glob.glob(os.path.join(sfolder, pl_name + "*.flag"))
-        if not ignore_flags and len(flag_files) > 0:
-            _LOGGER.info("> Not including sample '%s' in submission script "
-                         "for pipeline '%s', flag(s) found: %s",
-                         sdata[SAMPLE_NAME_COLNAME])
-            # Message more directly analogous to the one for a sample
-            # that's submitted, for debugging clarity.
-            _LOGGER.debug("NOT SUBMITTED")
-            continue
-
-        sample = sample_subtype(sdata)
-        _LOGGER.debug("Created %s instance: '%s'",
-                      sample_subtype.__name__, sample.sample_name)
-        sample.prj = grab_project_data(prj)
-
-        # The current sample is active.
-        # For each pipeline submission consideration, start fresh.
-        skip_reasons = []
-
-        _LOGGER.debug("Setting pipeline attributes for job '{}' "
-                      "(PL_ID: '{}')".format(pl_job, pl_key))
-        try:
-            # Add pipeline-specific attributes.
-            sample.set_pipeline_attributes(pl_iface, pipeline_name=pl_key)
-        except AttributeError:
-            # TODO: inform about WHICH missing attribute(s).
-            fail_message = "Pipeline required attribute(s) missing"
-            _LOGGER.warn("> Not submitted (%s)", fail_message)
-            skip_reasons.append(fail_message)
-
-        # Check for any missing requirements before submitting.
-        _LOGGER.debug("Determining missing requirements")
-        error_type, missing_reqs_msg = \
-            sample.determine_missing_requirements()
-        if missing_reqs_msg:
-            if prj.permissive:
-                _LOGGER.warn(missing_reqs_msg)
-            else:
-                raise error_type(missing_reqs_msg)
-            _LOGGER.warn("> Not submitted: (%s)", missing_reqs_msg)
-            skip_reasons.append(missing_reqs_msg)
-
-        # Check if single_or_paired value is recognized.
-        if hasattr(sample, "read_type"):
-            # Drop "-end", "_end", or "end" from end of the column value.
-            rtype = re.sub('[_\\-]?end$', '',
-                           str(sample.read_type))
-            sample.read_type = rtype.lower()
-            if sample.read_type not in VALID_READ_TYPES:
-                _LOGGER.debug(
-                    "Invalid read type: '{}'".format(sample.read_type))
-                skip_reasons.append("read_type must be in {}".
-                                    format(VALID_READ_TYPES))
-
-        # Append arguments for this pipeline
-        # Sample-level arguments are handled by the pipeline interface.
-        try:
-            argstring = pl_iface.get_arg_string(
-                pipeline_name=pl_key, sample=sample,
-                submission_folder_path=prj.metadata.submission_subdir)
-        except AttributeError:
-            # TODO: inform about which missing attribute(s).
-            fail_message = "Required attribute(s) missing " \
-                           "for pipeline arguments string"
-            _LOGGER.warn("> Not submitted: (%s)", fail_message)
-            skip_reasons.append(fail_message)
-        else:
-            argstring += " "
-
-        if skip_reasons:
-            # Sample is active, but we've at least 1 pipeline skip reason.
-            failures.append([skip_reasons, sample.sample_name])
-            continue
-
-        # Add this Sample and its argument string (to append to the base 
-        # pipeline command) to the current lump.
-        curr_lump.append((sample, argstring))
-        if len(curr_lump) < lump_size:
-            # We've not yet reached capacity for this lump.
-            _LOGGER.debug("Growing lump")
-            continue
-
-        # Once control flow hits here, we're finished accumulating the
-        # sample and argument strings for the current lump, so it's time
-        # to determine the submission settings and create the script.
-        job_submission_group = proc_lump(curr_lump)
-        job_cmd_lumps.append(job_submission_group)
-        curr_lump = []
-    
-    # Handle the final lump, which may or may not be empty.
-    if curr_lump:
-        job_cmd_lumps.append(proc_lump(curr_lump))
-
-    return job_cmd_lumps, failures
-
-
-
-# Encapsulate the items needed for a job submission.
-JobCmdGroup = namedtuple(
-        "JobCmdGroup", field_names=["name", "samples", "settings"])
 
 
 
@@ -672,15 +512,6 @@ class Runner(Executor):
 
 
 
-def create_failure_message(reason, samples):
-    """ Explain lack of submission for a single reason, 1 or more samples. """
-    color = Fore.LIGHTRED_EX
-    reason_text = color + reason + Style.RESET_ALL
-    samples_text = ", ".join(samples)
-    return "{}: {}".format(reason_text, samples_text)
-
-
-
 class Summarizer(Executor):
     """ Project/Sample output summarizer """
     
@@ -801,110 +632,12 @@ def aggregate_exec_skip_reasons(skip_reasons_sample_pairs):
 
 
 
-class LooperCounter(object):
-    """
-    Count samples as you loop through them, and create text for the
-    subcommand logging status messages.
-
-    :param total: number of jobs to process
-    :type total: int
-
-    """
-    def __init__(self, total):
-        self.count = 0
-        self.total = total
-
-    def show(self, name, protocol):
-        """
-        Display sample counts status for a particular protocol type.
-         
-        The counts are running vs. total for the protocol within the Project, 
-        and as a side-effect of the call, the running count is incremented.
-        
-        :param str name: name of the sample
-        :param str protocol: name of the protocol
-        :return str: message suitable for logging a status update
-        """
-        self.count += 1
-        return _submission_status_text(
-                curr=self.count, total=self.total, sample_name=name,
-                sample_protocol=protocol, color=Fore.CYAN)
-
-    def reset(self):
-        self.count = 0
-
-    def __str__(self):
-        return "LooperCounter of size {}".format(self.total)
-
-
-def _submission_status_text(curr, total, sample_name, sample_protocol, color):
-    return color + \
-           "## [{n} of {N}] {sample} ({protocol})".format(
-                n=curr, N=total, sample=sample_name, protocol=sample_protocol) + \
-           Style.RESET_ALL
-
-
-
-def create_submission_script(
-        samples, template_values, template, submission_folder, jobname):
-    """
-    Write cluster submission script to disk and submit job for given Sample.
-
-    :param Iterable[models.Sample] samples: Sample instances for submission
-    :param Mapping[str, str] template_values: key-value pairs with which to 
-        populate fields in the submission template
-    :param str template: path to submission script template
-    :param str submission_folder: path to the folder in which to place 
-        submission files
-    :param str jobname: name for the job that will be create/submitted when 
-        this script is executed
-    :return str: filepath to submission script
-    """
-
-    # Ensure existence of on-disk representation of each sample.
-    for s in samples:
-        if type(s) is Sample:
-            # Runner writes base Sample to disk for each non-skipped sample,
-            # so check for that if we're using a basic Sample.
-            expected_filepath = os.path.join(
-                    submission_folder, "{}.yaml".format(s.name))
-            if not os.path.exists(expected_filepath):
-                _LOGGER.warn("Missing base Sample file will be created: '%s'",
-                             expected_filepath)
-                s.to_yaml(subs_folder_path=submission_folder)
-            else:
-                _LOGGER.debug("Base Sample file exists")
-        else:
-            # Serialize Sample, generate data for disk, and write.
-            name_s_subtype = s.__class__.__name__
-            _LOGGER.debug("Writing %s representation to disk: '%s'",
-                          name_s_subtype, s.name)
-            s.to_yaml(subs_folder_path=submission_folder)
-    
-    # Create the script and logfile paths.
-    submission_base = os.path.join(submission_folder, jobname)
-    submit_script = submission_base + ".sub"
-    template_values["LOGFILE"] = submission_base + ".log"
-
-    # Prepare and write submission script.
-    _LOGGER.info("> script: " + submit_script + " ")
-    submit_script_dirpath = os.path.dirname(submit_script)
-    if not os.path.exists(submit_script_dirpath):
-        os.makedirs(submit_script_dirpath)
-
-    # Add additional arguments, populate template fields, and write to disk.
-    with open(template, 'r') as handle:
-        filedata = handle.read()
-
-    for key, value in template_values.items():
-        # Here we add brackets around the key names and use uppercase because
-        # this is how they are encoded as variables in the submit templates.
-        filedata = filedata.replace("{" + str(key).upper() + "}", str(value))
-
-    with open(submit_script, 'w') as handle:
-        handle.write(filedata)
-
-    return submit_script
+def create_failure_message(reason, samples):
+    """ Explain lack of submission for a single reason, 1 or more samples. """
+    color = Fore.LIGHTRED_EX
+    reason_text = color + reason + Style.RESET_ALL
+    samples_text = ", ".join(samples)
+    return "{}: {}".format(reason_text, samples_text)
 
 
 
@@ -950,6 +683,7 @@ def destroy_sample_results(result_outfolder, args):
     This function will delete all results for this sample
     """
     import shutil
+
     if os.path.exists(result_outfolder):
         if args.dry_run:
             _LOGGER.info("DRY RUN. I would have removed: " + result_outfolder)
@@ -972,53 +706,49 @@ def uniqify(seq):
 
 
 
-class Checker(Executor):
+class LooperCounter(object):
+    """
+    Count samples as you loop through them, and create text for the
+    subcommand logging status messages.
 
-    def __call__(self, flags=None, all_folders=False, max_file_count=30):
+    :param total: number of jobs to process
+    :type total: int
+
+    """
+
+    def __init__(self, total):
+        self.count = 0
+        self.total = total
+
+    def show(self, name, protocol):
         """
-        Check Project status, based on flag files.
+        Display sample counts status for a particular protocol type.
 
-        :param Iterable[str] | str flags: Names of flags to check, optional;
-            if unspecified, all known flags will be checked.
-        :param bool all_folders: Whether to check flags in all folders, not
-            just those for samples in the config file from which the Project
-            was created.
-        :param int max_file_count: Maximum number of filepaths to display for a
-            given flag.
+        The counts are running vs. total for the protocol within the Project,
+        and as a side-effect of the call, the running count is incremented.
+
+        :param str name: name of the sample
+        :param str protocol: name of the protocol
+        :return str: message suitable for logging a status update
         """
+        self.count += 1
+        return _submission_status_text(
+            curr=self.count, total=self.total, sample_name=name,
+            sample_protocol=protocol, color=Fore.CYAN)
 
-        # Handle single or multiple flags, and alphabetize.
-        flags = sorted([flags] if isinstance(flags, str)
-                       else list(flags or FLAGS))
-        flag_text = ", ".join(flags)
+    def reset(self):
+        self.count = 0
 
-        # Collect the files by flag and sort by flag name.
-        if all_folders:
-            _LOGGER.info("Checking project folders for flags: %s", flag_text)
-            files_by_flag = fetch_flag_files(
-                results_folder=self.prj.metadata.results_subdir, flags=flags)
-        else:
-            _LOGGER.info("Checking project samples for flags: %s", flag_text)
-            files_by_flag = fetch_flag_files(prj=self.prj, flags=flags)
+    def __str__(self):
+        return "LooperCounter of size {}".format(self.total)
 
-        # For each flag, output occurrence count.
-        for flag in flags:
-            _LOGGER.info("%s: %d", flag.upper(), len(files_by_flag[flag]))
 
-        # For each flag, output filepath(s) if not overly verbose.
-        for flag in flags:
-            try:
-                files = files_by_flag[flag]
-            except:
-                # No files for flag.
-                continue
-            # Regardless of whether 0-count flags are previously reported,
-            # don't report an empty file list for a flag that's absent.
-            # If the flag-to-files mapping is defaultdict, absent flag (key)
-            # will fetch an empty collection, so check for length of 0.
-            if 0 < len(files) <= max_file_count:
-                _LOGGER.info("%s (%d):\n%s", flag.upper(),
-                             len(files), "\n".join(files))
+
+def _submission_status_text(curr, total, sample_name, sample_protocol, color):
+    return color + \
+           "## [{n} of {N}] {sample} ({protocol})".format(
+               n=curr, N=total, sample=sample_name, protocol=sample_protocol) + \
+           Style.RESET_ALL
 
 
 
