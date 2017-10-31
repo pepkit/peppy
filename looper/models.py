@@ -1022,8 +1022,6 @@ class Project(AttributeDict):
 
             this_protocol_pipelines = proto_iface.fetch_pipelines(protocol)
             if not this_protocol_pipelines:
-                _LOGGER.warn("No mapping for protocol '%s' in %s", 
-                             protocol, proto_iface)
                 continue
             
             # TODO: update once dependency-encoding logic is in place.
