@@ -2951,7 +2951,11 @@ class ProtocolInterface(object):
             script_path_only = strict_pipeline_key
             script_path_with_flags = pipeline_key 
 
-        if not _os.path.isabs(script_path_only):
+        # Clear trailing whitespace.
+        script_path_only = script_path_only.rstrip()
+
+        if not _os.path.isabs(script_path_only) and not \
+                is_command_callable(script_path_only):
             _LOGGER.log(5, "Expanding non-absolute script path: '%s'",
                         script_path_only)
             script_path_only = _os.path.join(
@@ -2962,7 +2966,6 @@ class ProtocolInterface(object):
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
 
-        script_path_only = script_path_only.rstrip()
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
 
