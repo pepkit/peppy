@@ -1749,7 +1749,7 @@ class Sample(AttributeDict):
                               format(file_attribute, attval))
 
         if missing or empty:
-            reason_key = "Missing attributes, empty attributes"
+            reason_key = "Missing and/or empty attribute(s)"
             reason_detail = "(missing) {}; (empty) {}".format(
                     ", ".join(missing), ", ".join(empty))
             return AttributeError, reason_key, reason_detail
@@ -1973,7 +1973,7 @@ class Sample(AttributeDict):
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
-                val = " ".join(val_globbed)
+                val = " ".join(val_globbed) or val
                 _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
