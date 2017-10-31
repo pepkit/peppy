@@ -367,7 +367,6 @@ class Runner(Executor):
 
         protocols = {s.protocol for s in self.prj.samples
                      if hasattr(s, "protocol")}
-
         _LOGGER.info("Protocols: %s", ", ".join(protocols))
 
         failures = []  # Create problem list so we can show them at the end.
@@ -376,21 +375,19 @@ class Runner(Executor):
         _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
                      format(", ".join(self.prj.protocols)))
 
-
-        # TODO: if this is removed, make sure that the validation logic of
-        # only allowing one pipeline interface per pipeline key is maintained.
-        submission_bundles_by_protocol = {
-            alpha_cased(p): self.prj.build_submission_bundles(alpha_cased(p))
-            for p in protocols
-        }
-
         # Job submissions are managed on a per-pipeline basis so that
         # individual commands (samples) may be lumped into a single job.
         submission_conductors = {}
         pipe_keys_by_protocol = defaultdict(list)
-        for proto in protocols:
+        mapped_protos = {}
+        for proto in protocols | {GENERIC_PROTOCOL_KEY}:
             proto_key = alpha_cased(proto)
             submission_bundles = self.prj.build_submission_bundles(proto_key)
+            if not submission_bundles:
+                if proto_key != GENERIC_PROTOCOL_KEY:
+                    _LOGGER.warn("No mapping for protocol: '%s'", proto)
+                continue
+            mapped_protos.add(proto)
             for pl_iface, sample_subtype, pl_key, script_with_flags in \
                     submission_bundles:
                 conductor = SubmissionConductor(
@@ -439,20 +436,12 @@ class Runner(Executor):
 
             # Get the base protocol-to-pipeline mappings.
             try:
-                protocol = alpha_cased(sample.protocol)
+                protocol = sample.protocol
             except AttributeError:
                 skip_reasons.append("Sample has no protocol")
             else:
-                protocol = protocol.upper()
-                _LOGGER.debug("Fetching submission bundle, "
-                              "using '%s' as protocol key", protocol)
-                submission_bundles = \
-                        submission_bundles_by_protocol.get(protocol) or \
-                        submission_bundles_by_protocol.get(GENERIC_PROTOCOL_KEY)
-                if not submission_bundles:
-                    # TODO: note protocol? If so, group all such messages into
-                    # TODO (cont.) one message block, or separate?
-                    skip_reasons.append("No submission bundle for protocol")
+                if protocol not in mapped_protos:
+                    skip_reasons.append("No pipeline for protocol")
 
             if skip_reasons:
                 _LOGGER.warn(
