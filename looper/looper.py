@@ -379,7 +379,7 @@ class Runner(Executor):
         # individual commands (samples) may be lumped into a single job.
         submission_conductors = {}
         pipe_keys_by_protocol = defaultdict(list)
-        mapped_protos = {}
+        mapped_protos = set()
         for proto in protocols | {GENERIC_PROTOCOL_KEY}:
             proto_key = alpha_cased(proto)
             submission_bundles = self.prj.build_submission_bundles(proto_key)
