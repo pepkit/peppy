@@ -1080,9 +1080,10 @@ class Project(AttributeDict):
                                 pipeline_key)
 
                 # Skip and warn about nonexistent alleged pipeline path.
-                if not _os.path.exists(full_pipe_path):
-                    _LOGGER.warn(
-                            "Missing pipeline script: '%s'", full_pipe_path)
+                if not (_os.path.exists(full_pipe_path) or
+                        is_command_callable(full_pipe_path)):
+                    _LOGGER.warn("Missing pipeline script: '%s'",
+                                 full_pipe_path)
                     continue
 
                 # Determine which interface and Sample subtype to use.
@@ -2963,11 +2964,7 @@ class ProtocolInterface(object):
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
 
-        if not (_os.path.exists(script_path_only) or \
-                is_command_callable(script_path_only)):
-            _LOGGER.warn(
-                    "Missing pipeline script: '%s'", script_path_only)
-
+        script_path_only = script_path_only.rstrip()
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
 
