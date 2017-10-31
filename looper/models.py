@@ -1000,7 +1000,7 @@ class Project(AttributeDict):
             protocol_interfaces = \
                     self.interfaces_by_protocol[protocol]
         except KeyError:
-            _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
+            # Messaging can be done by the caller.
             return []
 
         job_submission_bundles = []

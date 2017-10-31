@@ -367,12 +367,10 @@ class Runner(Executor):
 
         protocols = {s.protocol for s in self.prj.samples
                      if hasattr(s, "protocol")}
-        _LOGGER.info("Protocols: %s", ", ".join(protocols))
-
         failures = []  # Create problem list so we can show them at the end.
         processed_samples = set()  # Enforce one-time processing.
 
-        _LOGGER.info("Building submission bundle(s) for protocol(s): {}".
+        _LOGGER.info("Finding pipelines for protocol(s): {}".
                      format(", ".join(self.prj.protocols)))
 
         # Job submissions are managed on a per-pipeline basis so that
