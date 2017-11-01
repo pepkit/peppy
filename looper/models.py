@@ -827,7 +827,7 @@ class Project(AttributeDict):
         :return Mapping: collection of KV pairs, each representing a pairing
             of attribute name and attribute value
         """
-        return self["constants"] or dict()
+        return self._constants
 
 
     @property
@@ -1383,6 +1383,7 @@ class Project(AttributeDict):
                     "pipelines_dir. New value: {}".
                     format(self.metadata.pipelines_dir))
 
+        self._constants = config.get("constants", dict())
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
