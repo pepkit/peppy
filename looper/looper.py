@@ -572,7 +572,7 @@ class Summarizer(Executor):
         # all samples are parsed. Produce file.
 
         tsv_outfile_path = os.path.join(self.prj.metadata.output_dir, self.prj.name)
-        if self.prj.subproject:
+        if hasattr(self.prj, "subproject") and self.prj.subproject:
             tsv_outfile_path += '_' + self.prj.subproject
         tsv_outfile_path += '_stats_summary.tsv'
 
