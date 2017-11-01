@@ -70,9 +70,10 @@ import yaml
 
 from . import IMPLICATIONS_DECLARATION, SAMPLE_NAME_COLNAME
 from .utils import \
-    alpha_cased, check_bam, check_fastq, expandpath, \
-    get_file_size, grab_project_data, import_from_source, is_command_callable, \
-    parse_ftype, partition, sample_folder, standard_stream_redirector
+    add_project_sample_constants, alpha_cased, check_bam, check_fastq, \
+    expandpath, get_file_size, grab_project_data, import_from_source, \
+    is_command_callable, parse_ftype, partition, sample_folder, \
+    standard_stream_redirector
 
 
 # TODO: decide if we want to denote functions for export.
@@ -819,6 +820,17 @@ class Project(AttributeDict):
 
 
     @property
+    def constants(self):
+        """
+        Return key-value pairs of pan-Sample constants for this Project.
+
+        :return Mapping: collection of KV pairs, each representing a pairing
+            of attribute name and attribute value
+        """
+        return self["constants"] or dict()
+
+
+    @property
     def default_compute_envfile(self):
         """ Path to default compute environment settings file. """
         return _os.path.join(
@@ -1262,11 +1274,11 @@ class Project(AttributeDict):
             _LOGGER.debug("No merge table")
 
         # Set samples and handle non-unique names situation.
-        self._samples = self._merge_samples()
+        self._samples = self._prep_samples()
         self._check_unique_samples()
 
 
-    def _merge_samples(self):
+    def _prep_samples(self):
         """
         Merge this Project's Sample object and set file paths.
 
@@ -1278,6 +1290,10 @@ class Project(AttributeDict):
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna(), prj=self)
 
+            # Add values that are constant across this Project's samples.
+            sample = add_project_sample_constants(sample, self)
+
+            # TODO: use implied_columns in 0.8.
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
@@ -1621,7 +1637,7 @@ class Sample(AttributeDict):
 
         # Ensure Project reference is actual Project or AttributeDict.
         if not isinstance(self.prj, Project):
-            self.prj = AttributeDict(self.prj or {})
+            self.prj = AttributeDict(self.prj or dict())
 
         # Check if required attributes exist and are not empty.
         missing_attributes_message = self.check_valid()
@@ -1968,7 +1984,7 @@ class Sample(AttributeDict):
             # Here the copy() prevents the actual sample from being
             # updated by update().
             temp_dict = self.__dict__.copy()
-            temp_dict.update(extra_vars or {})
+            temp_dict.update(extra_vars or dict())
             val = regex.format(**temp_dict)
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)
@@ -2750,7 +2766,7 @@ class PipelineInterface(object):
         """
         try:
             # For unmapped pipeline, Return empty config instead of None.
-            return self.pipe_iface_config[pipeline_name] or {}
+            return self.pipe_iface_config[pipeline_name] or dict()
         except KeyError:
             _LOGGER.error(
                 "Missing pipeline description: %s not found; %d known: %s",

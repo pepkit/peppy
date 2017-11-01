@@ -31,6 +31,21 @@ class VersionInHelpParser(ArgumentParser):
 
 
 
+def add_project_sample_constants(sample, project):
+    """
+    Update a Sample with constants declared by a Project.
+
+    :param models.Sample sample:
+    :param models.Project project: Project with which to update Sample; it
+        may or may not declare constants. If not, no update occurs.
+    :return models.Sample: Updates Sample instance, according to any and all
+        constants declared by the Project.
+    """
+    sample.update(project.constants)
+    return sample
+
+
+
 def alpha_cased(text, lower=False):
     """
     Filter text to just letters and homogenize case.

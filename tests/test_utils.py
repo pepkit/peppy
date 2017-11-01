@@ -1,11 +1,13 @@
 """ Tests for utility functions """
 
 import copy
+import mock
 import pytest
 from looper import \
-    IMPLICATIONS_DECLARATION, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
-from looper.models import AttributeDict, Project
-from looper.utils import grab_project_data
+    IMPLICATIONS_DECLARATION, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, \
+    SAMPLE_NAME_COLNAME
+from looper.models import AttributeDict, Project, Sample
+from looper.utils import add_project_sample_constants, grab_project_data
 from tests.helpers import named_param, nonempty_powerset
 
 
@@ -122,3 +124,47 @@ class GrabProjectDataTests:
             print("EXPECTED: {}".format(expected))
             print("OBSERVED: {}".format(observed))
             raise
+
+
+
+class AddProjectSampleConstantsTests:
+    """ Utility function can add a Project's constant to Sample. """
+
+
+    @pytest.fixture
+    def basic_sample(self):
+        """ Provide test cases with a simple Sample instance. """
+        return Sample({SAMPLE_NAME_COLNAME: "arbitrarily_named_sample"})
+
+
+    def test_no_constants(self, basic_sample):
+        """ No constants declared means the Sample is unchanged. """
+        mock_prj = mock.MagicMock(constants=dict())
+        sample = add_project_sample_constants(basic_sample, mock_prj)
+        assert basic_sample == sample
+
+
+    @named_param(
+        argnames="constants",
+        argvalues=[{"new_attr": 45}, {"a1": 0, "b2": "filepath"}])
+    def test_add_project_sample_constants(self, basic_sample, constants):
+        """ New attribute is added by the update. """
+        mock_prj = mock.MagicMock(constants=constants)
+        for attr in constants:
+            assert attr not in basic_sample
+            assert not hasattr(basic_sample, attr)
+        basic_sample = add_project_sample_constants(basic_sample, mock_prj)
+        for attr_name, attr_value in constants.items():
+            assert attr_value == basic_sample[attr_name]
+            assert attr_value == getattr(basic_sample, attr_name)
+
+
+    @named_param(argnames=["collision", "old_val", "new_val"],
+                 argvalues=[("coll_attr_1", 1, 2), ("coll_attr_2", 3, 4)])
+    def test_name_collision(self, basic_sample, collision, old_val, new_val):
+        """ New value overwrites old value (no guarantee for null, though.) """
+        basic_sample[collision] = old_val
+        mock_prj = mock.MagicMock(constants={collision: new_val})
+        assert old_val == basic_sample[collision]
+        basic_sample = add_project_sample_constants(basic_sample, mock_prj)
+        assert new_val == basic_sample[collision]
