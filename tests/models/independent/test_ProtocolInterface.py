@@ -162,34 +162,6 @@ class PipelinePathResolutionTests:
         assert exp_path == obs_path
 
 
-    @pytest.mark.xfail(
-            condition=models._LOGGER.getEffectiveLevel() < logging.WARN,
-            reason="Insufficient logging level to capture warning message: {}".
-                   format(models._LOGGER.getEffectiveLevel()))
-    @pytest.mark.parametrize(
-        argnames="pipe_path",
-        argvalues=["nonexistent.py", "path/to/missing.py",
-                   "/abs/path/to/mythical-pipeline"])
-    def test_warns_about_nonexistent_pipeline_script_path(
-            self, atacseq_piface_data, path_config_file,
-            tmpdir, pipe_path, atac_pipe_name):
-        """ Nonexistent, resolved pipeline script path generates warning. """
-        name_log_file = "temp-test-log.txt"
-        path_log_file = os.path.join(tmpdir.strpath, name_log_file)
-        temp_hdlr = logging.FileHandler(path_log_file, mode='w')
-        fmt = logging.Formatter(DEV_LOGGING_FMT)
-        temp_hdlr.setFormatter(fmt)
-        temp_hdlr.setLevel(logging.WARN)
-        models._LOGGER.handlers.append(temp_hdlr)
-        pi = ProtocolInterface(path_config_file)
-        pi.finalize_pipeline_key_and_paths(atac_pipe_name)
-        with open(path_log_file, 'r') as logfile:
-            loglines = logfile.readlines()
-        assert 1 == len(loglines)
-        logmsg = loglines[0]
-        assert "WARN" in logmsg and pipe_path in logmsg
-
-
 
 class SampleSubtypeTests:
     """ ProtocolInterface attempts import of pipeline-specific Sample. """

@@ -43,6 +43,7 @@ def pytest_generate_tests(metafunc):
 
 
 
+@pytest.mark.skip("Not implemented")
 class SubmissionBundleProtocolMappingTests:
     """ Project must be able to resolve PipelineInterface from protocol. """
 
@@ -75,7 +76,7 @@ class SubmissionBundleProtocolMappingTests:
 
 
     @pytest.mark.parametrize(argnames="priority", argvalues=[False, True])
-    def test_priority(self, sample):
+    def test_priority(self, priority, sample):
         """ Flag determines behavior when multiple interfaces have protocol. """
         pass
 

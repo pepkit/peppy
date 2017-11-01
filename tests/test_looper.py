@@ -283,6 +283,7 @@ class RunErrorReportTests:
 
 
 
+@pytest.mark.skip("Not implemented")
 class GenericProtocolMatchTests:
     """ Pipeline interface may support 'all-other' protocols notion. """
 
@@ -329,12 +330,11 @@ class GenericProtocolMatchTests:
         return Project(prj_file)
 
 
-    def test_specific_protocol_match_lower_priority_interface(self, ):
+    def test_specific_protocol_match_lower_priority_interface(self):
         """ Generic protocol mapping doesn't preclude specific ones. """
         pass
 
 
-    @named_param
     def test_no_specific_protocol_match(self):
         """ Protocol match in no pipeline interface allows generic match. """
         pass
