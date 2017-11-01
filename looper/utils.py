@@ -141,8 +141,7 @@ def create_looper_args_text(pl_key, submission_settings, prj):
         # because we don't care about parameters here.
         if hasattr(prj.pipeline_config, pl_key):
             # First priority: pipeline config in project config
-            pl_config_file = getattr(prj.pipeline_config,
-                                     pl_key)
+            pl_config_file = getattr(prj.pipeline_config, pl_key)
             # Make sure it's a file (it could be provided as null.)
             if pl_config_file:
                 if not os.path.isfile(pl_config_file):
@@ -150,17 +149,18 @@ def create_looper_args_text(pl_key, submission_settings, prj):
                         "Pipeline config file specified "
                         "but not found: %s", pl_config_file)
                     raise IOError(pl_config_file)
-                _LOGGER.info("Found config file: %s",
-                             pl_config_file)
+                _LOGGER.info("Found config file: %s", pl_config_file)
                 # Append arg for config file if found
                 looper_argtext += " -C " + pl_config_file
 
-    looper_argtext += " -O " + prj.metadata.results_subdir
+    looper_argtext += (" -O " + prj.metadata.results_subdir)
+
     if int(submission_settings.setdefault("cores", 1)) > 1:
-        looper_argtext += " -P " + submission_settings["cores"]
+        looper_argtext += (" -P " + submission_settings["cores"])
+
     try:
         if float(submission_settings["mem"]) > 1:
-            looper_argtext += " -M " + submission_settings["mem"]
+            looper_argtext += (" -M " + submission_settings["mem"])
     except KeyError:
         _LOGGER.warn("Submission settings lack memory specification")
 

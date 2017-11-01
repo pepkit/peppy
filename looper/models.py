@@ -2701,7 +2701,6 @@ class PipelineInterface(object):
                 argstring = update_argtext(
                         argstring, option=pipe_opt, argument=arg)
 
-
         _LOGGER.debug("Script args: '%s'", argstring)
 
         return argstring

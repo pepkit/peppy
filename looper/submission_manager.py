@@ -262,8 +262,10 @@ class SubmissionConductor(object):
         of samples if and only if the argument to 'force' evaluates to a 
         true value, or the pool of samples is full.
         
-        :param force: 
-        :return: 
+        :param bool force: Whether submission should be done/simulated even
+            if this conductor's pool isn't full.
+        :return bool: Whether a job was submitted (or would've been if not
+            for dry run)
         """
 
         if not self._pool:
@@ -278,6 +280,7 @@ class SubmissionConductor(object):
             if self.partition:
                 settings["partition"] = self.partition
             if self.uses_looper_args:
+                settings.setdefault("cores", 1)
                 looper_argtext = \
                     create_looper_args_text(self.pl_key, settings, self.prj)
             else:
