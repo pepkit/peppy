@@ -134,7 +134,7 @@ def create_looper_args_text(pl_key, submission_settings, prj):
 
     # Start with copied settings and empty arguments text
     submission_settings = copy.deepcopy(submission_settings)
-    looper_argtext = ""
+    opt_arg_pairs = [("-O", prj.metadata.results_subdir)]
 
     if hasattr(prj, "pipeline_config"):
         # Index with 'pl_key' instead of 'pipeline'
@@ -151,19 +151,22 @@ def create_looper_args_text(pl_key, submission_settings, prj):
                     raise IOError(pl_config_file)
                 _LOGGER.info("Found config file: %s", pl_config_file)
                 # Append arg for config file if found
-                looper_argtext += " -C " + pl_config_file
+                opt_arg_pairs.append(("-C", pl_config_file))
 
-    looper_argtext += (" -O " + prj.metadata.results_subdir)
-
-    if int(submission_settings.setdefault("cores", 1)) > 1:
-        looper_argtext += (" -P " + submission_settings["cores"])
+    num_cores = int(submission_settings.setdefault("cores"))
+    if num_cores > 1:
+        opt_arg_pairs.append(("-P", num_cores))
 
     try:
-        if float(submission_settings["mem"]) > 1:
-            looper_argtext += (" -M " + submission_settings["mem"])
+        mem_alloc = submission_settings["mem"]
     except KeyError:
         _LOGGER.warn("Submission settings lack memory specification")
+    else:
+        if float(mem_alloc) > 1:
+            opt_arg_pairs.append(("-M", mem_alloc))
 
+    looper_argtext = " ".join(["{} {}".format(opt, arg)
+                               for opt, arg in opt_arg_pairs])
     return looper_argtext
 
 
