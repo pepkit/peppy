@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 
+from .exceptions import JobSubmissionException
 from .models import Sample, VALID_READ_TYPES
 from .utils import \
     create_looper_args_text, grab_project_data, sample_folder
@@ -264,8 +265,8 @@ class SubmissionConductor(object):
         
         :param bool force: Whether submission should be done/simulated even
             if this conductor's pool isn't full.
-        :return bool: Whether a job was submitted (or would've been if not
-            for dry run)
+        :return bool: Whether a job was submitted (or would've been if
+            not for dry run)
         """
 
         if not self._pool:
@@ -316,11 +317,18 @@ class SubmissionConductor(object):
                 _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
                              script)
             else:
-                submission_command = "{} {}".format(
-                    self.prj.compute.submission_command, script)
-                subprocess.call(submission_command, shell=True)
-                # Delay next job's submission.
+                sub_cmd = self.prj.compute.submission_command
+                submission_command = "{} {}".format(sub_cmd, script)
+                # Capture submission command return value so that we can
+                # intercept and report basic submission failures; #167
+                sub_cmd_retval = subprocess.check_output(
+                        submission_command, shell=True)
+                # Regardless of outcome, delay next job's submission as set.
                 time.sleep(self.delay)
+                if 0 != sub_cmd_retval:
+                    raise JobSubmissionException(sub_cmd_retval,
+                                                 sub_cmd, script)
+                
             _LOGGER.debug("SUBMITTED")
 
             # Update the job and command submission tallies.

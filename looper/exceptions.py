@@ -6,6 +6,18 @@ __email__ = "vreuter@virginia.edu"
 
 
 
+class JobSubmissionException(Exception):
+    """ Error type for when job submission fails. """
+
+
+    def __init__(self, exit_code, sub_cmd, script):
+        reason = "Nonzero submission exit code ({}) for command {} and script " \
+                 "'{}'".format(exit_code, sub_cmd, script)
+        super(JobSubmissionException, self).__init__(reason)
+        self.script = script
+
+
+
 class ModelConstructionException(Exception):
     """ Error during construction of a looper ADT instance. """
 

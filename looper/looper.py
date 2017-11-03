@@ -15,6 +15,7 @@ import pandas as _pd
 from . import \
     setup_looper_logger, FLAGS, GENERIC_PROTOCOL_KEY, \
     LOGGING_LEVEL, __version__
+from .exceptions import JobSubmissionException
 from .loodels import Project
 from .models import \
     ProjectContext, COMPUTE_SETTINGS_VARNAME, SAMPLE_EXECUTION_TOGGLE
@@ -410,6 +411,7 @@ class Runner(Executor):
                       upper_sample_bound, num_samples)
 
         num_commands_possible = 0
+        failed_submission_scripts = []
 
         for sample in self.prj.samples[:upper_sample_bound]:
             # First, step through the samples and determine whether any
@@ -469,8 +471,12 @@ class Runner(Executor):
                 conductor = submission_conductors[pl_key]
                 # TODO: check return value from add() to determine whether
                 # TODO (cont.) to grow the failures list.
-                curr_pl_fails = conductor.add(sample)
-                pl_fails.extend(curr_pl_fails)
+                try:
+                    curr_pl_fails = conductor.add(sample)
+                except JobSubmissionException as e:
+                    failed_submission_scripts.append(e.script)
+                else:
+                    pl_fails.extend(curr_pl_fails)
             if pl_fails:
                 failures.append([pl_fails, sample.name])
 
@@ -501,6 +507,10 @@ class Runner(Executor):
                               for reason, samples in samples_by_reason.items()]
             _LOGGER.info("Samples by failure:\n{}".format(
                 "\n".join(full_fail_msgs)))
+        if failed_submission_scripts:
+            _LOGGER.info("%d scripts with failed submission: %s",
+                         len(failed_submission_scripts),
+                         ", ".join(failed_submission_scripts))
 
 
 
