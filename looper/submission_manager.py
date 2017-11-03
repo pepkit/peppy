@@ -384,7 +384,7 @@ class SubmissionConductor(object):
         commands = []
         for _, argstring in self._pool:
             if argstring:
-                base = "{} {}".format(self.cmd_base, argstring.rstrip())
+                base = "{} {}".format(self.cmd_base, argstring.strip(" "))
             else:
                 base = self.cmd_base
             if extra_parts_text:
