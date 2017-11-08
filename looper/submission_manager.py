@@ -321,21 +321,17 @@ class SubmissionConductor(object):
                 submission_command = "{} {}".format(sub_cmd, script)
                 # Capture submission command return value so that we can
                 # intercept and report basic submission failures; #167
-                sub_cmd_retval = subprocess.check_output(
-                        submission_command, shell=True)
-                # Regardless of outcome, delay next job's submission as set.
+                try:
+                    subprocess.check_call(submission_command, shell=True)
+                except subprocess.CalledProcessError:
+                    raise JobSubmissionException(sub_cmd, script)
                 time.sleep(self.delay)
-                if 0 != sub_cmd_retval:
-                    raise JobSubmissionException(sub_cmd_retval,
-                                                 sub_cmd, script)
-                
-            _LOGGER.debug("SUBMITTED")
 
             # Update the job and command submission tallies.
+            _LOGGER.debug("SUBMITTED")
             submitted = True
             self._num_job_submissions += 1
             self._num_cmds_submitted += len(self._pool)
-
             self._reset_pool()
 
         else:
