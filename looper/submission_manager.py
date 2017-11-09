@@ -315,6 +315,7 @@ class SubmissionConductor(object):
 
             # Determine whether to actually do the submission; regardless,
             # reset the dynamic pool of commands.
+            num_cmds = len(self._pool)
             self._reset_pool()
             if self.dry_run:
                 _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
@@ -334,7 +335,7 @@ class SubmissionConductor(object):
             _LOGGER.debug("SUBMITTED")
             submitted = True
             self._num_job_submissions += 1
-            self._num_cmds_submitted += len(self._pool)
+            self._num_cmds_submitted += num_cmds
 
         else:
             _LOGGER.debug("No submission (pool is not full and submission "
