@@ -115,12 +115,15 @@ def parse_arguments():
             "--limit", dest="limit", default=None,
             type=int,
             help="Limit to n samples.")
+    # Note that defaults for otherwise numeric lump parameters are set to
+    # null by default so that the logic that parses their values may
+    # distinguish between explicit 0 and lack of specification.
     run_subparser.add_argument(
-            "--lump", type=float,
+            "--lump", type=float, default=None,
             help="Maximum total input file size for a lump/batch of commands "
                  "in a single job")
     run_subparser.add_argument(
-            "--lumpn", type=int,
+            "--lumpn", type=int, default=None,
             help="Number of individual scripts grouped into single submission")
 
     # Other commands
