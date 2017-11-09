@@ -130,7 +130,8 @@ class SubmissionConductor(object):
         expands as each new command is added, until a time that it's deemed
         'full' and th
 
-        :return:
+        :return bool: Whether this conductor's pool of commands is 'full' and
+            ready for submission, as determined by its parameterization
         """
         return self.max_cmds == len(self._pool) or \
                self._curr_size >= self.max_size
@@ -312,7 +313,9 @@ class SubmissionConductor(object):
             script = self._write_script(settings, prj_argtext=prj_argtext,
                                         looper_argtext=looper_argtext)
 
-            # Determine whether to actually do the submission.
+            # Determine whether to actually do the submission; regardless,
+            # reset the dynamic pool of commands.
+            self._reset_pool()
             if self.dry_run:
                 _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
                              script)
@@ -332,7 +335,6 @@ class SubmissionConductor(object):
             submitted = True
             self._num_job_submissions += 1
             self._num_cmds_submitted += len(self._pool)
-            self._reset_pool()
 
         else:
             _LOGGER.debug("No submission (pool is not full and submission "
