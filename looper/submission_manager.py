@@ -347,7 +347,8 @@ class SubmissionConductor(object):
         if 1 == self.max_cmds:
             assert 1 == len(self._pool), \
                 "If there's a single-command limit on job submission, jobname " \
-                "must be determined with exactly one sample in the pool."
+                "must be determined with exactly one sample in the pool, but " \
+                "there is/are {}.".format(len(self._pool))
             sample, _ = self._pool[0]
             name = sample.name
         else:
