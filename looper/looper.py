@@ -371,7 +371,7 @@ class Runner(Executor):
 
         protocols = {s.protocol for s in self.prj.samples
                      if hasattr(s, "protocol")}
-        failures = []  # Create problem list so we can show them at the end.
+        failures = defaultdict(list)  # Collect problems by sample.
         processed_samples = set()  # Enforce one-time processing.
 
         _LOGGER.info("Finding pipelines for protocol(s): {}".
@@ -450,7 +450,7 @@ class Runner(Executor):
             if skip_reasons:
                 _LOGGER.warn(
                     "> Not submitted: {}".format(", ".join(skip_reasons)))
-                failures.append([skip_reasons, sample.sample_name])
+                failures[sample.name] = skip_reasons
                 continue
 
             # Processing preconditions have been met.
@@ -475,13 +475,13 @@ class Runner(Executor):
                 # TODO: check return value from add() to determine whether
                 # TODO (cont.) to grow the failures list.
                 try:
-                    curr_pl_fails = conductor.add(sample)
+                    curr_pl_fails = conductor.add_sample(sample)
                 except JobSubmissionException as e:
                     failed_submission_scripts.append(e.script)
                 else:
                     pl_fails.extend(curr_pl_fails)
             if pl_fails:
-                failures.append([pl_fails, sample.name])
+                failures[sample.name].extend(pl_fails)
 
         job_sub_total = 0
         cmd_sub_total = 0
@@ -499,17 +499,36 @@ class Runner(Executor):
         _LOGGER.info("Jobs submitted: %d", job_sub_total)
         if args.dry_run:
             _LOGGER.info("Dry run. No jobs were actually submitted.")
-        if failures:
-            _LOGGER.info("%d sample(s) with submission failure.",
-                         len(failures))
-            samples_by_reason = aggregate_exec_skip_reasons(failures)
+
+        _LOGGER.info("%d sample(s) with submission failure.", len(failures))
+
+        # Restructure sample/failure data for display.
+        samples_by_reason = defaultdict(set)
+        # Collect names of failed sample(s) by failure reason.
+        for sample, failures in failures.items():
+            for f in failures:
+                samples_by_reason[f].add(sample)
+        # Collect samples by pipeline with submission failure.
+        failed_samples_by_pipeline = defaultdict(set)
+        for pl_key, conductor in submission_conductors.items():
+            # Don't add failure key if there are no samples that failed for
+            # that reason.
+            if conductor.failed_samples:
+                samples_by_reason["Job submission failure"] |= \
+                        conductor.failed_samples
+                failed_samples_by_pipeline[pl_key] |= conductor.failed_samples
+
+        # If failure keys are only added when there's at least one sample that
+        # failed for that reason, we can display information conditionally,
+        # depending on whether there's actually failure(s).
+        if samples_by_reason:
             _LOGGER.info("{} unique reasons for submission failure: {}".format(
                 len(samples_by_reason), ", ".join(samples_by_reason.keys())))
-
-            full_fail_msgs = [create_failure_message(reason, samples) 
+            full_fail_msgs = [create_failure_message(reason, samples)
                               for reason, samples in samples_by_reason.items()]
-            _LOGGER.info("Samples by failure:\n{}".format(
-                "\n".join(full_fail_msgs)))
+            _LOGGER.info("Samples by failure:\n{}".
+                         format("\n".join(full_fail_msgs)))
+
         if failed_submission_scripts:
             _LOGGER.info("%d scripts with failed submission: %s",
                          len(failed_submission_scripts),

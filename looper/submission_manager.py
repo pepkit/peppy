@@ -115,6 +115,7 @@ class SubmissionConductor(object):
             self.max_cmds = max_cmds
         self.max_size = max_size or float("inf")
 
+        self._failed_sample_names = []
         self._pool = []
         self._curr_size = 0
         self._num_job_submissions = 0
@@ -138,6 +139,11 @@ class SubmissionConductor(object):
 
 
     @property
+    def failed_samples(self):
+        return self._failed_sample_names
+
+
+    @property
     def num_cmd_submissions(self):
         """
         Return the number of commands that this conductor has submitted.
@@ -157,12 +163,27 @@ class SubmissionConductor(object):
         return self._num_job_submissions
 
 
-    def add(self, sample, sample_subtype=Sample):
+    @property
+    def samples(self):
         """
+        Return a collection of pooled samples.
+
+        :return Iterable[str]: collection of samples currently in the active
+            pool for this submission conductor
+        """
+        return [s for s, _ in self._pool]
 
 
-        :param Sample sample:
-        :param type sample_subtype:
+    def add_sample(self, sample, sample_subtype=Sample):
+        """
+        Add a sample for submission to this conductor.
+
+        :param Sample sample: sample to be included with this conductor's
+            currently growing collection of command submissions
+        :param type sample_subtype: specific subtype associated
+            with this new sample; this is used to tailor-make the sample
+            instance as required by its protocol/pipeline and supported
+            by the pipeline interface.
         :return bool: Indication of whether the given sample was added to
             the current 'pool.'
         :raise TypeError: If sample subtype is provided but does not extend
@@ -313,10 +334,7 @@ class SubmissionConductor(object):
             script = self._write_script(settings, prj_argtext=prj_argtext,
                                         looper_argtext=looper_argtext)
 
-            # Determine whether to actually do the submission; regardless,
-            # reset the dynamic pool of commands.
-            num_cmds = len(self._pool)
-            self._reset_pool()
+            # Determine whether to actually do the submission.
             if self.dry_run:
                 _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
                              script)
@@ -328,14 +346,21 @@ class SubmissionConductor(object):
                 try:
                     subprocess.check_call(submission_command, shell=True)
                 except subprocess.CalledProcessError:
+                    self._failed_sample_names.append(
+                            [s.name for s, _ in self.samples])
                     raise JobSubmissionException(sub_cmd, script)
+                finally:
+                    self._reset_pool()
                 time.sleep(self.delay)
 
             # Update the job and command submission tallies.
             _LOGGER.debug("SUBMITTED")
             submitted = True
             self._num_job_submissions += 1
-            self._num_cmds_submitted += num_cmds
+            self._num_cmds_submitted += len(self._pool)
+
+            # Reset the command pool.
+            self._reset_pool()
 
         else:
             _LOGGER.debug("No submission (pool is not full and submission "
