@@ -519,19 +519,20 @@ class Runner(Executor):
                 failed_samples_by_pipeline[pl_key] |= fails
 
         failed_sub_samples = samples_by_reason["Job submission failure"]
-        _LOGGER.info("{} samples with at least one failed job submission: {}".
-                     format(len(failed_sub_samples),
-                            ", ".join(failed_sub_samples)))
+        if failed_sub_samples:
+            _LOGGER.info("\n{} samples with at least one failed job submission: {}".
+                         format(len(failed_sub_samples),
+                                ", ".join(failed_sub_samples)))
 
         # If failure keys are only added when there's at least one sample that
         # failed for that reason, we can display information conditionally,
         # depending on whether there's actually failure(s).
         if samples_by_reason:
-            _LOGGER.info("{} unique reasons for submission failure: {}".format(
+            _LOGGER.info("\n{} unique reasons for submission failure: {}".format(
                 len(samples_by_reason), ", ".join(samples_by_reason.keys())))
             full_fail_msgs = [create_failure_message(reason, samples)
                               for reason, samples in samples_by_reason.items()]
-            _LOGGER.info("Samples by failure:\n{}".
+            _LOGGER.info("\nSamples by failure:\n{}".
                          format("\n".join(full_fail_msgs)))
 
         if failed_submission_scripts:
