@@ -522,7 +522,7 @@ class Runner(Executor):
                 samples_by_reason[SUBMISSION_FAILURE_MESSAGE] |= fails
                 failed_samples_by_pipeline[pl_key] |= fails
 
-        failed_sub_samples = samples_by_reason[SUBMISSION_FAILURE_MESSAGE]
+        failed_sub_samples = samples_by_reason.get(SUBMISSION_FAILURE_MESSAGE)
         if failed_sub_samples:
             _LOGGER.info("\n{} samples with at least one failed job submission: {}".
                          format(len(failed_sub_samples),
