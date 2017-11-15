@@ -161,7 +161,7 @@ class SubmissionConductor(object):
         
         :return int: Number of jobs submitted so far.
         """
-        return self._num_job_submissions
+        return self._num_good_job_submissions
 
 
     @property
