@@ -347,7 +347,9 @@ class SubmissionConductor(object):
                 # Capture submission command return value so that we can
                 # intercept and report basic submission failures; #167
                 try:
-                    subprocess.check_call(submission_command, shell=True)
+                    subprocess.check_call(
+                            submission_command,
+                            stderr=subprocess.STDOUT, shell=True)
                 except subprocess.CalledProcessError as e:
                     self._failed_sample_names.extend(
                             [s.name for s in self.samples])
