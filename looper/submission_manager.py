@@ -348,10 +348,10 @@ class SubmissionConductor(object):
                 # intercept and report basic submission failures; #167
                 try:
                     subprocess.check_call(submission_command, shell=True)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as e:
                     self._failed_sample_names.extend(
                             [s.name for s in self.samples])
-                    raise JobSubmissionException(sub_cmd, script)
+                    raise JobSubmissionException(sub_cmd, script, e.output)
                 finally:
                     self._reset_pool()
                 time.sleep(self.delay)

@@ -10,10 +10,12 @@ class JobSubmissionException(Exception):
     """ Error type for when job submission fails. """
 
 
-    def __init__(self, sub_cmd, script):
-        reason = "Error for command {} and script '{}'".format(sub_cmd, script)
-        super(JobSubmissionException, self).__init__(reason)
+    def __init__(self, sub_cmd, script, message):
         self.script = script
+        self.message = message
+        reason = "Error for command {} and script '{}': {}".\
+                format(sub_cmd, self.script, self.message)
+        super(JobSubmissionException, self).__init__(reason)
 
 
 
