@@ -514,9 +514,9 @@ class Runner(Executor):
             # Don't add failure key if there are no samples that failed for
             # that reason.
             if conductor.failed_samples:
-                samples_by_reason["Job submission failure"] |= \
-                        conductor.failed_samples
-                failed_samples_by_pipeline[pl_key] |= set(conductor.failed_samples)
+                fails = set(conductor.failed_samples)
+                samples_by_reason["Job submission failure"] |= fails
+                failed_samples_by_pipeline[pl_key] |= fails
 
         # If failure keys are only added when there's at least one sample that
         # failed for that reason, we can display information conditionally,
