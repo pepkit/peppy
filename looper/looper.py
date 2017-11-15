@@ -28,6 +28,9 @@ from colorama import init
 init()
 from colorama import Fore, Style
 
+
+SUBMISSION_FAILURE_MESSAGE = "Cluster resource failure"
+
 # Descending by severity for correspondence with logic inversion.
 # That is, greater verbosity setting corresponds to lower logging level.
 _LEVEL_BY_VERBOSITY = [logging.ERROR, logging.CRITICAL, logging.WARN,
@@ -477,8 +480,8 @@ class Runner(Executor):
                 try:
                     curr_pl_fails = conductor.add_sample(sample)
                 except JobSubmissionException as e:
-                    _LOGGER.info("Job submission error for script '%s'",
-                                 e.script)
+                    _LOGGER.info("%s for script '%s'",
+                                 SUBMISSION_FAILURE_MESSAGE, e.script)
                     failed_submission_scripts.append(e.script)
                 else:
                     pl_fails.extend(curr_pl_fails)
@@ -497,13 +500,13 @@ class Runner(Executor):
         _LOGGER.info("Looper finished")
         _LOGGER.info("Samples qualified for job generation: %d of %d",
                      len(processed_samples), max_samples)
+        _LOGGER.info("Successful samples: %d of %d",
+                     max_samples - len(failures), max_samples)
         _LOGGER.info("Commands submitted: %d of %d",
                      cmd_sub_total, num_commands_possible)
         _LOGGER.info("Jobs submitted: %d", job_sub_total)
         if args.dry_run:
             _LOGGER.info("Dry run. No jobs were actually submitted.")
-
-        _LOGGER.info("%d faulty samples.", len(failures))
 
         # Restructure sample/failure data for display.
         samples_by_reason = defaultdict(set)
@@ -518,10 +521,10 @@ class Runner(Executor):
             # that reason.
             if conductor.failed_samples:
                 fails = set(conductor.failed_samples)
-                samples_by_reason["Cluster resource failure"] |= fails
+                samples_by_reason[SUBMISSION_FAILURE_MESSAGE] |= fails
                 failed_samples_by_pipeline[pl_key] |= fails
 
-        failed_sub_samples = samples_by_reason["Cluster resource failure"]
+        failed_sub_samples = samples_by_reason[SUBMISSION_FAILURE_MESSAGE]
         if failed_sub_samples:
             _LOGGER.info("\n{} samples with at least one failed job submission: {}".
                          format(len(failed_sub_samples),
