@@ -118,7 +118,8 @@ class SubmissionConductor(object):
         self._failed_sample_names = []
         self._pool = []
         self._curr_size = 0
-        self._num_job_submissions = 0
+        self._num_good_job_submissions = 0
+        self._num_total_job_submissions = 0
         self._num_cmds_submitted = 0
 
 
@@ -334,6 +335,8 @@ class SubmissionConductor(object):
             script = self._write_script(settings, prj_argtext=prj_argtext,
                                         looper_argtext=looper_argtext)
 
+            self._num_total_job_submissions += 1
+
             # Determine whether to actually do the submission.
             if self.dry_run:
                 _LOGGER.info("> DRY RUN: I would have submitted this: '%s'",
@@ -356,7 +359,7 @@ class SubmissionConductor(object):
             # Update the job and command submission tallies.
             _LOGGER.debug("SUBMITTED")
             submitted = True
-            self._num_job_submissions += 1
+            self._num_good_job_submissions += 1
             self._num_cmds_submitted += len(self._pool)
 
             # Reset the command pool.
@@ -385,7 +388,7 @@ class SubmissionConductor(object):
             # generation call (this method) before incrementing the
             # submission counter, but add 1 to the index so that we get a
             # name concordant with 1-based, not 0-based indexing.
-            name = "lump{}".format(self.num_job_submissions + 1)
+            name = "lump{}".format(self._num_total_job_submissions + 1)
         return "{}_{}".format(self.pl_key, name)
 
 
