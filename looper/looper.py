@@ -477,6 +477,7 @@ class Runner(Executor):
                 try:
                     curr_pl_fails = conductor.add_sample(sample)
                 except JobSubmissionException as e:
+                    _LOGGER.info("Job submission error: %s", e.script)
                     failed_submission_scripts.append(e.script)
                 else:
                     pl_fails.extend(curr_pl_fails)
