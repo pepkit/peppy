@@ -517,10 +517,10 @@ class Runner(Executor):
             # that reason.
             if conductor.failed_samples:
                 fails = set(conductor.failed_samples)
-                samples_by_reason["Job submission failure"] |= fails
+                samples_by_reason["Cluster resource failure"] |= fails
                 failed_samples_by_pipeline[pl_key] |= fails
 
-        failed_sub_samples = samples_by_reason["Job submission failure"]
+        failed_sub_samples = samples_by_reason["Cluster resource failure"]
         if failed_sub_samples:
             _LOGGER.info("\n{} samples with at least one failed job submission: {}".
                          format(len(failed_sub_samples),
