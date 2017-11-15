@@ -500,7 +500,7 @@ class Runner(Executor):
         if args.dry_run:
             _LOGGER.info("Dry run. No jobs were actually submitted.")
 
-        _LOGGER.info("%d sample(s) with submission failure.", len(failures))
+        _LOGGER.info("%d faulty samples.", len(failures))
 
         # Restructure sample/failure data for display.
         samples_by_reason = defaultdict(set)
@@ -518,6 +518,11 @@ class Runner(Executor):
                 samples_by_reason["Job submission failure"] |= fails
                 failed_samples_by_pipeline[pl_key] |= fails
 
+        failed_sub_samples = samples_by_reason["Job submission failure"]
+        _LOGGER.info("{} samples with at least one failed job submission: {}".
+                     format(len(failed_sub_samples),
+                            ", ".join(failed_sub_samples)))
+
         # If failure keys are only added when there's at least one sample that
         # failed for that reason, we can display information conditionally,
         # depending on whether there's actually failure(s).
@@ -531,7 +536,7 @@ class Runner(Executor):
 
         if failed_submission_scripts:
             _LOGGER.info(
-                    Fore.RED +
+                    Fore.LIGHTRED_EX +
                     "\n{} scripts with failed submission: {}".
                     format(len(failed_submission_scripts),
                            ", ".join(failed_submission_scripts)) +
