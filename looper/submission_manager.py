@@ -350,10 +350,10 @@ class SubmissionConductor(object):
                     subprocess.check_call(
                         submission_command, stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE, shell=True)
-                except subprocess.CalledProcessError as e:
+                except subprocess.CalledProcessError:
                     self._failed_sample_names.extend(
                             [s.name for s in self.samples])
-                    raise JobSubmissionException(sub_cmd, script, e.output)
+                    raise JobSubmissionException(sub_cmd, script)
                 finally:
                     self._reset_pool()
                 time.sleep(self.delay)
