@@ -537,12 +537,14 @@ class Runner(Executor):
             _LOGGER.info("\nSamples by failure:\n{}".
                          format("\n".join(full_fail_msgs)))
 
+        """
         if failed_submission_scripts:
             _LOGGER.info(
                     Fore.LIGHTRED_EX +
                     "\n{} scripts with failed submission: ".
                     format(len(failed_submission_scripts)) + Style.RESET_ALL +
                     ", ".join(failed_submission_scripts))
+        """
 
 
 
