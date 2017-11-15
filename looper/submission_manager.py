@@ -348,7 +348,7 @@ class SubmissionConductor(object):
                 # intercept and report basic submission failures; #167
                 try:
                     subprocess.check_call(
-                            submission_command,
+                            submission_command, stdout=subprocess.STDOUT,
                             stderr=subprocess.STDOUT, shell=True)
                 except subprocess.CalledProcessError as e:
                     self._failed_sample_names.extend(
