@@ -347,12 +347,13 @@ class SubmissionConductor(object):
                 # Capture submission command return value so that we can
                 # intercept and report basic submission failures; #167
                 try:
-                    proc = subprocess.Popen(submission_command,  shell=True)
-                    proc.communicate()
-                except subprocess.CalledProcessError as e:
+                    proc = subprocess.Popen(
+                        submission_command, stderr=subprocess.PIPE, shell=True)
+                    _, err = proc.communicate()
+                except subprocess.CalledProcessError:
                     self._failed_sample_names.extend(
                             [s.name for s in self.samples])
-                    raise JobSubmissionException(sub_cmd, script, e.output)
+                    raise JobSubmissionException(sub_cmd, script, err)
                 finally:
                     self._reset_pool()
                 time.sleep(self.delay)
