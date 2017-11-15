@@ -491,9 +491,10 @@ class Runner(Executor):
             cmd_sub_total += conductor.num_cmd_submissions
 
         # Report what went down.
+        max_samples = min(len(self.prj.samples), args.limti or float("inf"))
         _LOGGER.info("Looper finished")
         _LOGGER.info("Samples qualified for job generation: %d of %d",
-                     len(processed_samples), len(self.prj.samples))
+                     len(processed_samples), max_samples)
         _LOGGER.info("Commands submitted: %d of %d",
                      cmd_sub_total, num_commands_possible)
         _LOGGER.info("Jobs submitted: %d", job_sub_total)
