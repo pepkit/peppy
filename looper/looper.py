@@ -495,7 +495,7 @@ class Runner(Executor):
 
         # Report what went down.
         max_samples = min(len(self.prj.samples), args.limit or float("inf"))
-        _LOGGER.info("Looper finished")
+        _LOGGER.info("\nLooper finished")
         _LOGGER.info("Samples qualified for job generation: %d of %d",
                      len(processed_samples), max_samples)
         _LOGGER.info("Successful samples: %d of %d",
