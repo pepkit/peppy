@@ -7,12 +7,12 @@ python:
 os:
   - linux
 install:
+  - pip install --upgrade six
   - pip install .
   - pip install -r requirements/requirements-dev.txt
   - pip install -r requirements/requirements-test.txt
 script: pytest
 branches:
   only:
-    - 0.6-rc2
     - dev
     - master

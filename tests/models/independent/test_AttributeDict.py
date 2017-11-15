@@ -10,7 +10,7 @@ import yaml
 from looper.models import \
         AttributeDict, ATTRDICT_METADATA, _MetadataOperationException
 from tests.conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
-from tests.utils import assert_entirely_equal
+from tests.helpers import assert_entirely_equal
 
 
 __author__ = "Vince Reuter"

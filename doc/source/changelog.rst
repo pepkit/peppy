@@ -1,6 +1,34 @@
 Changelog
 ******************************
 
+- **v0.7** (*2017-11-15*):
+
+  - New
+      
+    - Add ``--lump`` and ``--lumpn`` options
+    
+    - Catch submission errors from cluster resource managers
+    
+    - Implied columns can now be derived
+    
+    - Now protocols can be specified on the command-line `--include-protocols`
+    
+    - Add rudimentary figure summaries
+    
+    - Simplifies command-line help display
+    
+    - Allow wildcard protocol_mapping for catch-all pipeline assignment
+    
+    - Improve user messages
+    
+    - New sample_subtypes section in pipeline_interface
+    
+  - Changed
+  
+    - Sample child classes are now defined explicitly in the pipeline interface. Previously, they were guessed based on presence of a class extending Sample in a pipeline script.
+    
+    - Changed 'library' key sample attribute to 'protocol'
+
 - **v0.6** (*2017-07-21*):
 
   - New

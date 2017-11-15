@@ -7,6 +7,7 @@ import mock
 import pytest
 import yaml
 import looper
+from looper import SAMPLE_NAME_COLNAME
 from looper.models import \
         AttributeDict, Project, Sample, \
         _MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
@@ -39,6 +40,45 @@ def pytest_generate_tests(metafunc):
                 argnames="case_type",
                 argvalues=DerivedColumnsTests.DERIVED_COLUMNS_CASE_TYPES,
                 ids=lambda case_type: "case_type={}".format(case_type))
+
+
+
+@pytest.mark.skip("Not implemented")
+class SubmissionBundleProtocolMappingTests:
+    """ Project must be able to resolve PipelineInterface from protocol. """
+
+
+    @pytest.fixture
+    def sample(self):
+        return Sample({SAMPLE_NAME_COLNAME: "basic_sample"})
+
+
+    @pytest.fixture
+    def pipeline_interface(self):
+        pass
+
+
+    @pytest.fixture
+    def sheet(self):
+        pass
+
+
+    @pytest.fixture
+    def prj(self):
+        pass
+
+
+
+    @pytest.mark.parametrize(argnames="has_generic", argvalues=[False, True])
+    def test_no_match(self, has_generic, sample):
+        """ No specific protocol match allows generic match if present. """
+        sample.protocol = ""
+
+
+    @pytest.mark.parametrize(argnames="priority", argvalues=[False, True])
+    def test_priority(self, priority, sample):
+        """ Flag determines behavior when multiple interfaces have protocol. """
+        pass
 
 
 

@@ -22,8 +22,9 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0
-	usage: looper [-h] [-V] {run,summarize,destroy,check,clean} ...
+	version: 0.7.0-dev
+	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}] [--dbg]
+	              {run,summarize,destroy,check,clean} ...
 	
 	looper - Loop through samples and submit pipelines.
 	
@@ -39,19 +40,25 @@ Here you can see the command-line usage instructions for the main looper command
 	optional arguments:
 	  -h, --help            show this help message and exit
 	  -V, --version         show program's version number and exit
+	  --logfile LOGFILE     Optional output file for looper logs (default: None)
+	  --verbosity {0,1,2,3,4}
+	                        Choose level of verbosity (default: None)
+	  --dbg                 Turn on debug mode (default: False)
 	
 	For subcommand-specific options, type: 'looper <subcommand> -h'
-	https://github.com/epigen/looper For debug options, type: 'looper -h
-	--details'
+	https://github.com/epigen/looper
 
 ``looper run --help``
 ----------------------------------
 
 .. code-block:: none
 
-	version: 0.6.0
+	version: 0.7.0-dev
 	usage: looper run [-h] [-t TIME_DELAY] [--ignore-flags] [--compute COMPUTE]
 	                  [--env ENV] [--limit LIMIT] [--file-checks] [-d]
+	                  [--exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                  | --include-protocols
+	                  [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]]
 	                  [--sp SUBPROJECT]
 	                  config_file
 	
@@ -74,6 +81,12 @@ Here you can see the command-line usage instructions for the main looper command
 	  --limit LIMIT         Limit to n samples.
 	  --file-checks         Perform input file checks. Default=True.
 	  -d, --dry-run         Don't actually submit the project/subproject.
+	  --exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples that either lack a protocol or
+	                        for which protocol is not in this collection.
+	  --include-protocols [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples associated with these
+	                        protocols; if not provided, all samples are used.
 	  --sp SUBPROJECT       Name of subproject to use, as designated in the
 	                        project's configuration file
 
@@ -82,88 +95,136 @@ Here you can see the command-line usage instructions for the main looper command
 
 .. code-block:: none
 
-	version: 0.6.0
-	usage: looper summarize [-h] [--file-checks] [-d] [--sp SUBPROJECT]
+	version: 0.7.0-dev
+	usage: looper summarize [-h] [--file-checks] [-d]
+	                        [--exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                        | --include-protocols
+	                        [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]]
+	                        [--sp SUBPROJECT]
 	                        config_file
 	
 	Summarize statistics of project samples.
 	
 	positional arguments:
-	  config_file      Project configuration file (YAML).
+	  config_file           Project configuration file (YAML).
 	
 	optional arguments:
-	  -h, --help       show this help message and exit
-	  --file-checks    Perform input file checks. Default=True.
-	  -d, --dry-run    Don't actually submit the project/subproject.
-	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
-	                   configuration file
+	  -h, --help            show this help message and exit
+	  --file-checks         Perform input file checks. Default=True.
+	  -d, --dry-run         Don't actually submit the project/subproject.
+	  --exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples that either lack a protocol or
+	                        for which protocol is not in this collection.
+	  --include-protocols [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples associated with these
+	                        protocols; if not provided, all samples are used.
+	  --sp SUBPROJECT       Name of subproject to use, as designated in the
+	                        project's configuration file
 
 ``looper destroy --help``
 ----------------------------------
 
 .. code-block:: none
 
-	version: 0.6.0
-	usage: looper destroy [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
+	version: 0.7.0-dev
+	usage: looper destroy [-h] [--file-checks] [-d]
+	                      [--exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                      | --include-protocols
+	                      [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]]
+	                      [--sp SUBPROJECT]
+	                      config_file
 	
 	Remove all files of the project.
 	
 	positional arguments:
-	  config_file      Project configuration file (YAML).
+	  config_file           Project configuration file (YAML).
 	
 	optional arguments:
-	  -h, --help       show this help message and exit
-	  --file-checks    Perform input file checks. Default=True.
-	  -d, --dry-run    Don't actually submit the project/subproject.
-	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
-	                   configuration file
+	  -h, --help            show this help message and exit
+	  --file-checks         Perform input file checks. Default=True.
+	  -d, --dry-run         Don't actually submit the project/subproject.
+	  --exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples that either lack a protocol or
+	                        for which protocol is not in this collection.
+	  --include-protocols [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples associated with these
+	                        protocols; if not provided, all samples are used.
+	  --sp SUBPROJECT       Name of subproject to use, as designated in the
+	                        project's configuration file
 
 ``looper check --help``
 ----------------------------------
 
 .. code-block:: none
 
-	version: 0.6.0
-	usage: looper check [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
+	version: 0.7.0-dev
+	usage: looper check [-h] [-A] [-F [FLAGS [FLAGS ...]]] [--file-checks] [-d]
+	                    [--exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                    | --include-protocols
+	                    [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]]
+	                    [--sp SUBPROJECT]
+	                    config_file
 	
 	Checks flag status of current runs.
 	
 	positional arguments:
-	  config_file      Project configuration file (YAML).
+	  config_file           Project configuration file (YAML).
 	
 	optional arguments:
-	  -h, --help       show this help message and exit
-	  --file-checks    Perform input file checks. Default=True.
-	  -d, --dry-run    Don't actually submit the project/subproject.
-	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
-	                   configuration file
+	  -h, --help            show this help message and exit
+	  -A, --all-folders     Check status for all project's output folders, not
+	                        just those for samples specified in the config file
+	                        used
+	  -F [FLAGS [FLAGS ...]], --flags [FLAGS [FLAGS ...]]
+	                        Check on only these flags/status values.
+	  --file-checks         Perform input file checks. Default=True.
+	  -d, --dry-run         Don't actually submit the project/subproject.
+	  --exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples that either lack a protocol or
+	                        for which protocol is not in this collection.
+	  --include-protocols [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples associated with these
+	                        protocols; if not provided, all samples are used.
+	  --sp SUBPROJECT       Name of subproject to use, as designated in the
+	                        project's configuration file
 
 ``looper clean --help``
 ----------------------------------
 
 .. code-block:: none
 
-	version: 0.6.0
-	usage: looper clean [-h] [--file-checks] [-d] [--sp SUBPROJECT] config_file
+	version: 0.7.0-dev
+	usage: looper clean [-h] [--file-checks] [-d]
+	                    [--exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                    | --include-protocols
+	                    [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]]
+	                    [--sp SUBPROJECT]
+	                    config_file
 	
 	Runs clean scripts to remove intermediate files of already processed jobs.
 	
 	positional arguments:
-	  config_file      Project configuration file (YAML).
+	  config_file           Project configuration file (YAML).
 	
 	optional arguments:
-	  -h, --help       show this help message and exit
-	  --file-checks    Perform input file checks. Default=True.
-	  -d, --dry-run    Don't actually submit the project/subproject.
-	  --sp SUBPROJECT  Name of subproject to use, as designated in the project's
-	                   configuration file
+	  -h, --help            show this help message and exit
+	  --file-checks         Perform input file checks. Default=True.
+	  -d, --dry-run         Don't actually submit the project/subproject.
+	  --exclude-protocols [EXCLUDE_PROTOCOLS [EXCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples that either lack a protocol or
+	                        for which protocol is not in this collection.
+	  --include-protocols [INCLUDE_PROTOCOLS [INCLUDE_PROTOCOLS ...]]
+	                        Operate only on samples associated with these
+	                        protocols; if not provided, all samples are used.
+	  --sp SUBPROJECT       Name of subproject to use, as designated in the
+	                        project's configuration file
 
-``looper --help --details``
+``looper --help``
 ----------------------------------
 
 .. code-block:: none
 
-	version: 0.6.0
+	version: 0.7.0-dev
 	usage: looper [-h] [-V] [--logfile LOGFILE] [--verbosity {0,1,2,3,4}] [--dbg]
 	              {run,summarize,destroy,check,clean} ...
 	

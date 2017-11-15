@@ -29,7 +29,7 @@ Explore:
     # get fastq file of first sample
     prj.samples[0].fastq
     # get all bam files of WGBS samples
-    [s.mapped for s in prj.samples if s.library == "WGBS"]
+    [s.mapped for s in prj.samples if s.protocol == "WGBS"]
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
@@ -49,26 +49,30 @@ Explore:
 # TODO: the examples changes would involve library and output_dir.
 
 from collections import \
-    defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
+    Counter, defaultdict, Iterable, Mapping, MutableMapping, namedtuple, \
     OrderedDict as _OrderedDict
 from functools import partial
 import glob
 import inspect
 import itertools
 import logging
+from operator import itemgetter
 import os as _os
 import sys
 if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+import warnings
 
 import pandas as _pd
 import yaml
 
+from . import IMPLICATIONS_DECLARATION, SAMPLE_NAME_COLNAME
 from .utils import \
-    alpha_cased, check_bam, check_fastq, expandpath, \
-    get_file_size, import_from_source, parse_ftype, partition, \
+    add_project_sample_constants, alpha_cased, check_bam, check_fastq, \
+    expandpath, get_file_size, grab_project_data, import_from_source, \
+    is_command_callable, parse_ftype, partition, sample_folder, \
     standard_stream_redirector
 
 
@@ -82,12 +86,13 @@ __all__ = __functions__ + __classes__
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
 DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 DATA_SOURCE_COLNAME = "data_source"
-SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
-IMPLICATIONS_DECLARATION = "implied_columns"
 DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"
 COL_KEY_SUFFIX = "_key"
+VALID_READ_TYPES = ["single", "paired"]
+REQUIRED_INPUTS_ATTR_NAME = "required_inputs_attr"
+ALL_INPUTS_ATTR_NAME = "all_inputs_attr"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
@@ -106,8 +111,16 @@ def check_sheet(sample_file, dtype=str):
     :raises IOError: if given annotations file can't be read.
     :raises ValueError: if required column(s) is/are missing.
     """
+    # Although no null value replacements or supplements are being passed,
+    # toggling the keep_default_na value to False solved an issue with 'nan'
+    # and/or 'None' as an argument for an option in the pipeline command
+    # that's generated from a Sample's attributes.
+    #
+    # See https://github.com/epigen/looper/issues/159 for the original issue
+    # and https://github.com/epigen/looper/pull/160 for the pull request
+    # that resolved it.
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
-                        index_col=False, engine="python")
+                        index_col=False, engine="python", keep_default_na=False)
     req = [SAMPLE_NAME_COLNAME]
     missing = set(req) - set(df.columns)
     if len(missing) != 0:
@@ -128,6 +141,63 @@ def copy(obj):
         return deepcopy(self)
     obj.copy = copy
     return obj
+
+
+
+def fetch_samples(proj, inclusion=None, exclusion=None):
+    """
+    Collect samples of particular protocol(s).
+
+    Protocols can't be both positively selected for and negatively
+    selected against. That is, it makes no sense and is not allowed to
+    specify both inclusion and exclusion protocols. On the other hand, if
+    neither is provided, all of the Project's Samples are returned.
+    If inclusion is specified, Samples without a protocol will be excluded,
+    but if exclusion is specified, protocol-less Samples will be included.
+
+    :param Project proj: the Project with Samples to fetch
+    :param Iterable[str] | str inclusion: protocol(s) of interest;
+        if specified, a Sample must
+    :param Iterable[str] | str exclusion: protocol(s) to include
+    :return list[Sample]: Collection of this Project's samples with
+        protocol that either matches one of those in inclusion, or either
+        lacks a protocol or does not match one of those in exclusion
+    :raise TypeError: if both inclusion and exclusion protocols are
+        specified; TypeError since it's basically providing two arguments
+        when only one is accepted, so remain consistent with vanilla Python2
+    """
+
+    # Intersection between inclusion and exclusion is nonsense user error.
+    if inclusion and exclusion:
+        raise TypeError("Specify only inclusion or exclusion protocols, "
+                         "not both.")
+
+    if not inclusion and not exclusion:
+        # Simple; keep all samples.  In this case, this function simply
+        # offers a list rather than an iterator.
+        return list(proj.samples)
+
+    # Ensure that we're working with sets.
+    def make_set(items):
+        if isinstance(items, str):
+            items = [items]
+        return {alpha_cased(i) for i in items}
+
+    # Use the attr check here rather than exception block in case the
+    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # an exception to arise, not to catch it as if the Sample lacks "protocol"
+    if not inclusion:
+        # Loose; keep all samples not in the exclusion.
+        def keep(s):
+            return not hasattr(s, "protocol") or \
+                   alpha_cased(s.protocol) not in make_set(exclusion)
+    else:
+        # Strict; keep only samples in the inclusion.
+        def keep(s):
+            return hasattr(s, "protocol") and \
+                   alpha_cased(s.protocol) in make_set(inclusion)
+
+    return list(filter(keep, proj.samples))
 
 
 
@@ -158,23 +228,24 @@ def is_url(maybe_url):
 
 
 
-def merge_sample(sample, merge_table, data_sources, derived_columns):
+def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
     """
     Use merge table data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
     :param merge_table: data with which to alter Sample
-    :param Mapping data_sources: collection of named paths to data locations
-    :param Iterable[str] derived_columns: names of column for which
-        corresponding Sample attribute's value is data-derived
+    :param Mapping data_sources: collection of named paths to data locations,
+        optional
+    :param Iterable[str] derived_columns: names of columns for which
+        corresponding Sample attribute's value is data-derived, optional
     :return Set[str]: names of columns that were merged
     """
 
-    merged_cols = {}
+    merged_attrs = {}
 
     if merge_table is None:
         _LOGGER.log(5, "No data for sample merge, skipping")
-        return merged_cols
+        return merged_attrs
 
     if SAMPLE_NAME_COLNAME not in merge_table.columns:
         raise KeyError(
@@ -183,21 +254,20 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
 
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
+    
+    # Hash derived columns for faster lookup in case of many samples/columns.
+    derived_columns = set(derived_columns or [])
     _LOGGER.debug("Merging Sample with derived columns: {}".
                   format(derived_columns))
 
-    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == \
-                     getattr(sample, SAMPLE_NAME_COLNAME)
-    merge_rows = merge_table[sample_indexer]
-
-    if len(merge_rows) == 0:
+    sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
+    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == sample_name
+    this_sample_rows = merge_table[sample_indexer]
+    if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
-        return merged_cols
-
-    # Hash derived columns for faster lookup in case of many samples/columns.
-    derived_columns = set(derived_columns)
-    _LOGGER.log(5, "%d rows to merge", len(merge_rows))
-
+        return merged_attrs
+    _LOGGER.log(5, "%d rows to merge", len(this_sample_rows))
+    _LOGGER.log(5, "Merge rows dict: {}".format(this_sample_rows.to_dict()))
 
     # For each row in the merge table of this sample:
     # 1) populate any derived columns
@@ -205,65 +275,80 @@ def merge_sample(sample, merge_table, data_sources, derived_columns):
     # 3) update the sample values with the merge table
     # Keep track of merged cols,
     # so we don't re-derive them later.
-    merged_cols = {key: "" for key in merge_rows.columns}
-    for _, row in merge_rows.iterrows():
-        row_dict = row.to_dict()
-        for col in merge_rows.columns:
-            if col == SAMPLE_NAME_COLNAME or \
-                            col not in derived_columns:
-                _LOGGER.log(5, "Skipping column: '%s'", col)
+    merged_attrs = {key: "" for key in this_sample_rows.columns}
+    
+    for _, row in this_sample_rows.iterrows():
+        rowdata = row.to_dict()
+
+        # Iterate over column names to avoid Python3 RuntimeError for
+        # during-iteration change of dictionary size.
+        for attr_name in this_sample_rows.columns:
+            if attr_name == SAMPLE_NAME_COLNAME or \
+                            attr_name not in derived_columns:
+                _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
+
+            attr_value = rowdata[attr_name]
+
             # Initialize key in parent dict.
-            col_key = col + COL_KEY_SUFFIX
-            merged_cols[col_key] = ""
-            row_dict[col_key] = row_dict[col]
-            row_dict[col] = sample.locate_data_source(
-                    data_sources, col, row_dict[col], row_dict)  # 1)
+            col_key = attr_name + COL_KEY_SUFFIX
+            merged_attrs[col_key] = ""
+            rowdata[col_key] = attr_value
+            data_src_path = sample.locate_data_source(
+                    data_sources, attr_name, source_key=rowdata[attr_name],
+                    extra_vars=rowdata)  # 1)
+            rowdata[attr_name] = data_src_path
 
         _LOGGER.log(5, "Adding derived columns")
-        # Also add in any derived cols present.
-        for col in derived_columns:
-            # Skip over attributes that the sample
-            # either lacks, and those covered by the
-            # data from the current (row's) data.
-            if not hasattr(sample, col) or \
-                            col in row_dict:
-                _LOGGER.log(5, "Skipping column: '%s'", col)
+        
+        for attr in derived_columns:
+            
+            # Skip over any attributes that the sample lacks or that are
+            # covered by the data from the current (row's) data.
+            if not hasattr(sample, attr) or attr in rowdata:
+                _LOGGER.log(5, "Skipping column: '%s'", attr)
                 continue
-            # Map column name key to sample's value
-            # for the attribute given by column name.
-            col_key = col + COL_KEY_SUFFIX
-            row_dict[col_key] = getattr(sample, col)
-            # Map the column name itself to the
-            # populated data source template string.
-            row_dict[col] = sample.locate_data_source(
-                    data_sources, col, getattr(sample, col), row_dict)
-            _LOGGER.debug("PROBLEM adding derived column: "
-                          "{}, {}, {}".format(col, row_dict[col],
-                                              getattr(sample, col)))
+            
+            # Map key to sample's value for the attribute given by column name.
+            col_key = attr + COL_KEY_SUFFIX
+            rowdata[col_key] = getattr(sample, attr)
+            # Map the col/attr name itself to the populated data source 
+            # template string.
+            rowdata[attr] = sample.locate_data_source(
+                    data_sources, attr, source_key=getattr(sample, attr),
+                    extra_vars=rowdata)
 
-        # Since we are now jamming multiple (merged)
-        # entries into a single attribute, we have to
-        # join them into a space-delimited string
-        # and then set to sample attribute.
-        for key, val in row_dict.items():
-            if key == SAMPLE_NAME_COLNAME or not val:
-                _LOGGER.log(5, "Skipping KV: {}={}".format(key, val))
+        # TODO: this (below) is where we could maintain grouped values
+        # TODO (cont.): as a collection and defer the true merger.
+
+        # Since we are now jamming multiple (merged) entries into a single
+        # attribute on a Sample, we have to join the individual items into a
+        # space-delimited string and then use that value as the Sample
+        # attribute. The intended use case for this sort of merge is for
+        # multiple data source paths associated with a single Sample, hence
+        # the choice of space-delimited string as the joined-/merged-entry
+        # format--it's what's most amenable to use in building up an argument
+        # string for a pipeline command.
+        for attname, attval in rowdata.items():
+            if attname == SAMPLE_NAME_COLNAME or not attval:
+                _LOGGER.log(5, "Skipping KV: {}={}".format(attname, attval))
                 continue
-            _LOGGER.log(5, "merge: sample '%s'; %s=%s",
-                          str(sample.name), str(key), str(val))
-            if not key in merged_cols:
-                new_val = str(val).rstrip()
+            _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
+                        str(sample.name), str(attname), str(attval))
+            if attname not in merged_attrs:
+                new_attval = str(attval).rstrip()
             else:
-                new_val = "{} {}".format(
-                    merged_cols[key], str(val)).strip()
-            merged_cols[key] = new_val  # 2)
+                new_attval = "{} {}".format(merged_attrs[attname], str(attval)).strip()
+            merged_attrs[attname] = new_attval  # 2)
+            _LOGGER.log(5, "Stored '%s' as value for '%s' in merged_attrs",
+                        new_attval, attname)
 
-    # Don't update sample_name.
-    merged_cols.pop(SAMPLE_NAME_COLNAME, None)
+    # If present, remove sample name from the data with which to update sample.
+    merged_attrs.pop(SAMPLE_NAME_COLNAME, None)
 
-    sample.update(merged_cols)  # 3)
-    sample.merged_cols = merged_cols
+    _LOGGER.log(5, "Updating Sample {}: {}".format(sample.name, merged_attrs))
+    sample.update(merged_attrs)  # 3)
+    sample.merged_cols = merged_attrs
     sample.merged = True
 
     return sample
@@ -279,14 +364,14 @@ def process_pipeline_interfaces(pipeline_interface_locations):
         pipeline interface and protocol mappings information. Each such file
         should be have a pipelines section and a protocol mappings section
         whereas each folder should have a file for each of those sections.
-    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol 
+    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol
         name to interface(s) for which that protocol is mapped
     """
     interface_by_protocol = defaultdict(list)
     for pipe_iface_location in pipeline_interface_locations:
         if not _os.path.exists(pipe_iface_location):
             _LOGGER.warn("Ignoring nonexistent pipeline interface "
-                         "location '%s'", pipe_iface_location)
+                         "location: '%s'", pipe_iface_location)
             continue
         proto_iface = ProtocolInterface(pipe_iface_location)
         for proto_name in proto_iface.protomap:
@@ -300,6 +385,7 @@ def process_pipeline_interfaces(pipeline_interface_locations):
 SubmissionBundle = namedtuple(
     "SubmissionBundle",
     field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
+SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX = 2
 
 
 
@@ -326,6 +412,39 @@ class Paths(object):
 
     def __repr__(self):
         return "Paths object."
+
+
+
+class ProjectContext(object):
+    """ Wrap a Project to provide protocol-specific Sample selection. """
+
+    def __init__(self, prj, include_protocols=None, exclude_protocols=None):
+        """ Project and what to include/exclude defines the context. """
+        self.prj = prj
+        self.include = include_protocols
+        self.exclude = exclude_protocols
+
+    def __getattr__(self, item):
+        """ Samples are context-specific; other requests are handled
+        locally or dispatched to Project. """
+        if item == "samples":
+            return fetch_samples(
+                self.prj, inclusion=self.include, exclusion=self.exclude)
+        if item in ["prj", "include", "exclude"]:
+            # Attributes requests that this context/wrapper handles
+            return self.__dict__[item]
+        else:
+            # Dispatch attribute request to Project.
+            return getattr(self.prj, item)
+
+    def __getitem__(self, item):
+        return self.prj[item]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
 
 
 
@@ -356,21 +475,23 @@ class AttributeDict(MutableMapping):
         self.__dict__["_force_nulls"] = _force_nulls
         # Return requested attribute name if not set?
         self.__dict__["_attribute_identity"] = _attribute_identity
-        if entries:
-            self.add_entries(entries)
+        self.add_entries(entries)
 
 
     def add_entries(self, entries):
         """
         Update this `AttributeDict` with provided key-value pairs.
 
-        :param collections.Iterable | collections.Mapping entries: collection
-            of pairs of keys and values
+        :param Iterable[(object, object)] | Mapping | pandas.Series entries:
+            collection of pairs of keys and values
         """
-        _LOGGER.log(5, "Adding entries {}".format(entries))
+        if entries is None:
+            return
         # Permit mapping-likes and iterables/generators of pairs.
         if callable(entries):
             entries = entries()
+        elif isinstance(entries, _pd.Series):
+            entries = entries.to_dict()
         try:
             entries_iter = entries.items()
         except AttributeError:
@@ -441,26 +562,16 @@ class AttributeDict(MutableMapping):
         :raises _MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
-        _LOGGER.log(5, "Executing __setitem__ for '{}', '{}'".
-                    format(key, str(value)))
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
-                _LOGGER.log(5, "Updating key: '{}'".format(key))
                 self.__dict__[key].add_entries(value)
             except (AttributeError, KeyError):
                 # Create new AttributeDict, replacing previous value.
                 self.__dict__[key] = AttributeDict(value)
-            _LOGGER.log(5, "'{}' now has keys {}".
-                          format(key, self.__dict__[key].keys()))
         elif value is not None or \
                 key not in self.__dict__ or self.__dict__["_force_nulls"]:
-            _LOGGER.log(5, "Setting '{}' to {}".format(key, value))
             self.__dict__[key] = value
-        else:
-            _LOGGER.log(5, "Not setting {k} to {v}; _force_nulls: {nulls}".
-                        format(k=key, v=value,
-                               nulls=self.__dict__["_force_nulls"]))
 
 
     def __getitem__(self, item):
@@ -537,7 +648,8 @@ class Project(AttributeDict):
         for their  attributes (read type, read length) 
         if this is not set in sample metadata.
     :type file_checks: bool
-    :param compute_env_file: Looperenv YAML file specifying compute settings.
+    :param compute_env_file: Environment configuration YAML file specifying
+        compute settings.
     :type compute_env_file: str
     :param no_environment_exception: type of exception to raise if environment
         settings can't be established, optional; if null (the default),
@@ -634,7 +746,6 @@ class Project(AttributeDict):
         self.setdefault("data_sources", None)
 
         self.name = self.infer_name(self.config_file)
-        self.subproject = subproject
 
         # Set project's directory structure
         if not dry:
@@ -663,6 +774,7 @@ class Project(AttributeDict):
         path_anns_file = self.metadata.sample_annotation
         _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
         try:
+            _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
             self.sheet = check_sheet(path_anns_file)
         except IOError:
             _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
@@ -680,12 +792,19 @@ class Project(AttributeDict):
             raise
 
         self.merge_table = None
-        self._samples = None if defer_sample_construction \
-                else self._make_basic_samples()
+
+        # Basic sample maker will handle name uniqueness check.
+        if defer_sample_construction:
+            self._samples = None
+        else:
+            self._set_basic_samples()
 
 
     def __repr__(self):
+        """ Self-represent in the interpreter. """
+        # First, parameterize the attribute filtration function by the class.
         include = partial(include_in_repr, klazz=self.__class__)
+        # Then iterate over items, filtering what to include in representation.
         return repr({k: v for k, v in self.__dict__.items() if include(k)})
 
 
@@ -698,6 +817,17 @@ class Project(AttributeDict):
             compute settings
         """
         return COMPUTE_SETTINGS_VARNAME
+
+
+    @property
+    def constants(self):
+        """
+        Return key-value pairs of pan-Sample constants for this Project.
+
+        :return Mapping: collection of KV pairs, each representing a pairing
+            of attribute name and attribute value
+        """
+        return self._constants
 
 
     @property
@@ -754,7 +884,7 @@ class Project(AttributeDict):
         protos = set()
         for s in self.samples:
             try:
-                protos.add(s.library)
+                protos.add(s.protocol)
             except AttributeError:
                 _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
         return protos
@@ -792,9 +922,7 @@ class Project(AttributeDict):
         if self._samples is None:
             _LOGGER.debug("Building basic sample object(s) for %s",
                           self.__class__.__name__)
-            self._samples = self._make_basic_samples()
-        _LOGGER.debug("%s has %d basic sample object(s)",
-                      self.__class__.__name__, len(self._samples))
+            self._set_basic_samples()
         return self._samples
 
 
@@ -824,6 +952,31 @@ class Project(AttributeDict):
         return config_folder
 
 
+    def build_sheet(self, *protocols):
+        """
+        Create all Sample object for this project for the given protocol(s).
+
+        :return pandas.core.frame.DataFrame: DataFrame with from base version
+            of each of this Project's samples, for indicated protocol(s) if
+            given, else all of this Project's samples
+        """
+        # Use all protocols if none are explicitly specified.
+        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
+        include_samples = []
+        for s in self.samples:
+            try:
+                proto = s.protocol
+            except AttributeError:
+                include_samples.append(s)
+                continue
+            check_proto = alpha_cased(proto)
+            if check_proto in protocols:
+                include_samples.append(s)
+            else:
+                _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
+        return _pd.DataFrame(include_samples)
+
+
     def build_submission_bundles(self, protocol, priority=True):
         """
         Create pipelines to submit for each sample of a particular protocol.
@@ -839,11 +992,17 @@ class Project(AttributeDict):
         :param bool priority: to only submit pipeline(s) from the first of the
             pipelines location(s) (indicated in the project config file) that
             has a match for the given protocol; optional, default True
-        :return Iterable[(PipelineInterface, str, str)]:
+        :return Iterable[(PipelineInterface, type, str, str)]:
         :raises AssertionError: if there's a failure in the attempt to
             partition an interface's pipeline scripts into disjoint subsets of
             those already mapped and those not yet mapped
         """
+
+        if not priority:
+            raise NotImplementedError(
+                "Currently, only prioritized protocol mapping is supported "
+                "(i.e., pipeline interfaces collection is a prioritized list, "
+                "so only the first interface with a protocol match is used.)")
 
         # Pull out the collection of interfaces (potentially one from each of
         # the locations indicated in the project configuration file) as a
@@ -853,26 +1012,28 @@ class Project(AttributeDict):
             protocol_interfaces = \
                     self.interfaces_by_protocol[protocol]
         except KeyError:
-            _LOGGER.warn("Unknown protocol: '{}'".format(protocol))
+            # Messaging can be done by the caller.
             return []
 
         job_submission_bundles = []
         pipeline_keys_used = set()
         _LOGGER.debug("Building pipelines for {} PIs...".
                       format(len(protocol_interfaces)))
+
+        bundle_by_strict_pipe_key = {}
+
         for proto_iface in protocol_interfaces:
-            # Short-circuit if we care only about the highest-priority match
-            # for pipeline submission. That is, if the intent is to submit
-            # pipeline(s) from a single location for each sample of the given
-            # protocol, we can stop searching the pool of pipeline interface
-            # information once we've found a match for the protocol.
+            # "Break"-like mechanism for short-circuiting if we care only
+            # about the highest-priority match for pipeline submission.
+            # That is, if the intent is to submit pipeline(s) from a single
+            # location for each sample of the given protocol, we can stop
+            # searching the pool of pipeline interface information once we've
+            # found a match for the protocol.
             if priority and len(job_submission_bundles) > 0:
                 return job_submission_bundles[0]
 
             this_protocol_pipelines = proto_iface.fetch_pipelines(protocol)
             if not this_protocol_pipelines:
-                _LOGGER.warn("No mapping for protocol '%s' in %s", 
-                             protocol, proto_iface)
                 continue
             
             # TODO: update once dependency-encoding logic is in place.
@@ -917,6 +1078,8 @@ class Project(AttributeDict):
                           format(len(new_scripts), protocol,
                                  proto_iface.source, new_scripts))
 
+            pl_iface = proto_iface.pipe_iface
+
             # For each pipeline script to which this protocol will pertain,
             # create the new jobs/submission bundles.
             new_jobs = []
@@ -927,19 +1090,35 @@ class Project(AttributeDict):
                                 pipeline_key)
 
                 # Skip and warn about nonexistent alleged pipeline path.
-                if not _os.path.exists(full_pipe_path):
-                    _LOGGER.warn(
-                            "Missing pipeline script: '%s'", full_pipe_path)
+                if not (_os.path.exists(full_pipe_path) or
+                        is_command_callable(full_pipe_path)):
+                    _LOGGER.warn("Missing pipeline script: '%s'",
+                                 full_pipe_path)
                     continue
 
                 # Determine which interface and Sample subtype to use.
                 sample_subtype = \
                         proto_iface.fetch_sample_subtype(
                                 protocol, strict_pipe_key, full_pipe_path)
+
                 # Package the pipeline's interface, subtype, command, and key.
                 submission_bundle = SubmissionBundle(
-                        proto_iface.pipe_iface, sample_subtype,
-                        strict_pipe_key, full_pipe_path_with_flags)
+                        pl_iface, sample_subtype, strict_pipe_key,
+                        full_pipe_path_with_flags)
+
+                # Enforce bundle unqiueness for each strict pipeline key.
+                maybe_new_bundle = (full_pipe_path_with_flags,
+                                    sample_subtype, pl_iface)
+                old_bundle = bundle_by_strict_pipe_key.setdefault(
+                        strict_pipe_key, maybe_new_bundle)
+                if old_bundle != maybe_new_bundle:
+                    errmsg = "Strict pipeline key '{}' maps to more than " \
+                            "one combination of pipeline script + flags, " \
+                            "sample subtype, and pipeline interface. " \
+                             "'{}'\n{}".format(
+                            strict_pipe_key, maybe_new_bundle, old_bundle)
+                    raise ValueError(errmsg)
+
                 # Add this bundle to the collection of ones relevant for the
                 # current ProtocolInterface.
                 new_jobs.append(submission_bundle)
@@ -952,6 +1131,20 @@ class Project(AttributeDict):
             return job_submission_bundles[0]
         else:
             return list(itertools.chain(*job_submission_bundles))
+
+
+    def _check_unique_samples(self):
+        """ Handle scenario in which sample names are not unique. """
+        # Defining this here but then calling out to the repeats counter has
+        # a couple of advantages. We get an unbound, isolated method (the
+        # Project-external repeat sample name counter), but we can still
+        # do this check from the sample builder, yet have it be override-able.
+        repeats = {name: n for name, n in Counter(
+                s.name for s in self._samples).items() if n > 1}
+        if repeats:
+            histogram_text = "\n".join(
+                    "{}: {}".format(name, n) for name, n in repeats.items())
+            _LOGGER.warn("Non-unique sample names:\n{}".format(histogram_text))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -1021,6 +1214,8 @@ class Project(AttributeDict):
             return " ".join(optargs_texts)
 
         default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
+        _LOGGER.debug("Creating additional argstring text for pipeline '%s'",
+                      pipeline_name)
         pipeline_argtext = create_argtext(pipeline_name)
 
         if not pipeline_argtext:
@@ -1034,22 +1229,6 @@ class Project(AttributeDict):
         else:
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
-
-
-    def build_sheet(self, *protocols):
-        """
-        Create all Sample object for this project for the given protocol(s).
-
-        :return pandas.core.frame.DataFrame: DataFrame with from base version
-            of each of this Project's samples, for indicated protocol(s) if
-            given, else all of this Project's samples
-        """
-        # Use all protocols if none are explicitly specified.
-        samples = self.samples
-        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
-        return _pd.DataFrame(
-                [s.as_series() for s in samples if
-                 hasattr(s, "library") and alpha_cased(s.library) in protocols])
 
 
     def make_project_dirs(self):
@@ -1069,7 +1248,7 @@ class Project(AttributeDict):
                                  str(e))
 
 
-    def _make_basic_samples(self):
+    def _set_basic_samples(self):
         """ Build the base Sample objects from the annotations sheet data. """
 
         # This should be executed just once, establishing the Project's
@@ -1078,6 +1257,8 @@ class Project(AttributeDict):
             if self.merge_table is None:
                 if self.metadata.merge_table and \
                         _os.path.isfile(self.metadata.merge_table):
+                    _LOGGER.info("Reading merge table: %s",
+                                 self.metadata.merge_table)
                     self.merge_table = _pd.read_table(
                         self.metadata.merge_table,
                         sep=None, engine="python")
@@ -1092,19 +1273,38 @@ class Project(AttributeDict):
         else:
             _LOGGER.debug("No merge table")
 
-        # Create the Samples.
+        # Set samples and handle non-unique names situation.
+        self._samples = self._prep_samples()
+        self._check_unique_samples()
+
+
+    def _prep_samples(self):
+        """
+        Merge this Project's Sample object and set file paths.
+
+        :return list[Sample]: collection of this Project's Sample objects
+        """
+
         samples = []
+
         for _, row in self.sheet.iterrows():
             sample = Sample(row.dropna(), prj=self)
+
+            # Add values that are constant across this Project's samples.
+            sample = add_project_sample_constants(sample, self)
+
+            # TODO: use implied_columns in 0.8.
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
+            _LOGGER.debug("Merging sample '%s'", sample.name)
             merge_sample(sample, self.merge_table,
                          self.data_sources, self.derived_columns)
+            _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility
             # Pipelines should now use `data_source`)
-            _LOGGER.debug("Setting sample's data path")
+            _LOGGER.debug("Setting sample data path")
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
@@ -1183,6 +1383,7 @@ class Project(AttributeDict):
                     "pipelines_dir. New value: {}".
                     format(self.metadata.pipelines_dir))
 
+        self._constants = config.get("constants", dict())
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
@@ -1386,7 +1587,7 @@ class Project(AttributeDict):
 
 
 @copy
-class Sample(object):
+class Sample(AttributeDict):
     """
     Class to model Samples based on a pandas Series.
 
@@ -1409,10 +1610,25 @@ class Sample(object):
     # but complications with serializing and code maintenance
     # made me go back and implement it as a top-level object
     def __init__(self, series, prj=None):
-        super(Sample, self).__init__()
+
+        # Create data, handling library/protocol.
+        data = dict(series)
+        try:
+            protocol = data.pop("library")
+        except KeyError:
+            pass
+        else:
+            data["protocol"] = protocol
+        super(Sample, self).__init__(entries=data)
+
         self.prj = prj
         self.merged_cols = {}
         self.derived_cols_done = []
+
+        if isinstance(series, _pd.Series):
+            series = series.to_dict()
+        elif isinstance(series, Sample):
+            series = series.as_series().to_dict()
 
         # Keep a list of attributes that came from the sample sheet,
         # so we can create a minimal, ordered representation of the original.
@@ -1420,27 +1636,14 @@ class Sample(object):
         # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
 
-        if isinstance(series, _pd.Series):
-            series = series.to_dict()
-        elif isinstance(series, Sample):
-            series = series.as_series().to_dict()
-
-        # Set series attributes on self.
-        for key, value in series.items():
-            setattr(self, key, value)
-
         # Ensure Project reference is actual Project or AttributeDict.
         if not isinstance(self.prj, Project):
-            self.prj = AttributeDict(self.prj or {})
+            self.prj = AttributeDict(self.prj or dict())
 
         # Check if required attributes exist and are not empty.
-        lacking = self.check_valid()
-        if lacking:
-            missing_kwarg = "missing"
-            empty_kwarg = "empty"
-            raise ValueError("Sample lacks attribute(s). {}={}; {}={}".
-                             format(missing_kwarg, lacking[missing_kwarg],
-                                    empty_kwarg, lacking[empty_kwarg]))
+        missing_attributes_message = self.check_valid()
+        if missing_attributes_message:
+            raise ValueError(missing_attributes_message)
 
         # Short hand for getting sample_name
         self.name = self.sample_name
@@ -1452,9 +1655,13 @@ class Sample(object):
         # Not yet merged, potentially toggled when merge step is considered.
         self.merged = False
 
-        # Sample dirs
-        # Only when sample is added to project, can paths be added -
-        # This is because sample-specific files will be created in a
+        # Collect sample-specific filepaths.
+        # Only when sample is added to project, can paths be added.
+        # Essentially, this provides an empty container for tool-specific
+        # filepaths, into which a pipeline may deposit such filepaths as
+        # desired. Such use provides a sort of communication interface
+        # between times and perhaps individuals (processing time vs.
+        # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
 
@@ -1466,18 +1673,22 @@ class Sample(object):
         return not self == other
 
 
-    def __getitem__(self, item):
-        """
-        Provides dict-style access to attributes
-        """
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            raise KeyError(item)
-
-
     def __repr__(self):
+        return "Sample '{}': {}".format(self.name, self.__dict__)
+
+
+    def __str__(self):
         return "Sample '{}'".format(self.name)
+
+
+    @property
+    def input_file_paths(self):
+        """
+        List the sample's data source / input files
+
+        :return list[str]: paths to data sources / input file for this Sample.
+        """
+        return self.data_source.split(" ") if self.data_source else []
 
 
     def as_series(self):
@@ -1487,6 +1698,8 @@ class Sample(object):
         :return pandas.core.series.Series: pandas Series representation
             of this Sample, with its attributes.
         """
+        # Note that this preserves metadata, but it could be excluded
+        # with self.items() rather than self.__dict__.
         return _pd.Series(self.__dict__)
 
 
@@ -1496,15 +1709,20 @@ class Sample(object):
 
         :param Iterable[str] required: collection of required sample attribute
             names, optional; if unspecified, only a name is required.
-
+        :return (Exception | NoneType, str, str): exception and messages about
+            what's missing/empty; null with empty messages if there was nothing
+            exceptional or required inputs are absent or not set
         """
-        lacking = defaultdict(list)
-        for attr in required or [SAMPLE_NAME_COLNAME]:
+        missing, empty = [], []
+        for attr in (required or [SAMPLE_NAME_COLNAME]):
             if not hasattr(self, attr):
-                lacking["missing"].append(attr)
+                missing.append(attr)
             if attr == "nan":
-                lacking["empty"].append(attr)
-        return lacking
+                empty.append(attr)
+        missing_attributes_message = \
+                "Sample lacks attribute(s). missing={}; empty={}".\
+                        format(missing, empty) if (missing or empty) else ""
+        return missing_attributes_message
 
 
     def determine_missing_requirements(self):
@@ -1516,15 +1734,17 @@ class Sample(object):
             is detected
         """
 
+        null_return = (None, "", "")
+
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
             _LOGGER.warn("You must run set_pipeline_attributes "
                          "before determine_missing_requirements")
-            return None, ""
+            return null_return
 
         if not self.required_inputs:
             _LOGGER.debug("No required inputs")
-            return None, ""
+            return null_return
 
         # First, attributes
         missing, empty = [], []
@@ -1546,9 +1766,10 @@ class Sample(object):
                               format(file_attribute, attval))
 
         if missing or empty:
-            return AttributeError, \
-                   "Missing attributes: {}. Empty attributes: {}".\
-                    format(missing, empty)
+            reason_key = "Missing and/or empty attribute(s)"
+            reason_detail = "(missing) {}; (empty) {}".format(
+                    ", ".join(missing), ", ".join(empty))
+            return AttributeError, reason_key, reason_detail
 
         # Second, files
         missing_files = []
@@ -1563,11 +1784,11 @@ class Sample(object):
                     missing_files.append(path)
 
         if not missing_files:
-            return None, ""
+            return null_return
         else:
-            missing_message = \
-                    "Missing file(s): {}".format(", ".join(missing_files))
-            return IOError, missing_message
+            reason_key = "Missing file(s)"
+            reason_detail = ", ".join(missing_files)
+            return IOError, reason_key, reason_detail
 
 
     def generate_filename(self, delimiter="_"):
@@ -1693,6 +1914,18 @@ class Sample(object):
         return flag != "1"
 
 
+    @property
+    def library(self):
+        """
+        Backwards-compatible alias.
+
+        :return str: The protocol / NGS library name for this Sample.
+        """
+        warnings.warn("Sample 'library' attribute is deprecated; instead, "
+                      "refer to 'protocol'", DeprecationWarning)
+        return self.protocol
+
+
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
         """
@@ -1721,8 +1954,7 @@ class Sample(object):
         """
 
         if not data_sources:
-            # TODO: should this be a null/empty-string return, or actual error?
-            raise ValueError("No data sources")
+            return None
 
         if not source_key:
             try:
@@ -1737,10 +1969,10 @@ class Sample(object):
         try:
             regex = data_sources[source_key]
         except KeyError:
-            _LOGGER.warn(
-                    "Config lacks entry for data_source key: '{}' "
+            _LOGGER.debug(
+                    "{}: config lacks entry for data_source key: '{}' "
                     "in column '{}'; known: {}".format(
-                    source_key, column_name, data_sources.keys()))
+                    self.name, source_key, column_name, data_sources.keys()))
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
@@ -1753,12 +1985,12 @@ class Sample(object):
             # Here the copy() prevents the actual sample from being
             # updated by update().
             temp_dict = self.__dict__.copy()
-            temp_dict.update(extra_vars or {})
+            temp_dict.update(extra_vars or dict())
             val = regex.format(**temp_dict)
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
-                val = " ".join(val_globbed)
+                val = " ".join(val_globbed) or val
                 _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
@@ -1778,34 +2010,59 @@ class Sample(object):
                 _os.makedirs(path)
 
 
-    def set_file_paths(self, project):
+    def set_file_paths(self, project=None):
         """
         Sets the paths of all files for this sample.
 
-        :param Project project: object with pointers to data paths and such
+        :param AttributeDict project: object with pointers to data paths and
+            such, either full Project or AttributeDict with sufficient data
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
 
-        for col in project.derived_columns:
-            # Only proceed if the specified column exists
-            # and was not already merged or derived.
-            if hasattr(self, col) and col not in self.merged_cols \
-                    and col not in self.derived_cols_done:
-                # Set a variable called {col}_key, so the
-                # original source can also be retrieved.
-                setattr(self, col + COL_KEY_SUFFIX, getattr(self, col))
-                setattr(self, col, self.locate_data_source(
-                        data_sources=project.get(DATA_SOURCES_SECTION),
-                        column_name=col))
-                self.derived_cols_done.append(col)
+        project = project or self.prj
 
         self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
 
+        for col in project.get("derived_columns", []):
+            # Only proceed if the specified column exists
+            # and was not already merged or derived.
+            if not hasattr(self, col):
+                _LOGGER.debug("%s lacks attribute '%s'", self.name, col)
+                continue
+            elif col in self.merged_cols:
+                _LOGGER.debug("'%s' is already merged for %s", col, self.name)
+                continue
+            elif col in self.derived_cols_done:
+                _LOGGER.debug("'%s' has been derived for %s", col, self.name)
+                continue
+            _LOGGER.debug("Deriving column for %s '%s': '%s'",
+                          self.__class__.__name__, self.name, col)
+
+            # Set a variable called {col}_key, so the
+            # original source can also be retrieved.
+            col_key = col + COL_KEY_SUFFIX
+            col_key_val = getattr(self, col)
+            _LOGGER.debug("Setting '%s' to '%s'", col_key, col_key_val)
+            setattr(self, col_key, col_key_val)
+
+            # Determine the filepath for the current data source and set that
+            # attribute on this sample if it's non-empty/null.
+            filepath = self.locate_data_source(
+                    data_sources=project.get(DATA_SOURCES_SECTION),
+                    column_name=col)
+            if filepath:
+                _LOGGER.debug("Setting '%s' to '%s'", col, filepath)
+                setattr(self, col, filepath)
+            else:
+                _LOGGER.debug("Not setting null/empty value for data source "
+                              "'{}': {}".format(col, type(filepath)))
+
+            self.derived_cols_done.append(col)
+
         # Parent
         self.results_subdir = project.metadata.results_subdir
-        self.paths.sample_root = _os.path.join(
-                project.metadata.results_subdir, self.sample_name)
+        self.paths.sample_root = sample_folder(project, self)
 
         # Track url
         bigwig_filename = self.name + ".bigWig"
@@ -1880,8 +2137,8 @@ class Sample(object):
         # These attributes are then queried to populate values
         # for the primary entries.
         req_attr_names = [("ngs_input_files", "ngs_inputs_attr"),
-                          ("required_input_files", "required_inputs_attr"),
-                          ("all_input_files", "all_inputs_attr")]
+                          ("required_input_files", REQUIRED_INPUTS_ATTR_NAME),
+                          ("all_input_files", ALL_INPUTS_ATTR_NAME)]
         for name_src_attr, name_dst_attr in req_attr_names:
             _LOGGER.log(5, "Value of '%s' will be assigned to '%s'",
                         name_src_attr, name_dst_attr)
@@ -1892,44 +2149,65 @@ class Sample(object):
 
         # Post-processing of input attribute assignments.
         # Ensure that there's a valid all_inputs_attr.
-        if not self.all_inputs_attr:
-            self.all_inputs_attr = self.required_inputs_attr
+        if not getattr(self, ALL_INPUTS_ATTR_NAME):
+            required_inputs = getattr(self, REQUIRED_INPUTS_ATTR_NAME)
+            setattr(self, ALL_INPUTS_ATTR_NAME, required_inputs)
         # Convert attribute keys into values.
         if self.ngs_inputs_attr:
             _LOGGER.log(5, "Handling NGS input attributes: '%s'", self.name)
             # NGS data inputs exit, so we can add attributes like
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
-            self.set_read_type(permissive=permissive)
+
+            set_rtype = False
+            if not hasattr(self, "read_type"):
+                set_rtype_reason = "read_type not yet set"
+                set_rtype = True
+            elif not self.read_type or self.read_type.lower() \
+                    not in VALID_READ_TYPES:
+                set_rtype_reason = "current read_type is invalid: '{}'".\
+                        format(self.read_type)
+                set_rtype = True
+            if set_rtype:
+                _LOGGER.debug(
+                        "Setting read_type for %s '%s': %s",
+                        self.__class__.__name__, self.name, set_rtype_reason)
+                self.set_read_type(permissive=permissive)
+            else:
+                _LOGGER.debug("read_type is already valid: '%s'", 
+                              self.read_type)
         else:
             _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
 
         # Assign values for actual inputs attributes.
-        self.required_inputs = self.get_attr_values("required_inputs_attr")
-        self.all_inputs = self.get_attr_values("all_inputs_attr")
+        self.required_inputs = self.get_attr_values(REQUIRED_INPUTS_ATTR_NAME)
+        self.all_inputs = self.get_attr_values(ALL_INPUTS_ATTR_NAME)
+        _LOGGER.debug("All '{}' inputs: {}".format(self.name, self.all_inputs))
         self.input_file_size = get_file_size(self.all_inputs)
 
 
-    def set_read_type(self, n=10, permissive=True):
+    def set_read_type(self, rlen_sample_size=10, permissive=True):
         """
         For a sample with attr `ngs_inputs` set, this sets the 
         read type (single, paired) and read length of an input file.
 
-        :param n: Number of reads to read to determine read type. Default=10.
-        :type n: int
+        :param rlen_sample_size: Number of reads to sample to infer read type,
+            default 10.
+        :type rlen_sample_size: int
         :param permissive: whether to simply log a warning or error message 
             rather than raising an exception if sample file is not found or 
-            otherwise cannot be read, default True
+            otherwise cannot be read, default True.
         :type permissive: bool
         """
+
+        # TODO: determine how return is being used and standardized (null vs. bool)
+
         # Initialize the parameters in case there is no input_file, so these
         # attributes at least exist - as long as they are not already set!
-        if not hasattr(self, "read_length"):
-            self.read_length = None
-        if not hasattr(self, "read_type"):
-            self.read_type = None
-        if not hasattr(self, "paired"):
-            self.paired = None
+        for attr in ["read_length", "read_type", "paired"]:
+            if not hasattr(self, attr):
+                _LOGGER.log(5, "Setting null for missing attribute: '%s'", attr)
+                setattr(self, attr, None)
 
         # ngs_inputs must be set
         if not self.ngs_inputs:
@@ -1937,6 +2215,7 @@ class Sample(object):
 
         ngs_paths = " ".join(self.ngs_inputs)
 
+        # Determine extant/missing filepaths.
         existing_files = list()
         missing_files = list()
         for path in ngs_paths.split(" "):
@@ -1944,6 +2223,10 @@ class Sample(object):
                 missing_files.append(path)
             else:
                 existing_files.append(path)
+        _LOGGER.debug("{} extant file(s): {}".
+                      format(len(existing_files), existing_files))
+        _LOGGER.debug("{} missing file(s): {}".
+                      format(len(missing_files), missing_files))
 
         # For samples with multiple original BAM files, check all.
         files = list()
@@ -1951,7 +2234,8 @@ class Sample(object):
         for input_file in existing_files:
             try:
                 file_type = parse_ftype(input_file)
-                read_length, paired = check_by_ftype[file_type](input_file, n)
+                read_lengths, paired = check_by_ftype[file_type](
+                        input_file, rlen_sample_size)
             except (KeyError, TypeError):
                 message = "Input file type should be one of: {}".format(
                         check_by_ftype.keys())
@@ -1980,29 +2264,40 @@ class Sample(object):
                         setattr(self, feat_name, None)
                 return
 
-            # Get most abundant read length
-            read_length = sorted(read_length)[-1]
+            # Determine most frequent read length among sample.
+            rlen, _ = sorted(read_lengths.items(), key=itemgetter(1))[-1]
+            _LOGGER.log(5,
+                    "Selected {} as most frequent read length from "
+                    "sample read length distribution: {}".format(
+                            rlen, read_lengths))
 
-            # If at least half is paired, consider paired end reads
-            if paired > (n / 2):
+            # Decision about paired-end status is majority-rule.
+            if paired > (rlen_sample_size / 2):
                 read_type = "paired"
                 paired = True
             else:
                 read_type = "single"
                 paired = False
 
-            files.append([read_length, read_type, paired])
+            files.append([rlen, read_type, paired])
 
         # Check agreement between different files
         # if all values are equal, set to that value;
         # if not, set to None and warn the user about the inconsistency
         for i, feature in enumerate(self._FEATURE_ATTR_NAMES):
-            setattr(self, feature,
-                    files[0][i] if len(set(f[i] for f in files)) == 1 else None)
+            feature_values = set(f[i] for f in files)
+            if 1 == len(feature_values):
+                feat_val = files[0][i]
+            else:
+                _LOGGER.log(5, "%d values among %d files for feature '%s'",
+                            len(feature_values), len(files), feature)
+                feat_val = None
+            _LOGGER.log(5, "Setting '%s' on %s to %s",
+                        feature, self.__class__.__name__, feat_val)
+            setattr(self, feature, feat_val)
 
             if getattr(self, feature) is None and len(existing_files) > 0:
-                _LOGGER.warn("Not all input files agree on "
-                             "feature '%s' for sample '%s'",
+                _LOGGER.warn("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
 
@@ -2043,42 +2338,45 @@ class Sample(object):
                       self.__class__.__name__, path)
         self.yaml_file = path
 
+        def _is_project(obj, name=None):
+            """ Determine if item to prep for disk is Sample's project. """
+            return name == "prj"
 
-        def obj2dict(obj,
-                     to_skip=("samples", "sheet", "sheet_attributes")):
+        def obj2dict(obj, name=None,
+                to_skip=("merge_table", "samples", "sheet", "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
 
             :param object obj: what to serialize to write to YAML.
+            :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
-            if isinstance(obj, Project):
-                _LOGGER.debug("Attempting to store %s's %s metadata",
-                              self.__class__.__name__,
-                              Project.__class__.__name__)
-                try:
-                    proj_data = dict(obj.metadata.items())
-                except AttributeError:
-                    _LOGGER.debug("No metadata")
-                    proj_data = {}
-                else:
-                    _LOGGER.debug("Successfully stored metadata")
-                return proj_data
+            if name:
+                _LOGGER.log(5, "Converting to dict: '{}'".format(name))
+            if _is_project(obj, name):
+                _LOGGER.debug("Attempting to store %s's project metadata",
+                              self.__class__.__name__)
+                prj_data = grab_project_data(obj)
+                _LOGGER.debug("Sample's project data: {}".format(prj_data))
+                return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
-                return {k: obj2dict(v) for k, v in obj.__dict__.items()
+                return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
                         if k not in to_skip and
                         (k not in ATTRDICT_METADATA or
                          v != ATTRDICT_METADATA[k])}
             elif isinstance(obj, Mapping):
-                return {k: obj2dict(v)
+                return {k: obj2dict(v, name=k)
                         for k, v in obj.items() if k not in to_skip}
             elif isinstance(obj, (Paths, Sample)):
-                return {k: obj2dict(v)
+                return {k: obj2dict(v, name=k)
                         for k, v in obj.__dict__.items() if
                         k not in to_skip}
+            elif isinstance(obj, _pd.Series):
+                _LOGGER.warn("Serializing series as mapping, not array-like")
+                return obj.to_dict()
             elif hasattr(obj, 'dtype'):  # numpy data types
                 # TODO: this fails with ValueError for multi-element array.
                 return obj.item()
@@ -2121,7 +2419,7 @@ class Sample(object):
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             except yaml.representer.RepresenterError:
-                print("SERIAL: {}".format(serial))
+                _LOGGER.error("SERIALIZED SAMPLE DATA: {}".format(serial))
                 raise
             outfile.write(yaml_data)
 
@@ -2150,12 +2448,16 @@ class PipelineInterface(object):
     """
     def __init__(self, config):
         if isinstance(config, Mapping):
+            # Unified pipeline_interface.yaml file (protocol mappings
+            # and the actual pipeline interface data)
             _LOGGER.debug("Creating %s with preparsed data",
                          self.__class__.__name__)
             self.pipe_iface_file = None
             self.pipe_iface_config = config
 
         else:
+            # More likely old-style, with protocol_mapping in its own file,
+            # separate from the actual pipeline interface data
             _LOGGER.debug("Parsing '%s' for PipelineInterface config data",
                          config)
             self.pipe_iface_file = config
@@ -2223,7 +2525,7 @@ class PipelineInterface(object):
 
         :param pipeline_name: Name of pipeline.
         :type pipeline_name: str
-        :param file_size: Size of input data.
+        :param file_size: Size of input data (in gigabytes).
         :type file_size: float
         :return: resource bundle appropriate for given pipeline,
             for given input file size
@@ -2234,6 +2536,9 @@ class PipelineInterface(object):
             resource package specification is provided
         """
 
+        # Ensure that we have a numeric value before attempting comparison.
+        file_size = float(file_size)
+
         if file_size < 0:
             raise ValueError("Attempted selection of resource package for "
                              "negative file size: {}".format(file_size))
@@ -2241,8 +2546,10 @@ class PipelineInterface(object):
         try:
             resources = self._select_pipeline(pipeline_name)["resources"]
         except KeyError:
-            _LOGGER.warn("No resources found for pipeline '%s' in file '%s'",
-                         pipeline_name, self.pipe_iface_file)
+            msg = "No resources for pipeline '{}'".format(pipeline_name)
+            if self.pipe_iface_file is not None:
+                msg += " in file '{}'".format(self.pipe_iface_file)
+            _LOGGER.warn(msg)
             return {}
 
         # Require default resource package specification.
@@ -2274,9 +2581,10 @@ class PipelineInterface(object):
         if "file_size" in default_resource_package:
             del default_resource_package["file_size"]
         resources[DEFAULT_COMPUTE_RESOURCES_NAME]["min_file_size"] = 0
-        # Sort packages by descending file size minimum to return first
-        # package for which given file size satisfies the minimum.
+
         try:
+            # Sort packages by descending file size minimum to return first
+            # package for which given file size satisfies the minimum.
             resource_packages = sorted(
                 resources.items(),
                 key=lambda name_and_data: file_size_ante(*name_and_data),
@@ -2290,16 +2598,16 @@ class PipelineInterface(object):
         for rp_name, rp_data in resource_packages:
             size_ante = file_size_ante(rp_name, rp_data)
             if file_size >= size_ante:
-                _LOGGER.debug(
-                        "Selected '{}' package with min file size {} for {}.".
-                        format(rp_name, size_ante, file_size))
+                msg = "Selected '{}' package with min file size {} Gb for file " \
+                      "of size {} Gb.".format(rp_name, size_ante, file_size)
+                _LOGGER.debug(msg)
                 return rp_data
 
 
     def get_arg_string(self, pipeline_name, sample,
                        submission_folder_path="", **null_replacements):
         """
-        For a given pipeline and sample, return the argument string
+        For a given pipeline and sample, return the argument string.
 
         :param str pipeline_name: Name of pipeline.
         :param Sample sample: current sample for which job is being built
@@ -2311,7 +2619,16 @@ class PipelineInterface(object):
         :return str: command-line argument string for pipeline
         """
 
-        # It's undesirable to put a null value in the argument string.
+        def update_argtext(argtext, option, argument):
+            if argument is None or "" == argument:
+                _LOGGER.debug("Skipping null/empty argument for option "
+                              "'{}': {}".format(option, type(argument)))
+                return argtext
+            _LOGGER.debug("Adding argument for pipeline option '{}': {}".
+                          format(option, argument))
+            return "{} {} {}".format(argtext, option, argument)
+
+
         default_filepath = _os.path.join(
                 submission_folder_path, sample.generate_filename())
         _LOGGER.debug("Default sample filepath: '%s'", default_filepath)
@@ -2328,56 +2645,61 @@ class PipelineInterface(object):
             return argstring
 
         args = config["arguments"]
-
-        for key, value in args.iteritems():
-            if value is None:
-                _LOGGER.debug("Null value for opt arg key '%s'", str(key))
+        for pipe_opt, sample_attr in args.iteritems():
+            if sample_attr is None:
+                _LOGGER.debug("Option '%s' is not mapped to a sample "
+                              "attribute, so it will be added to the pipeline "
+                              "argument string as a flag-like option.",
+                              str(pipe_opt))
+                argstring += " {}".format(pipe_opt)
                 continue
+
             try:
-               arg = getattr(sample, value)
+               arg = getattr(sample, sample_attr)
             except AttributeError:
                 _LOGGER.error(
-                    "Error (missing attribute): '%s' "
-                    "requires sample attribute '%s' "
-                    "for argument '%s'",
-                    pipeline_name, value, key)
+                        "Error (missing attribute): '%s' requires sample "
+                        "attribute '%s' for option/argument '%s'",
+                        pipeline_name, sample_attr, pipe_opt)
                 raise
 
             # It's undesirable to put a null value in the argument string.
             if arg is None:
-                _LOGGER.debug("Null value for Sample attribute: '%s'", value)
+                _LOGGER.debug("Null value for sample attribute: '%s'",
+                              sample_attr)
                 try:
-                    arg = proxies[value]
+                    arg = proxies[sample_attr]
                 except KeyError:
-                    raise ValueError("No default for null "
-                                     "Sample attribute: '{}'".format(value))
+                    reason = "No default for null sample attribute: '{}'".\
+                            format(sample_attr)
+                    raise ValueError(reason)
                 _LOGGER.debug("Found default for '{}': '{}'".
-                              format(value, arg))
+                              format(sample_attr, arg))
 
-            _LOGGER.debug("Adding '{}' from attribute '{}' for argument '{}'".
-                          format(arg, value, key))
-            argstring += " " + str(key) + " " + str(arg)
+            argstring = update_argtext(
+                    argstring, option=pipe_opt, argument=arg)
 
         # Add optional arguments
         if "optional_arguments" in config:
+            _LOGGER.debug("Processing options")
             args = config["optional_arguments"]
-            for key, value in args.iteritems():
-                _LOGGER.debug("%s, %s (optional)", key, value)
-                if value is None:
-                    _LOGGER.debug("Null value for opt arg key '%s'",
-                                       str(key))
+            for pipe_opt, sample_attr in args.iteritems():
+                _LOGGER.debug("Option '%s' maps to sample attribute '%s'",
+                              pipe_opt, sample_attr)
+                if sample_attr is None or sample_attr == "":
+                    _LOGGER.debug("Null/empty sample attribute name for "
+                                  "pipeline option '{}'".format(pipe_opt))
                     continue
                 try:
-                    arg = getattr(sample, value)
+                    arg = getattr(sample, sample_attr)
                 except AttributeError:
                     _LOGGER.warn(
-                        "> Note (missing attribute): '%s' requests "
-                        "sample attribute '%s' for "
-                        "OPTIONAL argument '%s'",
-                        pipeline_name, value, key)
+                        "> Note (missing optional attribute): '%s' requests "
+                        "sample attribute '%s' for option '%s'",
+                        pipeline_name, sample_attr, pipe_opt)
                     continue
-
-                argstring += " " + str(key) + " " + str(arg)
+                argstring = update_argtext(
+                        argstring, option=pipe_opt, argument=arg)
 
         _LOGGER.debug("Script args: '%s'", argstring)
 
@@ -2444,11 +2766,12 @@ class PipelineInterface(object):
         """
         try:
             # For unmapped pipeline, Return empty config instead of None.
-            return self.pipe_iface_config[pipeline_name] or {}
+            return self.pipe_iface_config[pipeline_name] or dict()
         except KeyError:
             _LOGGER.error(
-                "Missing pipeline description: '%s' not found in '%s'",
-                pipeline_name, self.pipe_iface_file)
+                "Missing pipeline description: %s not found; %d known: %s",
+                pipeline_name, len(self.pipe_iface_config),
+                ", ".format(self.pipe_iface_config.keys()))
             # TODO: use defaults or force user to define this?
             raise _MissingPipelineConfigurationException(pipeline_name)
 
@@ -2462,7 +2785,7 @@ class ProtocolInterface(object):
     the location(s) from which the PipelineInterface and ProtocolMapper came.
 
     :param interface_data_source: location (e.g., code repository) of pipelines
-    :type interface_data_source: str
+    :type interface_data_source: str | Mapping
 
     """
 
@@ -2495,7 +2818,13 @@ class ProtocolInterface(object):
 
             with open(interface_data_source, 'r') as interface_file:
                 iface = yaml.load(interface_file)
-            for name, value in self._parse_iface_data(iface):
+            try:
+                iface_data = self._parse_iface_data(iface)
+            except Exception:
+                _LOGGER.error("Error parsing data from pipeline interface "
+                              "file: %s", interface_data_source)
+                raise
+            for name, value in iface_data:
                 setattr(self, name, value)
 
         elif _os.path.isdir(interface_data_source):
@@ -2638,7 +2967,11 @@ class ProtocolInterface(object):
             script_path_only = strict_pipeline_key
             script_path_with_flags = pipeline_key 
 
-        if not _os.path.isabs(script_path_only):
+        # Clear trailing whitespace.
+        script_path_only = script_path_only.rstrip()
+
+        if not _os.path.isabs(script_path_only) and not \
+                is_command_callable(script_path_only):
             _LOGGER.log(5, "Expanding non-absolute script path: '%s'",
                         script_path_only)
             script_path_only = _os.path.join(
@@ -2648,10 +2981,6 @@ class ProtocolInterface(object):
                     self.pipelines_path, script_path_with_flags)
             _LOGGER.log(5, "Absolute script path with flags: '%s'",
                         script_path_with_flags)
-
-        if not _os.path.exists(script_path_only):
-            _LOGGER.warn(
-                    "Missing pipeline script: '%s'", script_path_only)
 
         return strict_pipeline_key, script_path_only, script_path_with_flags
 
@@ -2837,6 +3166,10 @@ def _import_sample_subtype(pipeline_filepath, subtype_name=None):
         failure with the import or other logic
     """
     base_type = Sample
+
+    _, ext = _os.path.splitext(pipeline_filepath)
+    if ext != ".py":
+        return base_type
 
     try:
         _LOGGER.debug("Attempting to import module defined by {}".

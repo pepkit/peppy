@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 from looper.models import Paths, copy
-from tests.utils import assert_entirely_equal
+from tests.helpers import assert_entirely_equal
 
 
 

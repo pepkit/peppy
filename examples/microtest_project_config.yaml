@@ -1,8 +1,8 @@
 metadata:
-  output_dir: /scratch/lab_bock/shared/projects/microtest
+  output_dir: ${PROCESSED}/microtest
   results_subdir: results_pipeline
   submission_subdir: submission
-  pipelines_dir: $CODEBASE/pipelines
+  pipelines_dir: ${CODE}/pipelines
   sample_annotation: microtest_sample_annotation.csv
   merge_table: microtest_merge_table.csv
 
@@ -10,8 +10,8 @@ derived_columns: [data_source]
 
 data_sources:
   bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
-  microtest: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}.bam"
-  microtest_merge: "/data/groups/lab_bock/shared/resources/microtest/{sample_name}{file_number}.bam"
+  microtest: "${RESOURCES}/microtest/{sample_name}.bam"
+  microtest_merge: "${RESOURCES}/microtest/{sample_name}{file_number}.bam"
 
 subprojects:
   config_test:

@@ -14,14 +14,17 @@ import random
 
 import numpy.random as nprand
 import pytest
+import yaml
 
-from looper.looper import aggregate_exec_skip_reasons
+from looper import GENERIC_PROTOCOL_KEY, SAMPLE_NAME_COLNAME
+from looper.looper import aggregate_exec_skip_reasons, Runner
 import looper.models
-from looper.models import COL_KEY_SUFFIX
-from .conftest import \
+from looper.models import Project, COL_KEY_SUFFIX, SAMPLE_ANNOTATIONS_KEY
+from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     LOOPER_ARGS_BY_PIPELINE, MERGED_SAMPLE_INDICES, NGS_SAMPLE_INDICES, \
     NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
+from tests.helpers import named_param
 
 
 _LOGGER = logging.getLogger("looper.{}".format(__name__))
@@ -119,8 +122,11 @@ class SampleWrtProjectCtorTests:
         observed_required_inputs = [os.path.basename(f)
                                     for f in sample.required_inputs]
         assert expected_required_inputs == observed_required_inputs
-        error_type, error_message = sample.determine_missing_requirements()
-        assert error_type is None and not error_message
+        error_type, error_general, error_specific = \
+                sample.determine_missing_requirements()
+        assert error_type is None
+        assert not error_general
+        assert not error_specific
 
 
     @pytest.mark.parametrize(argnames="sample_index",
@@ -135,8 +141,11 @@ class SampleWrtProjectCtorTests:
                                                   [sample_index][0])
         observed_required_input_basename = \
             os.path.basename(sample.required_inputs[0])
-        error_type, error_message = sample.determine_missing_requirements()
-        assert error_type is None and not error_message
+        error_type, error_general, error_specific = \
+                sample.determine_missing_requirements()
+        assert error_type is None
+        assert not error_general
+        assert not error_specific
         assert 1 == len(sample.required_inputs)
         assert expected_required_input_basename == \
                observed_required_input_basename
@@ -271,3 +280,62 @@ class RunErrorReportTests:
             observed_aggregation = aggregate_exec_skip_reasons(
                     original_skip_reasons)
             assert expected_aggregation == observed_aggregation
+
+
+
+@pytest.mark.skip("Not implemented")
+class GenericProtocolMatchTests:
+    """ Pipeline interface may support 'all-other' protocols notion. """
+
+
+    NAME_ANNS_FILE = "annotations.csv"
+
+
+    @pytest.fixture
+    def prj_data(self):
+        """ Provide basic Project data. """
+        return {"metadata": {"output_dir": "output",
+                             "results_subdir": "results_pipeline",
+                             "submission_subdir": "submission"}}
+
+
+    @pytest.fixture
+    def sheet_lines(self):
+        """ Provide sample annotations sheet lines. """
+        return ["{},{}".format(SAMPLE_NAME_COLNAME, "basic_sample")]
+
+
+    @pytest.fixture
+    def sheet_file(self, tmpdir, sheet_lines):
+        """ Write annotations sheet file and provide path. """
+        anns_file = tmpdir.join(self.NAME_ANNS_FILE)
+        anns_file.write(os.linesep.join(sheet_lines))
+        return anns_file.strpath
+
+
+    @pytest.fixture
+    def iface_paths(self, tmpdir):
+        """ Write basic pipeline interfaces and provide paths. """
+        pass
+
+
+    @pytest.fixture
+    def prj(self, tmpdir, prj_data, anns_file, iface_paths):
+        """ Provide basic Project. """
+        prj_data["pipeline_interfaces"] = iface_paths
+        prj_data["metadata"][SAMPLE_ANNOTATIONS_KEY] = anns_file
+        prj_file = tmpdir.join("pconf.yaml").strpath
+        with open(prj_file, 'w') as f:
+            yaml.dump(prj_data, f)
+        return Project(prj_file)
+
+
+    def test_specific_protocol_match_lower_priority_interface(self):
+        """ Generic protocol mapping doesn't preclude specific ones. """
+        pass
+
+
+    def test_no_specific_protocol_match(self):
+        """ Protocol match in no pipeline interface allows generic match. """
+        pass
+

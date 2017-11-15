@@ -1,7 +1,8 @@
+#!/bin/bash
 cp doc/source/usage.template usage.template
 #looper --help > USAGE.temp 2>&1
 
-for cmd in "--help" "run --help" "summarize --help" "destroy --help" "check --help" "clean --help" "--help --details"; do
+for cmd in "--help" "run --help" "summarize --help" "destroy --help" "check --help" "clean --help" "--help"; do
 	echo $cmd
 	echo -e "\n\`\`looper $cmd\`\`" > USAGE_header.temp
 	echo -e "----------------------------------" >> USAGE_header.temp

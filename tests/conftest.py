@@ -536,6 +536,10 @@ def proj(request):
     """
     Create project instance using data from file pointed to by request class.
 
+    To use this fixture, the test case must reside within a class that
+    defines a "project_config_file" attribute. This is best done by marking
+    the class with "@pytest.mark.usefixtures("write_project_files")"
+
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
     :return looper.models.Project: object created by parsing
@@ -550,8 +554,11 @@ def proj(request):
 @pytest.fixture(scope="function")
 def pipe_iface(request):
     """
-    Create pipeline interface instance using data from 
-    file pointed to by request class.
+    Create PipelineInterface using data from file pointed to by request class.
+
+    To use this fixture, the test case must reside within a class that
+    defines a "pipe_iface_config_file" attribute. This is best done by marking
+    the class with "@pytest.mark.usefixtures("write_project_files")"
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance

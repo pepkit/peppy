@@ -1,5 +1,3 @@
-:orphan:
-
 .. _pi_mapping:
 
 Pipeline interface section: protocol_mapping 
@@ -39,18 +37,18 @@ Example ``protocol_mapping`` section:
 	  rnaBitSeq.py -f,
 	  rnaTopHat.py -f
 
+.. 
+	- **Case 3:** a protocol runs one pipeline which depends on another. Example: ``WGBSNM: first;second;third;(fourth, fifth)``
 
-- **Case 3:** a protocol runs one pipeline which depends on another. Example: ``WGBSNM: first;second;third;(fourth, fifth)``
+	.. warning::
+		This feature (pipeline dependency) is not implemented yet. This documentation describes a protocol that may be implemented in the future, if it is necessary to have dependency among pipeline submissions.
 
-.. warning::
-	This feature (pipeline dependency) is not implemented yet. This documentation describes a protocol that may be implemented in the future, if it is necessary to have dependency among pipeline submissions.
+	The basic format for pipelines run simultaneously is: ``PROTOCOL: pipeline1 [, pipeline2, ...]``. Use semi-colons to indicate dependency.
 
-The basic format for pipelines run simultaneously is: ``PROTOCOL: pipeline1 [, pipeline2, ...]``. Use semi-colons to indicate dependency.
+	Example ``protocol_mapping`` section:
 
-Example ``protocol_mapping`` section:
+	.. code-block:: yaml
 
-.. code-block:: yaml
-
-	WGBSQC: >
-	  wgbs.py;
-	  (nnm.py, pdr.py)
+		WGBSQC: >
+		  wgbs.py;
+		  (nnm.py, pdr.py)
