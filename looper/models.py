@@ -1196,8 +1196,15 @@ class Project(AttributeDict):
 
         def make_optarg_text(opt, arg):
             """ Transform flag/option into CLI-ready text version. """
-            return "{} {}".format(opt, _os.path.expandvars(arg)) \
-                    if arg else opt
+            if arg:
+                try:
+                    arg = _os.path.expandvars(arg)
+                except TypeError:
+                    # Rely on direct string formatting of arg.
+                    pass
+                return "{} {}".format(opt, arg)
+            else:
+                return opt
 
         def create_argtext(name):
             """ Create command-line argstring text from config section. """
