@@ -5,7 +5,7 @@ Changelog
 
   - Fixed
   
-      - No longer falsely display that there's a submission failure when there's not (due to ``defaultdict`` access)
+      - No longer falsely display that there's a submission failure.
       
       - Allow non-string values to be unquouted in the ``pipeline_args`` section.
 
