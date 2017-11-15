@@ -346,7 +346,7 @@ class SubmissionConductor(object):
                 try:
                     subprocess.check_call(submission_command, shell=True)
                 except subprocess.CalledProcessError:
-                    self._failed_sample_names.append(
+                    self._failed_sample_names.extend(
                             [s.name for s in self.samples])
                     raise JobSubmissionException(sub_cmd, script)
                 finally:
