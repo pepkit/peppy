@@ -515,7 +515,7 @@ class Runner(Executor):
             # that reason.
             if conductor.failed_samples:
                 fails = set(conductor.failed_samples)
-                samples_by_reason["Job sucbmission failure"] |= fails
+                samples_by_reason["Job submission failure"] |= fails
                 failed_samples_by_pipeline[pl_key] |= fails
 
         # If failure keys are only added when there's at least one sample that
