@@ -530,9 +530,12 @@ class Runner(Executor):
                          format("\n".join(full_fail_msgs)))
 
         if failed_submission_scripts:
-            _LOGGER.info("%d scripts with failed submission: %s",
-                         len(failed_submission_scripts),
-                         ", ".join(failed_submission_scripts))
+            _LOGGER.info(
+                    Fore.RED +
+                    "\n{} scripts with failed submission: {}".
+                    format(len(failed_submission_scripts),
+                           ", ".join(failed_submission_scripts)) +
+                    Style.RESET_ALL)
 
 
 
