@@ -7,7 +7,7 @@ Changelog
   
       - No longer falsely display that there's a submission failure.
       
-      - Allow non-string values to be unquouted in the ``pipeline_args`` section.
+      - Allow non-string values to be unquoted in the ``pipeline_args`` section.
 
 - **v0.7** (*2017-11-15*):
 
