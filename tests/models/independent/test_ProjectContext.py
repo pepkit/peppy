@@ -3,7 +3,7 @@
 import os
 import pytest
 import yaml    # TODO: remove once project can take raw config data?
-from looper.models import Project, Sample, ProjectContext
+from pep.models import Project, Sample, ProjectContext
 
 
 __author__ = "Vince Reuter"

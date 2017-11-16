@@ -14,8 +14,8 @@ import mock
 import pytest
 import yaml
 
-from looper import models, DEV_LOGGING_FMT
-from looper.models import ProtocolInterface, Sample
+from pep import models, DEV_LOGGING_FMT
+from pep.models import ProtocolInterface, Sample
 
 
 __author__ = "Vince Reuter"
@@ -24,7 +24,7 @@ __email__ = "vreuter@virginia.edu"
 
 SUBTYPES_KEY = ProtocolInterface.SUBTYPE_MAPPING_SECTION
 ATAC_PROTOCOL_NAME = "ATAC"
-SAMPLE_IMPORT = "from looper.models import Sample"
+SAMPLE_IMPORT = "from pep.models import Sample"
 
 
 class CustomExceptionA(Exception):
@@ -257,7 +257,7 @@ class SampleSubtypeTests:
 
         # Make the call under test, patching the function protected
         # function that's called iff the protocol name match succeeds.
-        with mock.patch("looper.models._import_sample_subtype",
+        with mock.patch("pep.models._import_sample_subtype",
                         return_value=None) as mocked_import:
             # Return value is irrelevant; the effect of the protocol name
             # match/resolution is entirely observable via the argument to the
@@ -298,7 +298,7 @@ class SampleSubtypeTests:
         # the import attempt, so patch the relevant function with a function
         # to raise the parameterized exception type.
         with mock.patch(
-                "looper.utils.import_from_source",
+                "pep.utils.import_from_source",
                 side_effect=error_type()):
             subtype = piface.fetch_sample_subtype(
                     protocol=protocol, strict_pipe_key=atac_pipe_name,
@@ -385,7 +385,7 @@ class SampleSubtypeTests:
         pipe_path = os.path.join(tmpdir.strpath, atac_pipe_name)
 
         # Define the subtype in the pipeline module.
-        lines = ["from looper.models import Sample\n",
+        lines = ["from pep.models import Sample\n",
                  "class {}({}):\n".format(subtype_name, subtype_name),
                  "\tdef __init__(self, *args, **kwargs):\n",
                  "\t\tsuper({}, self).__init__(*args, **kwargs)\n".

@@ -7,8 +7,8 @@ import mock
 import numpy as np
 from pandas import Series
 import pytest
-import looper
-from looper.models import \
+import pep
+from pep.models import \
     AttributeDict, Sample, DATA_SOURCE_COLNAME, \
     DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
 from tests.helpers import named_param
@@ -94,7 +94,7 @@ class ParseSampleImplicationsTests:
 
         :param _pytest.fixtures.SubRequest request: test case requesting 
             a Sample instance.
-        :return looper.models.Sample: basic Sample instance for a test case, 
+        :return pep.models.Sample: basic Sample instance for a test case,
             with the constructor's required attributes validator mocked 
             to ensure that an exception isn't raised.
         """
@@ -110,8 +110,8 @@ class ParseSampleImplicationsTests:
         # Mock the validation and return a new Sample.
         rubber_stamper = mock.MagicMock(return_value=[])
         with mock.patch(
-                "looper.models.Sample.check_valid", new=rubber_stamper):
-            mocked_sample = looper.models.Sample(data)
+                "pep.models.Sample.check_valid", new=rubber_stamper):
+            mocked_sample = pep.models.Sample(data)
         return mocked_sample
 
 

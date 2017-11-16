@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from looper.models import Paths, copy
+from pep.models import Paths, copy
 from tests.helpers import assert_entirely_equal
 
 

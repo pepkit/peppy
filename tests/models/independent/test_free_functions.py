@@ -7,7 +7,7 @@ import random
 import string
 import sys
 import pytest
-from looper import models, DEV_LOGGING_FMT
+from pep import models, DEV_LOGGING_FMT
 
 
 __author__ = "Vince Reuter"
@@ -217,7 +217,7 @@ class SampleSubtypeImportTests:
 
         # Write the subtypes module file.
         with open(path_subtypes_file, 'w') as subtypes_file:
-            subtypes_file.write("from looper.models import Sample\n\n")
+            subtypes_file.write("from pep.models import Sample\n\n")
             subtypes_file.write(build_subtype_lines(external_subtypes))
 
         # Write the pipeline module file.
@@ -228,7 +228,7 @@ class SampleSubtypeImportTests:
                 pipe_file.write(import_statement)
             # Include a subtype definition with the pipeline itself as desired.
             if pipeline_has_subtype:
-                pipe_file.write("from looper.models import Sample\n\n")
+                pipe_file.write("from pep.models import Sample\n\n")
                 pipe_file.write(build_subtype_lines("InternalPipelineSample"))
 
         return path_pipe_file, path_subtypes_file
@@ -237,7 +237,7 @@ class SampleSubtypeImportTests:
     @pytest.fixture(scope="function")
     def temp_models_logfile(self, request, tmpdir):
         """
-        Temporarily capture in a file logging information from looper models.
+        Temporarily capture in a file logging information from pep models.
 
         :param request: test case using this fixture
         :param tmpdir: temporary directory fixture
