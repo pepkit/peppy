@@ -1,0 +1,19 @@
+# Use this to change your cluster manager (SLURM, SGE, LFS, etc).
+# Relative paths are relative to this compute environment configuration file.
+# Compute resource parameters fill submission_template file's fields.
+compute:
+  default:
+    submission_template: localhost_template.sub
+    submission_command: sh
+    partition: longq  # Backwards compatibility with old projects at CeMM
+  local:
+    submission_template: localhost_template.sub
+    submission_command: sh
+  slurm_cemm:
+    submission_template: slurm_template.sub
+    submission_command: sbatch
+    partition: longq
+  econ:
+    submission_template: slurm_template.sub
+    submission_command: sbatch
+    partition: economy
