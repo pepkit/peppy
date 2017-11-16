@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from looper.models import DEFAULT_COMPUTE_RESOURCES_NAME, SAMPLE_NAME_COLNAME
+from pep.models import DEFAULT_COMPUTE_RESOURCES_NAME, SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"

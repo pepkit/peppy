@@ -1,7 +1,7 @@
 """ Tests for specific exception conditions that may arise. """
 
 import pytest
-from looper.models import AttributeDict
+from pep.models import AttributeDict
 
 
 __author__ = "Vince Reuter"

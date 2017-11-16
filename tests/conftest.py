@@ -19,11 +19,11 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from looper import setup_looper_logger
-from looper.models import PipelineInterface, Project, SAMPLE_NAME_COLNAME
+from pep import setup_pep_logger
+from pep.models import PipelineInterface, Project, SAMPLE_NAME_COLNAME
 
 
-_LOGGER = logging.getLogger("looper")
+_LOGGER = logging.getLogger("pep")
 
 
 P_CONFIG_FILENAME = "project_config.yaml"
@@ -212,13 +212,12 @@ def pytest_generate_tests(metafunc):
 def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
-    setup_looper_logger(level=level, devmode=True)
-    logging.getLogger("looper").info(
-        "Configured looper logger at level %s; attaching tests' logger %s",
+    setup_pep_logger(level=level, devmode=True)
+    logging.getLogger("pep").info(
+        "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
     global _LOGGER
-    _LOGGER = logging.getLogger("looper.{}".format(__name__))
-
+    _LOGGER = logging.getLogger("pep.{}".format(__name__))
 
 
 
@@ -266,7 +265,7 @@ def interactive(
     """
     Create Project and PipelineInterface instances from default or given data.
 
-    This is intended to provide easy access to instances of fundamental looper
+    This is intended to provide easy access to instances of fundamental pep
     object for interactive test-authorship-motivated work in an iPython
     interpreter or Notebook. Test authorship is simplified if we provide
     easy access to viable instances of these objects.
@@ -275,20 +274,15 @@ def interactive(
     :param Iterable[str] iface_lines: pipeline interface config lines
     :param Iterable[str] merge_table_lines: lines for a merge table file
     :param Iterable[str] annotation_lines: lines for a sample annotations file
-    :param str | int loglevel: level at which to attend to log messages
     :param dict project_kwargs: keyword arguments for Project constructor
     :param dict logger_kwargs: keyword arguments for logging configuration
-    :param bool devmode: whether logging should be done in development mode;
-        this implies a more verbose level setting and a more information-rich
-        template for logging message formatting
-    :param str logfile: path to file to which to write logging messages
     :return Project, PipelineInterface: one Project and one PipelineInterface,
     """
 
     # Establish logging for interactive session.
-    looper_logger_kwargs = {"level": "DEBUG"}
-    looper_logger_kwargs.update(logger_kwargs or {})
-    setup_looper_logger(**looper_logger_kwargs)
+    pep_logger_kwargs = {"level": "DEBUG"}
+    pep_logger_kwargs.update(logger_kwargs or {})
+    setup_pep_logger(**pep_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
@@ -319,7 +313,7 @@ def interactive(
 class _DataSourceFormatMapping(dict):
     """
     Partially format text with braces. This helps since bracing is the
-    mechanism that `looper` uses to derive columns, but it's also the
+    mechanism that pep uses to derive columns, but it's also the
     core string formatting mechanism.
     """
     def __missing__(self, derived_column):
@@ -542,7 +536,7 @@ def proj(request):
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
-    :return looper.models.Project: object created by parsing
+    :return pep.models.Project: object created by parsing
         data in file pointed to by `request` class
     """
     p = _create(request, Project)
@@ -562,7 +556,7 @@ def pipe_iface(request):
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
-    :return looper.models.PipelineInterface: object created by parsing
+    :return pep.models.PipelineInterface: object created by parsing
         data in file pointed to by `request` class
     """
     return _create(request, PipelineInterface)

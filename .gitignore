@@ -73,5 +73,5 @@ open_pipelines/
 # Build-related stuff
 build/
 dist/
-looper.egg-info/
+pep.egg-info/
 

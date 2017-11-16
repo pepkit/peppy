@@ -68,7 +68,7 @@ import warnings
 import pandas as _pd
 import yaml
 
-from . import IMPLICATIONS_DECLARATION, SAMPLE_NAME_COLNAME
+from .const import *
 from .utils import \
     add_project_sample_constants, alpha_cased, check_bam, check_fastq, \
     expandpath, get_file_size, grab_project_data, import_from_source, \
@@ -82,17 +82,6 @@ __classes__ = ["AttributeDict", "PipelineInterface", "Project",
                "ProtocolInterface", "ProtocolMapper", "Sample"]
 __all__ = __functions__ + __classes__
 
-
-COMPUTE_SETTINGS_VARNAME = "PEPENV"
-DEFAULT_COMPUTE_RESOURCES_NAME = "default"
-DATA_SOURCE_COLNAME = "data_source"
-SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
-DATA_SOURCES_SECTION = "data_sources"
-SAMPLE_EXECUTION_TOGGLE = "toggle"
-COL_KEY_SUFFIX = "_key"
-VALID_READ_TYPES = ["single", "paired"]
-REQUIRED_INPUTS_ATTR_NAME = "required_inputs_attr"
-ALL_INPUTS_ATTR_NAME = "all_inputs_attr"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
@@ -116,8 +105,8 @@ def check_sheet(sample_file, dtype=str):
     # and/or 'None' as an argument for an option in the pipeline command
     # that's generated from a Sample's attributes.
     #
-    # See https://github.com/epigen/looper/issues/159 for the original issue
-    # and https://github.com/epigen/looper/pull/160 for the pull request
+    # See https://github.com/pepkit/pep/issues/159 for the original issue
+    # and https://github.com/pepkit/pep/pull/160 for the pull request
     # that resolved it.
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
                         index_col=False, engine="python", keep_default_na=False)
@@ -1376,7 +1365,7 @@ class Project(AttributeDict):
                 _LOGGER.warning("Looper v0.6 suggests "
                     "switching from pipelines_dir to "
                     "pipeline_interfaces. See docs for details: "
-                    "http://looper.readthedocs.io/en/latest/")
+                    "https://pepkit.github.io/docs/home/")
             if "pipeline_interfaces" in self.metadata:
                 if "pipelines_dir" in self.metadata:
                     raise AttributeError(
@@ -1501,8 +1490,7 @@ class Project(AttributeDict):
                     return True
         else:
             # Scenario in which environment and environment compute are
-            # both present but don't evaluate to True is fairly
-            # innocuous, even common if outside of the looper context.
+            # both present--but don't evaluate to True--is fairly harmless.
             _LOGGER.debug("Environment = {}".format(self.environment))
 
         return False
@@ -2029,7 +2017,7 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
-        self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
+        self.infer_columns(implications=project.get("implied_columns"))
 
         for col in project.get("derived_columns", []):
             # Only proceed if the specified column exists

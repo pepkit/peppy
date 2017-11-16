@@ -10,15 +10,14 @@ import pandas as pd
 import pytest
 import yaml
 
-from looper.models import \
+from pep.models import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from looper.utils import alpha_cased
+from pep.utils import alpha_cased
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
-
 
 
 # Arbitrary (but reasonable) path names/types to use to test

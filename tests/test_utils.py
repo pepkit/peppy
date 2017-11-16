@@ -3,17 +3,14 @@
 import copy
 import mock
 import pytest
-from looper import \
-    IMPLICATIONS_DECLARATION, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, \
-    SAMPLE_NAME_COLNAME
-from looper.models import AttributeDict, Project, Sample
-from looper.utils import add_project_sample_constants, grab_project_data
+from pep.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from pep.models import AttributeDict, Project, Sample
+from pep.utils import add_project_sample_constants, grab_project_data
 from tests.helpers import named_param, nonempty_powerset
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
-
 
 
 
@@ -39,7 +36,7 @@ def basic_project_data():
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
         "derived_columns": ["data_source"],
-        IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
+        "implied_columns": {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }

@@ -2,8 +2,8 @@
 
 import logging
 import pytest
-import looper
-from looper.models import AttributeDict, Project
+import pep
+from pep.models import AttributeDict, Project
 
 
 __author__ = "Vince Reuter"
@@ -76,7 +76,7 @@ class ModelRepresentationSmokeTests:
     # to be handled with greater care when testing the actual call.
 
     @pytest.mark.parametrize(
-            argnames="class_name", argvalues=looper.models.__classes__)
+            argnames="class_name", argvalues=pep.models.__classes__)
     def test_implements_repr_smoke(self, class_name):
         """ Each important ADT must implement a representation method. """
 
@@ -91,20 +91,20 @@ class ModelRepresentationSmokeTests:
         assert getattr(ObjectSubclass, funcname) is getattr(object, funcname)
 
         # Make the actual assertion of interest.
-        adt = getattr(looper.models, class_name)
+        adt = getattr(pep.models, class_name)
         assert getattr(adt, funcname) != \
                getattr(adt.__bases__[0], funcname)
 
 
     @pytest.mark.parametrize(
             argnames="class_name",
-            argvalues=[cn for cn in looper.models.__classes__
+            argvalues=[cn for cn in pep.models.__classes__
                        if cn != "Project"])
     def test_repr_smoke(
             self, tmpdir, class_name, basic_instance_data, funcname):
         """ Object representation method successfully returns string. """
         # Note that tmpdir is used when config file needs to be written.
-        cls = getattr(looper.models, class_name)
+        cls = getattr(pep.models, class_name)
         instance = cls(basic_instance_data)
         func = getattr(instance, funcname)
         result = func.__call__()
