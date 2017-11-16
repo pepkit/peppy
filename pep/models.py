@@ -2727,6 +2727,38 @@ class PipelineInterface(object):
         return [value] if isinstance(value, str) and path_as_list else value
 
 
+    def get_pipeline_name(self, pipeline):
+        """
+        Translate a pipeline name (e.g., stripping file extension).
+
+        :param pipeline: Pipeline name or script (top-level key in
+            pipeline interface mapping).
+        :type pipeline: str
+        :return: translated pipeline name, as specified in config or by
+            stripping the pipeline's file extension
+        :rtype: str: translated name for pipeline
+        """
+        config = self._select_pipeline(pipeline)
+        try:
+            return config["name"]
+        except KeyError:
+            _LOGGER.debug("No 'name' for pipeline '{}'".format(pipeline))
+            return _os.path.splitext(pipeline)[0]
+
+
+    def uses_looper_args(self, pipeline_name):
+        """
+        Determine whether the indicated pipeline uses looper arguments.
+
+        :param pipeline_name: name of a pipeline of interest
+        :type pipeline_name: str
+        :return: whether the indicated pipeline uses looper arguments
+        :rtype: bool
+        """
+        config = self._select_pipeline(pipeline_name)
+        return "looper_args" in config and config["looper_args"]
+
+
     def _select_pipeline(self, pipeline_name):
         """
         Check to make sure that pipeline has an entry and if so, return it.
