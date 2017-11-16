@@ -351,9 +351,8 @@ class SubmissionConductor(object):
                 except subprocess.CalledProcessError:
                     self._failed_sample_names.extend(
                             [s.name for s in self.samples])
-                    raise JobSubmissionException(sub_cmd, script)
-                finally:
                     self._reset_pool()
+                    raise JobSubmissionException(sub_cmd, script)
                 time.sleep(self.delay)
 
             # Update the job and command submission tallies.
@@ -361,8 +360,6 @@ class SubmissionConductor(object):
             submitted = True
             self._num_good_job_submissions += 1
             self._num_cmds_submitted += len(self._pool)
-
-            # Reset the command pool.
             self._reset_pool()
 
         else:
