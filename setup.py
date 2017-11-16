@@ -47,14 +47,14 @@ def get_static(name, condition=None):
 # scripts removed (TO remove this)
 scripts = None
 
-with open("looper/_version.py", 'r') as versionfile:
+with open("pep/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
 setup(
-    name="looper",
-    packages=["looper"],
+    name="pep",
+    packages=["pep"],
     version=version,
-    description="A pipeline submission engine that parses sample inputs and submits pipelines for each sample.",
+    description="",
     long_description=open('README.md').read(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -62,18 +62,11 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
-    keywords="bioinformatics, sequencing, ngs",
-    url="https://github.com/epigen/looper",
+    keywords="bioinformatics, sequencing, ngs, workflow",
+    url="https://github.com/pepkit/pep",
     author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
     license="GPL2",
-    entry_points={
-        "console_scripts": [
-            'looper = looper.looper:main'
-        ],
-    },
     scripts=scripts,
-    package_data={'looper': ['submit_templates/*']},
-    include_package_data=True,
     test_suite="tests",
     tests_require=(["mock", "pytest"]),
     setup_requires=(["pytest-runner"] if {"test", "pytest", "ptr"} & set(sys.argv) else []),
