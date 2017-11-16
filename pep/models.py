@@ -200,9 +200,11 @@ def include_in_repr(attr, klazz):
     :return bool: whether to include attribute in an object's
         text representation
     """
+    attrs_by_class = {
+            "Project": ["merge_table", "sheet", "interfaces_by_protocol"],
+            "Sample": ["sheet"]}
     classname = klazz.__name__ if isinstance(klazz, type) else klazz
-    return attr not in \
-           {"Project": ["sheet", "interfaces_by_protocol"]}[classname]
+    return attr not in attrs_by_class.get(classname, [])
 
 
 
@@ -437,6 +439,13 @@ class ProjectContext(object):
 
 
 
+class IFilteredRepr(object):
+    def __repr__(self):
+        return
+
+
+
+
 @copy
 class AttributeDict(MutableMapping):
     """
@@ -608,7 +617,8 @@ class AttributeDict(MutableMapping):
         return sum(1 for _ in iter(self))
 
     def __repr__(self):
-        return repr(self.__dict__)
+        return repr({k: v} for k, v in self.__dict__.items()
+                    if include_in_repr(k, klazz=self.__class__))
 
     def __str__(self):
         return "{}: {}".format(self.__class__.__name__, repr(self))
@@ -1446,8 +1456,7 @@ class Project(AttributeDict):
             # Relative to environment config file.
             self.compute.submission_template = _os.path.join(
                     _os.path.dirname(self.environment_file),
-                    self.compute.submission_template
-            )
+                    self.compute.submission_template)
 
         # Required variables check
         if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
