@@ -202,7 +202,7 @@ def include_in_repr(attr, klazz):
     """
     attrs_by_class = {
             "Project": ["merge_table", "sheet", "interfaces_by_protocol"],
-            "Sample": ["sheet"]}
+            "Sample": ["sheet", "prj", "merged_cols"]}
     classname = klazz.__name__ if isinstance(klazz, type) else klazz
     return attr not in attrs_by_class.get(classname, [])
 
@@ -617,8 +617,8 @@ class AttributeDict(MutableMapping):
         return sum(1 for _ in iter(self))
 
     def __repr__(self):
-        return repr({k: v} for k, v in self.__dict__.items()
-                    if include_in_repr(k, klazz=self.__class__))
+        return repr({k: v for k, v in self.__dict__.items()
+                    if include_in_repr(k, klazz=self.__class__)})
 
     def __str__(self):
         return "{}: {}".format(self.__class__.__name__, repr(self))
@@ -1675,10 +1675,6 @@ class Sample(AttributeDict):
 
     def __ne__(self, other):
         return not self == other
-
-
-    def __repr__(self):
-        return "Sample '{}': {}".format(self.name, self.__dict__)
 
 
     def __str__(self):
