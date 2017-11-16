@@ -14,11 +14,6 @@ from ._version import __version__
 from .models import *
 
 
-FLAGS = ["completed", "running", "failed", "waiting", "partial"]
-
-GENERIC_PROTOCOL_KEY = "*"
-SAMPLE_INDEPENDENT_PROJECT_SECTIONS = \
-        ["metadata", "derived_columns", "implied_columns", "trackhubs"]
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
 

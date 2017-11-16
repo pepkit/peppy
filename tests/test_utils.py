@@ -3,7 +3,7 @@
 import copy
 import mock
 import pytest
-from pep import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from pep.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from pep.models import AttributeDict, Project, Sample
 from pep.utils import add_project_sample_constants, grab_project_data
 from tests.helpers import named_param, nonempty_powerset

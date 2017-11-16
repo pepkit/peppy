@@ -68,6 +68,7 @@ import warnings
 import pandas as _pd
 import yaml
 
+from .const import *
 from .utils import \
     add_project_sample_constants, alpha_cased, check_bam, check_fastq, \
     expandpath, get_file_size, grab_project_data, import_from_source, \
@@ -81,18 +82,6 @@ __classes__ = ["AttributeDict", "PipelineInterface", "Project",
                "ProtocolInterface", "ProtocolMapper", "Sample"]
 __all__ = __functions__ + __classes__
 
-
-COMPUTE_SETTINGS_VARNAME = "PEPENV"
-DEFAULT_COMPUTE_RESOURCES_NAME = "default"
-SAMPLE_NAME_COLNAME = "sample_name"
-DATA_SOURCE_COLNAME = "data_source"
-SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
-DATA_SOURCES_SECTION = "data_sources"
-SAMPLE_EXECUTION_TOGGLE = "toggle"
-COL_KEY_SUFFIX = "_key"
-VALID_READ_TYPES = ["single", "paired"]
-REQUIRED_INPUTS_ATTR_NAME = "required_inputs_attr"
-ALL_INPUTS_ATTR_NAME = "all_inputs_attr"
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 

@@ -1,7 +1,6 @@
 """ Helpers without an obvious logical home. """
 
 from collections import defaultdict, Iterable
-import copy
 import contextlib
 import logging
 import os
@@ -11,9 +10,7 @@ import subprocess as sp
 
 import yaml
 
-from . import \
-    GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, \
-    SAMPLE_NAME_COLNAME
+from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -299,7 +296,7 @@ def sample_folder(prj, sample):
     :return str: this Project's root folder for the given Sample
     """
     return os.path.join(prj.metadata.results_subdir,
-                        sample[SAMPLE_NAME_COLNAME])
+                        sample["sample_name"])
 
 
 
