@@ -335,6 +335,7 @@ class SubmissionConductor(object):
             script = self._write_script(settings, prj_argtext=prj_argtext,
                                         looper_argtext=looper_argtext)
 
+            num_cmds = len(self._pool)
             self._num_total_job_submissions += 1
 
             # Determine whether to actually do the submission.
@@ -360,7 +361,7 @@ class SubmissionConductor(object):
             _LOGGER.debug("SUBMITTED")
             submitted = True
             self._num_good_job_submissions += 1
-            self._num_cmds_submitted += len(self._pool)
+            self._num_cmds_submitted += num_cmds
 
             # Reset the command pool.
             self._reset_pool()
