@@ -13,7 +13,6 @@ from sys import stdout
 from ._version import __version__
 
 
-# TODO: import from pep.
 FLAGS = ["completed", "running", "failed", "waiting", "partial"]
 
 GENERIC_PROTOCOL_KEY = "*"
@@ -31,14 +30,13 @@ DEV_LOGGING_FMT = "%(module)s:%(lineno)d (%(funcName)s) [%(levelname)s] > %(mess
 
 
 
-def setup_looper_logger(level, additional_locations=None, devmode=False):
+def setup_pep_logger(level, additional_locations=None, devmode=False):
     """
-    Establish a logger for a looper CLI program.
+    Establish a logger for a pe.
 
-    This configures a logger to provide information about a looper program's
-    execution. Verbosity, destination(s) for messages, and message text
-    format are controlled by the arguments' values. This is also used by
-    looper's test suite.
+    This configures a logger to provide information about pep models.
+    Verbosity, destination(s) for messages, and message text format are
+    controlled by the arguments' values. This is also used by the test suite.
 
     :param int | str level: logging level
     :param tuple(str | FileIO[str]) additional_locations: supplementary
@@ -52,7 +50,7 @@ def setup_looper_logger(level, additional_locations=None, devmode=False):
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
-    LOOPER_LOGGER = logging.getLogger("looper")
+    LOOPER_LOGGER = logging.getLogger("pep")
     # First remove any previously-added handlers
     LOOPER_LOGGER.handlers = []
     LOOPER_LOGGER.propagate = False

@@ -116,8 +116,8 @@ def check_sheet(sample_file, dtype=str):
     # and/or 'None' as an argument for an option in the pipeline command
     # that's generated from a Sample's attributes.
     #
-    # See https://github.com/epigen/looper/issues/159 for the original issue
-    # and https://github.com/epigen/looper/pull/160 for the pull request
+    # See https://github.com/pepkit/pep/issues/159 for the original issue
+    # and https://github.com/pepkit/pep/pull/160 for the pull request
     # that resolved it.
     df = _pd.read_table(sample_file, sep=None, dtype=dtype,
                         index_col=False, engine="python", keep_default_na=False)
@@ -1376,7 +1376,7 @@ class Project(AttributeDict):
                 _LOGGER.warning("Looper v0.6 suggests "
                     "switching from pipelines_dir to "
                     "pipeline_interfaces. See docs for details: "
-                    "http://looper.readthedocs.io/en/latest/")
+                    "https://pepkit.github.io/docs/home/")
             if "pipeline_interfaces" in self.metadata:
                 if "pipelines_dir" in self.metadata:
                     raise AttributeError(
@@ -1501,8 +1501,7 @@ class Project(AttributeDict):
                     return True
         else:
             # Scenario in which environment and environment compute are
-            # both present but don't evaluate to True is fairly
-            # innocuous, even common if outside of the looper context.
+            # both present--but don't evaluate to True--is fairly harmless.
             _LOGGER.debug("Environment = {}".format(self.environment))
 
         return False
@@ -2726,38 +2725,6 @@ class PipelineInterface(object):
         config = self._select_pipeline(pipeline_name)
         value = config.get(attribute_key)
         return [value] if isinstance(value, str) and path_as_list else value
-
-
-    def get_pipeline_name(self, pipeline):
-        """
-        Translate a pipeline name (e.g., stripping file extension).
-
-        :param pipeline: Pipeline name or script (top-level key in
-            pipeline interface mapping).
-        :type pipeline: str
-        :return: translated pipeline name, as specified in config or by
-            stripping the pipeline's file extension
-        :rtype: str: translated name for pipeline
-        """
-        config = self._select_pipeline(pipeline)
-        try:
-            return config["name"]
-        except KeyError:
-            _LOGGER.debug("No 'name' for pipeline '{}'".format(pipeline))
-            return _os.path.splitext(pipeline)[0]
-
-
-    def uses_looper_args(self, pipeline_name):
-        """
-        Determine whether the indicated pipeline uses looper arguments.
-
-        :param pipeline_name: name of a pipeline of interest
-        :type pipeline_name: str
-        :return: whether the indicated pipeline uses looper arguments
-        :rtype: bool
-        """
-        config = self._select_pipeline(pipeline_name)
-        return "looper_args" in config and config["looper_args"]
 
 
     def _select_pipeline(self, pipeline_name):
