@@ -68,7 +68,6 @@ import warnings
 import pandas as _pd
 import yaml
 
-from . import IMPLICATIONS_DECLARATION, SAMPLE_NAME_COLNAME
 from .utils import \
     add_project_sample_constants, alpha_cased, check_bam, check_fastq, \
     expandpath, get_file_size, grab_project_data, import_from_source, \
@@ -85,6 +84,7 @@ __all__ = __functions__ + __classes__
 
 COMPUTE_SETTINGS_VARNAME = "PEPENV"
 DEFAULT_COMPUTE_RESOURCES_NAME = "default"
+SAMPLE_NAME_COLNAME = "sample_name"
 DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 DATA_SOURCES_SECTION = "data_sources"
@@ -2028,7 +2028,7 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
-        self.infer_columns(implications=project.get(IMPLICATIONS_DECLARATION))
+        self.infer_columns(implications=project.get("implied_columns"))
 
         for col in project.get("derived_columns", []):
             # Only proceed if the specified column exists

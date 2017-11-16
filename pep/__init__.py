@@ -11,15 +11,14 @@ import logging
 import os
 from sys import stdout
 from ._version import __version__
+from .models import *
 
 
 FLAGS = ["completed", "running", "failed", "waiting", "partial"]
 
 GENERIC_PROTOCOL_KEY = "*"
-IMPLICATIONS_DECLARATION = "implied_columns"
 SAMPLE_INDEPENDENT_PROJECT_SECTIONS = \
-        ["metadata", "derived_columns", IMPLICATIONS_DECLARATION, "trackhubs"]
-SAMPLE_NAME_COLNAME = "sample_name"
+        ["metadata", "derived_columns", "implied_columns", "trackhubs"]
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
 

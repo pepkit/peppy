@@ -3,9 +3,7 @@
 import copy
 import mock
 import pytest
-from pep import \
-    IMPLICATIONS_DECLARATION, SAMPLE_INDEPENDENT_PROJECT_SECTIONS, \
-    SAMPLE_NAME_COLNAME
+from pep import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from pep.models import AttributeDict, Project, Sample
 from pep.utils import add_project_sample_constants, grab_project_data
 from tests.helpers import named_param, nonempty_powerset
@@ -38,7 +36,7 @@ def basic_project_data():
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
         "derived_columns": ["data_source"],
-        IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
+        "implied_columns": {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }

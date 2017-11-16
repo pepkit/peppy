@@ -7,10 +7,9 @@ import mock
 import pytest
 import yaml
 import pep
-from pep import SAMPLE_NAME_COLNAME
 from pep.models import \
-        AttributeDict, Project, Sample, \
-        _MissingMetadataException, SAMPLE_ANNOTATIONS_KEY
+        AttributeDict, Project, Sample, _MissingMetadataException, \
+        SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"
