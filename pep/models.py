@@ -83,6 +83,7 @@ __classes__ = ["AttributeDict", "PipelineInterface", "Project",
 __all__ = __functions__ + __classes__
 
 
+MAX_PROJECT_SAMPLES_REPR = 12
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
 
 _LOGGER = logging.getLogger(__name__)
@@ -200,9 +201,15 @@ def include_in_repr(attr, klazz):
     :return bool: whether to include attribute in an object's
         text representation
     """
+    # TODO: try to leverage the class hierarchy to determine these exclusions.
+    ad_metadata = list(ATTRDICT_METADATA.keys())
+    exclusions_by_class = {
+            AttributeDict.__name__: ad_metadata,
+            Project.__name__: ["_samples", "merge_table", "sheet",
+                               "interfaces_by_protocol"] + ad_metadata,
+            Sample.__name__: ["sheet", "prj", "merged_cols"] + ad_metadata}
     classname = klazz.__name__ if isinstance(klazz, type) else klazz
-    return attr not in \
-           {"Project": ["sheet", "interfaces_by_protocol"]}[classname]
+    return attr not in exclusions_by_class.get(classname, [])
 
 
 
@@ -437,6 +444,13 @@ class ProjectContext(object):
 
 
 
+class IFilteredRepr(object):
+    def __repr__(self):
+        return
+
+
+
+
 @copy
 class AttributeDict(MutableMapping):
     """
@@ -608,7 +622,8 @@ class AttributeDict(MutableMapping):
         return sum(1 for _ in iter(self))
 
     def __repr__(self):
-        return repr(self.__dict__)
+        return repr({k: v for k, v in self.__dict__.items()
+                    if include_in_repr(k, klazz=self.__class__)})
 
     def __str__(self):
         return "{}: {}".format(self.__class__.__name__, repr(self))
@@ -718,11 +733,11 @@ class Project(AttributeDict):
         else:
             _LOGGER.debug("Compute: %s", str(self.compute))
 
-        # optional configs
+        # Optional behavioral parameters
         self.permissive = permissive
         self.file_checks = file_checks
 
-        # include the path to the config file
+        # Include the path to the config file.
         self.config_file = _os.path.abspath(config_file)
 
         # Parse config file
@@ -790,11 +805,19 @@ class Project(AttributeDict):
 
 
     def __repr__(self):
-        """ Self-represent in the interpreter. """
-        # First, parameterize the attribute filtration function by the class.
-        include = partial(include_in_repr, klazz=self.__class__)
-        # Then iterate over items, filtering what to include in representation.
-        return repr({k: v for k, v in self.__dict__.items() if include(k)})
+        """ Representation in interpreter. """
+        samples_message = "{} (from '{}')".\
+                format(self.__class__.__name__, self.config_file)
+        try:
+            num_samples = len(self._samples)
+        except AttributeError:
+            pass
+        else:
+            samples_message += " with {} sample(s)".format(num_samples)
+            if num_samples <= MAX_PROJECT_SAMPLES_REPR:
+                samples_message += ": {}".format(repr(self._samples))
+        meta_text = super(Project, self).__repr__()
+        return "{} -- {}".format(samples_message, meta_text)
 
 
     @property
@@ -1446,8 +1469,7 @@ class Project(AttributeDict):
             # Relative to environment config file.
             self.compute.submission_template = _os.path.join(
                     _os.path.dirname(self.environment_file),
-                    self.compute.submission_template
-            )
+                    self.compute.submission_template)
 
         # Required variables check
         if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
@@ -1666,10 +1688,6 @@ class Sample(AttributeDict):
 
     def __ne__(self, other):
         return not self == other
-
-
-    def __repr__(self):
-        return "Sample '{}': {}".format(self.name, self.__dict__)
 
 
     def __str__(self):
