@@ -42,21 +42,6 @@ class AttributeDictRepresentationTests:
         getattr(proj, funcname).__call__()
 
 
-    def test_project_repr_name_inclusion(self, proj, funcname):
-        """ Test Project text representation. """
-        func = getattr(proj, funcname)
-        result = func.__call__()
-        assert type(result) is str
-        classname = proj.__class__.__name__
-        if funcname == "__str__":
-            assert classname in result
-        elif funcname == "__repr__":
-            assert classname not in result
-        else:
-            raise ValueError("Unexpected representation function: {}".
-                             format(funcname))
-
-
 
 class ModelCreationSmokeTests:
     """ Smoketests for creation of various types of project-related models. """
@@ -71,29 +56,6 @@ class ModelCreationSmokeTests:
 
 class ModelRepresentationSmokeTests:
     """ Tests for the text representation of important ADTs. """
-
-    # NOTE: similar parameterization, but Project construction needs
-    # to be handled with greater care when testing the actual call.
-
-    @pytest.mark.parametrize(
-            argnames="class_name", argvalues=pep.models.__classes__)
-    def test_implements_repr_smoke(self, class_name):
-        """ Each important ADT must implement a representation method. """
-
-        funcname = "__repr__"
-
-        # Attempt a control assertion, that a subclass that doesn't override
-        # the given method of its superclass, uses the superclass version of
-        # the function in question.
-        class ObjectSubclass(object):
-            def __init__(self):
-                super(ObjectSubclass, self).__init__()
-        assert getattr(ObjectSubclass, funcname) is getattr(object, funcname)
-
-        # Make the actual assertion of interest.
-        adt = getattr(pep.models, class_name)
-        assert getattr(adt, funcname) != \
-               getattr(adt.__bases__[0], funcname)
 
 
     @pytest.mark.parametrize(
