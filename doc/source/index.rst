@@ -1,7 +1,11 @@
 Welcome
 ^^^^^^^^
 
-Deploying pipelines just got easier. Looper is a python application that deploys pipelines across samples with minimal effort. Looper is **not** a pipeline development framework; it does not help develop pipelines, but sits a layer above the pipeline to manage projects and samples for any type of pipeline. To get started, proceed with the :doc:`Introduction <intro>`. If you're looking for actual pipelines, you can find a list in the `Hello, Looper! example repository <https://github.com/databio/hello_looper>`_.
+``pep`` is a python package for handling `Portable Encapsulated Projects <http://pepkit.github.io/>`_. Portable Encapsulated Projects is a standardized format for describing sample-intensive project metadata. ``pep`` provides a python interface to this format.
+
+If you define your project using `standard PEP format <http://pepkit.github.io/>`_, you can use the ``pep`` package to instantiate an in-memory representation of your project and all of its samples. You can then use this for interactive analysis, or to develop a novel python tool based on pep so you don't have to handle sample processing.  
+
+To get started, proceed with the :doc:`Introduction <intro>`.
 
 Contents
 ^^^^^^^^
@@ -12,39 +16,27 @@ Contents
 
 	intro.rst
 	hello-world.rst
-	features.rst
-	usage.rst
-	tutorials.rst
+	.. tutorials.rst
 
 .. toctree::
 	:maxdepth: 2
-	:caption: Using Looper in Production
-
-	define-your-project.rst
-	derived-columns.rst
-	implied-columns.rst
-	cluster-computing.rst
-	advanced.rst
-
-.. toctree::
-	:caption: Developing and Linking Pipelines
-	:maxdepth: 2
-
-	pipeline-interface.rst
-	config-files.rst
-
-.. toctree::
-	:caption: Project Models
-	:maxdepth: 2
+	:caption: Tutorials and recipes
 
 	models.rst
+
+.. toctree::
+	:caption: Reference
+	:maxdepth: 2
+
+	api.rst
+
+
 
 .. toctree::
 	:caption: Further Reading
 	:maxdepth: 1
 
-	api.rst
-	faq.rst
+	.. faq.rst
 	changelog.rst
 	support.rst
 

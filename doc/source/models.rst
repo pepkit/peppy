@@ -1,20 +1,16 @@
 Project models
 ****************************************
 
-Looper uses object oriented programming (OOP) under the hood. This means that concepts like a sample to be processed or a project are modeled as objects in Python. These project objects are actually useful outside of looper. At some point, we will likely separate the project objects into their own Python package, but for now, you can use them independently of looper, even though they are embedded within the looper package. They are functionally independent.
-
-If you define your project using looper's :doc:`standardized project definition format <define-your-project>` , you can use the project models to instantiate an in memory representation of your project and all of its samples, without using looper. Here is a brief description of how you would do this.
+``Pep`` models projects and samples as objects in Python.
 
 .. code-block:: python
 
-	from looper import models
+	import pep
 
-	my_project = models.Project("path/to/project_config.yaml")
+	my_project = pep.Project("path/to/project_config.yaml")
 	my_samples = my_project.samples
 
-Once you have your project and samples in your Python session, the possibilities are endless. This is the way looper reads your project; looper uses these objects to loop through each sample and submit pipelines for each. You could just as easily use these objects for other purposes; for example, one way we use these objects is for post-pipeline processing. After we use looper to run each sample through its pipeline, we can load the project and it sample objects into an analysis session, where we do comparisons across samples. We are also working on on R package that will similarly read this standardized project definition format, giving you access to the same information within R.
-
-This is a work in progress, but you can find more information and examples in the `API <api.html>`_.
+Once you have your project and samples in your Python session, the possibilities are endless. For example, one way we use these objects is for post-pipeline processing. After we use looper to run each sample through its pipeline, we can load the project and it sample objects into an analysis session, where we do comparisons across samples.
 
 **Exploration:**
 
