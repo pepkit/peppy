@@ -1,5 +1,7 @@
 # pep python package
 
+[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://pep.readthedocs.io/en/latest/?badge=latest)
+
 `pep` is the official python package for handling **Portable Encapsulated Projects** or **PEP**s, which is a standardized format for describing sample-intensive project metadata. `pep` provides a python interface to this format, allowing you to load your project metadata into an interactive python session.
 
 The complete documentation and API for the `pep` python package can be found at [pep.readthedocs.io](http://pep.readthedocs.io/).
