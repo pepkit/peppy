@@ -1,6 +1,6 @@
 # pep python package
 
-[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://pep.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://pep.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/pepkit/pep.svg?branch=master)](https://travis-ci.org/pepkit/pep)
 
 `pep` is the official python package for handling **Portable Encapsulated Projects** or **PEP**s, which is a standardized format for describing sample-intensive project metadata. `pep` provides a python interface to this format, allowing you to load your project metadata into an interactive python session.
 
