@@ -1,6 +1,12 @@
 Changelog
 ******************************
 
+- **v0.8.1** (*2017-11-16*):
+
+  - New
+
+    - pep separated from looper into its own python package.
+
 - **v0.7.2** (*2017-11-16*):
 
   - Fixed

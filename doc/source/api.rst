@@ -1,7 +1,7 @@
 API
 ===
 
-looper.models
+pep.models
 -----------------------
-.. automodule:: looper.models
+.. automodule:: pep.models
     :members:
