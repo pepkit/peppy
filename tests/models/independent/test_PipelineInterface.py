@@ -449,6 +449,16 @@ class ConstructorPathParsingTests:
 
 
 
+@pytest.mark.usefixtures("write_project_files", "pipe_iface_config_file")
+class BasicPipelineInterfaceTests:
+    """ Test cases specific to PipelineInterface """
+
+    def test_missing_input_files(self, proj):
+        """ We're interested here in lack of exception, not return value. """
+        proj.samples[0].get_attr_values("all_input_files")
+
+
+
 @pytest.mark.skip("Not implemented")
 class PipelineInterfaceArgstringTests:
     """  """

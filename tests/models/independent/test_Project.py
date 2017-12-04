@@ -3,11 +3,14 @@
 import copy
 import logging
 import os
+
 import mock
 import pytest
 import yaml
+
 import pep
-from pep import *
+from pep import AttributeDict, Project, Sample
+from pep.const import SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from pep.project import _MissingMetadataException
 
 
@@ -18,6 +21,7 @@ __email__ = "vreuter@virginia.edu"
 
 @pytest.fixture(scope="function")
 def project_config_data():
+    """ Provide some basic data for a Project configuration. """
     return {
         "metadata": {
             SAMPLE_ANNOTATIONS_KEY: "sample-anns-filler.csv",
