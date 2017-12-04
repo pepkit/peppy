@@ -1,12 +1,79 @@
-""" Model a project with individual samples and associated data. """
+"""
+Model a project with individual samples and associated data.
 
+Project Models
+=======================
+
+Workflow explained:
+    - Create a Project object
+        - Samples are created and added to project (automatically)
+
+In the process, Models will check:
+    - Project structure (created if not existing)
+    - Existence of csv sample sheet with minimal fields
+    - Constructing a path to a sample's input file and checking for its existence
+    - Read type/length of samples (optionally)
+
+Example:
+
+.. code-block:: python
+
+    from models import Project
+    prj = Project("config.yaml")
+    # that's it!
+
+Explore:
+
+.. code-block:: python
+
+    # see all samples
+    prj.samples
+    # get fastq file of first sample
+    prj.samples[0].fastq
+    # get all bam files of WGBS samples
+    [s.mapped for s in prj.samples if s.protocol == "WGBS"]
+
+    prj.metadata.results  # results directory of project
+    # export again the project's annotation
+    prj.sheet.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
+
+    # project options are read from the config file
+    # but can be changed on the fly:
+    prj = Project("test.yaml")
+    # change options on the fly
+    prj.config["merge_technical"] = False
+    # annotation sheet not specified initially in config file
+    prj.add_sample_sheet("sample_annotation.csv")
+
+"""
+
+from collections import Counter, namedtuple
+from functools import partial
+import itertools
 import logging
+import os
 import sys
+if sys.version_info < (3, 3):
+    from collections import Iterable, Mapping
+else:
+    from collections.abc import Iterable, Mapping
+
+import pandas as pd
+import yaml
 
 from .attribute_dict import AttributeDict
+from .const import \
+    COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
+    DEFAULT_COMPUTE_RESOURCES_NAME, SAMPLE_ANNOTATIONS_KEY, \
+    SAMPLE_NAME_COLNAME
+from .protocol_interface import process_pipeline_interfaces
 from .sample import merge_sample, Sample
-from .utils import add_project_sample_constants, copy, fetch_samples
+from .utils import \
+    add_project_sample_constants, alpha_cased, copy, fetch_samples, \
+    is_command_callable, is_url, partition
 
+
+MAX_PROJECT_SAMPLES_REPR = 12
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,14 +105,18 @@ class ProjectContext(object):
 
 
     def __getitem__(self, item):
+        """ Provide the Mapping-like item access to the instance's Project. """
         return self.prj[item]
 
 
     def __enter__(self):
+        """ References pass through this instance as needed, so the context
+         provided is the instance itself. """
         return self
 
 
     def __exit__(self, *args):
+        """ Context teardown. """
         pass
 
 
@@ -158,7 +229,7 @@ class Project(AttributeDict):
         self.file_checks = file_checks
 
         # Include the path to the config file.
-        self.config_file = _os.path.abspath(config_file)
+        self.config_file = os.path.abspath(config_file)
 
         # Parse config file
         _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
@@ -203,10 +274,10 @@ class Project(AttributeDict):
         except IOError:
             _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
                           path_anns_file)
-            anns_folder_path = _os.path.dirname(path_anns_file)
+            anns_folder_path = os.path.dirname(path_anns_file)
             try:
                 annotations_file_folder_contents = \
-                    _os.listdir(anns_folder_path)
+                    os.listdir(anns_folder_path)
             except OSError:
                 _LOGGER.error("Annotations file folder doesn't exist either: "
                               "'%s'", anns_folder_path)
@@ -265,7 +336,7 @@ class Project(AttributeDict):
     @property
     def default_compute_envfile(self):
         """ Path to default compute environment settings file. """
-        return _os.path.join(
+        return os.path.join(
             self.templates_folder, "default_compute_settings.yaml")
 
 
@@ -293,7 +364,7 @@ class Project(AttributeDict):
         try:
             return self.metadata.output_dir
         except AttributeError:
-            return _os.path.dirname(self.config_file)
+            return os.path.dirname(self.config_file)
 
 
     @property
@@ -365,7 +436,7 @@ class Project(AttributeDict):
 
         :return str: path to folder with default submission templates
         """
-        return _os.path.join(_os.path.dirname(__file__), "submit_templates")
+        return os.path.join(os.path.dirname(__file__), "submit_templates")
 
 
     @staticmethod
@@ -379,8 +450,8 @@ class Project(AttributeDict):
         :param str path_config_file: path to the project's configuration file.
         :return str: name of the configuration file's folder, to name project.
         """
-        config_dirpath = _os.path.dirname(path_config_file)
-        _, config_folder = _os.path.split(config_dirpath)
+        config_dirpath = os.path.dirname(path_config_file)
+        _, config_folder = os.path.split(config_dirpath)
         return config_folder
 
 
@@ -406,7 +477,7 @@ class Project(AttributeDict):
                 include_samples.append(s)
             else:
                 _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
-        return _pd.DataFrame(include_samples)
+        return pd.DataFrame(include_samples)
 
 
     def build_submission_bundles(self, protocol, priority=True):
@@ -522,7 +593,7 @@ class Project(AttributeDict):
                         pipeline_key)
 
                 # Skip and warn about nonexistent alleged pipeline path.
-                if not (_os.path.exists(full_pipe_path) or
+                if not (os.path.exists(full_pipe_path) or
                             is_command_callable(full_pipe_path)):
                     _LOGGER.warn("Missing pipeline script: '%s'",
                                  full_pipe_path)
@@ -631,7 +702,7 @@ class Project(AttributeDict):
             """ Transform flag/option into CLI-ready text version. """
             if arg:
                 try:
-                    arg = _os.path.expandvars(arg)
+                    arg = os.path.expandvars(arg)
                 except TypeError:
                     # Rely on direct string formatting of arg.
                     pass
@@ -680,11 +751,11 @@ class Project(AttributeDict):
         for folder_name in self.project_folders:
             folder_path = self.metadata[folder_name]
             _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
-            if not _os.path.exists(folder_path):
+            if not os.path.exists(folder_path):
                 _LOGGER.debug("Attempting to create project folder: '%s'",
                               folder_path)
                 try:
-                    _os.makedirs(folder_path)
+                    os.makedirs(folder_path)
                 except OSError as e:
                     _LOGGER.warn("Could not create project folder: '%s'",
                                  str(e))
@@ -698,12 +769,12 @@ class Project(AttributeDict):
         if hasattr(self.metadata, "merge_table"):
             if self.merge_table is None:
                 if self.metadata.merge_table and \
-                        _os.path.isfile(self.metadata.merge_table):
+                        os.path.isfile(self.metadata.merge_table):
                     _LOGGER.info("Reading merge table: %s",
                                  self.metadata.merge_table)
-                    self.merge_table = _pd.read_table(
-                        self.metadata.merge_table,
-                        sep=None, engine="python")
+                    self.merge_table = \
+                        pd.read_table(self.metadata.merge_table,
+                                      sep=None, engine="python")
                     _LOGGER.debug("Merge table shape: {}".
                                   format(self.merge_table.shape))
                 else:
@@ -832,7 +903,7 @@ class Project(AttributeDict):
             if var not in self.metadata:
                 raise ValueError("Missing required metadata item: '%s'")
             setattr(self.metadata, var,
-                    _os.path.expandvars(getattr(self.metadata, var)))
+                    os.path.expandvars(getattr(self.metadata, var)))
 
         _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
                                                self.metadata))
@@ -846,12 +917,12 @@ class Project(AttributeDict):
 
         for key, value in config_vars.items():
             if hasattr(self.metadata, key):
-                if not _os.path.isabs(getattr(self.metadata, key)):
+                if not os.path.isabs(getattr(self.metadata, key)):
                     setattr(self.metadata, key,
-                            _os.path.join(self.output_dir,
+                            os.path.join(self.output_dir,
                                           getattr(self.metadata, key)))
             else:
-                outpath = _os.path.join(self.output_dir, value)
+                outpath = os.path.join(self.output_dir, value)
                 setattr(self.metadata, key, outpath)
 
         # Variables which are relative to the config file
@@ -888,10 +959,10 @@ class Project(AttributeDict):
         # Make sure it's absolute.
         if self.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
-        elif not _os.path.isabs(self.compute.submission_template):
+        elif not os.path.isabs(self.compute.submission_template):
             # Relative to environment config file.
-            self.compute.submission_template = _os.path.join(
-                _os.path.dirname(self.environment_file),
+            self.compute.submission_template = os.path.join(
+                os.path.dirname(self.environment_file),
                 self.compute.submission_template)
 
         # Required variables check
@@ -921,10 +992,10 @@ class Project(AttributeDict):
             self.compute.add_entries(self.environment.compute[setting])
 
             # Ensure submission template is absolute.
-            if not _os.path.isabs(self.compute.submission_template):
+            if not os.path.isabs(self.compute.submission_template):
                 try:
-                    self.compute.submission_template = _os.path.join(
-                        _os.path.dirname(self.environment_file),
+                    self.compute.submission_template = os.path.join(
+                        os.path.dirname(self.environment_file),
                         self.compute.submission_template)
                 except AttributeError as e:
                     # Environment and environment compute should at least have been
@@ -946,7 +1017,7 @@ class Project(AttributeDict):
         Make the project's public_html folder executable.
         """
         try:
-            _os.chmod(self.trackhubs.trackhub_dir, 0o0755)
+            os.chmod(self.trackhubs.trackhub_dir, 0o0755)
         except OSError:
             # This currently does not fail now
             # ("cannot change folder's mode: %s" % d)
@@ -975,9 +1046,9 @@ class Project(AttributeDict):
                 if type(y[key]) is dict:
                     for key2, value2 in y[key].items():
                         if key2 == "submission_template":
-                            if not _os.path.isabs(y[key][key2]):
-                                y[key][key2] = _os.path.join(
-                                    _os.path.dirname(env_settings_file),
+                            if not os.path.isabs(y[key][key2]):
+                                y[key][key2] = os.path.join(
+                                    os.path.dirname(env_settings_file),
                                     y[key][key2])
 
             env_settings["compute"] = y
@@ -992,21 +1063,21 @@ class Project(AttributeDict):
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
         _LOGGER.log(5, "Ensuring absolute: '%s'", maybe_relpath)
-        if _os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+        if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
             _LOGGER.log(5, "Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
-        expanded = _os.path.expanduser(_os.path.expandvars(maybe_relpath))
+        expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
         _LOGGER.log(5, "Expanded: '%s'", expanded)
-        if _os.path.isabs(expanded):
+        if os.path.isabs(expanded):
             _LOGGER.log(5, "Expanded is absolute")
             return expanded
         _LOGGER.log(5, "Making non-absolute path '%s' be absolute",
                     maybe_relpath)
         # Set path to an absolute path, relative to project config.
-        config_dirpath = _os.path.dirname(self.config_file)
+        config_dirpath = os.path.dirname(self.config_file)
         _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
-        abs_path = _os.path.join(config_dirpath, maybe_relpath)
+        abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
 
 
@@ -1023,3 +1094,57 @@ class Project(AttributeDict):
             _LOGGER.warn(message)
         else:
             when_missing(message)
+
+
+
+def check_sheet(sample_file, dtype=str):
+    """
+    Check if csv file exists and has all required columns.
+
+    :param str sample_file: path to sample annotations file.
+    :param type dtype: data type for CSV read.
+    :raises IOError: if given annotations file can't be read.
+    :raises ValueError: if required column(s) is/are missing.
+    """
+    # Although no null value replacements or supplements are being passed,
+    # toggling the keep_default_na value to False solved an issue with 'nan'
+    # and/or 'None' as an argument for an option in the pipeline command
+    # that's generated from a Sample's attributes.
+    #
+    # See https://github.com/pepkit/pep/issues/159 for the original issue
+    # and https://github.com/pepkit/pep/pull/160 for the pull request
+    # that resolved it.
+    df = pd.read_table(sample_file, sep=None, dtype=dtype,
+                       index_col=False, engine="python", keep_default_na=False)
+    req = [SAMPLE_NAME_COLNAME]
+    missing = set(req) - set(df.columns)
+    if len(missing) != 0:
+        raise ValueError(
+            "Annotation sheet ('{}') is missing column(s): {}; has: {}".
+                format(sample_file, missing, df.columns))
+    return df
+
+
+
+# Collect PipelineInterface, Sample type, pipeline path, and script with flags.
+SubmissionBundle = namedtuple(
+    "SubmissionBundle",
+    field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
+SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX = 2
+
+
+
+def _is_member(item, items):
+    """ Determine whether an iterm is a member of a collection. """
+    return item in items
+
+
+
+class _MissingMetadataException(Exception):
+    """ Project needs certain metadata. """
+    def __init__(self, missing_section, path_config_file=None):
+        reason = "Project configuration lacks required metadata section {}".\
+                format(missing_section)
+        if path_config_file:
+            reason += "; used config file '{}'".format(path_config_file)
+        super(_MissingMetadataException, self).__init__(reason)

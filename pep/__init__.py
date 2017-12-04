@@ -27,6 +27,13 @@ DEFAULT_LOGGING_FMT = "%(message)s"
 DEV_LOGGING_FMT = "%(module)s:%(lineno)d (%(funcName)s) [%(levelname)s] > %(message)s "
 
 
+# Ensure that we have a handler and don't get a logging exception.
+# Note that this was originally with looper.models.
+_LOGGER = logging.getLogger(__name__)
+if not logging.getLogger().handlers:
+    _LOGGER.addHandler(logging.NullHandler())
+
+
 
 def setup_pep_logger(level, additional_locations=None, devmode=False):
     """
