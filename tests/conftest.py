@@ -19,8 +19,8 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from pep import setup_pep_logger
-from pep.models import PipelineInterface, Project, SAMPLE_NAME_COLNAME
+from pep import \
+    setup_pep_logger, PipelineInterface, Project, SAMPLE_NAME_COLNAME
 
 
 _LOGGER = logging.getLogger("pep")
@@ -536,7 +536,7 @@ def proj(request):
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
-    :return pep.models.Project: object created by parsing
+    :return pep.Project: object created by parsing
         data in file pointed to by `request` class
     """
     p = _create(request, Project)
@@ -556,7 +556,7 @@ def pipe_iface(request):
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
-    :return pep.models.PipelineInterface: object created by parsing
+    :return pep.PipelineInterface: object created by parsing
         data in file pointed to by `request` class
     """
     return _create(request, PipelineInterface)

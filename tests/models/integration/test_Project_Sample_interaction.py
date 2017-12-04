@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from pep.models import \
+from pep import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from pep.utils import alpha_cased

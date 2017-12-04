@@ -7,9 +7,8 @@ import mock
 import pytest
 import yaml
 import pep
-from pep.models import \
-        AttributeDict, Project, Sample, _MissingMetadataException, \
-        SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from pep import *
+from pep.project import _MissingMetadataException
 
 
 __author__ = "Vince Reuter"
@@ -290,14 +289,14 @@ class ProjectDefaultEnvironmentSettingsTests:
         logfile = tmpdir.join("project-error-messages.log").strpath
         expected_error_message_handler = logging.FileHandler(logfile, mode='w')
         expected_error_message_handler.setLevel(logging.ERROR)
-        pep.models._LOGGER.handlers.append(expected_error_message_handler)
+        pep.project._LOGGER.handlers.append(expected_error_message_handler)
 
         # Create Project, expecting to generate error messages.
         project = Project(minimal_project_conf_path,
                           default_compute=misnamed_envconf)
 
         # Remove the temporary message handler.
-        del pep.models._LOGGER.handlers[-1]
+        del pep.project._LOGGER.handlers[-1]
 
         # Ensure nulls for all relevant Project attributes.
         self._assert_null_compute_environment(project)
@@ -414,7 +413,7 @@ class DerivedColumnsTests:
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
-        with mock.patch("pep.models.check_sheet"):
+        with mock.patch("pep.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
         return expected_derived_columns, project
 
@@ -627,7 +626,7 @@ class ProjectPipelineArgstringTests:
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
 
         # Subvert requirement for sample annotations file.
-        with mock.patch("pep.models.check_sheet"):
+        with mock.patch("pep.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
 
         argstring = project.get_arg_string(pipeline)

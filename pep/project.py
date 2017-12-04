@@ -270,7 +270,7 @@ class Project(AttributeDict):
         _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
         try:
             _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
-            self.sheet = check_sheet(path_anns_file)
+            self.sheet = check_sample_sheet(path_anns_file)
         except IOError:
             _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
                           path_anns_file)
@@ -1097,7 +1097,7 @@ class Project(AttributeDict):
 
 
 
-def check_sheet(sample_file, dtype=str):
+def check_sample_sheet(sample_file, dtype=str):
     """
     Check if csv file exists and has all required columns.
 

@@ -1,9 +1,8 @@
 """ Tests for temporary contextualization of Project's Sample objects """
 
-import os
 import pytest
 import yaml    # TODO: remove once project can take raw config data?
-from pep.models import Project, Sample, ProjectContext
+from pep import Project, ProjectContext, Sample
 
 
 __author__ = "Vince Reuter"

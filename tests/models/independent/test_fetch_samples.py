@@ -8,8 +8,8 @@ import mock
 import pytest
 import yaml
 
-from pep.models import fetch_samples, Project, Sample
-from pep.utils import alpha_cased
+from pep import Project, Sample
+from pep.utils import alpha_cased, fetch_samples
 
 
 __author__ = "Vince Reuter"

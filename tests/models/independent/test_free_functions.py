@@ -217,7 +217,7 @@ class SampleSubtypeImportTests:
 
         # Write the subtypes module file.
         with open(path_subtypes_file, 'w') as subtypes_file:
-            subtypes_file.write("from pep.models import Sample\n\n")
+            subtypes_file.write("from pep import Sample\n\n")
             subtypes_file.write(build_subtype_lines(external_subtypes))
 
         # Write the pipeline module file.
@@ -228,7 +228,7 @@ class SampleSubtypeImportTests:
                 pipe_file.write(import_statement)
             # Include a subtype definition with the pipeline itself as desired.
             if pipeline_has_subtype:
-                pipe_file.write("from pep.models import Sample\n\n")
+                pipe_file.write("from pep import Sample\n\n")
                 pipe_file.write(build_subtype_lines("InternalPipelineSample"))
 
         return path_pipe_file, path_subtypes_file
