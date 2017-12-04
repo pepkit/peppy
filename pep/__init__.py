@@ -11,7 +11,6 @@ import logging
 import os
 from sys import stdout
 from ._version import __version__
-from .models import *
 
 
 IMPLICATIONS_DECLARATION = "implied_columns"

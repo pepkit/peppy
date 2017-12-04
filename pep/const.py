@@ -19,7 +19,6 @@ DATA_SOURCE_COLNAME = "data_source"
 SAMPLE_ANNOTATIONS_KEY = "sample_annotation"
 DATA_SOURCES_SECTION = "data_sources"
 SAMPLE_EXECUTION_TOGGLE = "toggle"
-COL_KEY_SUFFIX = "_key"
 VALID_READ_TYPES = ["single", "paired"]
 REQUIRED_INPUTS_ATTR_NAME = "required_inputs_attr"
 ALL_INPUTS_ATTR_NAME = "all_inputs_attr"
