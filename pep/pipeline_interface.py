@@ -36,7 +36,7 @@ class PipelineInterface(object):
             # Unified pipeline_interface.yaml file (protocol mappings
             # and the actual pipeline interface data)
             _LOGGER.debug("Creating %s with preparsed data",
-                         self.__class__.__name__)
+                          self.__class__.__name__)
             self.pipe_iface_file = None
             self.pipe_iface_config = config
 
@@ -44,7 +44,7 @@ class PipelineInterface(object):
             # More likely old-style, with protocol_mapping in its own file,
             # separate from the actual pipeline interface data
             _LOGGER.debug("Parsing '%s' for PipelineInterface config data",
-                         config)
+                          config)
             self.pipe_iface_file = config
             with open(config, 'r') as f:
                 self.pipe_iface_config = yaml.load(f)

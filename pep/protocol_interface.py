@@ -315,12 +315,15 @@ class ProtocolMapper(Mapping):
 
 
     def __getitem__(self, protocol_name):
+        """ Indexing syntax is on protocol name. """
         return self.mappings[protocol_name]
 
     def __iter__(self):
+        """ Iteration is over the protocol names. """
         return iter(self.mappings)
 
     def __len__(self):
+        """ The interface size is the number of protocol names supported. """
         return len(self.mappings)
 
 
@@ -337,6 +340,8 @@ class ProtocolMapper(Mapping):
         Create command-line text for given protocol's pipeline(s).
 
         :param str protocol: Name of protocol.
+        :return list[str]: Sequence of pipelines capable of handling a sample
+            of the indicated protocol.
         """
 
         _LOGGER.debug("Building pipeline for protocol '%s'", protocol)
@@ -362,6 +367,12 @@ class ProtocolMapper(Mapping):
 
 
     def parse_parallel_jobs(self, job, dep):
+        """
+        Message about job(s) associated with a particular protocol.
+
+        :param str job: a string of information about job(s)
+        :param obj dep: dependency specification
+        """
         job = job.replace("(", "").replace(")", "")
         split_jobs = [x.strip() for x in job.split(',')]
         if len(split_jobs) > 1:
@@ -371,9 +382,10 @@ class ProtocolMapper(Mapping):
             self.register_job(job, dep)
 
 
-    def register_job(self, job, dep):
+    @staticmethod
+    def register_job(job, dep):
+        """ Provide a message about a particular job's registration. """
         _LOGGER.info("Register Job Name: %s\tDep: %s", str(job), str(dep))
-
 
 
 
