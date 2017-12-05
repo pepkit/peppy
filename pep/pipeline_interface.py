@@ -325,19 +325,6 @@ class PipelineInterface(object):
             return os.path.splitext(pipeline)[0]
 
 
-    def uses_looper_args(self, pipeline_name):
-        """
-        Determine whether the indicated pipeline uses looper arguments.
-
-        :param pipeline_name: name of a pipeline of interest
-        :type pipeline_name: str
-        :return: whether the indicated pipeline uses looper arguments
-        :rtype: bool
-        """
-        config = self._select_pipeline(pipeline_name)
-        return "looper_args" in config and config["looper_args"]
-
-
     def _select_pipeline(self, pipeline_name):
         """
         Check to make sure that pipeline has an entry and if so, return it.

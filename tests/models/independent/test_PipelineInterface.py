@@ -11,7 +11,9 @@ import mock
 import pytest
 import yaml
 
-from pep import PipelineInterface, Sample, DEFAULT_COMPUTE_RESOURCES_NAME
+from pep import \
+    PipelineInterface, Project, Sample, DEFAULT_COMPUTE_RESOURCES_NAME, \
+    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from pep.pipeline_interface import \
     _InvalidResourceSpecificationException, \
     _MissingPipelineConfigurationException
@@ -96,8 +98,7 @@ def test_constructor_input_types(tmpdir, from_file, basic_pipe_iface_data):
                             {"sample_name": "arbitrary-sample-name"})}),
                    ("get_attribute",
                     {"attribute_key": "irrelevant-attr-name"}),
-                   ("get_pipeline_name", {}),
-                   ("uses_looper_args", {})])
+                   ("get_pipeline_name", {})])
 @pytest.mark.parametrize(argnames="use_resources", argvalues=[False, True])
 def test_unconfigured_pipeline_exception(
         funcname_and_kwargs, use_resources, pi_with_resources):
@@ -470,3 +471,63 @@ class PipelineInterfaceArgstringTests:
 class PipelineInterfaceLooperArgsTests:
     """  """
     pass
+
+
+
+@pytest.mark.skip("Not implemented")
+class GenericProtocolMatchTests:
+    """ Pipeline interface may support 'all-other' protocols notion. """
+
+
+    NAME_ANNS_FILE = "annotations.csv"
+
+
+    @pytest.fixture
+    def prj_data(self):
+        """ Provide basic Project data. """
+        return {"metadata": {"output_dir": "output",
+                             "results_subdir": "results_pipeline",
+                             "submission_subdir": "submission"}}
+
+
+    @pytest.fixture
+    def sheet_lines(self):
+        """ Provide sample annotations sheet lines. """
+        return ["{},{}".format(SAMPLE_NAME_COLNAME, "basic_sample")]
+
+
+    @pytest.fixture
+    def sheet_file(self, tmpdir, sheet_lines):
+        """ Write annotations sheet file and provide path. """
+        anns_file = tmpdir.join(self.NAME_ANNS_FILE)
+        anns_file.write(os.linesep.join(sheet_lines))
+        return anns_file.strpath
+
+
+    @pytest.fixture
+    def iface_paths(self, tmpdir):
+        """ Write basic pipeline interfaces and provide paths. """
+        pass
+
+
+    @pytest.fixture
+    def prj(self, tmpdir, prj_data, anns_file, iface_paths):
+        """ Provide basic Project. """
+        prj_data["pipeline_interfaces"] = iface_paths
+        prj_data["metadata"][SAMPLE_ANNOTATIONS_KEY] = anns_file
+        prj_file = tmpdir.join("pconf.yaml").strpath
+        with open(prj_file, 'w') as f:
+            yaml.dump(prj_data, f)
+        return Project(prj_file)
+
+
+    @pytest.mark.skip("Not implemented")
+    def test_specific_protocol_match_lower_priority_interface(self):
+        """ Generic protocol mapping doesn't preclude specific ones. """
+        pass
+
+
+    @pytest.mark.skip("Not implemented")
+    def test_no_specific_protocol_match(self):
+        """ Protocol match in no pipeline interface allows generic match. """
+        pass
