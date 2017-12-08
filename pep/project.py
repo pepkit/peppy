@@ -47,7 +47,7 @@ Explore:
 
 """
 
-from collections import Counter, namedtuple
+from collections import Counter, defaultdict, namedtuple
 from functools import partial
 import itertools
 import logging
@@ -66,7 +66,6 @@ from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
     DEFAULT_COMPUTE_RESOURCES_NAME, SAMPLE_ANNOTATIONS_KEY, \
     SAMPLE_NAME_COLNAME
-from .protocol_interface import process_pipeline_interfaces
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, alpha_cased, copy, fetch_samples, \
@@ -1124,6 +1123,31 @@ def check_sample_sheet(sample_file, dtype=str):
                 format(sample_file, missing, df.columns))
     return df
 
+
+
+def process_pipeline_interfaces(pipeline_interface_locations):
+    """
+    Create a ProtocolInterface for each pipeline location given.
+
+    :param Iterable[str] pipeline_interface_locations: locations, each of
+        which should be either a directory path or a filepath, that specifies
+        pipeline interface and protocol mappings information. Each such file
+        should be have a pipelines section and a protocol mappings section
+        whereas each folder should have a file for each of those sections.
+    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol
+        name to interface(s) for which that protocol is mapped
+    """
+    interface_by_protocol = defaultdict(list)
+    for pipe_iface_location in pipeline_interface_locations:
+        if not os.path.exists(pipe_iface_location):
+            _LOGGER.warn("Ignoring nonexistent pipeline interface "
+                         "location: '%s'", pipe_iface_location)
+            continue
+        proto_iface = ProtocolInterface(pipe_iface_location)
+        for proto_name in proto_iface.protomap:
+            _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
+            interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
+    return interface_by_protocol
 
 
 # Collect PipelineInterface, Sample type, pipeline path, and script with flags.

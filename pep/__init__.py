@@ -14,9 +14,7 @@ from sys import stdout
 from ._version import __version__
 from .attribute_dict import AttributeDict
 from .const import *
-from .pipeline_interface import PipelineInterface
 from .project import Project, ProjectContext
-from .protocol_interface import ProtocolInterface
 from .sample import Sample
 
 
