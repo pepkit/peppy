@@ -3,17 +3,12 @@
 from collections import OrderedDict
 import copy
 import os
-import sys
-if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping
-else:
-    from collections.abc import Iterable, Mapping
 
 import pandas as pd
 import pytest
 import yaml
 
-from pep import DEFAULT_COMPUTE_RESOURCES_NAME, SAMPLE_NAME_COLNAME
+from pep import SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"
@@ -47,6 +42,7 @@ BASIC_PROTOMAP = {"ATAC": "ATACSeq.py"}
 
 @pytest.fixture(scope="function")
 def basic_data_raw():
+    """ Provide minimal collection of data for a constructor, by type. """
     return copy.deepcopy({
             "AttributeDict": {}, "ProtocolMapper": BASIC_PROTOMAP,
             "Sample": {SAMPLE_NAME_COLNAME: "arbitrary-sample"}})
@@ -64,7 +60,6 @@ def basic_instance_data(request, instance_raw_data):
         model instance
     :return object: basic instance data in a form accepted by its constructor
     """
-    # Cleanup is free with _write_config, using request's temp folder.
     transformation_by_class = {
             "AttributeDict": lambda data: data,
             "Sample": lambda data: pd.Series(data)}
@@ -126,23 +121,4 @@ def path_anns_file(request, tmpdir, sample_sheet):
         delimiter = ","
     with open(filepath, 'w') as anns_file:
         sample_sheet.to_csv(anns_file, sep=delimiter, index=False)
-    return filepath
-
-
-
-def _write_config(data, request, filename):
-    """
-    Write configuration data to file.
-
-    :param str Sequence | Mapping data: data to write to file, YAML compliant
-    :param pytest._pytest.fixtures.SubRequest request: test case that
-        requested a fixture from which this function was called
-    :param str filename: name for the file to write
-    :return str: full path to the file written
-    """
-    # We get cleanup for free by writing to file in requests temp folder.
-    dirpath = request.getfixturevalue("tmpdir").strpath
-    filepath = os.path.join(dirpath, filename)
-    with open(filepath, 'w') as conf_file:
-        yaml.safe_dump(data, conf_file)
     return filepath
