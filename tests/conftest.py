@@ -20,7 +20,7 @@ import pytest
 import yaml
 
 from pep import \
-    setup_pep_logger, PipelineInterface, Project, SAMPLE_NAME_COLNAME
+    setup_pep_logger, Project, SAMPLE_NAME_COLNAME
 
 
 _LOGGER = logging.getLogger("pep")
@@ -154,10 +154,7 @@ EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
 
 # Discover name of attribute pointing to location of test config file based
 # on the type of model instance being requested in a test fixture.
-_ATTR_BY_TYPE = {
-    Project: "project_config_file",
-    PipelineInterface: "pipe_iface_config_file"
-}
+_ATTR_BY_TYPE = {Project: "project_config_file"}
 
 
 # TODO: split models conftest stuff into its own subdirectory.
@@ -263,7 +260,7 @@ def interactive(
         annotation_lines=SAMPLE_ANNOTATION_LINES,
         project_kwargs=None, logger_kwargs=None):
     """
-    Create Project and PipelineInterface instances from default or given data.
+    Create Project instance from default or given data.
 
     This is intended to provide easy access to instances of fundamental pep
     object for interactive test-authorship-motivated work in an iPython
@@ -276,7 +273,7 @@ def interactive(
     :param Iterable[str] annotation_lines: lines for a sample annotations file
     :param dict project_kwargs: keyword arguments for Project constructor
     :param dict logger_kwargs: keyword arguments for logging configuration
-    :return Project, PipelineInterface: one Project and one PipelineInterface,
+    :return Project: configured Project
     """
 
     # Establish logging for interactive session.
@@ -302,11 +299,10 @@ def interactive(
     )
 
     prj = Project(path_conf_file, **(project_kwargs or {}))
-    iface = PipelineInterface(path_iface_file)
     for path in [path_conf_file, path_iface_file,
                  path_merge_table_file, path_sample_annotation_file]:
         os.unlink(path)
-    return prj, iface
+    return prj
 
 
 
@@ -475,29 +471,6 @@ def _write_test_data_files(tempdir):
 
 
 
-@pytest.fixture(scope="class")
-def pipe_iface_config_file(request):
-    """
-    Write pipeline interface config data to a temporary file system location.
-
-    :param pytest._pytest.fixtures.SubRequest request: object requesting
-        this fixture
-    :return str: path to the temporary file with configuration data
-    """
-
-    # Write the config file and attach path as attribute on request's class.
-    dirpath = tempfile.mkdtemp()
-    path_conf_file = _write_temp(
-            PIPELINE_INTERFACE_CONFIG_LINES,
-            dirpath=dirpath, fname="pipeline_interface.yaml")
-    request.cls.pipe_iface_config_file = path_conf_file
-
-    # Alternative mechanism to request.addfinalizer for tearDown behavior.
-    yield path_conf_file
-    shutil.rmtree(dirpath)
-
-
-
 def request_class_attribute(req, attr):
     """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
@@ -542,24 +515,6 @@ def proj(request):
     p = _create(request, Project)
     p.finalize_pipelines_directory()
     return p
-
-
-
-@pytest.fixture(scope="function")
-def pipe_iface(request):
-    """
-    Create PipelineInterface using data from file pointed to by request class.
-
-    To use this fixture, the test case must reside within a class that
-    defines a "pipe_iface_config_file" attribute. This is best done by marking
-    the class with "@pytest.mark.usefixtures("write_project_files")"
-
-    :param pytest._pytest.fixtures.SubRequest request: test case requesting
-        a project instance
-    :return pep.PipelineInterface: object created by parsing
-        data in file pointed to by `request` class
-    """
-    return _create(request, PipelineInterface)
 
 
 

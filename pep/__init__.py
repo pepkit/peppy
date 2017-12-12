@@ -18,8 +18,7 @@ from .project import Project, ProjectContext
 from .sample import Sample
 
 
-__classes__ = ["AttributeDict", "PipelineInterface", "Project",
-               "ProtocolInterface", "Sample"]
+__classes__ = ["AttributeDict", "Project", "Sample"]
 __all__ = __classes__
 
 

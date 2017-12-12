@@ -6,5 +6,5 @@
 
 import conftest
 
-print("Establishing Project and PipelineInterface for testing and exploration")
+print("Establishing Project for testing and exploration")
 proj, pi = conftest.interactive()
