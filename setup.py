@@ -67,6 +67,7 @@ setup(
     author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
     license="GPL2",
     scripts=scripts,
+    package_data={"looper": ["submit_templates/*"]},
     test_suite="tests",
     tests_require=(["mock", "pytest"]),
     setup_requires=(["pytest-runner"] if {"test", "pytest", "ptr"} & set(sys.argv) else []),
