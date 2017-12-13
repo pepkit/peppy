@@ -1119,8 +1119,9 @@ def check_sample_sheet(sample_file, dtype=str):
     missing = set(req) - set(df.columns)
     if len(missing) != 0:
         raise ValueError(
-            "Annotation sheet ('{}') is missing column(s): {}; has: {}".
-                format(sample_file, missing, df.columns))
+            "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
+                format(sample_file, "\n".join(missing),
+                       ", ".join(list(df.columns))))
     return df
 
 
