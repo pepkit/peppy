@@ -1,1 +1,1 @@
-include pep/submit_templates
+include pep/submit_templates/*
