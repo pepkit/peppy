@@ -467,8 +467,6 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
-        self.infer_columns(implications=project.get("implied_columns"))
-
         for col in project.get("derived_columns", []):
             # Only proceed if the specified column exists
             # and was not already merged or derived.

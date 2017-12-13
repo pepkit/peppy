@@ -64,8 +64,8 @@ import yaml
 from .attribute_dict import AttributeDict
 from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
-    DEFAULT_COMPUTE_RESOURCES_NAME, SAMPLE_ANNOTATIONS_KEY, \
-    SAMPLE_NAME_COLNAME
+    DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
+    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, alpha_cased, copy, fetch_samples, \
@@ -808,6 +808,7 @@ class Project(AttributeDict):
             sample.set_transcriptome(self.get("transcriptomes"))
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
+            sample.infer_columns(self.get(IMPLICATIONS_DECLARATION))
             merge_sample(sample, self.merge_table,
                          self.data_sources, self.derived_columns)
             _LOGGER.debug("Setting sample file paths")
