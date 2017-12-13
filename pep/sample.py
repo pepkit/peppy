@@ -435,10 +435,11 @@ class Sample(AttributeDict):
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
-                val = " ".join(val_globbed) or val
-                _LOGGER.debug("Post-glob: %s", val)
-                if val == val:
+                if not val_globbed:
                     _LOGGER.warn("Unmatched regex-like: '%s'", val)
+                else:
+                    val = " ".join(val_globbed)
+                _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
             _LOGGER.error("Can't format data source correctly: %s", regex)
