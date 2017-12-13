@@ -262,8 +262,6 @@ class Project(AttributeDict):
         _LOGGER.debug("Processing {} pipeline location(s): {}".
                       format(len(self.metadata.pipelines_dir),
                              self.metadata.pipelines_dir))
-        self.interfaces_by_protocol = \
-            process_pipeline_interfaces(self.metadata.pipelines_dir)
 
         path_anns_file = self.metadata.sample_annotation
         _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
@@ -1124,31 +1122,6 @@ def check_sample_sheet(sample_file, dtype=str):
                        ", ".join(list(df.columns))))
     return df
 
-
-
-def process_pipeline_interfaces(pipeline_interface_locations):
-    """
-    Create a ProtocolInterface for each pipeline location given.
-
-    :param Iterable[str] pipeline_interface_locations: locations, each of
-        which should be either a directory path or a filepath, that specifies
-        pipeline interface and protocol mappings information. Each such file
-        should be have a pipelines section and a protocol mappings section
-        whereas each folder should have a file for each of those sections.
-    :return Mapping[str, Iterable[ProtocolInterface]]: mapping from protocol
-        name to interface(s) for which that protocol is mapped
-    """
-    interface_by_protocol = defaultdict(list)
-    for pipe_iface_location in pipeline_interface_locations:
-        if not os.path.exists(pipe_iface_location):
-            _LOGGER.warn("Ignoring nonexistent pipeline interface "
-                         "location: '%s'", pipe_iface_location)
-            continue
-        proto_iface = ProtocolInterface(pipe_iface_location)
-        for proto_name in proto_iface.protomap:
-            _LOGGER.log(5, "Adding protocol name: '%s'", proto_name)
-            interface_by_protocol[alpha_cased(proto_name)].append(proto_iface)
-    return interface_by_protocol
 
 
 # Collect PipelineInterface, Sample type, pipeline path, and script with flags.
