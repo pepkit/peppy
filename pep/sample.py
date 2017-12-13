@@ -437,6 +437,8 @@ class Sample(AttributeDict):
                 val_globbed = sorted(glob.glob(val))
                 val = " ".join(val_globbed) or val
                 _LOGGER.debug("Post-glob: %s", val)
+                if val == val:
+                    _LOGGER.warn("Unmatched regex-like: '%s'", val)
 
         except Exception as e:
             _LOGGER.error("Can't format data source correctly: %s", regex)
