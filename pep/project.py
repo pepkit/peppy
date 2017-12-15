@@ -283,7 +283,7 @@ class Project(AttributeDict):
                               format(annotations_file_folder_contents))
             raise
 
-        self.merge_table = None
+        self.sample_subannotation = None
 
         # Basic sample maker will handle name uniqueness check.
         if defer_sample_construction:
@@ -763,25 +763,31 @@ class Project(AttributeDict):
 
         # This should be executed just once, establishing the Project's
         # base Sample objects if they don't already exist.
-        if hasattr(self.metadata, "merge_table"):
-            if self.merge_table is None:
-                if self.metadata.merge_table and \
-                        os.path.isfile(self.metadata.merge_table):
-                    _LOGGER.info("Reading merge table: %s",
-                                 self.metadata.merge_table)
-                    self.merge_table = \
-                        pd.read_table(self.metadata.merge_table,
-                                      sep=None, engine="python")
-                    _LOGGER.debug("Merge table shape: {}".
-                                  format(self.merge_table.shape))
-                else:
-                    _LOGGER.debug(
-                        "Alleged path to merge table data is not a "
-                        "file: '%s'", self.metadata.merge_table)
+        sub_ann = None
+        try:
+            sub_ann = self.metadata["sample_subannotation"]
+        except KeyError:
+            try:
+                # Backwards compatibility
+                sub_ann = self.metadata["merge_table"]
+            except KeyError:
+                _LOGGER.debug("No sample subannotations")
             else:
-                _LOGGER.debug("Already parsed merge table")
+                _LOGGER.warn("Switch to 'sample_subannotation' in lieu of "
+                             "'merge_table.'")
+
+        if self.sample_subannotation is None:
+            if sub_ann and os.path.isfile(sub_ann):
+                _LOGGER.info("Reading subannotations: %s", sub_ann)
+                self.sample_subannotation = pd.read_table(
+                        sub_ann, sep=None, engine="python")
+                _LOGGER.debug("Subannotations shape: {}".
+                              format(self.sample_subannotation.shape))
+            else:
+                _LOGGER.debug("Alleged path to sample subannotations data is "
+                              "not a file: '%s'", str(sub_ann))
         else:
-            _LOGGER.debug("No merge table")
+            _LOGGER.debug("Already parsed sample subannotations")
 
         # Set samples and handle non-unique names situation.
         self._samples = self._prep_samples()
@@ -809,7 +815,7 @@ class Project(AttributeDict):
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_columns(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, self.merge_table,
+            merge_sample(sample, self.sample_subannotation,
                          self.data_sources, self.derived_columns)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)

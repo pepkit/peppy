@@ -69,21 +69,21 @@ class ProjectConstructorTests:
     @pytest.mark.parametrize(
             argnames="lazy", argvalues=[False, True],
             ids=lambda lazy: "lazy={}".format(lazy))
-    def test_no_merge_table_in_config(
+    def test_no_sample_subannotation_in_config(
             self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
-        """ Merge table attribute remains null if config lacks merge_table. """
+        """ Merge table attribute remains null if config lacks subannotation. """
         metadata = proj_conf_data["metadata"]
         try:
-            assert "merge_table" in metadata
+            assert "sample_subannotation" in metadata
         except AssertionError:
-            print("Project metadata section lacks 'merge_table'")
+            print("Project metadata section lacks 'sample_subannotation'")
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
         if spec_type == "as_null":
-            metadata["merge_table"] = None
+            metadata["sample_subannotation"] = None
         elif spec_type == "missing":
-            del metadata["merge_table"]
+            del metadata["sample_subannotation"]
         else:
             raise ValueError("Unknown way to specify no merge table: {}".
                              format(spec_type))
@@ -91,11 +91,11 @@ class ProjectConstructorTests:
         with open(path_config_file, 'w') as conf_file:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
-        assert p.merge_table is None
+        assert p.sample_subannotation is None
 
 
     @pytest.mark.skip("Not implemented")
-    def test_merge_table_construction(
+    def test_sample_subannotation_construction(
             self, tmpdir, project_config_data):
         """ Merge table is constructed iff samples are constructed. """
         # TODO: implement
@@ -697,7 +697,8 @@ class ProjectConstructorTest:
 
 
     @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
-    def test_derived_columns_merge_table_sample(self, proj, sample_index):
+    def test_derived_columns_sample_subannotation_sample(
+            self, proj, sample_index):
         """ Make sure derived columns works on merged table. """
         observed_merged_sample_filepaths = \
             [os.path.basename(f) for f in
@@ -709,7 +710,7 @@ class ProjectConstructorTest:
     @named_param(argnames="sample_index",
                  argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
-        """ Samples not in the `merge_table` lack merged columns. """
+        """ Samples not in the `sample_subannotation` lack merged columns. """
         # Assert the negative to cover empty dict/AttributeDict/None/etc.
         assert not proj.samples[sample_index].merged_cols
 

@@ -33,7 +33,7 @@ PROJECT_CONFIG_LINES = """metadata:
   sample_annotation: samples.csv
   output_dir: test
   pipeline_interfaces: pipelines
-  merge_table: merge.csv
+  sample_subannotation: merge.csv
 
 derived_columns: [{derived_column_names}]
 
@@ -115,7 +115,7 @@ _FILE_FILE2_BY_SAMPLE = [
         ["d-bamfile.bam", "d.txt"]
 ]
 # Values expected when accessing a proj.samples[<index>].file
-# file is mapped to data_source by sample annotations and merge_table.
+# file is mapped to data_source by sample annotations and subannotations.
 FILE_BY_SAMPLE = [
         ["a.txt"],
         ["b1.txt", "b2.txt", "b3.txt"],
@@ -138,7 +138,7 @@ d,testngs,src2,src3,human,,src3,
 NUM_SAMPLES = len(SAMPLE_ANNOTATION_LINES) - 1
 NGS_SAMPLE_INDICES = {3}
 
-MERGE_TABLE_LINES = """sample_name,file,file2,dcol1,col_modifier
+SAMPLE_SUBANNOTATION_LINES = """sample_name,file,file2,dcol1,col_modifier
 b,src1,src1,src1,1
 b,src1,src1,src1,2
 b,src1,src1,src1,3
@@ -146,7 +146,7 @@ b,src1,src1,src1,3
 
 # Only sample 'b' is merged, and it's in index-1 in the annotation lines.
 MERGED_SAMPLE_INDICES = {1}
-# In merge_table lines, file2 --> src1.
+# In sample subannotation lines, file2 --> src1.
 # In project config's data_sources section,
 # src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
@@ -256,7 +256,7 @@ def path_empty_project(request, tmpdir):
 def interactive(
         prj_lines=PROJECT_CONFIG_LINES, 
         iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
-        merge_table_lines=MERGE_TABLE_LINES,
+        sample_subannotation_lines=SAMPLE_SUBANNOTATION_LINES,
         annotation_lines=SAMPLE_ANNOTATION_LINES,
         project_kwargs=None, logger_kwargs=None):
     """
@@ -269,7 +269,7 @@ def interactive(
 
     :param Iterable[str] prj_lines: project config lines
     :param Iterable[str] iface_lines: pipeline interface config lines
-    :param Iterable[str] merge_table_lines: lines for a merge table file
+    :param Iterable[str] sample_subannotation_lines: lines for a merge table file
     :param Iterable[str] annotation_lines: lines for a sample annotations file
     :param dict project_kwargs: keyword arguments for Project constructor
     :param dict logger_kwargs: keyword arguments for logging configuration
@@ -289,8 +289,8 @@ def interactive(
     path_iface_file = _write_temp(
         iface_lines,
         dirpath=dirpath, fname="pipeline_interface.yaml")
-    path_merge_table_file = _write_temp(
-        merge_table_lines,
+    path_sample_subannotation_file = _write_temp(
+        sample_subannotation_lines,
         dirpath=dirpath, fname=MERGE_TABLE_FILENAME
     )
     path_sample_annotation_file = _write_temp(
@@ -300,7 +300,7 @@ def interactive(
 
     prj = Project(path_conf_file, **(project_kwargs or {}))
     for path in [path_conf_file, path_iface_file,
-                 path_merge_table_file, path_sample_annotation_file]:
+                 path_sample_subannotation_file, path_sample_annotation_file]:
         os.unlink(path)
     return prj
 
@@ -424,8 +424,8 @@ def write_project_files(request):
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
                                  dirpath=dirpath, fname=P_CONFIG_FILENAME)
-    path_merge_table_file = _write_temp(
-            MERGE_TABLE_LINES,
+    path_sample_subannotation_file = _write_temp(
+            SAMPLE_SUBANNOTATION_LINES,
             dirpath=dirpath, fname=MERGE_TABLE_FILENAME
     )
     path_sample_annotation_file = _write_temp(
@@ -433,10 +433,11 @@ def write_project_files(request):
             dirpath=dirpath, fname=ANNOTATIONS_FILENAME
     )
     request.cls.project_config_file = path_conf_file
-    request.cls.merge_table_file = path_merge_table_file
+    request.cls.sample_subannotation_file = path_sample_subannotation_file
     request.cls.sample_annotation_file = path_sample_annotation_file
     _write_test_data_files(tempdir=dirpath)
-    yield path_conf_file, path_merge_table_file, path_sample_annotation_file
+    yield path_conf_file, path_sample_subannotation_file, \
+          path_sample_annotation_file
     shutil.rmtree(dirpath)
 
 

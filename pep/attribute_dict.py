@@ -222,7 +222,7 @@ def include_in_repr(attr, klazz):
     """
     # TODO: try to leverage the class hierarchy to determine these exclusions.
     ad_metadata = list(ATTRDICT_METADATA.keys())
-    project_specific_exclusions = ["_samples", "merge_table", "sheet",
+    project_specific_exclusions = ["_samples", "sample_subannotation", "sheet",
                                    "interfaces_by_protocol"]
     exclusions_by_class = {
             "AttributeDict": ad_metadata,

@@ -791,9 +791,9 @@ class Sample(AttributeDict):
             return name == "prj"
 
 
-        def obj2dict(obj, name=None,
-                     to_skip=(
-                     "merge_table", "samples", "sheet", "sheet_attributes")):
+        def obj2dict(obj, name=None, 
+                     to_skip=("sample_subannotation", "samples", 
+                              "sheet", "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
@@ -884,12 +884,12 @@ class Sample(AttributeDict):
 
 
 
-def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
+def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None):
     """
     Use merge table data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
-    :param merge_table: data with which to alter Sample
+    :param sample_subann: data with which to alter Sample
     :param Mapping data_sources: collection of named paths to data locations,
         optional
     :param Iterable[str] derived_columns: names of columns for which
@@ -899,11 +899,11 @@ def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
 
     merged_attrs = {}
 
-    if merge_table is None:
+    if sample_subann is None:
         _LOGGER.log(5, "No data for sample merge, skipping")
         return merged_attrs
 
-    if SAMPLE_NAME_COLNAME not in merge_table.columns:
+    if SAMPLE_NAME_COLNAME not in sample_subann.columns:
         raise KeyError(
             "Merge table requires a column named '{}'.".
                 format(SAMPLE_NAME_COLNAME))
@@ -917,8 +917,8 @@ def merge_sample(sample, merge_table, data_sources=None, derived_columns=None):
                   format(derived_columns))
 
     sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
-    sample_indexer = merge_table[SAMPLE_NAME_COLNAME] == sample_name
-    this_sample_rows = merge_table[sample_indexer]
+    sample_indexer = sample_subann[SAMPLE_NAME_COLNAME] == sample_name
+    this_sample_rows = sample_subann[sample_indexer]
     if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
         return merged_attrs
