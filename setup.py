@@ -50,15 +50,22 @@ scripts = None
 with open("pep/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
+
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except(IOError, ImportError):
+    long_description = open('README.md').read()
+
 setup(
     name="pep",
     packages=["pep"],
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
-    long_description=open('README.md').read(),
+    long_description=long_description,
     classifiers=[
         "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: BSD-2 License",
+        "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
         "Topic :: Scientific/Engineering :: Bio-Informatics"

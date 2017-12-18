@@ -10,5 +10,5 @@ For reference documentation regarding the standard PEP format, please visit [pep
 
 # pep and looper
 
-The `pep` package was originally developed in conjuction with [`looper`](http://github.com/pepkit/looper), a pipeline submission engine. The two projects have now been divided so that `pep` can be used independently of `looper`. `looper` imports `pep` to handle its project metadata loading and is therefore compatible with standard **PEP** format.
+The `pep` package was originally developed in conjuction with [looper](http://github.com/pepkit/looper), a pipeline submission engine. The two projects have now been divided so that `pep` can be used independently of `looper`. `looper` imports `pep` to handle its project metadata loading and is therefore compatible with standard **PEP** format.
 
