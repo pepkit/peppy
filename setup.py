@@ -70,7 +70,7 @@ setup(
         "Programming Language :: Python :: 3.4",
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
-    keywords="bioinformatics, sequencing, ngs, workflow, project, metadata",
+    keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
     url="https://pepkit.github.io",
     author=u"Nathan Sheffield, Vince Reuter, Andre Rendeiro",
     license="BSD2",
