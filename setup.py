@@ -64,7 +64,7 @@ setup(
     ],
     keywords="bioinformatics, sequencing, ngs, workflow",
     url="https://pepkit.github.io",
-    author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
+    author=u"Nathan Sheffield, Vince Reuter, Andre Rendeiro",
     license="GPL2",
     scripts=scripts,
     test_suite="tests",
