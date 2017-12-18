@@ -63,7 +63,7 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
     keywords="bioinformatics, sequencing, ngs, workflow",
-    url="https://github.com/pepkit/pep",
+    url="https://pepkit.github.io",
     author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
     license="GPL2",
     scripts=scripts,
