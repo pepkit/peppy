@@ -54,7 +54,7 @@ setup(
     name="pep",
     packages=["pep"],
     version=version,
-    description="",
+    description="A python-based project metadata manager for portable encapsulated projects",
     long_description=open('README.md').read(),
     classifiers=[
         "Development Status :: 3 - Alpha",
