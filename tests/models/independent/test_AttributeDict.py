@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import yaml
 
-from pep.attribute_dict import \
+from peppy.attribute_dict import \
     AttributeDict, ATTRDICT_METADATA, _MetadataOperationException
 from tests.conftest import basic_entries, nested_entries, COMPARISON_FUNCTIONS
 from tests.helpers import assert_entirely_equal

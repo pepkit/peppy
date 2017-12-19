@@ -13,10 +13,10 @@ import pytest
 import yaml
 
 import pep
-from pep import \
+from peppy import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from pep.utils import alpha_cased
+from peppy.utils import alpha_cased
 from tests.conftest import \
         NGS_SAMPLE_INDICES, NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
 from tests.helpers import named_param

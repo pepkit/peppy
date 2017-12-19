@@ -1,7 +1,7 @@
 """ Tests for specific exception conditions that may arise. """
 
 import pytest
-from pep.attribute_dict import AttributeDict
+from peppy.attribute_dict import AttributeDict
 
 
 __author__ = "Vince Reuter"

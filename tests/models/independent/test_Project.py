@@ -10,10 +10,10 @@ import pytest
 import yaml
 
 import pep
-from pep import AttributeDict, Project, Sample
-from pep.const import SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from pep.project import _MissingMetadataException
-from pep.sample import COL_KEY_SUFFIX
+from peppy import AttributeDict, Project, Sample
+from peppy.const import SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from peppy.project import _MissingMetadataException
+from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     MERGED_SAMPLE_INDICES, NUM_SAMPLES

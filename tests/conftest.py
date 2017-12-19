@@ -19,7 +19,7 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from pep import \
+from peppy import \
     setup_pep_logger, Project, SAMPLE_NAME_COLNAME
 
 

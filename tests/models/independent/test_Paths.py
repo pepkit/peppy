@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from pep.sample import Paths
+from peppy.sample import Paths
 from tests.helpers import assert_entirely_equal
 
 

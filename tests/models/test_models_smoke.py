@@ -3,7 +3,7 @@
 import logging
 import pytest
 import pep
-from pep import AttributeDict, Project
+from peppy import AttributeDict, Project
 
 
 __author__ = "Vince Reuter"

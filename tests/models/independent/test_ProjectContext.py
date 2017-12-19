@@ -2,7 +2,7 @@
 
 import pytest
 import yaml    # TODO: remove once project can take raw config data?
-from pep import Project, ProjectContext, Sample
+from peppy import Project, ProjectContext, Sample
 
 
 __author__ = "Vince Reuter"

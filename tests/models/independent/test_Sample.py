@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 import pep
-from pep import \
+from peppy import \
     AttributeDict, Sample, DATA_SOURCE_COLNAME, \
     DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
 from tests.helpers import named_param
