@@ -39,7 +39,7 @@ if not logging.getLogger().handlers:
 
 
 
-def setup_pep_logger(level, additional_locations=None, devmode=False):
+def setup_peppy_logger(level, additional_locations=None, devmode=False):
     """
     Establish a logger for a pe.
 

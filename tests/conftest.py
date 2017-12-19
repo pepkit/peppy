@@ -20,7 +20,7 @@ import pytest
 import yaml
 
 from peppy import \
-    setup_pep_logger, Project, SAMPLE_NAME_COLNAME
+    setup_peppy_logger, Project, SAMPLE_NAME_COLNAME
 
 
 _LOGGER = logging.getLogger("peppy")
@@ -209,7 +209,7 @@ def pytest_generate_tests(metafunc):
 def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
-    setup_pep_logger(level=level, devmode=True)
+    setup_peppy_logger(level=level, devmode=True)
     logging.getLogger("peppy").info(
         "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
@@ -279,7 +279,7 @@ def interactive(
     # Establish logging for interactive session.
     pep_logger_kwargs = {"level": "DEBUG"}
     pep_logger_kwargs.update(logger_kwargs or {})
-    setup_pep_logger(**pep_logger_kwargs)
+    setup_peppy_logger(**pep_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
