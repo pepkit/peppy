@@ -47,7 +47,7 @@ def get_static(name, condition=None):
 # scripts removed (TO remove this)
 scripts = None
 
-with open("pep/_version.py", 'r') as versionfile:
+with open("peppy/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
 
@@ -58,8 +58,8 @@ except(IOError, ImportError):
     long_description = open('README.md').read()
 
 setup(
-    name="pep",
-    packages=["pep"],
+    name="peppy",
+    packages=["peppy"],
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,

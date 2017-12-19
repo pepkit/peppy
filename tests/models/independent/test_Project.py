@@ -9,7 +9,7 @@ from numpy import random as nprand
 import pytest
 import yaml
 
-import pep
+import peppy
 from peppy import AttributeDict, Project, Sample
 from peppy.const import SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from peppy.project import _MissingMetadataException
@@ -260,14 +260,14 @@ class ProjectDefaultEnvironmentSettingsTests:
         logfile = tmpdir.join("project-error-messages.log").strpath
         expected_error_message_handler = logging.FileHandler(logfile, mode='w')
         expected_error_message_handler.setLevel(logging.ERROR)
-        pep.project._LOGGER.handlers.append(expected_error_message_handler)
+        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
 
         # Create Project, expecting to generate error messages.
         project = Project(minimal_project_conf_path,
                           default_compute=misnamed_envconf)
 
         # Remove the temporary message handler.
-        del pep.project._LOGGER.handlers[-1]
+        del peppy.project._LOGGER.handlers[-1]
 
         # Ensure nulls for all relevant Project attributes.
         self._assert_null_compute_environment(project)
@@ -384,7 +384,7 @@ class DerivedColumnsTests:
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
-        with mock.patch("pep.project.check_sample_sheet"):
+        with mock.patch("peppy.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
         return expected_derived_columns, project
 
@@ -597,7 +597,7 @@ class ProjectPipelineArgstringTests:
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
 
         # Subvert requirement for sample annotations file.
-        with mock.patch("pep.project.check_sample_sheet"):
+        with mock.patch("peppy.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
 
         argstring = project.get_arg_string(pipeline)

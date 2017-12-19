@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 import yaml
 
-import pep
+import peppy
 from peppy import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME

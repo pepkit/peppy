@@ -59,7 +59,7 @@ copyright = u'2017, pepkit'
 # built documents.
 #
 # The short X.Y version.
-version = open(os.path.join("..", "..", "pep", "_version.py")).read().strip().split(" ")[-1].strip('"')
+version = open(os.path.join("..", "..", "peppy", "_version.py")).read().strip().split(" ")[-1].strip('"')
 # The full version, including alpha/beta/rc tags.
 release = version
 

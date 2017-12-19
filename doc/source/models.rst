@@ -5,9 +5,9 @@ Project models
 
 .. code-block:: python
 
-	import pep
+	import peppy
 
-	my_project = pep.Project("path/to/project_config.yaml")
+	my_project = peppy.Project("path/to/project_config.yaml")
 	my_samples = my_project.samples
 
 Once you have your project and samples in your Python session, the possibilities are endless. For example, one way we use these objects is for post-pipeline processing. After we use looper to run each sample through its pipeline, we can load the project and it sample objects into an analysis session, where we do comparisons across samples.

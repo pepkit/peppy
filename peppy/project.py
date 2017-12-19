@@ -1115,8 +1115,8 @@ def check_sample_sheet(sample_file, dtype=str):
     # and/or 'None' as an argument for an option in the pipeline command
     # that's generated from a Sample's attributes.
     #
-    # See https://github.com/pepkit/pep/issues/159 for the original issue
-    # and https://github.com/pepkit/pep/pull/160 for the pull request
+    # See https://github.com/pepkit/peppy/issues/159 for the original issue
+    # and https://github.com/pepkit/peppy/pull/160 for the pull request
     # that resolved it.
     df = pd.read_table(sample_file, sep=None, dtype=dtype,
                        index_col=False, engine="python", keep_default_na=False)

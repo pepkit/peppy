@@ -59,7 +59,7 @@ def setup_pep_logger(level, additional_locations=None, devmode=False):
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
-    LOOPER_LOGGER = logging.getLogger("pep")
+    LOOPER_LOGGER = logging.getLogger("peppy")
     # First remove any previously-added handlers
     LOOPER_LOGGER.handlers = []
     LOOPER_LOGGER.propagate = False

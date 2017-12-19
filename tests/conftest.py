@@ -23,7 +23,7 @@ from peppy import \
     setup_pep_logger, Project, SAMPLE_NAME_COLNAME
 
 
-_LOGGER = logging.getLogger("pep")
+_LOGGER = logging.getLogger("peppy")
 
 
 P_CONFIG_FILENAME = "project_config.yaml"
@@ -210,11 +210,11 @@ def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
     setup_pep_logger(level=level, devmode=True)
-    logging.getLogger("pep").info(
+    logging.getLogger("peppy").info(
         "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
     global _LOGGER
-    _LOGGER = logging.getLogger("pep.{}".format(__name__))
+    _LOGGER = logging.getLogger("peppy.{}".format(__name__))
 
 
 
@@ -510,7 +510,7 @@ def proj(request):
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
-    :return pep.Project: object created by parsing
+    :return peppy.Project: object created by parsing
         data in file pointed to by `request` class
     """
     p = _create(request, Project)
