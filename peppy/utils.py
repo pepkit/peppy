@@ -345,34 +345,6 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
 
 
 
-def partition(items, test):
-    """
-    Partition items into a pair of disjoint multisets,
-    based on the evaluation of each item as input to boolean test function.
-    There are a couple of evaluation options here. One builds a mapping
-    (assuming each item is hashable) from item to boolean test result, then
-    uses that mapping to partition the elements on a second pass.
-    The other simply is single-pass, evaluating the function on each item.
-    A time-costly function suggests the two-pass, mapping-based approach while
-    a large input suggests a single-pass approach to conserve memory. We'll
-    assume that the argument is not terribly large and that the function is
-    cheap to compute and use a simpler single-pass approach.
-
-    :param Sized[object] items: items to partition
-    :param function(object) -> bool test: test to apply to each item to
-        perform the partitioning procedure
-    :return: list[object], list[object]: partitioned items sequences
-    """
-    passes, fails = [], []
-    _LOGGER.log(5, "Testing {} items: {}".format(len(items), items))
-    for item in items:
-        _LOGGER.log(5, "Testing item {}".format(item))
-        group = passes if test(item) else fails
-        group.append(item)
-    return passes, fails
-
-
-
 def sample_folder(prj, sample):
     """
     Get the path to this Project's root folder for the given Sample.

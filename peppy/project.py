@@ -47,9 +47,7 @@ Explore:
 
 """
 
-from collections import Counter, defaultdict, namedtuple
-from functools import partial
-import itertools
+from collections import Counter
 import logging
 import os
 import sys
@@ -68,8 +66,7 @@ from .const import \
     SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, alpha_cased, copy, fetch_samples, \
-    is_command_callable, is_url, partition
+    add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -475,162 +472,6 @@ class Project(AttributeDict):
             else:
                 _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
         return pd.DataFrame(include_samples)
-
-
-    def build_submission_bundles(self, protocol, priority=True):
-        """
-        Create pipelines to submit for each sample of a particular protocol.
-
-        With the argument (flag) to the priority parameter, there's control
-        over whether to submit pipeline(s) from only one of the project's
-        known pipeline locations with a match for the protocol, or whether to
-        submit pipelines created from all locations with a match for the
-        protocol.
-
-        :param str protocol: name of the protocol/library for which to
-            create pipeline(s)
-        :param bool priority: to only submit pipeline(s) from the first of the
-            pipelines location(s) (indicated in the project config file) that
-            has a match for the given protocol; optional, default True
-        :return Iterable[(PipelineInterface, type, str, str)]:
-        :raises AssertionError: if there's a failure in the attempt to
-            partition an interface's pipeline scripts into disjoint subsets of
-            those already mapped and those not yet mapped
-        """
-
-        if not priority:
-            raise NotImplementedError(
-                "Currently, only prioritized protocol mapping is supported "
-                "(i.e., pipeline interfaces collection is a prioritized list, "
-                "so only the first interface with a protocol match is used.)")
-
-        # Pull out the collection of interfaces (potentially one from each of
-        # the locations indicated in the project configuration file) as a
-        # sort of pool of information about possible ways in which to submit
-        # pipeline(s) for sample(s) of the indicated protocol.
-        try:
-            protocol_interfaces = \
-                self.interfaces_by_protocol[protocol]
-        except KeyError:
-            # Messaging can be done by the caller.
-            return []
-
-        job_submission_bundles = []
-        pipeline_keys_used = set()
-        _LOGGER.debug("Building pipelines for {} PIs...".
-                      format(len(protocol_interfaces)))
-
-        bundle_by_strict_pipe_key = {}
-
-        for proto_iface in protocol_interfaces:
-            # "Break"-like mechanism for short-circuiting if we care only
-            # about the highest-priority match for pipeline submission.
-            # That is, if the intent is to submit pipeline(s) from a single
-            # location for each sample of the given protocol, we can stop
-            # searching the pool of pipeline interface information once we've
-            # found a match for the protocol.
-            if priority and len(job_submission_bundles) > 0:
-                return job_submission_bundles[0]
-
-            this_protocol_pipelines = proto_iface.fetch_pipelines(protocol)
-            if not this_protocol_pipelines:
-                continue
-
-            # TODO: update once dependency-encoding logic is in place.
-            # The proposed dependency-encoding format uses a semicolon
-            # between pipelines for which the dependency relationship is
-            # serial. For now, simply treat those as multiple independent
-            # pipelines by replacing the semicolon with a comma, which is the
-            # way in which multiple independent pipelines for a single protocol
-            # are represented in the mapping declaration.
-            pipeline_keys = \
-                this_protocol_pipelines.replace(";", ",") \
-                    .strip(" ()\n") \
-                    .split(",")
-            # These cleaned pipeline keys are what's used to resolve the path
-            # to the pipeline to run.
-            pipeline_keys = [pk.strip() for pk in pipeline_keys]
-
-            # Skip over pipelines already mapped by another location.
-            already_mapped, new_scripts = \
-                partition(pipeline_keys,
-                          partial(_is_member, items=pipeline_keys_used))
-            pipeline_keys_used |= set(pipeline_keys)
-
-            # Attempt to validate that partition yielded disjoint subsets.
-            try:
-                disjoint_partition_violation = \
-                    set(already_mapped) & set(new_scripts)
-            except TypeError:
-                _LOGGER.debug("Unable to hash partitions for validation")
-            else:
-                assert not disjoint_partition_violation, \
-                    "Partitioning {} with membership in {} as " \
-                    "predicate produced intersection: {}".format(
-                        pipeline_keys, pipeline_keys_used,
-                        disjoint_partition_violation)
-
-            if len(already_mapped) > 0:
-                _LOGGER.debug("Skipping {} already-mapped script name(s): {}".
-                              format(len(already_mapped), already_mapped))
-            _LOGGER.debug("{} new scripts for protocol {} from "
-                          "pipeline(s) location '{}': {}".
-                          format(len(new_scripts), protocol,
-                                 proto_iface.source, new_scripts))
-
-            pl_iface = proto_iface.pipe_iface
-
-            # For each pipeline script to which this protocol will pertain,
-            # create the new jobs/submission bundles.
-            new_jobs = []
-            for pipeline_key in new_scripts:
-                # Determine how to reference the pipeline and where it is.
-                strict_pipe_key, full_pipe_path, full_pipe_path_with_flags = \
-                    proto_iface.finalize_pipeline_key_and_paths(
-                        pipeline_key)
-
-                # Skip and warn about nonexistent alleged pipeline path.
-                if not (os.path.exists(full_pipe_path) or
-                            is_command_callable(full_pipe_path)):
-                    _LOGGER.warn("Missing pipeline script: '%s'",
-                                 full_pipe_path)
-                    continue
-
-                # Determine which interface and Sample subtype to use.
-                sample_subtype = \
-                    proto_iface.fetch_sample_subtype(
-                        protocol, strict_pipe_key, full_pipe_path)
-
-                # Package the pipeline's interface, subtype, command, and key.
-                submission_bundle = SubmissionBundle(
-                    pl_iface, sample_subtype, strict_pipe_key,
-                    full_pipe_path_with_flags)
-
-                # Enforce bundle unqiueness for each strict pipeline key.
-                maybe_new_bundle = (full_pipe_path_with_flags,
-                                    sample_subtype, pl_iface)
-                old_bundle = bundle_by_strict_pipe_key.setdefault(
-                    strict_pipe_key, maybe_new_bundle)
-                if old_bundle != maybe_new_bundle:
-                    errmsg = "Strict pipeline key '{}' maps to more than " \
-                             "one combination of pipeline script + flags, " \
-                             "sample subtype, and pipeline interface. " \
-                             "'{}'\n{}".format(
-                        strict_pipe_key, maybe_new_bundle, old_bundle)
-                    raise ValueError(errmsg)
-
-                # Add this bundle to the collection of ones relevant for the
-                # current ProtocolInterface.
-                new_jobs.append(submission_bundle)
-
-            job_submission_bundles.append(new_jobs)
-
-        # Repeat logic check of short-circuit conditional to account for
-        # edge case in which it's satisfied during the final iteration.
-        if priority and len(job_submission_bundles) > 1:
-            return job_submission_bundles[0]
-        else:
-            return list(itertools.chain(*job_submission_bundles))
 
 
     def _check_unique_samples(self):
@@ -1128,20 +969,6 @@ def check_sample_sheet(sample_file, dtype=str):
                 format(sample_file, "\n".join(missing),
                        ", ".join(list(df.columns))))
     return df
-
-
-
-# Collect PipelineInterface, Sample type, pipeline path, and script with flags.
-SubmissionBundle = namedtuple(
-    "SubmissionBundle",
-    field_names=["interface", "subtype", "pipeline", "pipeline_with_flags"])
-SUBMISSION_BUNDLE_PIPELINE_KEY_INDEX = 2
-
-
-
-def _is_member(item, items):
-    """ Determine whether an iterm is a member of a collection. """
-    return item in items
 
 
 
