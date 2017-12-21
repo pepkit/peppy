@@ -1,11 +1,13 @@
 Changelog
 ******************************
 
-- **v0.17** (*2017-12-21*):
+- **v0.17.1** (*2017-12-21*):
 
   - Changed
 
-    - No change; version bump for first Pypi release
+    - Version bump for first pypi release
+
+    - Fixed bug with packaging for pypi release
 
 
 - **v0.9** (*2017-12-21*):
