@@ -2,18 +2,18 @@
 Installing and Hello, World!
 =====================================
 
-Release versions are posted on the GitHub `pep releases page <https://github.com/pepkit/pep/releases>`_. You can install the latest release directly from GitHub using pip:
+Release versions are posted on the GitHub `pep releases page <https://github.com/pepkit/peppy/releases>`_. You can install the latest release directly from GitHub using pip:
 
 .. code-block:: bash
 
-	pip install --user https://github.com/pepkit/pep/zipball/master
+	pip install --user https://github.com/pepkit/peppy/zipball/master
 
 
 Update pep with:
 
 .. code-block:: bash
 
-	pip install --user --upgrade https://github.com/pepkit/pep/zipball/master
+	pip install --user --upgrade https://github.com/pepkit/peppy/zipball/master
 
 
 Now, to test pep, let's grab an clone an example project that follows PEP format:
@@ -28,9 +28,9 @@ enter the following commands within a python interactive session:
 
 .. code-block:: python
 
-	import pep
+	import peppy
 
-	my_project = pep.Project("microtest/config/microtest_config.yaml")
+	my_project = peppy.Project("microtest/config/microtest_config.yaml")
 	my_samples = my_project.samples
 
 

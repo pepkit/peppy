@@ -7,6 +7,12 @@ import os
 import random
 import string
 import subprocess as sp
+import sys
+if sys.version_info < (3, 0):
+    from urlparse import urlparse
+else:
+    from urllib.parse import urlparse
+
 
 import yaml
 
@@ -106,6 +112,19 @@ def check_sample_sheet_row_count(sheet, filepath):
 
 
 
+def copy(obj):
+    def copy(self):
+        """
+        Copy self to a new object.
+        """
+        from copy import deepcopy
+
+        return deepcopy(self)
+    obj.copy = copy
+    return obj
+
+
+
 def expandpath(path):
     """
     Expand a filesystem path that may or may not contain user/env vars.
@@ -137,6 +156,63 @@ def get_file_size(filename):
         return 0.0
     else:
         return float(total_bytes) / (1024 ** 3)
+
+
+
+def fetch_samples(proj, inclusion=None, exclusion=None):
+    """
+    Collect samples of particular protocol(s).
+
+    Protocols can't be both positively selected for and negatively
+    selected against. That is, it makes no sense and is not allowed to
+    specify both inclusion and exclusion protocols. On the other hand, if
+    neither is provided, all of the Project's Samples are returned.
+    If inclusion is specified, Samples without a protocol will be excluded,
+    but if exclusion is specified, protocol-less Samples will be included.
+
+    :param Project proj: the Project with Samples to fetch
+    :param Iterable[str] | str inclusion: protocol(s) of interest;
+        if specified, a Sample must
+    :param Iterable[str] | str exclusion: protocol(s) to include
+    :return list[Sample]: Collection of this Project's samples with
+        protocol that either matches one of those in inclusion, or either
+        lacks a protocol or does not match one of those in exclusion
+    :raise TypeError: if both inclusion and exclusion protocols are
+        specified; TypeError since it's basically providing two arguments
+        when only one is accepted, so remain consistent with vanilla Python2
+    """
+
+    # Intersection between inclusion and exclusion is nonsense user error.
+    if inclusion and exclusion:
+        raise TypeError("Specify only inclusion or exclusion protocols, "
+                         "not both.")
+
+    if not inclusion and not exclusion:
+        # Simple; keep all samples.  In this case, this function simply
+        # offers a list rather than an iterator.
+        return list(proj.samples)
+
+    # Ensure that we're working with sets.
+    def make_set(items):
+        if isinstance(items, str):
+            items = [items]
+        return {alpha_cased(i) for i in items}
+
+    # Use the attr check here rather than exception block in case the
+    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # an exception to arise, not to catch it as if the Sample lacks "protocol"
+    if not inclusion:
+        # Loose; keep all samples not in the exclusion.
+        def keep(s):
+            return not hasattr(s, "protocol") or \
+                   alpha_cased(s.protocol) not in make_set(exclusion)
+    else:
+        # Strict; keep only samples in the inclusion.
+        def keep(s):
+            return hasattr(s, "protocol") and \
+                   alpha_cased(s.protocol) in make_set(inclusion)
+
+    return list(filter(keep, proj.samples))
 
 
 
@@ -208,6 +284,17 @@ def import_from_source(module_filepath):
 
 
 
+def is_url(maybe_url):
+    """
+    Determine whether a path is a URL.
+
+    :param str maybe_url: path to investigate as URL
+    :return bool: whether path appears to be a URL
+    """
+    return urlparse(maybe_url).scheme != ""
+
+
+
 def parse_ftype(input_file):
     """
     Checks determine filetype from extension.
@@ -255,34 +342,6 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
     else:
         raise ValueError("Unable to parse as data lines {} ({})".
                          format(lines_or_path, type(lines_or_path)))
-
-
-
-def partition(items, test):
-    """
-    Partition items into a pair of disjoint multisets,
-    based on the evaluation of each item as input to boolean test function.
-    There are a couple of evaluation options here. One builds a mapping
-    (assuming each item is hashable) from item to boolean test result, then
-    uses that mapping to partition the elements on a second pass.
-    The other simply is single-pass, evaluating the function on each item.
-    A time-costly function suggests the two-pass, mapping-based approach while
-    a large input suggests a single-pass approach to conserve memory. We'll
-    assume that the argument is not terribly large and that the function is
-    cheap to compute and use a simpler single-pass approach.
-
-    :param Sized[object] items: items to partition
-    :param function(object) -> bool test: test to apply to each item to
-        perform the partitioning procedure
-    :return: list[object], list[object]: partitioned items sequences
-    """
-    passes, fails = [], []
-    _LOGGER.log(5, "Testing {} items: {}".format(len(items), items))
-    for item in items:
-        _LOGGER.log(5, "Testing item {}".format(item))
-        group = passes if test(item) else fails
-        group.append(item)
-    return passes, fails
 
 
 

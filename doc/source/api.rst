@@ -1,7 +1,7 @@
 API
 ===
 
-pep.models
+peppy.models
 -----------------------
-.. automodule:: pep.models
+.. automodule:: peppy.models
     :members:

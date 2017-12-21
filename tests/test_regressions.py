@@ -1,7 +1,7 @@
 """ Tests for specific exception conditions that may arise. """
 
 import pytest
-from pep.models import AttributeDict
+from peppy.attribute_dict import AttributeDict
 
 
 __author__ = "Vince Reuter"
@@ -15,8 +15,10 @@ def ad():
 
 
 def test_attrdict_empty_in(ad):
-    assert not 'a' in ad
+    """ Membership test returns False when the AttributeDict is empty. """
+    assert 'a' not in ad
 
 
 def test_attrdict_empty_notin(ad):
+    """ Membership test returns False when requested item is missing. """
     assert 'a' not in ad

@@ -2,8 +2,8 @@
 
 import logging
 import pytest
-import pep
-from pep.models import AttributeDict, Project
+import peppy
+from peppy import AttributeDict, Project
 
 
 __author__ = "Vince Reuter"
@@ -60,13 +60,12 @@ class ModelRepresentationSmokeTests:
 
     @pytest.mark.parametrize(
             argnames="class_name",
-            argvalues=[cn for cn in pep.models.__classes__
-                       if cn != "Project"])
+            argvalues=[cn for cn in peppy.__classes__ if cn != "Project"])
     def test_repr_smoke(
             self, tmpdir, class_name, basic_instance_data, funcname):
         """ Object representation method successfully returns string. """
         # Note that tmpdir is used when config file needs to be written.
-        cls = getattr(pep.models, class_name)
+        cls = getattr(peppy, class_name)
         instance = cls(basic_instance_data)
         func = getattr(instance, funcname)
         result = func.__call__()

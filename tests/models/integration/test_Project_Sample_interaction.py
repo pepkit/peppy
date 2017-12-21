@@ -2,7 +2,9 @@
 
 from collections import OrderedDict
 import copy
+from functools import partial
 import itertools
+import logging
 import os
 import random
 
@@ -10,10 +12,14 @@ import pandas as pd
 import pytest
 import yaml
 
-from pep.models import \
+import peppy
+from peppy import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from pep.utils import alpha_cased
+from peppy.utils import alpha_cased
+from tests.conftest import \
+        NGS_SAMPLE_INDICES, NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
+from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
@@ -255,3 +261,6 @@ def project(request, tmpdir, env_config_filepath):
         yaml.safe_dump(config_data, conf_file)
 
     return Project(conf_path, default_compute=env_config_filepath)
+
+
+
