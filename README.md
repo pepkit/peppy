@@ -8,6 +8,13 @@ Complete documentation and API for the `peppy` python package is at [peppy.readt
 
 Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
 
+# Quick start
+
+`peppy` is hosted on pypi. Install with:
+```
+pip install --user peppy
+```
+
 # peppy and looper
 
 The `peppy` package was originally developed in conjuction with [`looper`](http://github.com/pepkit/looper), a pipeline submission engine. The two projects have now been divided so that `peppy` can be used independently of `looper`. `looper` imports `peppy` to handle its project metadata loading and is therefore compatible with standard **PEP** format.
