@@ -4,7 +4,7 @@
 
 `peppy` is the official python package for handling **Portable Encapsulated Projects** or **PEP**s. **PEP** is a standardized format for describing sample-intensive project metadata. `peppy` provides a python API for this format to load **PEP**-formatted metadata into python.
 
-Complete documentation and API for the `peppy` python package is at [pep.readthedocs.io](http://peppy.readthedocs.io/).
+Complete documentation and API for the `peppy` python package is at [peppy.readthedocs.io](http://peppy.readthedocs.io/).
 
 Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
 
