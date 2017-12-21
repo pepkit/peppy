@@ -1,6 +1,6 @@
 # peppy python package
 
-[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://peppy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/pepkit/pep.svg?branch=master)](https://travis-ci.org/pepkit/peppy)
+[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://peppy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/pepkit/peppy.svg?branch=master)](https://travis-ci.org/pepkit/peppy)
 
 `peppy` is the official python package for handling **Portable Encapsulated Projects** or **PEP**s. **PEP** is a standardized format for describing sample-intensive project metadata. `peppy` provides a python API for this format to load **PEP**-formatted metadata into python.
 
