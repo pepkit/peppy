@@ -3,13 +3,21 @@
 import copy
 import logging
 import os
+
 import mock
+from numpy import random as nprand
 import pytest
 import yaml
-import pep
-from pep.models import \
-        AttributeDict, Project, Sample, _MissingMetadataException, \
-        SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+
+import peppy
+from peppy import AttributeDict, Project, Sample
+from peppy.const import SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from peppy.project import _MissingMetadataException
+from peppy.sample import COL_KEY_SUFFIX
+from tests.conftest import \
+    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
+    MERGED_SAMPLE_INDICES, NUM_SAMPLES
+from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
@@ -19,6 +27,7 @@ __email__ = "vreuter@virginia.edu"
 
 @pytest.fixture(scope="function")
 def project_config_data():
+    """ Provide some basic data for a Project configuration. """
     return {
         "metadata": {
             SAMPLE_ANNOTATIONS_KEY: "sample-anns-filler.csv",
@@ -42,45 +51,6 @@ def pytest_generate_tests(metafunc):
 
 
 
-@pytest.mark.skip("Not implemented")
-class SubmissionBundleProtocolMappingTests:
-    """ Project must be able to resolve PipelineInterface from protocol. """
-
-
-    @pytest.fixture
-    def sample(self):
-        return Sample({SAMPLE_NAME_COLNAME: "basic_sample"})
-
-
-    @pytest.fixture
-    def pipeline_interface(self):
-        pass
-
-
-    @pytest.fixture
-    def sheet(self):
-        pass
-
-
-    @pytest.fixture
-    def prj(self):
-        pass
-
-
-
-    @pytest.mark.parametrize(argnames="has_generic", argvalues=[False, True])
-    def test_no_match(self, has_generic, sample):
-        """ No specific protocol match allows generic match if present. """
-        sample.protocol = ""
-
-
-    @pytest.mark.parametrize(argnames="priority", argvalues=[False, True])
-    def test_priority(self, priority, sample):
-        """ Flag determines behavior when multiple interfaces have protocol. """
-        pass
-
-
-
 class ProjectConstructorTests:
     """ Tests of Project constructor, particularly behavioral details. """
 
@@ -99,21 +69,21 @@ class ProjectConstructorTests:
     @pytest.mark.parametrize(
             argnames="lazy", argvalues=[False, True],
             ids=lambda lazy: "lazy={}".format(lazy))
-    def test_no_merge_table_in_config(
+    def test_no_sample_subannotation_in_config(
             self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
-        """ Merge table attribute remains null if config lacks merge_table. """
+        """ Merge table attribute remains null if config lacks subannotation. """
         metadata = proj_conf_data["metadata"]
         try:
-            assert "merge_table" in metadata
+            assert "sample_subannotation" in metadata
         except AssertionError:
-            print("Project metadata section lacks 'merge_table'")
+            print("Project metadata section lacks 'sample_subannotation'")
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
         if spec_type == "as_null":
-            metadata["merge_table"] = None
+            metadata["sample_subannotation"] = None
         elif spec_type == "missing":
-            del metadata["merge_table"]
+            del metadata["sample_subannotation"]
         else:
             raise ValueError("Unknown way to specify no merge table: {}".
                              format(spec_type))
@@ -121,11 +91,11 @@ class ProjectConstructorTests:
         with open(path_config_file, 'w') as conf_file:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
-        assert p.merge_table is None
+        assert p.sample_subannotation is None
 
 
     @pytest.mark.skip("Not implemented")
-    def test_merge_table_construction(
+    def test_sample_subannotation_construction(
             self, tmpdir, project_config_data):
         """ Merge table is constructed iff samples are constructed. """
         # TODO: implement
@@ -290,14 +260,14 @@ class ProjectDefaultEnvironmentSettingsTests:
         logfile = tmpdir.join("project-error-messages.log").strpath
         expected_error_message_handler = logging.FileHandler(logfile, mode='w')
         expected_error_message_handler.setLevel(logging.ERROR)
-        pep.models._LOGGER.handlers.append(expected_error_message_handler)
+        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
 
         # Create Project, expecting to generate error messages.
         project = Project(minimal_project_conf_path,
                           default_compute=misnamed_envconf)
 
         # Remove the temporary message handler.
-        del pep.models._LOGGER.handlers[-1]
+        del peppy.project._LOGGER.handlers[-1]
 
         # Ensure nulls for all relevant Project attributes.
         self._assert_null_compute_environment(project)
@@ -414,7 +384,7 @@ class DerivedColumnsTests:
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
-        with mock.patch("pep.models.check_sheet"):
+        with mock.patch("peppy.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
         return expected_derived_columns, project
 
@@ -627,7 +597,7 @@ class ProjectPipelineArgstringTests:
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
 
         # Subvert requirement for sample annotations file.
-        with mock.patch("pep.models.check_sheet"):
+        with mock.patch("peppy.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
 
         argstring = project.get_arg_string(pipeline)
@@ -681,6 +651,78 @@ class ProjectPipelineArgstringTests:
                 parsed_command_elements.add(cmd_elem)
 
         return parsed_command_elements
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class ProjectConstructorTest:
+
+
+    @pytest.mark.parametrize(argnames="attr_name",
+                             argvalues=["required_inputs", "all_input_attr"])
+    def test_sample_required_inputs_not_set(self, proj, attr_name):
+        """ Samples' inputs are not set in `Project` ctor. """
+        with pytest.raises(AttributeError):
+            getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
+
+
+    @pytest.mark.parametrize(argnames="sample_index",
+                             argvalues=MERGED_SAMPLE_INDICES)
+    def test_merge_samples_positive(self, proj, sample_index):
+        """ Samples annotation lines say only sample 'b' should be merged. """
+        assert proj.samples[sample_index].merged
+
+
+    @pytest.mark.parametrize(argnames="sample_index",
+                             argvalues=set(range(NUM_SAMPLES)) -
+                                       MERGED_SAMPLE_INDICES)
+    def test_merge_samples_negative(self, proj, sample_index):
+        assert not proj.samples[sample_index].merged
+
+
+    @pytest.mark.parametrize(argnames="sample_index",
+                             argvalues=MERGED_SAMPLE_INDICES)
+    def test_data_sources_derivation(self, proj, sample_index):
+        """ Samples in merge file, check data_sources --> derived_columns. """
+        # Make sure these columns were merged:
+        merged_columns = filter(
+                lambda col_key: (col_key != "col_modifier") and
+                                not col_key.endswith(COL_KEY_SUFFIX),
+                proj.samples[sample_index].merged_cols.keys())
+        # Order may be lost due to mapping.
+        # We don't care about that here, or about duplicates.
+        expected = set(DERIVED_COLNAMES)
+        observed = set(merged_columns)
+        assert expected == observed
+
+
+    @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
+    def test_derived_columns_sample_subannotation_sample(
+            self, proj, sample_index):
+        """ Make sure derived columns works on merged table. """
+        observed_merged_sample_filepaths = \
+            [os.path.basename(f) for f in
+             proj.samples[sample_index].file2.split(" ")]
+        assert EXPECTED_MERGED_SAMPLE_FILES == \
+               observed_merged_sample_filepaths
+
+
+    @named_param(argnames="sample_index",
+                 argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
+    def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
+        """ Samples not in the `sample_subannotation` lack merged columns. """
+        # Assert the negative to cover empty dict/AttributeDict/None/etc.
+        assert not proj.samples[sample_index].merged_cols
+
+
+    def test_duplicate_derived_columns_still_derived(self, proj):
+        """ Duplicated derived columns can still be derived. """
+        sample_index = 2
+        observed_nonmerged_col_basename = \
+            os.path.basename(proj.samples[sample_index].nonmerged_col)
+        assert "c.txt" == observed_nonmerged_col_basename
+        assert "" == proj.samples[sample_index].locate_data_source(
+                proj.data_sources, 'file')
 
 
 

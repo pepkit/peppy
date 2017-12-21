@@ -1,11 +1,14 @@
 """ Tests for utility functions """
 
 import copy
+
 import mock
 import pytest
-from pep.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
-from pep.models import AttributeDict, Project, Sample
-from pep.utils import add_project_sample_constants, grab_project_data
+
+from peppy import AttributeDict, Project, Sample
+from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from peppy.utils import \
+    add_project_sample_constants, copy as pepcopy, grab_project_data
 from tests.helpers import named_param, nonempty_powerset
 
 
@@ -165,3 +168,14 @@ class AddProjectSampleConstantsTests:
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]
+
+
+
+def test_copy():
+    """ Test reference and equivalence comparison operators. """
+    class ExampleObject:
+        pass
+    obj = ExampleObject()
+    new_obj = pepcopy(obj)
+    assert obj is new_obj
+    assert obj == new_obj

@@ -2,13 +2,15 @@
 
 import copy
 import os
-import yaml
+
 import mock
 import numpy as np
 from pandas import Series
 import pytest
-import pep
-from pep.models import \
+import yaml
+
+import peppy
+from peppy import \
     AttributeDict, Sample, DATA_SOURCE_COLNAME, \
     DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
 from tests.helpers import named_param
@@ -94,7 +96,7 @@ class ParseSampleImplicationsTests:
 
         :param _pytest.fixtures.SubRequest request: test case requesting 
             a Sample instance.
-        :return pep.models.Sample: basic Sample instance for a test case,
+        :return peppy.Sample: basic Sample instance for a test case,
             with the constructor's required attributes validator mocked 
             to ensure that an exception isn't raised.
         """
@@ -110,8 +112,8 @@ class ParseSampleImplicationsTests:
         # Mock the validation and return a new Sample.
         rubber_stamper = mock.MagicMock(return_value=[])
         with mock.patch(
-                "pep.models.Sample.check_valid", new=rubber_stamper):
-            mocked_sample = pep.models.Sample(data)
+                "peppy.sample.Sample.check_valid", new=rubber_stamper):
+            mocked_sample = peppy.Sample(data)
         return mocked_sample
 
 

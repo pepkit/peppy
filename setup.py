@@ -47,26 +47,35 @@ def get_static(name, condition=None):
 # scripts removed (TO remove this)
 scripts = None
 
-with open("pep/_version.py", 'r') as versionfile:
+with open("peppy/_version.py", 'r') as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
+
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except(IOError, ImportError):
+    long_description = open('README.md').read()
+
 setup(
-    name="pep",
-    packages=["pep"],
+    name="peppy",
+    packages=["peppy"],
     version=version,
-    description="",
-    long_description=open('README.md').read(),
+    description="A python-based project metadata manager for portable encapsulated projects",
+    long_description=long_description,
     classifiers=[
-        "Development Status :: 3 - Alpha",
-        "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+        "Development Status :: 4 - Beta",
+        "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.4",
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
-    keywords="bioinformatics, sequencing, ngs, workflow",
-    url="https://github.com/pepkit/pep",
-    author=u"Nathan Sheffield, Johanna Klughammer, Andre Rendeiro, Charles Dietz",
-    license="GPL2",
+    keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
+    url="https://pepkit.github.io",
+    author=u"Nathan Sheffield, Vince Reuter, Andre Rendeiro",
+    license="BSD2",
     scripts=scripts,
+    include_package_data=True,
     test_suite="tests",
     tests_require=(["mock", "pytest"]),
     setup_requires=(["pytest-runner"] if {"test", "pytest", "ptr"} & set(sys.argv) else []),

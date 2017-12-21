@@ -19,11 +19,11 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from pep import setup_pep_logger
-from pep.models import PipelineInterface, Project, SAMPLE_NAME_COLNAME
+from peppy import \
+    setup_peppy_logger, Project, SAMPLE_NAME_COLNAME
 
 
-_LOGGER = logging.getLogger("pep")
+_LOGGER = logging.getLogger("peppy")
 
 
 P_CONFIG_FILENAME = "project_config.yaml"
@@ -33,7 +33,7 @@ PROJECT_CONFIG_LINES = """metadata:
   sample_annotation: samples.csv
   output_dir: test
   pipeline_interfaces: pipelines
-  merge_table: merge.csv
+  sample_subannotation: merge.csv
 
 derived_columns: [{derived_column_names}]
 
@@ -115,7 +115,7 @@ _FILE_FILE2_BY_SAMPLE = [
         ["d-bamfile.bam", "d.txt"]
 ]
 # Values expected when accessing a proj.samples[<index>].file
-# file is mapped to data_source by sample annotations and merge_table.
+# file is mapped to data_source by sample annotations and subannotations.
 FILE_BY_SAMPLE = [
         ["a.txt"],
         ["b1.txt", "b2.txt", "b3.txt"],
@@ -138,7 +138,7 @@ d,testngs,src2,src3,human,,src3,
 NUM_SAMPLES = len(SAMPLE_ANNOTATION_LINES) - 1
 NGS_SAMPLE_INDICES = {3}
 
-MERGE_TABLE_LINES = """sample_name,file,file2,dcol1,col_modifier
+SAMPLE_SUBANNOTATION_LINES = """sample_name,file,file2,dcol1,col_modifier
 b,src1,src1,src1,1
 b,src1,src1,src1,2
 b,src1,src1,src1,3
@@ -146,7 +146,7 @@ b,src1,src1,src1,3
 
 # Only sample 'b' is merged, and it's in index-1 in the annotation lines.
 MERGED_SAMPLE_INDICES = {1}
-# In merge_table lines, file2 --> src1.
+# In sample subannotation lines, file2 --> src1.
 # In project config's data_sources section,
 # src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
@@ -154,10 +154,7 @@ EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
 
 # Discover name of attribute pointing to location of test config file based
 # on the type of model instance being requested in a test fixture.
-_ATTR_BY_TYPE = {
-    Project: "project_config_file",
-    PipelineInterface: "pipe_iface_config_file"
-}
+_ATTR_BY_TYPE = {Project: "project_config_file"}
 
 
 # TODO: split models conftest stuff into its own subdirectory.
@@ -212,12 +209,12 @@ def pytest_generate_tests(metafunc):
 def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
-    setup_pep_logger(level=level, devmode=True)
-    logging.getLogger("pep").info(
+    setup_peppy_logger(level=level, devmode=True)
+    logging.getLogger("peppy").info(
         "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
     global _LOGGER
-    _LOGGER = logging.getLogger("pep.{}".format(__name__))
+    _LOGGER = logging.getLogger("peppy.{}".format(__name__))
 
 
 
@@ -259,11 +256,11 @@ def path_empty_project(request, tmpdir):
 def interactive(
         prj_lines=PROJECT_CONFIG_LINES, 
         iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
-        merge_table_lines=MERGE_TABLE_LINES,
+        sample_subannotation_lines=SAMPLE_SUBANNOTATION_LINES,
         annotation_lines=SAMPLE_ANNOTATION_LINES,
         project_kwargs=None, logger_kwargs=None):
     """
-    Create Project and PipelineInterface instances from default or given data.
+    Create Project instance from default or given data.
 
     This is intended to provide easy access to instances of fundamental pep
     object for interactive test-authorship-motivated work in an iPython
@@ -272,17 +269,17 @@ def interactive(
 
     :param Iterable[str] prj_lines: project config lines
     :param Iterable[str] iface_lines: pipeline interface config lines
-    :param Iterable[str] merge_table_lines: lines for a merge table file
+    :param Iterable[str] sample_subannotation_lines: lines for a merge table file
     :param Iterable[str] annotation_lines: lines for a sample annotations file
     :param dict project_kwargs: keyword arguments for Project constructor
     :param dict logger_kwargs: keyword arguments for logging configuration
-    :return Project, PipelineInterface: one Project and one PipelineInterface,
+    :return Project: configured Project
     """
 
     # Establish logging for interactive session.
     pep_logger_kwargs = {"level": "DEBUG"}
     pep_logger_kwargs.update(logger_kwargs or {})
-    setup_pep_logger(**pep_logger_kwargs)
+    setup_peppy_logger(**pep_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
@@ -292,8 +289,8 @@ def interactive(
     path_iface_file = _write_temp(
         iface_lines,
         dirpath=dirpath, fname="pipeline_interface.yaml")
-    path_merge_table_file = _write_temp(
-        merge_table_lines,
+    path_sample_subannotation_file = _write_temp(
+        sample_subannotation_lines,
         dirpath=dirpath, fname=MERGE_TABLE_FILENAME
     )
     path_sample_annotation_file = _write_temp(
@@ -302,11 +299,10 @@ def interactive(
     )
 
     prj = Project(path_conf_file, **(project_kwargs or {}))
-    iface = PipelineInterface(path_iface_file)
     for path in [path_conf_file, path_iface_file,
-                 path_merge_table_file, path_sample_annotation_file]:
+                 path_sample_subannotation_file, path_sample_annotation_file]:
         os.unlink(path)
-    return prj, iface
+    return prj
 
 
 
@@ -428,8 +424,8 @@ def write_project_files(request):
     dirpath = tempfile.mkdtemp()
     path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
                                  dirpath=dirpath, fname=P_CONFIG_FILENAME)
-    path_merge_table_file = _write_temp(
-            MERGE_TABLE_LINES,
+    path_sample_subannotation_file = _write_temp(
+            SAMPLE_SUBANNOTATION_LINES,
             dirpath=dirpath, fname=MERGE_TABLE_FILENAME
     )
     path_sample_annotation_file = _write_temp(
@@ -437,10 +433,11 @@ def write_project_files(request):
             dirpath=dirpath, fname=ANNOTATIONS_FILENAME
     )
     request.cls.project_config_file = path_conf_file
-    request.cls.merge_table_file = path_merge_table_file
+    request.cls.sample_subannotation_file = path_sample_subannotation_file
     request.cls.sample_annotation_file = path_sample_annotation_file
     _write_test_data_files(tempdir=dirpath)
-    yield path_conf_file, path_merge_table_file, path_sample_annotation_file
+    yield path_conf_file, path_sample_subannotation_file, \
+          path_sample_annotation_file
     shutil.rmtree(dirpath)
 
 
@@ -472,29 +469,6 @@ def _write_test_data_files(tempdir):
         with open(filepath, 'w') as testfile:
             _LOGGER.debug("Writing test data file to '%s'", filepath)
             testfile.write(data)
-
-
-
-@pytest.fixture(scope="class")
-def pipe_iface_config_file(request):
-    """
-    Write pipeline interface config data to a temporary file system location.
-
-    :param pytest._pytest.fixtures.SubRequest request: object requesting
-        this fixture
-    :return str: path to the temporary file with configuration data
-    """
-
-    # Write the config file and attach path as attribute on request's class.
-    dirpath = tempfile.mkdtemp()
-    path_conf_file = _write_temp(
-            PIPELINE_INTERFACE_CONFIG_LINES,
-            dirpath=dirpath, fname="pipeline_interface.yaml")
-    request.cls.pipe_iface_config_file = path_conf_file
-
-    # Alternative mechanism to request.addfinalizer for tearDown behavior.
-    yield path_conf_file
-    shutil.rmtree(dirpath)
 
 
 
@@ -536,30 +510,12 @@ def proj(request):
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
-    :return pep.models.Project: object created by parsing
+    :return peppy.Project: object created by parsing
         data in file pointed to by `request` class
     """
     p = _create(request, Project)
     p.finalize_pipelines_directory()
     return p
-
-
-
-@pytest.fixture(scope="function")
-def pipe_iface(request):
-    """
-    Create PipelineInterface using data from file pointed to by request class.
-
-    To use this fixture, the test case must reside within a class that
-    defines a "pipe_iface_config_file" attribute. This is best done by marking
-    the class with "@pytest.mark.usefixtures("write_project_files")"
-
-    :param pytest._pytest.fixtures.SubRequest request: test case requesting
-        a project instance
-    :return pep.models.PipelineInterface: object created by parsing
-        data in file pointed to by `request` class
-    """
-    return _create(request, PipelineInterface)
 
 
 

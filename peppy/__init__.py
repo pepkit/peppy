@@ -10,8 +10,16 @@ local level, but this will at least provide a foundation.
 import logging
 import os
 from sys import stdout
+
 from ._version import __version__
-from .models import *
+from .attribute_dict import AttributeDict
+from .const import *
+from .project import Project, ProjectContext
+from .sample import Sample
+
+
+__classes__ = ["AttributeDict", "Project", "Sample"]
+__all__ = __classes__
 
 
 LOGGING_LEVEL = "INFO"
@@ -23,8 +31,15 @@ DEFAULT_LOGGING_FMT = "%(message)s"
 DEV_LOGGING_FMT = "%(module)s:%(lineno)d (%(funcName)s) [%(levelname)s] > %(message)s "
 
 
+# Ensure that we have a handler and don't get a logging exception.
+# Note that this was originally with looper.models.
+_LOGGER = logging.getLogger(__name__)
+if not logging.getLogger().handlers:
+    _LOGGER.addHandler(logging.NullHandler())
 
-def setup_pep_logger(level, additional_locations=None, devmode=False):
+
+
+def setup_peppy_logger(level, additional_locations=None, devmode=False):
     """
     Establish a logger for a pe.
 
@@ -44,7 +59,7 @@ def setup_pep_logger(level, additional_locations=None, devmode=False):
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
-    LOOPER_LOGGER = logging.getLogger("pep")
+    LOOPER_LOGGER = logging.getLogger("peppy")
     # First remove any previously-added handlers
     LOOPER_LOGGER.handlers = []
     LOOPER_LOGGER.propagate = False
