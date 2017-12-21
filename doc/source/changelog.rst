@@ -1,11 +1,26 @@
 Changelog
 ******************************
 
+
+- **v0.9** (*2017-12-21*):
+
+  - New
+
+    - Separation completed, ``peppy`` package is now standalone
+
+    - ``looper`` can now rely on ``peppy``
+
+  - Changed
+
+    - ``merge_table`` renamed to ``sample_subannotation``
+
+    - setup changed for compatibility with Pypi
+
 - **v0.8.1** (*2017-11-16*):
 
   - New
 
-    - pep separated from looper into its own python package.
+    - Separated from looper into its own python package (originally called `pep`).
 
 - **v0.7.2** (*2017-11-16*):
 
