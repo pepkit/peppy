@@ -51,7 +51,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'pep'
+project = u'peppy'
 copyright = u'2017, pepkit'
 
 # The version info for the project you're documenting, acts as replacement for
