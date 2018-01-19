@@ -1,9 +1,9 @@
 Welcome
 ^^^^^^^^
 
-``pep`` is a python package for handling `Portable Encapsulated Projects <http://pepkit.github.io/>`_. Portable Encapsulated Projects is a standardized format for describing sample-intensive project metadata. ``pep`` provides a python interface to this format.
+``peppy`` is a python package for handling `Portable Encapsulated Projects <http://pepkit.github.io/>`_. Portable Encapsulated Projects is a standardized format for describing sample-intensive project metadata. ``peppy`` provides a python interface to this format.
 
-If you define your project using `standard PEP format <http://pepkit.github.io/>`_, you can use the ``pep`` package to instantiate an in-memory representation of your project and all of its samples. You can then use this for interactive analysis, or to develop a novel python tool based on pep so you don't have to handle sample processing.  
+If you define your project using `standard PEP format <http://pepkit.github.io/>`_, you can use the ``peppy`` package to instantiate an in-memory representation of your project and all of its samples. You can then use this for interactive analysis, or to develop a novel python tool based on ``peppy`` so you don't have to handle sample processing.
 
 To get started, proceed with the :doc:`Introduction <intro>`.
 
