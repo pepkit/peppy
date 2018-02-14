@@ -69,6 +69,20 @@ Example:
 For more details, see :ref:`advanced-implied-columns`.
 
 
+Project config section: constants
+"""""""""""""""""""""""""""""""""""""""""""
+``constants`` lets you declare additional attributes, for each of which there's a single value across all samples. This is particularly useful when combined with ``derived_columns`` and/or ``implied_columns``, especially when there are many samples.
+
+Example:
+
+.. code-block:: yaml
+
+  constants:
+    data_source: src
+    read_type: SINGLE
+    organism: mouse
+
+
 Project config section: subprojects
 """""""""""""""""""""""""""""""""""""""""""""""
 
