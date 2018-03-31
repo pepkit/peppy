@@ -175,8 +175,8 @@ Project config complete example
 	  # Typically, this project config file is stored with the project metadata
 	  # sample_annotation: one-row-per-sample metadata
 	  sample_annotation: table_experiments.csv
-	  # merge_table: input for samples with more than one input file
-	  merge_table: table_merge.csv
+	  # sample_subannotation: input for samples with more than one input file
+	  sample_subannotation: table_merge.csv
 	  # compare_table: comparison pairs or groups, like normalization samples
 	  compare_table: table_compare.csv
 	  # output_dir: the parent, shared space for this project where results go
