@@ -2,7 +2,14 @@
 Installing and Hello, World!
 =====================================
 
-Release versions are posted on the GitHub `pep releases page <https://github.com/pepkit/peppy/releases>`_. You can install the latest release directly from GitHub using pip:
+Release versions are posted on the GitHub `peppy releases page <https://github.com/pepkit/peppy/releases>`_. You can install the latest release from pypi
+
+
+.. code-block:: bash
+
+	pip install --user peppy
+
+or directly from GitHub using pip:
 
 .. code-block:: bash
 
@@ -13,7 +20,7 @@ Update pep with:
 
 .. code-block:: bash
 
-	pip install --user --upgrade https://github.com/pepkit/peppy/zipball/master
+	pip install --user --upgrade peppy
 
 
 Now, to test pep, let's grab an clone an example project that follows PEP format:
