@@ -1,6 +1,12 @@
 Changelog
 ******************************
 
+- **v0.17.2** (*2018-04-03*):
+
+  - Fixed
+
+    - Ensure data source path relativity is with respect to project config file's folder.
+
 - **v0.17.1** (*2017-12-21*):
 
   - Changed
