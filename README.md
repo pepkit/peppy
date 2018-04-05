@@ -2,11 +2,12 @@
 
 [![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://peppy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/pepkit/peppy.svg?branch=master)](https://travis-ci.org/pepkit/peppy)
 
-`peppy` is the official python package for handling **Portable Encapsulated Projects** or **PEP**s. **PEP** is a standardized format for describing sample-intensive project metadata. `peppy` provides a python API for this format to load **PEP**-formatted metadata into python.
+`peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in `python`. 
 
-Complete documentation and API for the `peppy` python package is at [peppy.readthedocs.io](http://peppy.readthedocs.io/).
-
-Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
+Links to complete documentation:
+* Complete documentation and API for the `peppy` python package is at [peppy.readthedocs.io](http://peppy.readthedocs.io/).
+* Reference documentation for standard **PEP** format at [pepkit.github.io](https://pepkit.github.io/).
+* Example PEPs for testing `peppy` are in the [example_peps repository](https://github.com/pepkit/example_peps).
 
 # peppy and looper
 
