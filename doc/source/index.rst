@@ -1,17 +1,16 @@
 Welcome
 ^^^^^^^^
 
-``pep`` is a python package for handling `Portable Encapsulated Projects <http://pepkit.github.io/>`_. Portable Encapsulated Projects is a standardized format for describing sample-intensive project metadata. ``pep`` provides a python interface to this format.
+``peppy`` is a python package that provides an API for handling standardized project and sample metadata. 
+If you define your project as a standard `Portable Encapsulated Project <http://pepkit.github.io/>`_ (or PEP), you can use the ``peppy`` package to instantiate an in-memory representation of your project and all of its samples. You can then use this for interactive analysis, or to develop a novel python tool based on ``peppy`` so you don't have to handle sample processing.
 
-If you define your project using `standard PEP format <http://pepkit.github.io/>`_, you can use the ``pep`` package to instantiate an in-memory representation of your project and all of its samples. You can then use this for interactive analysis, or to develop a novel python tool based on pep so you don't have to handle sample processing.  
-
-To get started, proceed with the :doc:`Introduction <intro>`.
+``peppy`` is primarily useful to tool developers and data analysts who want a standard way of representing sample-intensive research project metadata. To get started, proceed with the :doc:`Introduction <intro>`.
 
 Contents
 ^^^^^^^^
 
 .. toctree::
-	:caption: Getting Started
+	:caption: Explanation and Getting Started
 	:maxdepth: 1
 
 	intro.rst
@@ -20,8 +19,10 @@ Contents
 
 .. toctree::
 	:maxdepth: 2
-	:caption: Tutorials and recipes
+	:caption: Tutorials and How-to recipes
 
+	jupyter/tutorial.ipynb
+	jupyter/subannotation.ipynb
 	models.rst
 
 .. toctree::

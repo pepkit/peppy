@@ -105,26 +105,22 @@ class AttributeDict(MutableMapping):
         try:
             return super(AttributeDict, self).__getattribute__(item)
         except (AttributeError, TypeError):
-            # Handle potential property and non-string failures.
+            # Handle potential failure from non-string or property request.
             pass
         try:
-            # Fundamentally, this is still a mapping;
-            # route object notation access pattern accordingly.
-            # Ideally, the requested item maps to a value.
+            # Route this dot notation request through the Mapping route.
             return self.__dict__[item]
         except KeyError:
-            # If not, arbitrage and cope accordingly.
+            # If not, triage and cope accordingly.
             if item.startswith("__") and item.endswith("__"):
-                # Some libraries use exception for protected attribute
-                # access as a control flow mechanism.
+                # Accommodate security-through-obscurity approach used by some libraries.
                 error_reason = "Protected-looking attribute: {}".format(item)
                 raise AttributeError(error_reason)
             if default is not None:
-                # For compatibility with ordinary getattr() invocation, allow
-                # caller the ability to provide a default value.
+                # For compatibility with ordinary getattr() call, allow default value.
                 return default
             if self.__dict__.setdefault("_attribute_identity", False):
-                # Check if we should return the attribute name as the value.
+                # Check if we should return the attribute name itself as the value.
                 return item
             # Throw up our hands in despair and resort to exception behavior.
             raise AttributeError(item)

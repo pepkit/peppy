@@ -6,7 +6,7 @@
 
 Links to complete documentation:
 * Complete documentation and API for the `peppy` python package is at [peppy.readthedocs.io](http://peppy.readthedocs.io/).
-* Reference documentation for standard **PEP** format at [pepkit.github.io](https://pepkit.github.io/).
+* Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
 * Example PEPs for testing `peppy` are in the [example_peps repository](https://github.com/pepkit/example_peps).
 
 # peppy and looper

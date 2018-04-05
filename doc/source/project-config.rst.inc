@@ -69,6 +69,20 @@ Example:
 For more details, see :ref:`advanced-implied-columns`.
 
 
+Project config section: constants
+"""""""""""""""""""""""""""""""""""""""""""
+``constants`` lets you declare additional attributes, for each of which there's a single value across all samples. This is particularly useful when combined with ``derived_columns`` and/or ``implied_columns``, especially when there are many samples.
+
+Example:
+
+.. code-block:: yaml
+
+  constants:
+    data_source: src
+    read_type: SINGLE
+    organism: mouse
+
+
 Project config section: subprojects
 """""""""""""""""""""""""""""""""""""""""""""""
 
@@ -178,9 +192,10 @@ Project config complete example
 
 
 	data_sources:
-	  # specify the ABSOLUTE PATH of input files using variable path expressions
-	  # entries correspond to values in the data_source column in sample_annotation table
-	  # {variable} can be used to replace environment variables or other sample_annotation columns
+	  # Ideally, specify the ABSOLUTE PATH of input files using variable path expressions.
+	  # Alternatively, a relative path will be with respect to the project config file's folder.
+	  # Entries correspond to values in the data_source column in sample_annotation table.
+	  # {variable} can be used to replace environment variables or other sample_annotation columns.
 	  # If you use {variable} codes, you should quote the field so python can parse it.
 	  bsf_samples: "$RAWDATA/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 	  encode_rrbs: "/path/to/shared/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"
