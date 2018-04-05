@@ -233,8 +233,16 @@ class Project(AttributeDict):
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
-        # Ensure data_sources is at least set if it wasn't parsed.
-        self.setdefault("data_sources", None)
+        if "data_sources" in self:
+            # Expand paths now, so that it's not done for every sample.
+            for src_key, src_val in self.data_sources.items():
+                src_val = os.path.expandvars(src_val)
+                if not (os.path.isabs(src_val) or is_url(src_val)):
+                    src_val = os.path.join(os.path.dirname(self.config_file), src_val)
+                self.data_sources[src_key] = src_val
+        else:
+            # Ensure data_sources is at least set if it wasn't parsed.
+            self["data_sources"] = None
 
         self.name = self.infer_name(self.config_file)
 
