@@ -175,8 +175,8 @@ Project config complete example
 	  # Typically, this project config file is stored with the project metadata
 	  # sample_annotation: one-row-per-sample metadata
 	  sample_annotation: table_experiments.csv
-	  # merge_table: input for samples with more than one input file
-	  merge_table: table_merge.csv
+	  # sample_subannotation: input for samples with more than one input file
+	  sample_subannotation: table_merge.csv
 	  # compare_table: comparison pairs or groups, like normalization samples
 	  compare_table: table_compare.csv
 	  # output_dir: the parent, shared space for this project where results go
@@ -192,9 +192,10 @@ Project config complete example
 
 
 	data_sources:
-	  # specify the ABSOLUTE PATH of input files using variable path expressions
-	  # entries correspond to values in the data_source column in sample_annotation table
-	  # {variable} can be used to replace environment variables or other sample_annotation columns
+	  # Ideally, specify the ABSOLUTE PATH of input files using variable path expressions.
+	  # Alternatively, a relative path will be with respect to the project config file's folder.
+	  # Entries correspond to values in the data_source column in sample_annotation table.
+	  # {variable} can be used to replace environment variables or other sample_annotation columns.
 	  # If you use {variable} codes, you should quote the field so python can parse it.
 	  bsf_samples: "$RAWDATA/{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
 	  encode_rrbs: "/path/to/shared/data/encode_rrbs_data_hg19/fastq/{sample_name}.fastq.gz"

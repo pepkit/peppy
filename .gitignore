@@ -66,6 +66,7 @@ open_pipelines/
 # pytest-related
 .cache/
 .coverage
+.pytest_cache/
 
 # Reserved files for comparison
 *RESERVE*

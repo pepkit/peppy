@@ -1,7 +1,7 @@
 Project models
 ****************************************
 
-``Pep`` models projects and samples as objects in Python.
+``peppy`` models projects and samples as objects in Python.
 
 .. code-block:: python
 

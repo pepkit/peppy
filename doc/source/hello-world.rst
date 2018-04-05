@@ -8,6 +8,7 @@ Installing
 
 You can install the latest release from `pypi <https://pypi.python.org/pypi/peppy>`_ using ``pip``:
 
+
 .. code-block:: bash
 
 	pip install --user peppy

@@ -21,7 +21,7 @@ from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
     REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
-    grab_project_data, parse_ftype, sample_folder
+    grab_project_data, is_url,parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
 
@@ -421,7 +421,8 @@ class Sample(AttributeDict):
             return ""
 
         # Populate any environment variables like $VAR with os.environ["VAR"]
-        regex = os.path.expandvars(regex)
+        # Now handled upstream, in project.
+        #regex = os.path.expandvars(regex)
 
         try:
             # Grab a temporary dictionary of sample attributes and update these
