@@ -443,19 +443,26 @@ class Project(AttributeDict):
 
 
     @staticmethod
-    def infer_name(path_config_file):
+    def infer_name(config_filepath):
         """
-        Infer project name based on location of configuration file.
-
-        Provide the project with a name, taken to be the name of the folder
-        in which its configuration file lives.
-
-        :param str path_config_file: path to the project's configuration file.
-        :return str: name of the configuration file's folder, to name project.
+        Infer project name from config file path.
+        
+        First assume the name is the folder in which the config file resides,
+        unless that folder is named "metadata", in which case the project name
+        is the parent of that folder.
+        
+        :param str path_config_file: path to the project's config file.
+        :return str: inferred name for project.
         """
-        config_dirpath = os.path.dirname(path_config_file)
-        _, config_folder = os.path.split(config_dirpath)
-        return config_folder
+        import os
+
+        config_folder = os.path.dirname(config_filepath)
+        project_name = os.path.basename(config_folder)
+        
+        if project_name == "metadata":
+            project_name = os.path.basename(os.path.dirname(config_folder))
+        
+        return project_name
 
 
     def build_sheet(self, *protocols):
