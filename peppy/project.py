@@ -244,7 +244,7 @@ class Project(AttributeDict):
             # Ensure data_sources is at least set if it wasn't parsed.
             self["data_sources"] = None
 
-        if not self.name:
+        if not hasattr(self, name):
             self.name = self.infer_name(self.config_file)
 
         # Set project's directory structure
