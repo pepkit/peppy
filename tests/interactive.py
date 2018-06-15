@@ -7,4 +7,4 @@
 import conftest
 
 print("Establishing Project for testing and exploration")
-proj, pi = conftest.interactive()
+proj = conftest.interactive()
