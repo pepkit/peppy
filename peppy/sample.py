@@ -55,7 +55,8 @@ class Sample(AttributeDict):
     def __init__(self, series, prj=None):
 
         # Create data, handling library/protocol.
-        data = dict(series)
+        data = OrderedDict(series)
+        _LOGGER.debug(data)
         try:
             protocol = data.pop("library")
         except KeyError:
@@ -69,9 +70,9 @@ class Sample(AttributeDict):
         self.derived_cols_done = []
 
         if isinstance(series, Series):
-            series = series.to_dict()
+            series = series.to_dict(OrderedDict)
         elif isinstance(series, Sample):
-            series = series.as_series().to_dict()
+            series = series.as_series().to_dict(OrderedDict)
 
         # Keep a list of attributes that came from the sample sheet,
         # so we can create a minimal, ordered representation of the original.
