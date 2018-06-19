@@ -469,6 +469,16 @@ class Project(AttributeDict):
 
 
     def get_sample(self, sample_name):
+        """
+        Get an individual sample object from the project.
+
+        Will raise a ValueError if the sample is not found. In the case of multiple
+        samples with the same name (which is not typically allowed), a warning is
+        raised and the first sample is returned.
+        
+        :param str sample_name: The name of a sample to retrieve
+        :return Sample: The requested Sample object
+        """
 
         samples = self.get_samples(sample_name)
         if len(samples) > 1:
@@ -481,8 +491,10 @@ class Project(AttributeDict):
 
 
     def get_samples(self, sample_names):
-        """ Returns a list of sample objects given a list of sample names
-        :param: list sample_names
+        """
+        Returns a list of sample objects given a list of sample names
+
+        :param list sample_names: A list of sample names to retrieve
         :return: List: A list of Sample objects
         """
         return [s for s in self.samples if s.name in sample_names]
