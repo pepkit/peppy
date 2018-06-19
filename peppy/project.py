@@ -468,6 +468,26 @@ class Project(AttributeDict):
         return self.name
 
 
+    def get_sample(self, sample_name):
+
+        samples = self.get_samples(sample_name)
+        if len(samples) > 1:
+            _LOGGER.warn("More than one sample was detected; returning the first")
+
+        if len(samples) == 0:
+            raise ValueError("Project has no sample named {name}.".format(name=sample_name))
+
+        return samples[0]
+
+
+    def get_samples(self, sample_names):
+        """ Returns a list of sample objects given a list of sample names
+        :param: list sample_names
+        :return: List: A list of Sample objects
+        """
+        return [s for s in self.samples if s.name in sample_names]
+
+
     def build_sheet(self, *protocols):
         """
         Create all Sample object for this project for the given protocol(s).
