@@ -28,6 +28,19 @@ COL_KEY_SUFFIX = "_key"
 _LOGGER = logging.getLogger(__name__)
 
 
+@copy
+class SubSample(AttributeDict):
+    """
+    Class to model SubSamples
+    """
+    def __init__(self, series, sample=None):
+        data = OrderedDict(series)
+        _LOGGER.debug(data)
+        super(SubSample, self).__init__(entries=data)
+
+        # lookback link
+        self.sample = sample
+
 
 @copy
 class Sample(AttributeDict):
@@ -370,6 +383,37 @@ class Sample(AttributeDict):
         warnings.warn("Sample 'library' attribute is deprecated; instead, "
                       "refer to 'protocol'", DeprecationWarning)
         return self.protocol
+
+
+    def get_subsample(self, subsample_name):
+        """
+        Retrieve a single subsample by name.
+
+        :param str subsample_name: The name of the desired subsample. Should 
+            match the subsample_name column in the subannotation sheet.
+        :return SubSample: Requested SubSample object
+        """
+        subsamples = self.get_subsamples(subsample_name)
+
+        if len(subsamples) > 1:
+            _LOGGER.warn("More than one subsamples was detected; returning the first")
+
+        if len(subsamples) == 0:
+            raise ValueError(
+                "Sample {sample} has no subsamples named {subsample}.".format(
+                sample=self.name, subsample=subsample_name))
+
+        return subsamples[0]
+
+
+    def get_subsamples(self, subsample_names):
+        """
+        Retrieve subsamples assigned to this sample
+
+        :param list subsample_names: List of names of subsamples to retrieve
+        :return list: List of subsamples
+        """
+        return [s for s in self.subsamples if s.subsample_name in subsample_names]
 
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
@@ -888,7 +932,7 @@ class Sample(AttributeDict):
 
 def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None):
     """
-    Use merge table data to augment/modify Sample.
+    Use merge table (subannotation) data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
     :param sample_subann: data with which to alter Sample
@@ -934,8 +978,18 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     # Keep track of merged cols,
     # so we don't re-derive them later.
     merged_attrs = {key: "" for key in this_sample_rows.columns}
-
-    for _, row in this_sample_rows.iterrows():
+    subsamples = []
+    _LOGGER.debug(this_sample_rows)
+    subsample_count = 0
+    for subsample_row_id, row in this_sample_rows.iterrows():
+        try:
+            row['subsample_name']
+        except KeyError:
+            # default to a numeric count on subsamples if they aren't named
+            row['subsample_name'] = str(subsample_row_id)
+        subann_unit = SubSample(row)
+        subsamples.append(subann_unit)
+        _LOGGER.debug(subsamples)
         rowdata = row.to_dict()
 
         # Iterate over column names to avoid Python3 RuntimeError for
@@ -1009,6 +1063,7 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     sample.update(merged_attrs)  # 3)
     sample.merged_cols = merged_attrs
     sample.merged = True
+    sample.subsamples = subsamples
 
     return sample
 

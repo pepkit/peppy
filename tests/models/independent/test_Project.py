@@ -693,7 +693,9 @@ class ProjectConstructorTest:
         # We don't care about that here, or about duplicates.
         expected = set(DERIVED_COLNAMES)
         observed = set(merged_columns)
-        assert expected == observed
+        # Observed may include additional things (like auto-added subsample_name)
+        for val in expected:
+            assert val in observed
 
 
     @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)

@@ -467,6 +467,10 @@ class Project(AttributeDict):
 
         return self.name
 
+    def get_subsample(self, sample_name, subsample_name):
+
+        s = self.get_sample(sample_name)
+        return s.get_subsample(subsample_name)
 
     def get_sample(self, sample_name):
         """
