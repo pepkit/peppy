@@ -404,7 +404,7 @@ class Sample(AttributeDict):
         subsamples = self.get_subsamples(subsample_name)
 
         if len(subsamples) > 1:
-            _LOGGER.warn("More than one subsamples was detected; returning the first")
+            _LOGGER.error("More than one subsample with that name.")
 
         if len(subsamples) == 0:
             raise ValueError(
