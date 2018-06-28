@@ -244,7 +244,7 @@ class Project(AttributeDict):
             # Ensure data_sources is at least set if it wasn't parsed.
             self["data_sources"] = None
 
-        self.infer_name()
+        self.name = self.infer_name()
 
         # Set project's directory structure
         if not dry:
@@ -463,14 +463,14 @@ class Project(AttributeDict):
         if project_name == "metadata":
             project_name = os.path.basename(os.path.dirname(config_folder))
 
-        self.name = project_name
+        return project_name
 
-        return self.name
 
     def get_subsample(self, sample_name, subsample_name):
 
         s = self.get_sample(sample_name)
         return s.get_subsample(subsample_name)
+
 
     def get_sample(self, sample_name):
         """
