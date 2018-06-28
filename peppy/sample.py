@@ -29,14 +29,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @copy
-class SubSample(AttributeDict):
+class Subsample(AttributeDict):
     """
-    Class to model SubSamples
+    Class to model Subsamples
     """
     def __init__(self, series, sample=None):
         data = OrderedDict(series)
         _LOGGER.debug(data)
-        super(SubSample, self).__init__(entries=data)
+        super(Subsample, self).__init__(entries=data)
 
         # lookback link
         self.sample = sample
@@ -391,7 +391,7 @@ class Sample(AttributeDict):
 
         :param str subsample_name: The name of the desired subsample. Should 
             match the subsample_name column in the subannotation sheet.
-        :return SubSample: Requested SubSample object
+        :return Subsample: Requested Subsample object
         """
         subsamples = self.get_subsamples(subsample_name)
 
@@ -987,7 +987,7 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
         except KeyError:
             # default to a numeric count on subsamples if they aren't named
             row['subsample_name'] = str(subsample_row_id)
-        subann_unit = SubSample(row)
+        subann_unit = Subsample(row)
         subsamples.append(subann_unit)
         _LOGGER.debug(subsamples)
         rowdata = row.to_dict()

@@ -15,7 +15,7 @@ from ._version import __version__
 from .attribute_dict import AttributeDict
 from .const import *
 from .project import Project, ProjectContext
-from .sample import Sample, SubSample
+from .sample import Sample, Subsample
 
 
 __classes__ = ["AttributeDict", "Project", "Sample"]
