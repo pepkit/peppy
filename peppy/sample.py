@@ -31,7 +31,15 @@ _LOGGER = logging.getLogger(__name__)
 @copy
 class Subsample(AttributeDict):
     """
-    Class to model Subsamples
+    Class to model Subsamples.
+
+    A Subsample is a component of a sample. They are typically used for samples
+    that have multiple input files of the same type, and are specified in the
+    PEP by a subannotation table. Each row in the subannotation (or unit) table
+    corresponds to a Subsample object.
+
+    :param series: Subsample data
+    :type series: Mapping | pandas.core.series.Series
     """
     def __init__(self, series, sample=None):
         data = OrderedDict(series)
