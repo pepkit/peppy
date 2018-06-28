@@ -499,7 +499,7 @@ class Project(AttributeDict):
         Returns a list of sample objects given a list of sample names
 
         :param list sample_names: A list of sample names to retrieve
-        :return: List: A list of Sample objects
+        :return list[Sample]: A list of Sample objects
         """
         return [s for s in self.samples if s.name in sample_names]
 
