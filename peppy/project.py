@@ -452,8 +452,6 @@ class Project(AttributeDict):
         :param str path_config_file: path to the project's config file.
         :return str: inferred name for project.
         """
-        import os
-
         if hasattr(self, "name"):
             return(self.name)
         
