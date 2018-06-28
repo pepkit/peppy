@@ -990,11 +990,8 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     _LOGGER.debug(this_sample_rows)
     subsample_count = 0
     for subsample_row_id, row in this_sample_rows.iterrows():
-        try:
-            row['subsample_name']
-        except KeyError:
-            # default to a numeric count on subsamples if they aren't named
-            row['subsample_name'] = str(subsample_row_id)
+        # default to a numeric count on subsamples if they aren't named
+        row.setdefault("subsample_name", str(subsample_row_id))
         subann_unit = Subsample(row)
         subsamples.append(subann_unit)
         _LOGGER.debug(subsamples)
