@@ -71,7 +71,7 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
     keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
-    url="https://pepkit.github.io",
+    url='https://github.com/pepkit/peppy/',,
     author=u"Nathan Sheffield, Vince Reuter, Andre Rendeiro",
     license="BSD2",
     scripts=scripts,
