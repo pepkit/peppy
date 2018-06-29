@@ -25,7 +25,7 @@ except ImportError:
     pass
 else:
     # pandas 0.20.2 needs updated numexpr; the claim is 2.4.6, but that failed.
-    DEPENDENCIES.append("numexpr==2.6.2")
+    DEPENDENCIES.append("numexpr>=2.6.2")
 
 # 2to3
 if sys.version_info >= (3, ):
@@ -71,7 +71,7 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
     keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
-    url="https://pepkit.github.io",
+    url='https://github.com/pepkit/peppy/',
     author=u"Nathan Sheffield, Vince Reuter, Andre Rendeiro",
     license="BSD2",
     scripts=scripts,

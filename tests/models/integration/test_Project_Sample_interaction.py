@@ -2,9 +2,7 @@
 
 from collections import OrderedDict
 import copy
-from functools import partial
 import itertools
-import logging
 import os
 import random
 
@@ -12,14 +10,10 @@ import pandas as pd
 import pytest
 import yaml
 
-import peppy
 from peppy import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from peppy.utils import alpha_cased
-from tests.conftest import \
-        NGS_SAMPLE_INDICES, NUM_SAMPLES, PIPELINE_TO_REQD_INFILES_BY_SAMPLE
-from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
@@ -110,6 +104,18 @@ def sample_sheet(samples_rawdata):
     df = pd.DataFrame(samples_rawdata)
     df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
     return df
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class SampleSheetAttrTests:
+    """ Tests of properties of sample sheet attributes on a sample """
+
+    def test_sheet_attr_order(self, proj):
+        """ The sample's sheet attributes are ordered. """
+        s = Sample(proj.sheet.iloc[0])
+        d = s.get_sheet_dict()
+        assert SAMPLE_NAME_COLNAME == list(d)[0]
 
 
 
@@ -238,7 +244,7 @@ def project(request, tmpdir, env_config_filepath):
     anns_path = tmpdir.join(annotations_filename).strpath
     num_samples = request.getfixturevalue("num_samples")
     df = pd.DataFrame(OrderedDict(
-        [("sample_name", ["sample{}".format(i) for i in range(num_samples)]),
+        [(SAMPLE_NAME_COLNAME, ["sample{}".format(i) for i in range(num_samples)]),
          ("data", range(num_samples))]))
     with open(anns_path, 'w') as anns_file:
         df.to_csv(anns_file, sep="\t", index=False)

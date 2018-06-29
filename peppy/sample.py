@@ -28,6 +28,27 @@ COL_KEY_SUFFIX = "_key"
 _LOGGER = logging.getLogger(__name__)
 
 
+@copy
+class Subsample(AttributeDict):
+    """
+    Class to model Subsamples.
+
+    A Subsample is a component of a sample. They are typically used for samples
+    that have multiple input files of the same type, and are specified in the
+    PEP by a subannotation table. Each row in the subannotation (or unit) table
+    corresponds to a Subsample object.
+
+    :param series: Subsample data
+    :type series: Mapping | pandas.core.series.Series
+    """
+    def __init__(self, series, sample=None):
+        data = OrderedDict(series)
+        _LOGGER.debug(data)
+        super(Subsample, self).__init__(entries=data)
+
+        # lookback link
+        self.sample = sample
+
 
 @copy
 class Sample(AttributeDict):
@@ -55,7 +76,8 @@ class Sample(AttributeDict):
     def __init__(self, series, prj=None):
 
         # Create data, handling library/protocol.
-        data = dict(series)
+        data = OrderedDict(series)
+        _LOGGER.debug(data)
         try:
             protocol = data.pop("library")
         except KeyError:
@@ -69,9 +91,9 @@ class Sample(AttributeDict):
         self.derived_cols_done = []
 
         if isinstance(series, Series):
-            series = series.to_dict()
+            series = series.to_dict(OrderedDict)
         elif isinstance(series, Sample):
-            series = series.as_series().to_dict()
+            series = series.as_series().to_dict(OrderedDict)
 
         # Keep a list of attributes that came from the sample sheet,
         # so we can create a minimal, ordered representation of the original.
@@ -369,6 +391,37 @@ class Sample(AttributeDict):
         warnings.warn("Sample 'library' attribute is deprecated; instead, "
                       "refer to 'protocol'", DeprecationWarning)
         return self.protocol
+
+
+    def get_subsample(self, subsample_name):
+        """
+        Retrieve a single subsample by name.
+
+        :param str subsample_name: The name of the desired subsample. Should 
+            match the subsample_name column in the subannotation sheet.
+        :return Subsample: Requested Subsample object
+        """
+        subsamples = self.get_subsamples(subsample_name)
+
+        if len(subsamples) > 1:
+            _LOGGER.error("More than one subsample with that name.")
+
+        if len(subsamples) == 0:
+            raise ValueError(
+                "Sample {sample} has no subsamples named {subsample}.".format(
+                sample=self.name, subsample=subsample_name))
+
+        return subsamples[0]
+
+
+    def get_subsamples(self, subsample_names):
+        """
+        Retrieve subsamples assigned to this sample
+
+        :param list subsample_names: List of names of subsamples to retrieve
+        :return list: List of subsamples
+        """
+        return [s for s in self.subsamples if s.subsample_name in subsample_names]
 
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
@@ -887,7 +940,7 @@ class Sample(AttributeDict):
 
 def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None):
     """
-    Use merge table data to augment/modify Sample.
+    Use merge table (subannotation) data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
     :param sample_subann: data with which to alter Sample
@@ -933,8 +986,18 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     # Keep track of merged cols,
     # so we don't re-derive them later.
     merged_attrs = {key: "" for key in this_sample_rows.columns}
-
-    for _, row in this_sample_rows.iterrows():
+    subsamples = []
+    _LOGGER.debug(this_sample_rows)
+    subsample_count = 0
+    for subsample_row_id, row in this_sample_rows.iterrows():
+        try:
+            row['subsample_name']
+        except KeyError:
+            # default to a numeric count on subsamples if they aren't named
+            row['subsample_name'] = str(subsample_row_id)
+        subann_unit = Subsample(row)
+        subsamples.append(subann_unit)
+        _LOGGER.debug(subsamples)
         rowdata = row.to_dict()
 
         # Iterate over column names to avoid Python3 RuntimeError for
@@ -1008,6 +1071,7 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     sample.update(merged_attrs)  # 3)
     sample.merged_cols = merged_attrs
     sample.merged = True
+    sample.subsamples = subsamples
 
     return sample
 

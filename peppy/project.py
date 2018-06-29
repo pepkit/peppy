@@ -244,7 +244,7 @@ class Project(AttributeDict):
             # Ensure data_sources is at least set if it wasn't parsed.
             self["data_sources"] = None
 
-        self.name = self.infer_name(self.config_file)
+        self.name = self.infer_name()
 
         # Set project's directory structure
         if not dry:
@@ -441,20 +441,65 @@ class Project(AttributeDict):
         return os.path.join(os.path.dirname(__file__), "submit_templates")
 
 
-    @staticmethod
-    def infer_name(path_config_file):
+    def infer_name(self):
         """
-        Infer project name based on location of configuration file.
-
-        Provide the project with a name, taken to be the name of the folder
-        in which its configuration file lives.
-
-        :param str path_config_file: path to the project's configuration file.
-        :return str: name of the configuration file's folder, to name project.
+        Infer project name from config file path.
+        
+        First assume the name is the folder in which the config file resides,
+        unless that folder is named "metadata", in which case the project name
+        is the parent of that folder.
+        
+        :param str path_config_file: path to the project's config file.
+        :return str: inferred name for project.
         """
-        config_dirpath = os.path.dirname(path_config_file)
-        _, config_folder = os.path.split(config_dirpath)
-        return config_folder
+        if hasattr(self, "name"):
+            return(self.name)
+        
+        config_folder = os.path.dirname(self.config_file)
+        project_name = os.path.basename(config_folder)
+        
+        if project_name == "metadata":
+            project_name = os.path.basename(os.path.dirname(config_folder))
+
+        return project_name
+
+
+    def get_subsample(self, sample_name, subsample_name):
+
+        s = self.get_sample(sample_name)
+        return s.get_subsample(subsample_name)
+
+
+    def get_sample(self, sample_name):
+        """
+        Get an individual sample object from the project.
+
+        Will raise a ValueError if the sample is not found. In the case of multiple
+        samples with the same name (which is not typically allowed), a warning is
+        raised and the first sample is returned.
+        
+        :param str sample_name: The name of a sample to retrieve
+        :return Sample: The requested Sample object
+        """
+
+        samples = self.get_samples(sample_name)
+        if len(samples) > 1:
+            _LOGGER.warn("More than one sample was detected; returning the first")
+
+        if len(samples) == 0:
+            raise ValueError("Project has no sample named {name}.".format(name=sample_name))
+
+        return samples[0]
+
+
+    def get_samples(self, sample_names):
+        """
+        Returns a list of sample objects given a list of sample names
+
+        :param list sample_names: A list of sample names to retrieve
+        :return list[Sample]: A list of Sample objects
+        """
+        return [s for s in self.samples if s.name in sample_names]
 
 
     def build_sheet(self, *protocols):
@@ -761,6 +806,9 @@ class Project(AttributeDict):
         _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
                                                self.metadata))
 
+        # Some metadata attributes are considered relative to the output_dir
+        # Here we make these absolute, so they won't be incorrectly made
+        # relative to the config file.
         # These are optional because there are defaults
         config_vars = {
             # Defaults = {"variable": "default"}, relative to output_dir.
@@ -927,6 +975,7 @@ class Project(AttributeDict):
             return expanded
         _LOGGER.log(5, "Making non-absolute path '%s' be absolute",
                     maybe_relpath)
+        
         # Set path to an absolute path, relative to project config.
         config_dirpath = os.path.dirname(self.config_file)
         _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
