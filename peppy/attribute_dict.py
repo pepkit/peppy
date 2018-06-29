@@ -223,7 +223,9 @@ def include_in_repr(attr, klazz):
     exclusions_by_class = {
             "AttributeDict": ad_metadata,
             "Project": project_specific_exclusions + ad_metadata,
+            "Subsample": ["sheet", "sample", "merged_cols"] + ad_metadata,
             "Sample": ["sheet", "prj", "merged_cols"] + ad_metadata}
+            
     classname = klazz.__name__ if isinstance(klazz, type) else klazz
     return attr not in exclusions_by_class.get(classname, [])
 

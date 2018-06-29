@@ -1,5 +1,22 @@
 Changelog
 ******************************
+- **v0.18.0** (*2018-06-27*):
+
+  - Fixed
+
+    - Fixed a bug that would cause sample attributes to lose order.
+
+    - Fixed a bug that caused an install error with newer ``numexpr`` versions.
+
+  - New
+
+    - Project names are now inferred with the ``infer_name`` function, which uses a priority lookup to infer the project name: First, the ``name`` attribute in the ``yaml`` file; otherwise, the containing folder unless it is ``metadata``, in which case, it's the parent of that folder.
+
+    - Add ``get_sample`` and ``get_samples`` functions to ``Project`` objects.
+
+    - Add ``get_subsamples``and ``get_subsample`` functions to both ``Project`` and ``Sample`` objects.
+
+    - Subsamples are now objects that can be retrieved individually by name, with the ``subsample_name`` as the index column header.
 
 - **v0.17.2** (*2018-04-03*):
 
