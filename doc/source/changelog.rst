@@ -1,5 +1,13 @@
 Changelog
 ******************************
+
+- **v0.18.2** (*2018-07-23*):
+
+  - Fixed
+
+    - Made requirements more lenient to allow for newer versions of required packages.
+
+
 - **v0.18.1** (*2018-06-29*):
 
   - Fixed
