@@ -667,8 +667,8 @@ class Project(AttributeDict):
             except KeyError:
                 _LOGGER.debug("No sample subannotations")
             else:
-                _LOGGER.warn("Switch to 'sample_subannotation' in lieu of "
-                             "'merge_table.'")
+                _LOGGER.warn("'merge_table' attribute is deprecated. Please use "
+                    "'sample_subannotation' instead.")
 
         if self.sample_subannotation is None:
             if sub_ann and os.path.isfile(sub_ann):
