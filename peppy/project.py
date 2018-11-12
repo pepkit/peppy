@@ -775,7 +775,12 @@ class Project(AttributeDict):
         if "subprojects" in config and subproject:
             _LOGGER.debug("Adding entries for subproject '{}'".
                           format(subproject))
-            subproj_updates = config['subprojects'][subproject]
+            try:
+                subproj_updates = config['subprojects'][subproject]
+            except KeyError:
+                raise Exception(
+                    "Unknown subproject ({}); defined subprojects: {}".format(
+                    subproject, ", ".join([sp for sp in config["subprojects"]])))
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
         else:
