@@ -28,7 +28,7 @@ This is common, and it works in a pinch with Looper, but what if the data get mo
   "pig_0h", "RRBS", "pig", "0", "source1"
   "pig_1h", "RRBS", "pig", "1", "source1"
   "frog_0h", "RRBS", "frog", "0", "source1"
-  "frog_1h", "RRBS", "frog", "1", "source1"
+  "frog_1h", "RRBS", "frog", "1", "source1"de
 
 To do this, your project config file must specify two things: First, which columns are to be derived (in this case, ``file_path``); and second, a ``data_sources`` section mapping keys to strings that will construct your path, like this:
 
@@ -52,7 +52,7 @@ That's it! The source string can use other sample attributes (columns) using bra
 
 As long as your file naming system is systematic, you can easily deal with any external naming scheme, no problem at all. The idea is: don't put absolute paths to files in your annotation sheet. Instead, specify a data source and then provide a regex in the config file. This way if your data changes locations (which happens more often than we would like), or you change servers, or you want to share or publish the project, you just have to change the config file and not update paths in the annotation sheet; this makes the annotation sheet universal across environments, users, publication, etc. The whole project is now portable.
 
-You can specify as many derived columns as you want (``data_source`` is considered a derived column by default). An expression including any sample attributes (using ``{attribute}``) will be populated for each of those columns. 
+You can specify as many derived columns as you want. An expression including any sample attributes (using ``{attribute}``) will be populated for each of those columns. 
 
 Think of each sample as belonging to a certain type (for simple experiments, the type will be the same); then define the location of these samples in the project configuration file. As a side bonus, you can easily include samples from different locations, and you can also share the same sample annotation sheet on different environments (i.e. servers or users) by having multiple project config files (or, better yet, by defining a subproject for each environment). The only thing you have to change is the project-level expression describing the location, not any sample attributes (plus, you get to eliminate those annoying long/path/arguments/in/your/sample/annotation/sheet).
 
