@@ -783,8 +783,11 @@ class Project(AttributeDict):
                     subproject, ", ".join([sp for sp in config["subprojects"]])))
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
+        elif subproject:
+            _LOGGER.warn("Subproject {} requested but no subprojects "
+                         "are defined".format(subproject))
         else:
-            _LOGGER.debug("No subproject")
+            _LOGGER.debug("No subproject requested")
 
         # In looper 0.4, for simplicity the paths section was eliminated.
         # For backwards compatibility, mirror the paths section into metadata.
