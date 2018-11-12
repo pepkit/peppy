@@ -14,9 +14,9 @@ COMPUTE_CONSTANTS = ["COMPUTE_SETTINGS_VARNAME",
 
 # Project-related
 DATA_SOURCES_SECTION = "data_sources"
-IMPLICATIONS_DECLARATION = "implied_columns"
+IMPLICATIONS_DECLARATION = "implied_attributes"
 SAMPLE_INDEPENDENT_PROJECT_SECTIONS = \
-        ["metadata", "derived_columns", IMPLICATIONS_DECLARATION, "trackhubs"]
+        ["metadata", "derived_attributes", IMPLICATIONS_DECLARATION, "trackhubs"]
 PROJECT_CONSTANTS = ["DATA_SOURCES_SECTION", "IMPLICATIONS_DECLARATION",
                      "SAMPLE_INDEPENDENT_PROJECT_SECTIONS"]
 

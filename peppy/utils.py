@@ -12,6 +12,7 @@ if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+import warnings
 
 
 import yaml
@@ -377,6 +378,20 @@ def standard_stream_redirector(stream):
         yield
     finally:
         sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
+
+
+
+def warn_derived_cols():
+    _warn_cols_to_attrs("derived")
+
+
+def warn_implied_cols():
+    _warn_cols_to_attrs("implied")
+
+
+def _warn_cols_to_attrs(prefix):
+    warnings.warn("{pfx}_columns should be encoded and referenced "
+                  "as {pfx}_attributes".format(pfx=prefix), DeprecationWarning)
 
 
 

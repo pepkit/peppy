@@ -18,9 +18,9 @@ ADD_PROJECT_DATA = {
     "genome": {"organism": {
         "mouse": "mm10", "human": "hg38", "rat": "rn6"}},
     "data_sources": {"src": "{sample}-{flowcell}.bam"},
-    "derived_columns": ["data_source"],
+    "derived_attributes": ["data_source"],
     "pipeline_args": {"--epilog": None},
-    "implied_columns": {"organism": "assembly"},
+    "implied_attributes": {"organism": "assembly"},
     "user": "test-user",
     "email": "tester@domain.org",
 }

@@ -9,7 +9,7 @@ else:
 
 from pandas import Series
 
-from .utils import copy
+from .utils import copy, warn_derived_cols, warn_implied_cols
 
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
@@ -141,6 +141,12 @@ class AttributeDict(MutableMapping):
         :raises _MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
+        if key == "derived_columns":
+            warn_derived_cols()
+            key = "derived_attributes"
+        elif key == "implied_columns":
+            warn_implied_cols()
+            key = "implied_attributes"
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.

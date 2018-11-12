@@ -21,7 +21,7 @@ from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
     REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
-    grab_project_data, is_url,parse_ftype, sample_folder
+    grab_project_data, parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
 
@@ -320,7 +320,7 @@ class Sample(AttributeDict):
                             for k in self.sheet_attributes])
 
 
-    def infer_columns(self, implications):
+    def infer_attributes(self, implications):
         """
         Infer value for additional field(s) from other field(s).
 
@@ -480,7 +480,7 @@ class Sample(AttributeDict):
         try:
             # Grab a temporary dictionary of sample attributes and update these
             # with any provided extra variables to use in the replacement.
-            # This is necessary for derived_columns in the merge table.
+            # This is necessary for derived_attributes in the merge table.
             # Here the copy() prevents the actual sample from being
             # updated by update().
             temp_dict = self.__dict__.copy()
@@ -524,7 +524,7 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
-        for col in project.get("derived_columns", []):
+        for col in project.get("derived_attributes", []):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if not hasattr(self, col):
@@ -659,16 +659,14 @@ class Sample(AttributeDict):
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
 
-            set_rtype = False
+            set_rtype_reason = ""
             if not hasattr(self, "read_type"):
                 set_rtype_reason = "read_type not yet set"
-                set_rtype = True
             elif not self.read_type or self.read_type.lower() \
                     not in VALID_READ_TYPES:
                 set_rtype_reason = "current read_type is invalid: '{}'". \
                     format(self.read_type)
-                set_rtype = True
-            if set_rtype:
+            if set_rtype_reason:
                 _LOGGER.debug(
                     "Setting read_type for %s '%s': %s",
                     self.__class__.__name__, self.name, set_rtype_reason)
@@ -938,7 +936,8 @@ class Sample(AttributeDict):
 
 
 
-def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None):
+def merge_sample(sample, sample_subann,
+                 data_sources=None, derived_attributes=None):
     """
     Use merge table (subannotation) data to augment/modify Sample.
 
@@ -946,9 +945,9 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     :param sample_subann: data with which to alter Sample
     :param Mapping data_sources: collection of named paths to data locations,
         optional
-    :param Iterable[str] derived_columns: names of columns for which
+    :param Iterable[str] derived_attributes: names of attributes for which
         corresponding Sample attribute's value is data-derived, optional
-    :return Set[str]: names of columns that were merged
+    :return Set[str]: names of columns/attributes that were merged
     """
 
     merged_attrs = {}
@@ -966,9 +965,9 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
                   format(data_sources))
 
     # Hash derived columns for faster lookup in case of many samples/columns.
-    derived_columns = set(derived_columns or [])
-    _LOGGER.debug("Merging Sample with derived columns: {}".
-                  format(derived_columns))
+    derived_attributes = set(derived_attributes or [])
+    _LOGGER.debug("Merging Sample with derived attributes: {}".
+                  format(derived_attributes))
 
     sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
     sample_indexer = sample_subann[SAMPLE_NAME_COLNAME] == sample_name
@@ -988,7 +987,6 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     merged_attrs = {key: "" for key in this_sample_rows.columns}
     subsamples = []
     _LOGGER.debug(this_sample_rows)
-    subsample_count = 0
     for subsample_row_id, row in this_sample_rows.iterrows():
         try:
             row['subsample_name']
@@ -1004,7 +1002,7 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
         # during-iteration change of dictionary size.
         for attr_name in this_sample_rows.columns:
             if attr_name == SAMPLE_NAME_COLNAME or \
-                            attr_name not in derived_columns:
+                            attr_name not in derived_attributes:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
 
@@ -1019,9 +1017,9 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
                 extra_vars=rowdata)  # 1)
             rowdata[attr_name] = data_src_path
 
-        _LOGGER.log(5, "Adding derived columns")
+        _LOGGER.log(5, "Adding derived attributes")
 
-        for attr in derived_columns:
+        for attr in derived_attributes:
 
             # Skip over any attributes that the sample lacks or that are
             # covered by the data from the current (row's) data.

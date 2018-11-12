@@ -41,12 +41,12 @@ def project_config_data():
 
 def pytest_generate_tests(metafunc):
     """ Dynamic parameterization/customization for tests in this module. """
-    if metafunc.cls == DerivedColumnsTests:
-        # Parameterize derived columns tests over whether the specification
-        # is explicit (vs. implied), and which default column to validate.
+    if metafunc.cls == DerivedAttributesTests:
+        # Parameterize derived attribute tests over whether the specification
+        # is explicit (vs. implied), and which default attribute to validate.
         metafunc.parametrize(
                 argnames="case_type",
-                argvalues=DerivedColumnsTests.DERIVED_COLUMNS_CASE_TYPES,
+                argvalues=DerivedAttributesTests.DERIVED_ATTRIBUTES_CASE_TYPES,
                 ids=lambda case_type: "case_type={}".format(case_type))
 
 
@@ -337,11 +337,11 @@ class ProjectDefaultEnvironmentSettingsTests:
 
 
 
-class DerivedColumnsTests:
-    """ Tests for the behavior of Project's derived_columns attribute. """
+class DerivedAttributesTests:
+    """ Tests for the behavior of Project's derived_attributes attribute. """
 
-    ADDITIONAL_DERIVED_COLUMNS = ["arbitrary1", "filler2", "placeholder3"]
-    DERIVED_COLUMNS_CASE_TYPES = ["implicit", "disjoint", "intersection"]
+    ADDITIONAL_DERIVED_ATTRIBUTES = ["arbitrary1", "filler2", "placeholder3"]
+    DERIVED_ATTRIBUTES_CASE_TYPES = ["implicit", "disjoint", "intersection"]
 
 
     def create_project(
@@ -354,68 +354,68 @@ class DerivedColumnsTests:
         :param str default_env_path: path to the default environment config 
             file to pass to Project constructor
         :param str case_type: type of test case to execute; this determines 
-            how to specify the derived columns in the config file
+            how to specify the derived attribute in the config file
         :param str dirpath: path in which to write config file
         :return (Iterable[str], Project): collection of names of derived 
-            columns to expect, along with Project instance with which to test
+            attribute to expect, along with Project instance with which to test
         """
 
         # Ensure valid parameterization.
-        if case_type not in self.DERIVED_COLUMNS_CASE_TYPES:
+        if case_type not in self.DERIVED_ATTRIBUTES_CASE_TYPES:
             raise ValueError(
-                "Unexpected derived_columns case type: '{}' (known={})".
-                format(case_type, self.DERIVED_COLUMNS_CASE_TYPES))
+                "Unexpected derived_attributes case type: '{}' (known={})".
+                format(case_type, self.DERIVED_ATTRIBUTES_CASE_TYPES))
 
         # Parameterization specifies expectation and explicit specification.
-        expected_derived_columns = copy.copy(Project.DERIVED_COLUMNS_DEFAULT)
+        expected_derived_attributes = copy.copy(Project.DERIVED_ATTRIBUTES_DEFAULT)
         if case_type == "implicit":
-            # Negative control; ensure config data lacks derived columns.
-            assert "derived_columns" not in project_config_data
+            # Negative control; ensure config data lacks derived attributes.
+            assert "derived_attributes" not in project_config_data
         else:
-            explicit_derived_columns = \
-                    copy.copy(self.ADDITIONAL_DERIVED_COLUMNS)
-            expected_derived_columns.extend(self.ADDITIONAL_DERIVED_COLUMNS)
-            # Determine explicit inclusion of default derived columns.
+            explicit_derived_attributes = \
+                    copy.copy(self.ADDITIONAL_DERIVED_ATTRIBUTES)
+            expected_derived_attributes.extend(self.ADDITIONAL_DERIVED_ATTRIBUTES)
+            # Determine explicit inclusion of default derived attributes.
             if case_type == "intersection":
-                explicit_derived_columns.extend(
-                        Project.DERIVED_COLUMNS_DEFAULT)
-            project_config_data["derived_columns"] = explicit_derived_columns
+                explicit_derived_attributes.extend(
+                        Project.DERIVED_ATTRIBUTES_DEFAULT)
+            project_config_data["derived_attributes"] = explicit_derived_attributes
 
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
         with mock.patch("peppy.project.check_sample_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
-        return expected_derived_columns, project
+        return expected_derived_attributes, project
 
 
 
-    def test_default_derived_columns_always_present(self,
+    def test_default_derived_attributes_always_present(self,
             env_config_filepath, project_config_data, case_type, tmpdir):
-        """ Explicit or implicit, default derived columns are always there. """
+        """ Explicit or implicit, default derived attributes are always there. """
 
-        expected_derived_columns, project = self.create_project(
+        expected_derived_attributes, project = self.create_project(
                 project_config_data=project_config_data,
                 default_env_path=env_config_filepath,
                 case_type=case_type, dirpath=tmpdir.strpath)
 
         # Rough approximation of order-agnostic validation of
         # presence and number agreement for all elements.
-        assert len(expected_derived_columns) == len(project.derived_columns)
-        assert set(expected_derived_columns) == set(project.derived_columns)
+        assert len(expected_derived_attributes) == len(project.derived_attributes)
+        assert set(expected_derived_attributes) == set(project.derived_attributes)
 
 
-    def test_default_derived_columns_not_duplicated(self,
+    def test_default_derived_attributes_not_duplicated(self,
             env_config_filepath, project_config_data, case_type, tmpdir):
-        """ Default derived columns are not added if already present. """
+        """ Default derived attributes are not added if already present. """
         from collections import Counter
         _, project = self.create_project(
                 project_config_data=project_config_data,
                 default_env_path=env_config_filepath,
                 case_type=case_type, dirpath=tmpdir.strpath)
-        num_occ_by_derived_column = Counter(project.derived_columns)
-        for default_derived_colname in Project.DERIVED_COLUMNS_DEFAULT:
-            assert 1 == num_occ_by_derived_column[default_derived_colname]
+        num_occ_by_derived_attribute = Counter(project.derived_attributes)
+        for default_derived_colname in Project.DERIVED_ATTRIBUTES_DEFAULT:
+            assert 1 == num_occ_by_derived_attribute[default_derived_colname]
 
 
 
@@ -683,7 +683,7 @@ class ProjectConstructorTest:
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=MERGED_SAMPLE_INDICES)
     def test_data_sources_derivation(self, proj, sample_index):
-        """ Samples in merge file, check data_sources --> derived_columns. """
+        """ Samples in merge file, check data_sources --> derived_attributes. """
         # Make sure these columns were merged:
         merged_columns = filter(
                 lambda col_key: (col_key != "col_modifier") and
@@ -691,17 +691,17 @@ class ProjectConstructorTest:
                 proj.samples[sample_index].merged_cols.keys())
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
-        expected = set(DERIVED_COLNAMES)
-        observed = set(merged_columns)
+        required = set(DERIVED_COLNAMES)
+        observed = {k for k in proj.samples[sample_index].merged_cols.keys()
+                    if k != "col_modifier" and not k.endswith(COL_KEY_SUFFIX)}
         # Observed may include additional things (like auto-added subsample_name)
-        for val in expected:
-            assert val in observed
+        assert required == (required & observed)
 
 
     @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
-    def test_derived_columns_sample_subannotation_sample(
+    def test_derived_attributes_sample_subannotation_sample(
             self, proj, sample_index):
-        """ Make sure derived columns works on merged table. """
+        """ Make sure derived attributes works on merged table. """
         observed_merged_sample_filepaths = \
             [os.path.basename(f) for f in
              proj.samples[sample_index].file2.split(" ")]
@@ -717,8 +717,8 @@ class ProjectConstructorTest:
         assert not proj.samples[sample_index].merged_cols
 
 
-    def test_duplicate_derived_columns_still_derived(self, proj):
-        """ Duplicated derived columns can still be derived. """
+    def test_duplicate_derived_attributes_still_derived(self, proj):
+        """ Duplicated derived attributes can still be derived. """
         sample_index = 2
         observed_nonmerged_col_basename = \
             os.path.basename(proj.samples[sample_index].nonmerged_col)

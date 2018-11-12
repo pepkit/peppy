@@ -66,7 +66,8 @@ from .const import \
     SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url
+    add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url, \
+    warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -165,7 +166,7 @@ class Project(AttributeDict):
 
     """
 
-    DERIVED_COLUMNS_DEFAULT = [DATA_SOURCE_COLNAME]
+    DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
 
     def __init__(self, config_file, subproject=None,
@@ -254,11 +255,11 @@ class Project(AttributeDict):
         # Establish derived columns.
         try:
             # Do not duplicate derived column names.
-            self.derived_columns.extend(
-                [colname for colname in self.DERIVED_COLUMNS_DEFAULT
-                 if colname not in self.derived_columns])
+            self.derived_attributes.extend(
+                [colname for colname in self.DERIVED_ATTRIBUTES_DEFAULT
+                 if colname not in self.derived_attributes])
         except AttributeError:
-            self.derived_columns = self.DERIVED_COLUMNS_DEFAULT
+            self.derived_attributes = self.DERIVED_ATTRIBUTES_DEFAULT
 
         self.finalize_pipelines_directory()
 
@@ -340,6 +341,26 @@ class Project(AttributeDict):
         """ Path to default compute environment settings file. """
         return os.path.join(
             self.templates_folder, "default_compute_settings.yaml")
+
+
+    @property
+    def derived_columns(self):
+        """ Collection of sample attributes for which value of each is derived from elsewhere """
+        warn_derived_cols()
+        try:
+            return self.derived_attributes
+        except AttributeError:
+            return []
+
+
+    @property
+    def implied_columns(self):
+        """ Collection of sample attributes for which value of each is implied by other(s) """
+        warn_implied_cols()
+        try:
+            return self.implied_attributes
+        except AttributeError:
+            return AttributeDict()
 
 
     @property
@@ -703,14 +724,13 @@ class Project(AttributeDict):
             # Add values that are constant across this Project's samples.
             sample = add_project_sample_constants(sample, self)
 
-            # TODO: use implied_columns in 0.8.
             sample.set_genome(self.get("genomes"))
             sample.set_transcriptome(self.get("transcriptomes"))
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
-            sample.infer_columns(self.get(IMPLICATIONS_DECLARATION))
+            sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
             merge_sample(sample, self.sample_subannotation,
-                         self.data_sources, self.derived_columns)
+                         self.data_sources, self.derived_attributes)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility

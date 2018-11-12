@@ -38,8 +38,8 @@ def basic_project_data():
             "output_dir": "outdir",
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
-        "derived_columns": ["data_source"],
-        "implied_columns": {"organism": {"genomes": {
+        "derived_attributes": ["data_source"],
+        "implied_attributes": {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }

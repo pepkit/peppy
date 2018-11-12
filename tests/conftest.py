@@ -35,14 +35,14 @@ PROJECT_CONFIG_LINES = """metadata:
   pipeline_interfaces: pipelines
   sample_subannotation: merge.csv
 
-derived_columns: [{derived_column_names}]
+derived_attributes: [{derived_attribute_names}]
 
 data_sources:
   src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
   src3: "{basedir}/data/{sample_name}.txt"
   src2: "{basedir}/data/{sample_name}-bamfile.bam"
 
-implied_columns:
+implied_attributes:
   sample_name:
     a:
       genome: hg38
@@ -312,8 +312,8 @@ class _DataSourceFormatMapping(dict):
     mechanism that pep uses to derive columns, but it's also the
     core string formatting mechanism.
     """
-    def __missing__(self, derived_column):
-        return "{" + derived_column + "}"
+    def __missing__(self, derived_attribute):
+        return "{" + derived_attribute + "}"
 
 
 
@@ -333,8 +333,8 @@ def _write_temp(lines, dirpath, fname):
     :return str: full path to written file
     """
     basedir_replacement = _DataSourceFormatMapping(basedir=dirpath)
-    derived_columns_replacement = _DataSourceFormatMapping(
-            **{"derived_column_names": ", ".join(DERIVED_COLNAMES)}
+    derived_attributes_replacement = _DataSourceFormatMapping(
+            **{"derived_attribute_names": ", ".join(DERIVED_COLNAMES)}
     )
     filepath = os.path.join(dirpath, fname)
     data_source_formatter = string.Formatter()
@@ -342,12 +342,14 @@ def _write_temp(lines, dirpath, fname):
     with open(filepath, 'w') as tmpf:
         for l in lines:
             if "{basedir}" in l:
-                l = data_source_formatter.vformat(
+                out = data_source_formatter.vformat(
                     l, (), basedir_replacement)
-            elif "{derived_column_names}" in l:
-                l = data_source_formatter.vformat(
-                    l, (), derived_columns_replacement)
-            tmpf.write(l)
+            elif "{derived_attribute_names}" in l:
+                out = data_source_formatter.vformat(
+                    l, (), derived_attributes_replacement)
+            else:
+                out = l
+            tmpf.write(out)
             num_lines += 1
     _LOGGER.debug("Wrote %d line(s) to disk: '%s'", num_lines, filepath)
     return filepath
