@@ -1,7 +1,6 @@
 # peppy python package
 
-[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://peppy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/pepkit/peppy.svg?branch=master)](https://travis-ci.org/pepkit/peppy)
-
+[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://peppy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/pepkit/peppy.svg?branch=master)](https://travis-ci.org/pepkit/peppy) [![PEP compatible](http://pepkit.github.io/img/PEP-compatible-green.svg)](http://pepkit.github.io)
 `peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in `python`. 
 
 Links to complete documentation:
