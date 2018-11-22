@@ -51,6 +51,7 @@ from collections import Counter
 import logging
 import os
 import sys
+import warnings
 if sys.version_info < (3, 3):
     from collections import Iterable, Mapping
 else:
@@ -234,7 +235,7 @@ class Project(AttributeDict):
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
-        if "data_sources" in self:
+        if "data_sources" in self and self["data_sources"] is not None:
             # Expand paths now, so that it's not done for every sample.
             for src_key, src_val in self.data_sources.items():
                 src_val = os.path.expandvars(src_val)
@@ -270,29 +271,19 @@ class Project(AttributeDict):
                              self.metadata.pipelines_dir))
 
         path_anns_file = self.metadata.sample_annotation
-        _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-        try:
+        if path_anns_file:
+            _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
             _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
             self.sheet = check_sample_sheet(path_anns_file)
-        except IOError:
-            _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
-                          path_anns_file)
-            anns_folder_path = os.path.dirname(path_anns_file)
-            try:
-                annotations_file_folder_contents = \
-                    os.listdir(anns_folder_path)
-            except OSError:
-                _LOGGER.error("Annotations file folder doesn't exist either: "
-                              "'%s'", anns_folder_path)
-            else:
-                _LOGGER.error("Annotations file folder's contents: {}".
-                              format(annotations_file_folder_contents))
-            raise
+        else:
+            _LOGGER.warn("No sample annotations sheet in config")
+            self.sheet = None
+
 
         self.sample_subannotation = None
 
         # Basic sample maker will handle name uniqueness check.
-        if defer_sample_construction:
+        if defer_sample_construction or self.sheet is None:
             self._samples = None
         else:
             self._set_basic_samples()
@@ -445,10 +436,6 @@ class Project(AttributeDict):
         :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
-        if self._samples is None:
-            _LOGGER.debug("Building basic sample object(s) for %s",
-                          self.__class__.__name__)
-            self._set_basic_samples()
         return self._samples
 
 
@@ -511,6 +498,14 @@ class Project(AttributeDict):
             raise ValueError("Project has no sample named {name}.".format(name=sample_name))
 
         return samples[0]
+
+    def activate_subproject(self,subproject):
+        """
+        Activate a subproject 
+
+        This method will activate a subproject. 
+        """
+        return self.__init__(self.config_file,subproject=subproject)
 
 
     def get_samples(self, sample_names):
@@ -896,9 +891,7 @@ class Project(AttributeDict):
 
         # Required variables check
         if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
-            raise _MissingMetadataException(
-                missing_section=SAMPLE_ANNOTATIONS_KEY,
-                path_config_file=self.config_file)
+            self.metadata.sample_annotation = None
 
 
     def set_compute(self, setting):
@@ -1044,15 +1037,21 @@ def check_sample_sheet(sample_file, dtype=str):
     # See https://github.com/pepkit/peppy/issues/159 for the original issue
     # and https://github.com/pepkit/peppy/pull/160 for the pull request
     # that resolved it.
-    df = pd.read_table(sample_file, sep=None, dtype=dtype,
+    try:
+        df = pd.read_table(sample_file, sep=None, dtype=dtype,
                        index_col=False, engine="python", keep_default_na=False)
-    req = [SAMPLE_NAME_COLNAME]
-    missing = set(req) - set(df.columns)
-    if len(missing) != 0:
-        raise ValueError(
-            "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
-                format(sample_file, "\n".join(missing),
-                       ", ".join(list(df.columns))))
+    except:
+        _LOGGER.warning("sample annotations does not exist")
+        df = None
+    else:
+        _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
+        req = [SAMPLE_NAME_COLNAME]
+        missing = set(req) - set(df.columns)
+        if len(missing) != 0:
+            _LOGGER.warning(
+                "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
+                    format(sample_file, "\n".join(missing),
+                           ", ".join(list(df.columns))))
     return df
 
 
