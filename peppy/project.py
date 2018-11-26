@@ -504,8 +504,11 @@ class Project(AttributeDict):
         Activate a subproject 
 
         This method will activate a subproject. 
+
+        :param str subproject: A string with a subproject name to be activated
+        :return Project: A Project with the selected subproject activated
         """
-        return self.__init__(self.config_file,subproject=subproject)
+        return self.__init__(self.config_file, subproject=subproject)
 
 
     def get_samples(self, sample_names):
