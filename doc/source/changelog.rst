@@ -1,6 +1,13 @@
 Changelog
 ******************************
 
+- **Unreleased**:
+
+  - Changed
+
+    - ``Project`` construction no longer requires sample annotations sheet.
+
+
 - **v0.18.2** (*2018-07-23*):
 
   - Fixed

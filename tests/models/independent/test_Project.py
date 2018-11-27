@@ -154,6 +154,18 @@ class ProjectRequirementsTests:
     """ Tests for a Project's set of requirements. """
 
 
+    def test_lacks_sample_annotation(
+            self, project_config_data, env_config_filepath, tmpdir):
+        """ Project can be built without sample annotations. """
+        # Remove sample annotations KV pair from config data for this test.
+        del project_config_data["metadata"][SAMPLE_ANNOTATIONS_KEY]
+        # Write the (sans-annotations) config and assert Project is created.
+        conf_path = _write_project_config(
+            project_config_data, dirpath=tmpdir.strpath)
+        prj = Project(conf_path, default_compute=env_config_filepath)
+        assert isinstance(prj, Project)
+
+
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
