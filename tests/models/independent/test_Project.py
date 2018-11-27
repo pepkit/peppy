@@ -154,20 +154,6 @@ class ProjectRequirementsTests:
     """ Tests for a Project's set of requirements. """
 
 
-    def test_lacks_sample_annotations(
-            self, project_config_data, env_config_filepath, tmpdir):
-        """ Lack of sample annotations precludes Project construction. """
-
-        # Remove sample annotations KV pair from config data for this test.
-        del project_config_data["metadata"][SAMPLE_ANNOTATIONS_KEY]
-
-        # Write the config and assert the expected exception for Project ctor.
-        conf_path = _write_project_config(
-            project_config_data, dirpath=tmpdir.strpath)
-        with pytest.raises(_MissingMetadataException):
-            Project(conf_path, default_compute=env_config_filepath)
-
-
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
