@@ -498,11 +498,13 @@ class Project(AttributeDict):
 
         return samples[0]
 
-    def activate_subproject(self,subproject):
+    def activate_subproject(self, subproject):
         """
-        Activate a subproject 
+        Activate a subproject.
 
-        This method will activate a subproject. 
+        This method will update Project attributes, adding new values
+        associated with the subproject indicated, and in case of collision with
+        an existing key/attribute the subproject's value will be favored.
 
         :param str subproject: A string with a subproject name to be activated
         :return Project: A Project with the selected subproject activated
