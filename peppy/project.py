@@ -51,7 +51,6 @@ from collections import Counter
 import logging
 import os
 import sys
-import warnings
 if sys.version_info < (3, 3):
     from collections import Iterable, Mapping
 else:
