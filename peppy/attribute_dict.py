@@ -84,6 +84,26 @@ class AttributeDict(MutableMapping):
             self.__setitem__(key, value)
 
 
+    def is_null(self, item):
+        """
+        Conjunction of presence in underlying mapping and value being None
+
+        :param object item: Key to check for presence and null value
+        :return bool: True iff the item is present and has null value
+        """
+        return item in self and self[item] is None
+
+
+    def non_null(self, item):
+        """
+        Conjunction of presence in underlying mapping and value not being None
+
+        :param object item: Key to check for presence and non-null value
+        :return bool: True iff the item is present and has non-null value
+        """
+        return item in self and self[item] is not None
+
+
     def __setattr__(self, key, value):
         self.__setitem__(key, value)
 
