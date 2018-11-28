@@ -509,7 +509,8 @@ class Project(AttributeDict):
         :param str subproject: A string with a subproject name to be activated
         :return Project: A Project with the selected subproject activated
         """
-        return self.__init__(self.config_file, subproject=subproject)
+        self.parse_config_file(subproject)
+        return self
 
 
     def get_samples(self, sample_names):
