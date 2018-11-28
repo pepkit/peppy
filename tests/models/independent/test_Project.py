@@ -746,14 +746,14 @@ class SubprojectActivationTest:
     @pytest.mark.parametrize(
         argnames="attr", argvalues=["permissive", "file_checks"])
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
-    def test_sp_act_preserves_non_config_user_changes(self, tmpdir, attr, sub):
+    def test_sp_act_resets_all_attributes(self, tmpdir, attr, sub):
         """ Subproject activation doesn't affect non-config attributes. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         original = prj[attr]
         prj[attr] = not original
         assert prj[attr] is not original
         prj.activate_subproject(sub)
-        assert prj[attr] is not original
+        assert prj[attr] is original
 
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
