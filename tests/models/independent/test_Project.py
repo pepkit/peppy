@@ -11,8 +11,7 @@ import yaml
 
 import peppy
 from peppy import AttributeDict, Project, Sample
-from peppy.const import SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from peppy.project import _MissingMetadataException
+from peppy.const import SAMPLE_ANNOTATIONS_KEY
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
@@ -723,6 +722,104 @@ class ProjectConstructorTest:
         assert "c.txt" == observed_nonmerged_col_basename
         assert "" == proj.samples[sample_index].locate_data_source(
                 proj.data_sources, 'file')
+
+
+
+class SubprojectActivationTest:
+    """ Test cases for the effect of activating a subproject. """
+
+    MARK_NAME = "marker"
+    SUBPROJ_SECTION = {
+        "neurons": {MARK_NAME: "NeuN"}, "astrocytes": {MARK_NAME: "GFAP"},
+        "oligodendrocytes": {MARK_NAME: "NG2"}, "microglia": {MARK_NAME: "Iba1"}
+    }
+
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_activation_returns_project(self, tmpdir, sub):
+        """ Subproject activation returns the project instance. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        assert updated_prj is prj
+
+
+    @pytest.mark.parametrize(
+        argnames="attr", argvalues=["permissive", "file_checks"])
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_sp_act_preserves_non_config_user_changes(self, tmpdir, attr, sub):
+        """ Subproject activation doesn't affect non-config attributes. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        original = prj[attr]
+        prj[attr] = not original
+        assert prj[attr] is not original
+        prj.activate_subproject(sub)
+        assert prj[attr] is not original
+
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_activation_adds_new_config_entries(self, tmpdir, sub):
+        """ Previously nonexistent entries are added by subproject. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        assert self.MARK_NAME not in prj
+        prj.activate_subproject(sub)
+        assert self.MARK_NAME in prj
+        assert self.SUBPROJ_SECTION[sub][self.MARK_NAME] == prj[self.MARK_NAME]
+
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_sp_act_overwrites_existing_config_entries(self, tmpdir, sub):
+        """ An activated subproject's values are favored over preexisting. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        prj[self.MARK_NAME] = "temp-mark"
+        assert "temp-mark" == prj[self.MARK_NAME]
+        prj.activate_subproject(sub)
+        expected = self.SUBPROJ_SECTION[sub][self.MARK_NAME]
+        assert expected == prj[self.MARK_NAME]
+
+
+    def test_activate_unknown_subproj(self, tmpdir):
+        """ With subprojects, attempt to activate undefined one is an error. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        with pytest.raises(Exception):
+            prj.activate_subproject("DNE-subproject")
+
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_activation_when_none_exist(self, tmpdir, sub):
+        """ Without subprojects, activation attempt produces warning. """
+
+        prj = self.make_proj(tmpdir.strpath, incl_subs=False)
+
+        # Log message setup
+        logfile = tmpdir.join("project-error-messages.log").strpath
+        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
+        # Expect error message emission at WARN level
+        expected_error_message_handler.setLevel(logging.WARN)
+        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
+
+        # Call that should produce a warning message
+        prj.activate_subproject(sub)
+
+        # Check for warning message.
+        with open(logfile, 'r') as messages:
+            exception_messages = messages.readlines()
+        for msg in exception_messages:
+            if "no subprojects are defined" in msg:
+                break
+        else:
+            raise AssertionError("Did not find expected message among lines: "
+                                 "{}".format(exception_messages))
+
+
+    def make_proj(self, folder, incl_subs):
+        """ Write temp config and create Project with subproject option. """
+        conf_file_path = os.path.join(folder, "conf.yaml")
+        conf_data = {"metadata": {}}
+        if incl_subs:
+            conf_data.update(**{"subprojects": self.SUBPROJ_SECTION})
+        with open(conf_file_path, 'w') as f:
+            yaml.safe_dump(conf_data, f)
+        return Project(conf_file_path)
 
 
 

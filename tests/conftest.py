@@ -507,8 +507,8 @@ def proj(request):
     Create project instance using data from file pointed to by request class.
 
     To use this fixture, the test case must reside within a class that
-    defines a "project_config_file" attribute. This is best done by marking
-    the class with "@pytest.mark.usefixtures("write_project_files")"
+    defines a "project_config_file" attribute. This is most easily done by
+    marking the class with "@pytest.mark.usefixtures('write_project_files')"
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance
