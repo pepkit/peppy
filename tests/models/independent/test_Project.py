@@ -811,12 +811,13 @@ class SubprojectActivationTest:
                                  "{}".format(exception_messages))
 
 
-    def make_proj(self, folder, incl_subs):
+    @classmethod
+    def make_proj(cls, folder, incl_subs):
         """ Write temp config and create Project with subproject option. """
         conf_file_path = os.path.join(folder, "conf.yaml")
         conf_data = {"metadata": {}}
         if incl_subs:
-            conf_data.update(**{"subprojects": self.SUBPROJ_SECTION})
+            conf_data.update(**{"subprojects": cls.SUBPROJ_SECTION})
         with open(conf_file_path, 'w') as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)
