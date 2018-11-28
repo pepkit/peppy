@@ -294,7 +294,7 @@ class Project(AttributeDict):
             format(self.__class__.__name__, self.config_file)
         try:
             num_samples = len(self._samples)
-        except AttributeError:
+        except (AttributeError, TypeError):
             pass
         else:
             samples_message += " with {} sample(s)".format(num_samples)
