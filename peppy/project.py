@@ -121,7 +121,7 @@ class ProjectContext(object):
 @copy
 class Project(AttributeDict):
     """
-    A class to model a Project.
+    A class to model a Project (collection of samples and metadata).
 
     :param config_file: Project config file (YAML).
     :type config_file: str
@@ -273,10 +273,10 @@ class Project(AttributeDict):
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
             _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
-            self.sheet = check_sample_sheet(path_anns_file)
+            self._sheet = check_sample_sheet(path_anns_file)
         else:
             _LOGGER.warn("No sample annotations sheet in config")
-            self.sheet = None
+            self._sheet = None
 
 
         self.sample_subannotation = None
@@ -438,6 +438,16 @@ class Project(AttributeDict):
             of this Project's samples
         """
         return self._samples
+
+
+    @property
+    def sheet(self):
+        """
+        Annotations/metadata sheet describing this Project's samples.
+
+        :return pandas.core.frame.DataFrame: table of samples in this Project
+        """
+        return self._sheet 
 
 
     @property
