@@ -64,6 +64,7 @@ from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
     DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
     SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url, \
@@ -1075,21 +1076,20 @@ class Project(AttributeDict):
         return df
 
 
-    class MissingSampleSheetError(Exception):
+    class MissingMetadataException(PeppyError):
+        """ Project needs certain metadata. """
+        def __init__(self, missing_section, path_config_file=None):
+            reason = "Project configuration lacks required metadata section {}".\
+                    format(missing_section)
+            if path_config_file:
+                reason += "; used config file '{}'".format(path_config_file)
+            super(Project.MissingMetadataException, self).__init__(reason)
+
+
+    class MissingSampleSheetError(PeppyError):
         """ Represent case in which sample sheet is specified but nonexistent. """
         def __init__(self, sheetfile):
             super(Project.MissingSampleSheetError, self).__init__(
                 "Missing sample annotation sheet ({}); a project need not use "
                 "a sample sheet, but if it does the file must exist"
                 .format(sheetfile))
-
-
-
-class _MissingMetadataException(Exception):
-    """ Project needs certain metadata. """
-    def __init__(self, missing_section, path_config_file=None):
-        reason = "Project configuration lacks required metadata section {}".\
-                format(missing_section)
-        if path_config_file:
-            reason += "; used config file '{}'".format(path_config_file)
-        super(_MissingMetadataException, self).__init__(reason)
