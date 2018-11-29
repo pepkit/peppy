@@ -491,7 +491,7 @@ class Project(AttributeDict):
         :return Sample: The requested Sample object
         """
 
-        samples = self.get_samples(sample_name)
+        samples = self.get_samples([sample_name])
         if len(samples) > 1:
             _LOGGER.warn("More than one sample was detected; returning the first")
 
