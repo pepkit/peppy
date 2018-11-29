@@ -447,7 +447,8 @@ class Project(AttributeDict):
 
         :return pandas.core.frame.DataFrame: table of samples in this Project
         """
-        return self._sheet 
+        from copy import copy as cp
+        return cp(self._sheet)
 
 
     @property
