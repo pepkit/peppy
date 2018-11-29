@@ -290,6 +290,8 @@ class Project(AttributeDict):
 
     def __repr__(self):
         """ Representation in interpreter. """
+        if len(self) == 0:
+            return "{}"
         samples_message = "{} (from '{}')". \
             format(self.__class__.__name__, self.config_file)
         try:
@@ -509,7 +511,9 @@ class Project(AttributeDict):
         :param str subproject: A string with a subproject name to be activated
         :return Project: A Project with the selected subproject activated
         """
-        self.__init__(self.config_file, subproject)
+        conf_file = self.config_file
+        self.clear()
+        self.__init__(conf_file, subproject)
         return self
 
 

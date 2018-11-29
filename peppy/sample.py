@@ -927,12 +927,19 @@ class Sample(AttributeDict):
             outfile.write(yaml_data)
 
 
-    def update(self, newdata):
+    def update(self, newdata, **kwargs):
         """
         Update Sample object with attributes from a dict.
         """
-        for key, value in newdata.items():
-            setattr(self, key, value)
+        duplicates = [k for k in set(newdata.keys()) & set(kwargs.keys())
+                      if newdata[k] != kwargs[k]]
+        if len(duplicates) != 0:
+            raise ValueError("{} duplicate keys with different values: {}".
+                             format(len(duplicates), ", ".join(duplicates)))
+        for k, v in newdata.items():
+            setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
 
