@@ -448,6 +448,8 @@ class Project(AttributeDict):
         :return pandas.core.frame.DataFrame: table of samples in this Project
         """
         from copy import copy as cp
+        if self._sheet is None:
+            self._sheet = check_sample_sheet(self.metadata.sample_annotation)
         return cp(self._sheet)
 
 
