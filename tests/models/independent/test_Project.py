@@ -381,7 +381,7 @@ class DerivedAttributesTests:
         # Write the config and build the Project.
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
-        with mock.patch("peppy.project.check_sample_sheet"):
+        with mock.patch("peppy.project.Project.parse_sample_sheet"):
             project = Project(conf_file_path, default_compute=default_env_path)
         return expected_derived_attributes, project
 
@@ -594,7 +594,7 @@ class ProjectPipelineArgstringTests:
         conf_file_path = _write_project_config(confdata, dirpath=confpath)
 
         # Subvert requirement for sample annotations file.
-        with mock.patch("peppy.project.check_sample_sheet"):
+        with mock.patch("peppy.project.Project.parse_sample_sheet"):
             project = Project(conf_file_path, default_compute=envpath)
 
         argstring = project.get_arg_string(pipeline)

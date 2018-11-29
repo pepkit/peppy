@@ -273,7 +273,7 @@ class Project(AttributeDict):
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
             _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
-            self._sheet = check_sample_sheet(path_anns_file)
+            self._sheet = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warn("No sample annotations sheet in config")
             self._sheet = None
@@ -448,7 +448,7 @@ class Project(AttributeDict):
         """
         from copy import copy as cp
         if self._sheet is None:
-            self._sheet = check_sample_sheet(self.metadata.sample_annotation)
+            self._sheet = self.parse_sample_sheet(self.metadata.sample_annotation)
         return cp(self._sheet)
 
 
@@ -1040,39 +1040,48 @@ class Project(AttributeDict):
             when_missing(message)
 
 
+    @staticmethod
+    def parse_sample_sheet(sample_file, dtype=str):
+        """
+        Check if csv file exists and has all required columns.
 
-def check_sample_sheet(sample_file, dtype=str):
-    """
-    Check if csv file exists and has all required columns.
+        :param str sample_file: path to sample annotations file.
+        :param type dtype: data type for CSV read.
+        :raises IOError: if given annotations file can't be read.
+        :raises ValueError: if required column(s) is/are missing.
+        """
+        # Although no null value replacements or supplements are being passed,
+        # toggling the keep_default_na value to False solved an issue with 'nan'
+        # and/or 'None' as an argument for an option in the pipeline command
+        # that's generated from a Sample's attributes.
+        #
+        # See https://github.com/pepkit/peppy/issues/159 for the original issue
+        # and https://github.com/pepkit/peppy/pull/160 for the pull request
+        # that resolved it.
+        try:
+            df = pd.read_table(sample_file, sep=None, dtype=dtype, index_col=False,
+                               engine="python", keep_default_na=False)
+        except IOError:
+            raise Project.MissingSampleSheetError(sample_file)
+        else:
+            _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
+            req = [SAMPLE_NAME_COLNAME]
+            missing = set(req) - set(df.columns)
+            if len(missing) != 0:
+                _LOGGER.warning(
+                    "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
+                        format(sample_file, "\n".join(missing),
+                               ", ".join(list(df.columns))))
+        return df
 
-    :param str sample_file: path to sample annotations file.
-    :param type dtype: data type for CSV read.
-    :raises IOError: if given annotations file can't be read.
-    :raises ValueError: if required column(s) is/are missing.
-    """
-    # Although no null value replacements or supplements are being passed,
-    # toggling the keep_default_na value to False solved an issue with 'nan'
-    # and/or 'None' as an argument for an option in the pipeline command
-    # that's generated from a Sample's attributes.
-    #
-    # See https://github.com/pepkit/peppy/issues/159 for the original issue
-    # and https://github.com/pepkit/peppy/pull/160 for the pull request
-    # that resolved it.
-    try:
-        df = pd.read_table(sample_file, sep=None, dtype=dtype, index_col=False,
-                           engine="python", keep_default_na=False)
-    except IOError:
-        raise MissingSampleSheetError(sample_file)
-    else:
-        _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-        req = [SAMPLE_NAME_COLNAME]
-        missing = set(req) - set(df.columns)
-        if len(missing) != 0:
-            _LOGGER.warning(
-                "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
-                    format(sample_file, "\n".join(missing),
-                           ", ".join(list(df.columns))))
-    return df
+
+    class MissingSampleSheetError(Exception):
+        """ Represent case in which sample sheet is specified but nonexistent. """
+        def __init__(self, sheetfile):
+            super(Project.MissingSampleSheetError, self).__init__(
+                "Missing sample annotation sheet ({}); a project need not use "
+                "a sample sheet, but if it does the file must exist"
+                .format(sheetfile))
 
 
 
@@ -1084,10 +1093,3 @@ class _MissingMetadataException(Exception):
         if path_config_file:
             reason += "; used config file '{}'".format(path_config_file)
         super(_MissingMetadataException, self).__init__(reason)
-
-
-class MissingSampleSheetError(Exception):
-    """ Represent case in which sample sheet is specified but nonexistent. """
-    def __init__(self, sheetfile):
-        super(MissingSampleSheetError, self).__init__(
-            "Missing sample annotation sheet: {}".format(sheetfile))
