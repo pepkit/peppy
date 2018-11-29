@@ -278,11 +278,10 @@ class Project(AttributeDict):
             _LOGGER.warn("No sample annotations sheet in config")
             self._sheet = None
 
-
         self.sample_subannotation = None
 
         # Basic sample maker will handle name uniqueness check.
-        if defer_sample_construction or self.sheet is None:
+        if defer_sample_construction or self._sheet is None:
             self._samples = None
         else:
             self._set_basic_samples()
@@ -1060,11 +1059,10 @@ def check_sample_sheet(sample_file, dtype=str):
     # and https://github.com/pepkit/peppy/pull/160 for the pull request
     # that resolved it.
     try:
-        df = pd.read_table(sample_file, sep=None, dtype=dtype,
-                       index_col=False, engine="python", keep_default_na=False)
-    except:
-        _LOGGER.warning("sample annotations does not exist")
-        df = None
+        df = pd.read_table(sample_file, sep=None, dtype=dtype, index_col=False,
+                           engine="python", keep_default_na=False)
+    except IOError:
+        raise MissingSampleSheetError(sample_file)
     else:
         _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
         req = [SAMPLE_NAME_COLNAME]
@@ -1086,3 +1084,10 @@ class _MissingMetadataException(Exception):
         if path_config_file:
             reason += "; used config file '{}'".format(path_config_file)
         super(_MissingMetadataException, self).__init__(reason)
+
+
+class MissingSampleSheetError(Exception):
+    """ Represent case in which sample sheet is specified but nonexistent. """
+    def __init__(self, sheetfile):
+        super(MissingSampleSheetError, self).__init__(
+            "Missing sample annotation sheet: {}".format(sheetfile))
