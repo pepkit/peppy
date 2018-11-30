@@ -197,15 +197,16 @@ class Project(AttributeDict):
             default_compute, when_missing=no_environment_exception)
 
         # Load settings from environment yaml for local compute infrastructure.
+        compute_env_file = compute_env_file or os.getenv(self.compute_env_var)
         if compute_env_file:
-            _LOGGER.debug("Updating environment settings based on file '%s'",
-                          compute_env_file)
-            self.update_environment(compute_env_file)
-
+            if os.path.isfile(compute_env_file):
+                self.update_environment(compute_env_file)
+            else:
+                _LOGGER.warn("Compute env path isn't a file: {}".
+                             format(compute_env_file))
         else:
-            _LOGGER.info("Using default {envvar}. You may set environment "
-                         "variable {envvar} to configure environment "
-                         "settings.".format(envvar=self.compute_env_var))
+            _LOGGER.info("No compute env file was provided and {} is unset; "
+                         "using default".format(self.compute_env_var))
 
         # Initialize default compute settings.
         _LOGGER.debug("Establishing project compute settings")
