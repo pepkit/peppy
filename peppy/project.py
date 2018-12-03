@@ -64,6 +64,7 @@ from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
     DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
     SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url, \
@@ -121,7 +122,7 @@ class ProjectContext(object):
 @copy
 class Project(AttributeDict):
     """
-    A class to model a Project.
+    A class to model a Project (collection of samples and metadata).
 
     :param config_file: Project config file (YAML).
     :type config_file: str
@@ -196,15 +197,16 @@ class Project(AttributeDict):
             default_compute, when_missing=no_environment_exception)
 
         # Load settings from environment yaml for local compute infrastructure.
+        compute_env_file = compute_env_file or os.getenv(self.compute_env_var)
         if compute_env_file:
-            _LOGGER.debug("Updating environment settings based on file '%s'",
-                          compute_env_file)
-            self.update_environment(compute_env_file)
-
+            if os.path.isfile(compute_env_file):
+                self.update_environment(compute_env_file)
+            else:
+                _LOGGER.warn("Compute env path isn't a file: {}".
+                             format(compute_env_file))
         else:
-            _LOGGER.info("Using default {envvar}. You may set environment "
-                         "variable {envvar} to configure environment "
-                         "settings.".format(envvar=self.compute_env_var))
+            _LOGGER.info("No compute env file was provided and {} is unset; "
+                         "using default".format(self.compute_env_var))
 
         # Initialize default compute settings.
         _LOGGER.debug("Establishing project compute settings")
@@ -234,7 +236,7 @@ class Project(AttributeDict):
             _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
-        if "data_sources" in self:
+        if self.non_null("data_sources"):
             # Expand paths now, so that it's not done for every sample.
             for src_key, src_val in self.data_sources.items():
                 src_val = os.path.expandvars(src_val)
@@ -270,29 +272,18 @@ class Project(AttributeDict):
                              self.metadata.pipelines_dir))
 
         path_anns_file = self.metadata.sample_annotation
-        _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-        try:
+        if path_anns_file:
+            _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
             _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
-            self.sheet = check_sample_sheet(path_anns_file)
-        except IOError:
-            _LOGGER.error("Alleged annotations file doesn't exist: '%s'",
-                          path_anns_file)
-            anns_folder_path = os.path.dirname(path_anns_file)
-            try:
-                annotations_file_folder_contents = \
-                    os.listdir(anns_folder_path)
-            except OSError:
-                _LOGGER.error("Annotations file folder doesn't exist either: "
-                              "'%s'", anns_folder_path)
-            else:
-                _LOGGER.error("Annotations file folder's contents: {}".
-                              format(annotations_file_folder_contents))
-            raise
+            self._sheet = self.parse_sample_sheet(path_anns_file)
+        else:
+            _LOGGER.warn("No sample annotations sheet in config")
+            self._sheet = None
 
         self.sample_subannotation = None
 
         # Basic sample maker will handle name uniqueness check.
-        if defer_sample_construction:
+        if defer_sample_construction or self._sheet is None:
             self._samples = None
         else:
             self._set_basic_samples()
@@ -300,11 +291,13 @@ class Project(AttributeDict):
 
     def __repr__(self):
         """ Representation in interpreter. """
+        if len(self) == 0:
+            return "{}"
         samples_message = "{} (from '{}')". \
             format(self.__class__.__name__, self.config_file)
         try:
             num_samples = len(self._samples)
-        except AttributeError:
+        except (AttributeError, TypeError):
             pass
         else:
             samples_message += " with {} sample(s)".format(num_samples)
@@ -445,11 +438,20 @@ class Project(AttributeDict):
         :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
-        if self._samples is None:
-            _LOGGER.debug("Building basic sample object(s) for %s",
-                          self.__class__.__name__)
-            self._set_basic_samples()
         return self._samples
+
+
+    @property
+    def sheet(self):
+        """
+        Annotations/metadata sheet describing this Project's samples.
+
+        :return pandas.core.frame.DataFrame: table of samples in this Project
+        """
+        from copy import copy as cp
+        if self._sheet is None:
+            self._sheet = self.parse_sample_sheet(self.metadata.sample_annotation)
+        return cp(self._sheet)
 
 
     @property
@@ -503,7 +505,7 @@ class Project(AttributeDict):
         :return Sample: The requested Sample object
         """
 
-        samples = self.get_samples(sample_name)
+        samples = self.get_samples([sample_name])
         if len(samples) > 1:
             _LOGGER.warn("More than one sample was detected; returning the first")
 
@@ -511,6 +513,22 @@ class Project(AttributeDict):
             raise ValueError("Project has no sample named {name}.".format(name=sample_name))
 
         return samples[0]
+
+    def activate_subproject(self, subproject):
+        """
+        Activate a subproject.
+
+        This method will update Project attributes, adding new values
+        associated with the subproject indicated, and in case of collision with
+        an existing key/attribute the subproject's value will be favored.
+
+        :param str subproject: A string with a subproject name to be activated
+        :return Project: A Project with the selected subproject activated
+        """
+        conf_file = self.config_file
+        self.clear()
+        self.__init__(conf_file, subproject)
+        return self
 
 
     def get_samples(self, sample_names):
@@ -896,9 +914,7 @@ class Project(AttributeDict):
 
         # Required variables check
         if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
-            raise _MissingMetadataException(
-                missing_section=SAMPLE_ANNOTATIONS_KEY,
-                path_config_file=self.config_file)
+            self.metadata.sample_annotation = None
 
 
     def set_compute(self, setting):
@@ -1026,42 +1042,55 @@ class Project(AttributeDict):
             when_missing(message)
 
 
+    @staticmethod
+    def parse_sample_sheet(sample_file, dtype=str):
+        """
+        Check if csv file exists and has all required columns.
 
-def check_sample_sheet(sample_file, dtype=str):
-    """
-    Check if csv file exists and has all required columns.
+        :param str sample_file: path to sample annotations file.
+        :param type dtype: data type for CSV read.
+        :raises IOError: if given annotations file can't be read.
+        :raises ValueError: if required column(s) is/are missing.
+        """
+        # Although no null value replacements or supplements are being passed,
+        # toggling the keep_default_na value to False solved an issue with 'nan'
+        # and/or 'None' as an argument for an option in the pipeline command
+        # that's generated from a Sample's attributes.
+        #
+        # See https://github.com/pepkit/peppy/issues/159 for the original issue
+        # and https://github.com/pepkit/peppy/pull/160 for the pull request
+        # that resolved it.
+        try:
+            df = pd.read_table(sample_file, sep=None, dtype=dtype, index_col=False,
+                               engine="python", keep_default_na=False)
+        except IOError:
+            raise Project.MissingSampleSheetError(sample_file)
+        else:
+            _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
+            req = [SAMPLE_NAME_COLNAME]
+            missing = set(req) - set(df.columns)
+            if len(missing) != 0:
+                _LOGGER.warning(
+                    "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
+                        format(sample_file, "\n".join(missing),
+                               ", ".join(list(df.columns))))
+        return df
 
-    :param str sample_file: path to sample annotations file.
-    :param type dtype: data type for CSV read.
-    :raises IOError: if given annotations file can't be read.
-    :raises ValueError: if required column(s) is/are missing.
-    """
-    # Although no null value replacements or supplements are being passed,
-    # toggling the keep_default_na value to False solved an issue with 'nan'
-    # and/or 'None' as an argument for an option in the pipeline command
-    # that's generated from a Sample's attributes.
-    #
-    # See https://github.com/pepkit/peppy/issues/159 for the original issue
-    # and https://github.com/pepkit/peppy/pull/160 for the pull request
-    # that resolved it.
-    df = pd.read_table(sample_file, sep=None, dtype=dtype,
-                       index_col=False, engine="python", keep_default_na=False)
-    req = [SAMPLE_NAME_COLNAME]
-    missing = set(req) - set(df.columns)
-    if len(missing) != 0:
-        raise ValueError(
-            "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
-                format(sample_file, "\n".join(missing),
-                       ", ".join(list(df.columns))))
-    return df
+
+    class MissingMetadataException(PeppyError):
+        """ Project needs certain metadata. """
+        def __init__(self, missing_section, path_config_file=None):
+            reason = "Project configuration lacks required metadata section {}".\
+                    format(missing_section)
+            if path_config_file:
+                reason += "; used config file '{}'".format(path_config_file)
+            super(Project.MissingMetadataException, self).__init__(reason)
 
 
-
-class _MissingMetadataException(Exception):
-    """ Project needs certain metadata. """
-    def __init__(self, missing_section, path_config_file=None):
-        reason = "Project configuration lacks required metadata section {}".\
-                format(missing_section)
-        if path_config_file:
-            reason += "; used config file '{}'".format(path_config_file)
-        super(_MissingMetadataException, self).__init__(reason)
+    class MissingSampleSheetError(PeppyError):
+        """ Represent case in which sample sheet is specified but nonexistent. """
+        def __init__(self, sheetfile):
+            super(Project.MissingSampleSheetError, self).__init__(
+                "Missing sample annotation sheet ({}); a project need not use "
+                "a sample sheet, but if it does the file must exist"
+                .format(sheetfile))
