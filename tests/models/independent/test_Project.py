@@ -33,8 +33,9 @@ def project_config_data():
             "output_dir": "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
-        "genomes": {"human": "hg19", "mouse": "mm10"},
-        "transcriptomes": {"human": "hg19_cdna", "mouse": "mm10_cdna"}}
+        #"genomes": {"human": "hg19", "mouse": "mm10"},
+        #"transcriptomes": {"human": "hg19_cdna", "mouse": "mm10_cdna"}
+    }
 
 
 
@@ -70,7 +71,7 @@ class ProjectConstructorTests:
             ids=lambda lazy: "lazy={}".format(lazy))
     def test_no_sample_subannotation_in_config(
             self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
-        """ Merge table attribute remains null if config lacks subannotation. """
+        """ Subannotation attribute remains null if config lacks subannotation. """
         metadata = proj_conf_data["metadata"]
         try:
             assert "sample_subannotation" in metadata
@@ -91,14 +92,6 @@ class ProjectConstructorTests:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
         assert p.sample_subannotation is None
-
-
-    @pytest.mark.skip("Not implemented")
-    def test_sample_subannotation_construction(
-            self, tmpdir, project_config_data):
-        """ Merge table is constructed iff samples are constructed. """
-        # TODO: implement
-        pass
 
 
     def test_counting_samples_doesnt_create_samples(
@@ -821,6 +814,32 @@ class SubprojectActivationTest:
         with open(conf_file_path, 'w') as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class ProjectWarningTests:
+    """ Tests for warning messages related to projects """
+
+    @pytest.mark.xfail(reason="Pending feature")
+    def test_suggests_implied_columns(self):
+        pass
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class SampleSubannotationTests:
+
+    @pytest.mark.parametrize("defer", [False, True])
+    def test_sample_subannotation_construction(self, defer,
+            subannotation_filepath,  path_project_conf, path_sample_anns):
+        """ Merge table is constructed iff samples are constructed. """
+
+        p = Project(path_project_conf, defer_sample_construction=defer)
+        if defer:
+            assert p.sample_subannotation is None
+        else:
+            assert p.sample_subannotation is not None
 
 
 

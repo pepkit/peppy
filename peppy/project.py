@@ -72,6 +72,7 @@ from .utils import \
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
+IDEALLY_IMPLIED = ["genomes", "transcriptomes"]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1094,3 +1095,15 @@ class Project(AttributeDict):
                 "Missing sample annotation sheet ({}); a project need not use "
                 "a sample sheet, but if it does the file must exist"
                 .format(sheetfile))
+
+
+
+def suggest_implied_attributes(prj):
+    """
+    If given project contains what could be implied attributes, suggest that.
+
+    :param AttributeDict prj:
+    :return list[str]: (likely empty) list of warning messages about project
+        config keys that could be implied attributes
+    """
+    pass

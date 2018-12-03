@@ -444,6 +444,14 @@ def write_project_files(request):
 
 
 
+@pytest.fixture(scope="function")
+def subannotation_filepath(tmpdir):
+    """ Write sample subannotations (temp) file and return path to it. """
+    return _write_temp(SAMPLE_SUBANNOTATION_LINES,
+                       dirpath=tmpdir.strpath, fname=MERGE_TABLE_FILENAME)
+
+
+
 # Placed here (rather than near top of file) for data/use locality.
 _TEST_DATA_FOLDER = "data"
 _BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
