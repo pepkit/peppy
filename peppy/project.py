@@ -55,6 +55,7 @@ if sys.version_info < (3, 3):
     from collections import Iterable, Mapping
 else:
     from collections.abc import Iterable, Mapping
+import warnings
 
 import pandas as pd
 import yaml
@@ -72,6 +73,9 @@ from .utils import \
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
+GENOMES_KEY = "genomes"
+TRANSCRIPTOMES_KEY = "transcriptomes"
+IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -778,6 +782,9 @@ class Project(AttributeDict):
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
+        for msg in suggest_implied_attributes(config):
+            warnings.warn(msg, DeprecationWarning)
+
         _LOGGER.debug("{} config data: {}".format(
             self.__class__.__name__, config))
 
@@ -1094,3 +1101,19 @@ class Project(AttributeDict):
                 "Missing sample annotation sheet ({}); a project need not use "
                 "a sample sheet, but if it does the file must exist"
                 .format(sheetfile))
+
+
+
+def suggest_implied_attributes(prj):
+    """
+    If given project contains what could be implied attributes, suggest that.
+
+    :param Iterable prj: Intent is a Project, but this could be any iterable
+        of strings to check for suitability of declaration as implied attr
+    :return list[str]: (likely empty) list of warning messages about project
+        config keys that could be implied attributes
+    """
+    def suggest(key):
+        return "To declare {}, consider using {}".format(
+            key, IMPLICATIONS_DECLARATION)
+    return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]

@@ -3,24 +3,30 @@
 import copy
 import logging
 import os
+import warnings
 
 import mock
 from numpy import random as nprand
 import pytest
 import yaml
 
-import peppy
 from peppy import AttributeDict, Project, Sample
-from peppy.const import SAMPLE_ANNOTATIONS_KEY
+from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
+from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     MERGED_SAMPLE_INDICES, NUM_SAMPLES
-from tests.helpers import named_param
+from tests.helpers import named_param, TempLogFileHandler
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
+
+
+
+_GENOMES = {"human": "hg19", "mouse": "mm10"}
+_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
 
 
 
@@ -29,12 +35,11 @@ def project_config_data():
     """ Provide some basic data for a Project configuration. """
     return {
         "metadata": {
-            SAMPLE_ANNOTATIONS_KEY: "sample-anns-filler.csv",
+            SAMPLE_ANNOTATIONS_KEY: "samples.csv",
             "output_dir": "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
-        "genomes": {"human": "hg19", "mouse": "mm10"},
-        "transcriptomes": {"human": "hg19_cdna", "mouse": "mm10_cdna"}}
+    }
 
 
 
@@ -70,7 +75,7 @@ class ProjectConstructorTests:
             ids=lambda lazy: "lazy={}".format(lazy))
     def test_no_sample_subannotation_in_config(
             self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
-        """ Merge table attribute remains null if config lacks subannotation. """
+        """ Subannotation attribute remains null if config lacks subannotation. """
         metadata = proj_conf_data["metadata"]
         try:
             assert "sample_subannotation" in metadata
@@ -91,14 +96,6 @@ class ProjectConstructorTests:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
         assert p.sample_subannotation is None
-
-
-    @pytest.mark.skip("Not implemented")
-    def test_sample_subannotation_construction(
-            self, tmpdir, project_config_data):
-        """ Merge table is constructed iff samples are constructed. """
-        # TODO: implement
-        pass
 
 
     def test_counting_samples_doesnt_create_samples(
@@ -254,29 +251,22 @@ class ProjectDefaultEnvironmentSettingsTests:
         misnamed_envconf = os.path.join(envconf_dirpath, envconf_filename)
 
         # Create and add log message handler for expected errors.
-        logfile = tmpdir.join("project-error-messages.log").strpath
-        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
-        expected_error_message_handler.setLevel(logging.ERROR)
-        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
+        log = tmpdir.join("project-error-messages.log").strpath
+        logview = TempLogFileHandler(log, level=logging.ERROR)
 
-        # Create Project, expecting to generate error messages.
-        project = Project(minimal_project_conf_path,
-                          default_compute=misnamed_envconf)
-
-        # Remove the temporary message handler.
-        del peppy.project._LOGGER.handlers[-1]
+        with logview:
+            # Create Project, expecting to generate error messages.
+            project = Project(
+                minimal_project_conf_path, default_compute=misnamed_envconf)
 
         # Ensure nulls for all relevant Project attributes.
         self._assert_null_compute_environment(project)
+
         # We should have two error messages, describing the exception caught
         # during default environment parsing and that it couldn't be set.
-        with open(logfile, 'r') as messages:
-            exception_messages = messages.readlines()
-        try:
-            assert 2 == len(exception_messages)
-        except AssertionError:
-            print("Exception messages: {}".format(exception_messages))
-            raise
+        exception_messages = logview.messages
+        assert 2 == len(exception_messages), \
+            "Exception messages: {}".format(exception_messages)
 
 
     def test_project_environment_uses_default_environment_settings(
@@ -681,11 +671,6 @@ class ProjectConstructorTest:
                              argvalues=MERGED_SAMPLE_INDICES)
     def test_data_sources_derivation(self, proj, sample_index):
         """ Samples in merge file, check data_sources --> derived_attributes. """
-        # Make sure these columns were merged:
-        merged_columns = filter(
-                lambda col_key: (col_key != "col_modifier") and
-                                not col_key.endswith(COL_KEY_SUFFIX),
-                proj.samples[sample_index].merged_cols.keys())
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
         required = set(DERIVED_COLNAMES)
@@ -787,22 +772,14 @@ class SubprojectActivationTest:
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_when_none_exist(self, tmpdir, sub):
         """ Without subprojects, activation attempt produces warning. """
-
         prj = self.make_proj(tmpdir.strpath, incl_subs=False)
-
-        # Log message setup
         logfile = tmpdir.join("project-error-messages.log").strpath
-        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
-        # Expect error message emission at WARN level
-        expected_error_message_handler.setLevel(logging.WARN)
-        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
-
-        # Call that should produce a warning message
-        prj.activate_subproject(sub)
-
+        logview = TempLogFileHandler(logfile, level=logging.WARN)
+        with logview:
+            # Call that should produce a warning message
+            prj.activate_subproject(sub)
         # Check for warning message.
-        with open(logfile, 'r') as messages:
-            exception_messages = messages.readlines()
+        exception_messages = logview.messages
         for msg in exception_messages:
             if "no subprojects are defined" in msg:
                 break
@@ -821,6 +798,89 @@ class SubprojectActivationTest:
         with open(conf_file_path, 'w') as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class ProjectWarningTests:
+    """ Tests for warning messages related to projects """
+
+    @pytest.mark.parametrize(
+        "ideally_implied_mappings",
+        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
+         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
+    def test_suggests_implied_attributes(
+        self, recwarn, tmpdir, path_sample_anns,
+        project_config_data, ideally_implied_mappings):
+        """ Assemblies directly in proj conf (not implied) is deprecated. """
+
+        # Add the mappings parameterization to the config data.
+        conf_data = copy.deepcopy(project_config_data)
+        conf_data.update(ideally_implied_mappings)
+
+        # Write the config file.
+        conf_file = tmpdir.join("proj_conf.yaml").strpath
+        assert not os.path.isfile(conf_file), \
+            "Test project temp config file already exists: {}".format(conf_file)
+        with open(conf_file, 'w') as cf:
+            yaml.safe_dump(conf_data, cf)
+
+        # (Hopefully) generate the warnings.
+        assert 0 == len(recwarn)
+        warnings.simplefilter('always')
+        Project(conf_file)
+        msgs = [str(w.message) for w in recwarn
+                if isinstance(w.message, DeprecationWarning)]
+        assert len(ideally_implied_mappings) == len(msgs)
+        for k in ideally_implied_mappings:
+            print("KEY: {}".format(k))
+            print("MSGS: {}".format(msgs))
+            matched = [m for m in msgs if k in m and
+                       IMPLICATIONS_DECLARATION in m]
+            assert 1 == len(matched)
+            msgs.remove(matched[0])
+
+    @pytest.mark.parametrize("assembly_implications",
+        [{"genome": {"organism": _GENOMES}},
+         {"transcriptome": {"organism": _TRASCRIPTOMES}},
+         {"genome": {"organism": _GENOMES},
+           "transcriptome": {"organism": _TRASCRIPTOMES}}])
+    def test_no_warning_if_assemblies_are_implied(
+        self, recwarn, tmpdir, path_sample_anns,
+        project_config_data, assembly_implications):
+        """ Assemblies declaration within implied columns is not deprecated. """
+
+        # Add the mappings parameterization to the config data.
+        conf_data = copy.deepcopy(project_config_data)
+        conf_data[IMPLICATIONS_DECLARATION] = assembly_implications
+
+        # Write the config file.
+        conf_file = tmpdir.join("proj_conf.yaml").strpath
+        assert not os.path.isfile(conf_file), \
+            "Test project temp config file already exists: {}".format(conf_file)
+        with open(conf_file, 'w') as cf:
+            yaml.safe_dump(conf_data, cf)
+
+        assert 0 == len(recwarn)
+        warnings.simplefilter('always')
+        Project(conf_file)
+        assert 0 == len(recwarn)
+
+
+
+@pytest.mark.usefixtures("write_project_files")
+class SampleSubannotationTests:
+
+    @pytest.mark.parametrize("defer", [False, True])
+    def test_sample_subannotation_construction(self, defer,
+            subannotation_filepath,  path_project_conf, path_sample_anns):
+        """ Merge table is constructed iff samples are constructed. """
+
+        p = Project(path_project_conf, defer_sample_construction=defer)
+        if defer:
+            assert p.sample_subannotation is None
+        else:
+            assert p.sample_subannotation is not None
 
 
 

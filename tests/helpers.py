@@ -4,6 +4,7 @@ from functools import partial
 import itertools
 import numpy as np
 import pytest
+import peppy
 
 
 __author__ = "Vince Reuter"
@@ -61,3 +62,33 @@ def powerset(items, min_items=0, include_full_pop=True):
 
 
 nonempty_powerset = partial(powerset, min_items=1)
+
+
+
+class TempLogFileHandler(object):
+    """ Context manager representing  """
+
+    def __init__(self, filepath, level, mode='w'):
+        self.logfile = filepath
+        self._level = level
+        self._mode = mode
+        self._used = False
+
+    def __enter__(self):
+        import logging
+        handler = logging.FileHandler(self.logfile, mode='w')
+        handler.setLevel(self._level)
+        peppy.project._LOGGER.handlers.append(handler)
+        self._used = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        del peppy.project._LOGGER.handlers[-1]
+
+    @property
+    def messages(self):
+        if not self._used:
+            raise Exception(
+                "Attempted to read messages from unused logfile: "
+                "{}", self.logfile)
+        with open(self.logfile, 'r') as f:
+            return f.readlines()

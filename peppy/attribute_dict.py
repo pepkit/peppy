@@ -9,6 +9,7 @@ else:
 
 from pandas import Series
 
+from .const import DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION
 from .utils import copy, warn_derived_cols, warn_implied_cols
 
 
@@ -163,10 +164,10 @@ class AttributeDict(MutableMapping):
         """
         if key == "derived_columns":
             warn_derived_cols()
-            key = "derived_attributes"
+            key = DERIVATIONS_DECLARATION
         elif key == "implied_columns":
             warn_implied_cols()
-            key = "implied_attributes"
+            key = IMPLICATIONS_DECLARATION
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.
