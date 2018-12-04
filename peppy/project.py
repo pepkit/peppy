@@ -72,7 +72,9 @@ from .utils import \
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
-IDEALLY_IMPLIED = ["genomes", "transcriptomes"]
+GENOMES_KEY = "genomes"
+TRANSCRIPTOMES_KEY = "transcriptomes"
+IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
 
 _LOGGER = logging.getLogger(__name__)
 

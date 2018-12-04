@@ -12,11 +12,12 @@ import yaml
 import peppy
 from peppy import AttributeDict, Project, Sample
 from peppy.const import SAMPLE_ANNOTATIONS_KEY
+from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     MERGED_SAMPLE_INDICES, NUM_SAMPLES
-from tests.helpers import named_param
+from tests.helpers import named_param, TempLogFileHandler
 
 
 __author__ = "Vince Reuter"
@@ -33,9 +34,18 @@ def project_config_data():
             "output_dir": "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
-        #"genomes": {"human": "hg19", "mouse": "mm10"},
-        #"transcriptomes": {"human": "hg19_cdna", "mouse": "mm10_cdna"}
     }
+
+
+_GENOMES = {"human": "hg19", "mouse": "mm10"}
+_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
+
+
+@pytest.fixture(scope="function",
+    params=[{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
+            {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
+def ideally_implied_mappings(request):
+    return request.param
 
 
 
@@ -247,24 +257,20 @@ class ProjectDefaultEnvironmentSettingsTests:
         misnamed_envconf = os.path.join(envconf_dirpath, envconf_filename)
 
         # Create and add log message handler for expected errors.
-        logfile = tmpdir.join("project-error-messages.log").strpath
-        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
-        expected_error_message_handler.setLevel(logging.ERROR)
-        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
+        log = tmpdir.join("project-error-messages.log").strpath
+        logview = TempLogFileHandler(log, level=logging.ERROR)
 
-        # Create Project, expecting to generate error messages.
-        project = Project(minimal_project_conf_path,
-                          default_compute=misnamed_envconf)
-
-        # Remove the temporary message handler.
-        del peppy.project._LOGGER.handlers[-1]
+        with logview:
+            # Create Project, expecting to generate error messages.
+            project = Project(
+                minimal_project_conf_path, default_compute=misnamed_envconf)
 
         # Ensure nulls for all relevant Project attributes.
         self._assert_null_compute_environment(project)
+
         # We should have two error messages, describing the exception caught
         # during default environment parsing and that it couldn't be set.
-        with open(logfile, 'r') as messages:
-            exception_messages = messages.readlines()
+        exception_messages = logview.messages
         try:
             assert 2 == len(exception_messages)
         except AssertionError:
@@ -780,22 +786,14 @@ class SubprojectActivationTest:
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_when_none_exist(self, tmpdir, sub):
         """ Without subprojects, activation attempt produces warning. """
-
         prj = self.make_proj(tmpdir.strpath, incl_subs=False)
-
-        # Log message setup
         logfile = tmpdir.join("project-error-messages.log").strpath
-        expected_error_message_handler = logging.FileHandler(logfile, mode='w')
-        # Expect error message emission at WARN level
-        expected_error_message_handler.setLevel(logging.WARN)
-        peppy.project._LOGGER.handlers.append(expected_error_message_handler)
-
-        # Call that should produce a warning message
-        prj.activate_subproject(sub)
-
+        logview = TempLogFileHandler(logfile, level=logging.WARN)
+        with logview:
+            # Call that should produce a warning message
+            prj.activate_subproject(sub)
         # Check for warning message.
-        with open(logfile, 'r') as messages:
-            exception_messages = messages.readlines()
+        exception_messages = logview.messages
         for msg in exception_messages:
             if "no subprojects are defined" in msg:
                 break
@@ -822,8 +820,20 @@ class ProjectWarningTests:
     """ Tests for warning messages related to projects """
 
     @pytest.mark.xfail(reason="Pending feature")
-    def test_suggests_implied_columns(self):
-        pass
+    def test_suggests_implied_columns(
+        self, project_config_data, ideally_implied_mappings, tmpdir):
+        keys_in_conf = [k for k in ideally_implied_mappings.keys()
+                        if k in project_config_data]
+        assert [] == keys_in_conf, \
+            "Ideally implied key exists in tests's project config data."
+        conf_data = copy.deepcopy(project_config_data)
+        conf_data.update(ideally_implied_mappings)
+        conf_file = tmpdir.join("proj_conf.yaml").strpath
+        assert not os.path.isfile(conf_file), \
+            "Test project temp config file already exists: {}".format(conf_file)
+        with open(conf_file, 'w') as cf:
+            yaml.safe_dump(conf_data, cf)
+        p = Project(conf_file)
 
 
 
