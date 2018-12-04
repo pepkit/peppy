@@ -826,15 +826,15 @@ class ProjectWarningTests:
             yaml.safe_dump(conf_data, cf)
 
         # (Hopefully) generate the warnings.
-        assert 0 == len(recwarn)
-        warnings.simplefilter('always')
-        Project(conf_file)
-        msgs = [str(w.message) for w in recwarn
+        assert 0 == len(recwarn)           # Ensure a fresh start.
+        warnings.simplefilter('always')    # Allow DeprecationWarning capture.
+        Project(conf_file)                 # Generate the warning(s).
+        msgs = [str(w.message) for w in recwarn    # Grab deprecation messages.
                 if isinstance(w.message, DeprecationWarning)]
-        assert len(ideally_implied_mappings) == len(msgs)
+        assert len(ideally_implied_mappings) == len(msgs)    # 1:1 warnings
         for k in ideally_implied_mappings:
-            print("KEY: {}".format(k))
-            print("MSGS: {}".format(msgs))
+            # Each section that should be implied should generate exactly 1
+            # warning; check message for content then remove it from the pool.
             matched = [m for m in msgs if k in m and
                        IMPLICATIONS_DECLARATION in m]
             assert 1 == len(matched)
@@ -861,6 +861,7 @@ class ProjectWarningTests:
         with open(conf_file, 'w') as cf:
             yaml.safe_dump(conf_data, cf)
 
+        # Check that there are no warnings before or after test.
         assert 0 == len(recwarn)
         warnings.simplefilter('always')
         Project(conf_file)
@@ -875,7 +876,6 @@ class SampleSubannotationTests:
     def test_sample_subannotation_construction(self, defer,
             subannotation_filepath,  path_project_conf, path_sample_anns):
         """ Merge table is constructed iff samples are constructed. """
-
         p = Project(path_project_conf, defer_sample_construction=defer)
         if defer:
             assert p.sample_subannotation is None
