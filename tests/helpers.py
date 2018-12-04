@@ -66,26 +66,38 @@ nonempty_powerset = partial(powerset, min_items=1)
 
 
 class TempLogFileHandler(object):
-    """ Context manager representing  """
+    """ Context manager for temporary file handler logging attachment """
 
     def __init__(self, filepath, level, mode='w'):
+        """
+        Create the temporary file handler by providing path and level
+
+        :param str filepath: Path to file to use for logging handler.
+        :param str | int level: Minimal severity level for file handler.
+        :param str mode: Mode in which to create the file handler.
+        """
         self.logfile = filepath
         self._level = level
         self._mode = mode
         self._used = False
 
     def __enter__(self):
+        """ Add the handler to project module's logger, and update state. """
         import logging
+        if self._used:
+            raise Exception("Cannot reuse a {}".format(self.__class__.__name__))
         handler = logging.FileHandler(self.logfile, mode='w')
         handler.setLevel(self._level)
         peppy.project._LOGGER.handlers.append(handler)
         self._used = True
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """ Remove the added file handler from the logger. """
         del peppy.project._LOGGER.handlers[-1]
 
     @property
     def messages(self):
+        """ Open the handler's underlying file and read the messages. """
         if not self._used:
             raise Exception(
                 "Attempted to read messages from unused logfile: "
