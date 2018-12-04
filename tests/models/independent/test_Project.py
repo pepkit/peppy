@@ -848,6 +848,7 @@ class ProjectWarningTests:
     def test_no_warning_if_assemblies_are_implied(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, assembly_implications):
+        """ Assemblies declaration within implied columns is not deprecated. """
 
         # Add the mappings parameterization to the config data.
         conf_data = copy.deepcopy(project_config_data)
