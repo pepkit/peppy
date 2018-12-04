@@ -3,15 +3,15 @@
 import copy
 import logging
 import os
+import warnings
 
 import mock
 from numpy import random as nprand
 import pytest
 import yaml
 
-import peppy
 from peppy import AttributeDict, Project, Sample
-from peppy.const import SAMPLE_ANNOTATIONS_KEY
+from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
@@ -25,27 +25,21 @@ __email__ = "vreuter@virginia.edu"
 
 
 
+_GENOMES = {"human": "hg19", "mouse": "mm10"}
+_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
+
+
+
 @pytest.fixture(scope="function")
 def project_config_data():
     """ Provide some basic data for a Project configuration. """
     return {
         "metadata": {
-            SAMPLE_ANNOTATIONS_KEY: "sample-anns-filler.csv",
+            SAMPLE_ANNOTATIONS_KEY: "samples.csv",
             "output_dir": "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
     }
-
-
-_GENOMES = {"human": "hg19", "mouse": "mm10"}
-_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
-
-
-@pytest.fixture(scope="function",
-    params=[{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
-            {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
-def ideally_implied_mappings(request):
-    return request.param
 
 
 
@@ -271,11 +265,8 @@ class ProjectDefaultEnvironmentSettingsTests:
         # We should have two error messages, describing the exception caught
         # during default environment parsing and that it couldn't be set.
         exception_messages = logview.messages
-        try:
-            assert 2 == len(exception_messages)
-        except AssertionError:
-            print("Exception messages: {}".format(exception_messages))
-            raise
+        assert 2 == len(exception_messages), \
+            "Exception messages: {}".format(exception_messages)
 
 
     def test_project_environment_uses_default_environment_settings(
@@ -680,11 +671,6 @@ class ProjectConstructorTest:
                              argvalues=MERGED_SAMPLE_INDICES)
     def test_data_sources_derivation(self, proj, sample_index):
         """ Samples in merge file, check data_sources --> derived_attributes. """
-        # Make sure these columns were merged:
-        merged_columns = filter(
-                lambda col_key: (col_key != "col_modifier") and
-                                not col_key.endswith(COL_KEY_SUFFIX),
-                proj.samples[sample_index].merged_cols.keys())
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
         required = set(DERIVED_COLNAMES)
@@ -819,21 +805,65 @@ class SubprojectActivationTest:
 class ProjectWarningTests:
     """ Tests for warning messages related to projects """
 
-    @pytest.mark.xfail(reason="Pending feature")
-    def test_suggests_implied_columns(
-        self, project_config_data, ideally_implied_mappings, tmpdir):
-        keys_in_conf = [k for k in ideally_implied_mappings.keys()
-                        if k in project_config_data]
-        assert [] == keys_in_conf, \
-            "Ideally implied key exists in tests's project config data."
+    @pytest.mark.parametrize(
+        "ideally_implied_mappings",
+        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
+         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
+    def test_suggests_implied_attributes(
+        self, recwarn, tmpdir, path_sample_anns,
+        project_config_data, ideally_implied_mappings):
+        """ Assemblies directly in proj conf (not implied) is deprecated. """
+
+        # Add the mappings parameterization to the config data.
         conf_data = copy.deepcopy(project_config_data)
         conf_data.update(ideally_implied_mappings)
+
+        # Write the config file.
         conf_file = tmpdir.join("proj_conf.yaml").strpath
         assert not os.path.isfile(conf_file), \
             "Test project temp config file already exists: {}".format(conf_file)
         with open(conf_file, 'w') as cf:
             yaml.safe_dump(conf_data, cf)
-        p = Project(conf_file)
+
+        # (Hopefully) generate the warnings.
+        assert 0 == len(recwarn)
+        warnings.simplefilter('always')
+        Project(conf_file)
+        msgs = [str(w.message) for w in recwarn
+                if isinstance(w.message, DeprecationWarning)]
+        assert len(ideally_implied_mappings) == len(msgs)
+        for k in ideally_implied_mappings:
+            print("KEY: {}".format(k))
+            print("MSGS: {}".format(msgs))
+            matched = [m for m in msgs if k in m and
+                       IMPLICATIONS_DECLARATION in m]
+            assert 1 == len(matched)
+            msgs.remove(matched[0])
+
+    @pytest.mark.parametrize("assembly_implications",
+        [{"genome": {"organism": _GENOMES}},
+         {"transcriptome": {"organism": _TRASCRIPTOMES}},
+         {"genome": {"organism": _GENOMES},
+           "transcriptome": {"organism": _TRASCRIPTOMES}}])
+    def test_no_warning_if_assemblies_are_implied(
+        self, recwarn, tmpdir, path_sample_anns,
+        project_config_data, assembly_implications):
+
+        # Add the mappings parameterization to the config data.
+        conf_data = copy.deepcopy(project_config_data)
+        conf_data[IMPLICATIONS_DECLARATION] = assembly_implications
+
+        # Write the config file.
+        conf_file = tmpdir.join("proj_conf.yaml").strpath
+        assert not os.path.isfile(conf_file), \
+            "Test project temp config file already exists: {}".format(conf_file)
+        with open(conf_file, 'w') as cf:
+            yaml.safe_dump(conf_data, cf)
+
+        assert 0 == len(recwarn)
+        warnings.simplefilter('always')
+        Project(conf_file)
+        assert 0 == len(recwarn)
 
 
 

@@ -14,9 +14,8 @@ CHIP_NAME = "chip1"
 RNA_NAME = "rna_PE"
 WGBS_NAME = "wgbs-hs"
 RRBS_NAME = "rrbs_mm"
+RRBS_NAME = "rrbs_mm"
 ADD_PROJECT_DATA = {
-    "genome": {"organism": {
-        "mouse": "mm10", "human": "hg38", "rat": "rn6"}},
     "data_sources": {"src": "{sample}-{flowcell}.bam"},
     "derived_attributes": ["data_source"],
     "pipeline_args": {"--epilog": None},
