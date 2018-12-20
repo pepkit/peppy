@@ -206,7 +206,7 @@ class Project(AttributeDict):
             if os.path.isfile(compute_env_file):
                 self.update_environment(compute_env_file)
             else:
-                _LOGGER.warn("Compute env path isn't a file: {}".
+                _LOGGER.warning("Compute env path isn't a file: {}".
                              format(compute_env_file))
         else:
             _LOGGER.info("No compute env file was provided and {} is unset; "
@@ -223,7 +223,7 @@ class Project(AttributeDict):
             if no_compute_exception:
                 no_compute_exception(message)
             else:
-                _LOGGER.warn(message)
+                _LOGGER.warning(message)
         else:
             _LOGGER.debug("Compute: %s", str(self.compute))
 
@@ -281,7 +281,7 @@ class Project(AttributeDict):
             _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
             self._sheet = self.parse_sample_sheet(path_anns_file)
         else:
-            _LOGGER.warn("No sample annotations sheet in config")
+            _LOGGER.warning("No sample annotations sheet in config")
             self._sheet = None
 
         self.sample_subannotation = None
@@ -511,7 +511,7 @@ class Project(AttributeDict):
 
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
-            _LOGGER.warn("More than one sample was detected; returning the first")
+            _LOGGER.warning("More than one sample was detected; returning the first")
 
         if len(samples) == 0:
             raise ValueError("Project has no sample named {name}.".format(name=sample_name))
@@ -581,7 +581,7 @@ class Project(AttributeDict):
         if repeats:
             histogram_text = "\n".join(
                 "{}: {}".format(name, n) for name, n in repeats.items())
-            _LOGGER.warn("Non-unique sample names:\n{}".format(histogram_text))
+            _LOGGER.warning("Non-unique sample names:\n{}".format(histogram_text))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -691,7 +691,7 @@ class Project(AttributeDict):
                 try:
                     os.makedirs(folder_path)
                 except OSError as e:
-                    _LOGGER.warn("Could not create project folder: '%s'",
+                    _LOGGER.warning("Could not create project folder: '%s'",
                                  str(e))
 
 
@@ -710,7 +710,7 @@ class Project(AttributeDict):
             except KeyError:
                 _LOGGER.debug("No sample subannotations")
             else:
-                _LOGGER.warn("'merge_table' attribute is deprecated. Please use "
+                _LOGGER.warning("'merge_table' attribute is deprecated. Please use "
                     "'sample_subannotation' instead.")
 
         if self.sample_subannotation is None:
@@ -809,7 +809,7 @@ class Project(AttributeDict):
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
         elif subproject:
-            _LOGGER.warn("Subproject {} requested but no subprojects "
+            _LOGGER.warning("Subproject {} requested but no subprojects "
                          "are defined".format(subproject))
         else:
             _LOGGER.debug("No subproject requested")
@@ -817,7 +817,7 @@ class Project(AttributeDict):
         # In looper 0.4, for simplicity the paths section was eliminated.
         # For backwards compatibility, mirror the paths section into metadata.
         if "paths" in config:
-            _LOGGER.warn(
+            _LOGGER.warning(
                 "Paths section in project config is deprecated. "
                 "Please move all paths attributes to metadata section. "
                 "This option will be removed in future versions.")
@@ -830,7 +830,7 @@ class Project(AttributeDict):
 
         if "metadata" in config:
             if "pipelines_dir" in self.metadata:
-                _LOGGER.warning("Looper v0.6 suggests "
+                _LOGGER.warninging("Looper v0.6 suggests "
                                 "switching from pipelines_dir to "
                                 "pipeline_interfaces. See docs for details: "
                                 "https://pepkit.github.io/docs/home/")
@@ -1044,7 +1044,7 @@ class Project(AttributeDict):
         message = "'{}' lacks environment attributes: {}". \
             format(env_settings_file, missing_env_attrs)
         if when_missing is None:
-            _LOGGER.warn(message)
+            _LOGGER.warning(message)
         else:
             when_missing(message)
 
@@ -1077,7 +1077,7 @@ class Project(AttributeDict):
             req = [SAMPLE_NAME_COLNAME]
             missing = set(req) - set(df.columns)
             if len(missing) != 0:
-                _LOGGER.warning(
+                _LOGGER.warninging(
                     "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
                         format(sample_file, "\n".join(missing),
                                ", ".join(list(df.columns))))
