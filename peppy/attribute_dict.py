@@ -9,6 +9,7 @@ else:
 
 from pandas import Series
 
+from .const import DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION
 from .utils import copy, warn_derived_cols, warn_implied_cols
 
 
@@ -84,6 +85,26 @@ class AttributeDict(MutableMapping):
             self.__setitem__(key, value)
 
 
+    def is_null(self, item):
+        """
+        Conjunction of presence in underlying mapping and value being None
+
+        :param object item: Key to check for presence and null value
+        :return bool: True iff the item is present and has null value
+        """
+        return item in self and self[item] is None
+
+
+    def non_null(self, item):
+        """
+        Conjunction of presence in underlying mapping and value not being None
+
+        :param object item: Key to check for presence and non-null value
+        :return bool: True iff the item is present and has non-null value
+        """
+        return item in self and self[item] is not None
+
+
     def __setattr__(self, key, value):
         self.__setitem__(key, value)
 
@@ -143,10 +164,10 @@ class AttributeDict(MutableMapping):
         """
         if key == "derived_columns":
             warn_derived_cols()
-            key = "derived_attributes"
+            key = DERIVATIONS_DECLARATION
         elif key == "implied_columns":
             warn_implied_cols()
-            key = "implied_attributes"
+            key = IMPLICATIONS_DECLARATION
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.

@@ -1,6 +1,15 @@
 Changelog
 ******************************
 
+- **Unreleased**:
+
+  - Changed
+
+    - ``Project`` construction no longer requires sample annotations sheet.
+
+    - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
+
+
 - **v0.18.2** (*2018-07-23*):
 
   - Fixed

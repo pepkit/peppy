@@ -444,6 +444,14 @@ def write_project_files(request):
 
 
 
+@pytest.fixture(scope="function")
+def subannotation_filepath(tmpdir):
+    """ Write sample subannotations (temp) file and return path to it. """
+    return _write_temp(SAMPLE_SUBANNOTATION_LINES,
+                       dirpath=tmpdir.strpath, fname=MERGE_TABLE_FILENAME)
+
+
+
 # Placed here (rather than near top of file) for data/use locality.
 _TEST_DATA_FOLDER = "data"
 _BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
@@ -507,8 +515,8 @@ def proj(request):
     Create project instance using data from file pointed to by request class.
 
     To use this fixture, the test case must reside within a class that
-    defines a "project_config_file" attribute. This is best done by marking
-    the class with "@pytest.mark.usefixtures("write_project_files")"
+    defines a "project_config_file" attribute. This is most easily done by
+    marking the class with "@pytest.mark.usefixtures('write_project_files')"
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance

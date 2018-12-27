@@ -546,6 +546,43 @@ class AttributeDictObjectSyntaxAccessTests:
             assert expected == observed
 
 
+class NullityTests:
+    """ Tests of null/non-null value tests """
+
+    _KEYNAMES = ["sample_name", "protocol", "arbitrary_attribute"]
+
+    @pytest.mark.parametrize(
+        argnames="item", argvalues=ATTRDICT_METADATA.keys())
+    def test_metadata_are_non_null(self, item):
+        """ Test the special/reserverd AD keys """
+        assert AttributeDict().non_null(item)
+        assert not AttributeDict().is_null(item)
+
+    @pytest.mark.parametrize(argnames="item", argvalues=_KEYNAMES)
+    def test_missing_is_neither_null_nor_non_null(self, item):
+        """ Value of absent key is neither null nor non-null """
+        ad = AttributeDict()
+        assert not ad.is_null(item) and not ad.non_null(item)
+
+    @pytest.mark.parametrize(argnames="item", argvalues=_KEYNAMES)
+    def test_is_null(self, item):
+        """ Null-valued key/item evaluates as such. """
+        ad = AttributeDict()
+        ad[item] = None
+        assert ad.is_null(item) and not ad.non_null(item)
+
+    @pytest.mark.parametrize(
+        argnames=["k", "v"],
+        argvalues=list(zip(_KEYNAMES, ["sampleA", "WGBS", "random"])))
+    def test_non_null(self, k, v):
+        """ AD is sensitive to value updates """
+        ad = AttributeDict()
+        assert not ad.is_null(k) and not ad.non_null(k)
+        ad[k] = None
+        assert ad.is_null(k) and not ad.non_null(k)
+        ad[k] = v
+        assert not ad.is_null(k) and ad.non_null(k)
+
 
 @pytest.mark.usefixtures("write_project_files")
 class SampleYamlTests:

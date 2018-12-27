@@ -205,7 +205,7 @@ class Sample(AttributeDict):
 
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
-            _LOGGER.warn("You must run set_pipeline_attributes "
+            _LOGGER.warninging("You must run set_pipeline_attributes "
                          "before determine_missing_requirements")
             return null_return
 
@@ -490,7 +490,7 @@ class Sample(AttributeDict):
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
                 if not val_globbed:
-                    _LOGGER.warn("Unmatched regex-like: '%s'", val)
+                    _LOGGER.warning("Unmatched regex-like: '%s'", val)
                 else:
                     val = " ".join(val_globbed)
                 _LOGGER.debug("Post-glob: %s", val)
@@ -745,7 +745,7 @@ class Sample(AttributeDict):
             except NotImplementedError as e:
                 if not permissive:
                     raise
-                _LOGGER.warn(e.message)
+                _LOGGER.warning(e.message)
                 return
             except IOError:
                 if not permissive:
@@ -796,7 +796,7 @@ class Sample(AttributeDict):
             setattr(self, feature, feat_val)
 
             if getattr(self, feature) is None and len(existing_files) > 0:
-                _LOGGER.warn("Not all input files agree on '%s': '%s'",
+                _LOGGER.warning("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
 
@@ -877,7 +877,7 @@ class Sample(AttributeDict):
                         for k, v in obj.__dict__.items() if
                         k not in to_skip}
             elif isinstance(obj, Series):
-                _LOGGER.warn("Serializing series as mapping, not array-like")
+                _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
             elif hasattr(obj, 'dtype'):  # numpy data types
                 # TODO: this fails with ValueError for multi-element array.
@@ -927,12 +927,19 @@ class Sample(AttributeDict):
             outfile.write(yaml_data)
 
 
-    def update(self, newdata):
+    def update(self, newdata, **kwargs):
         """
         Update Sample object with attributes from a dict.
         """
-        for key, value in newdata.items():
-            setattr(self, key, value)
+        duplicates = [k for k in set(newdata.keys()) & set(kwargs.keys())
+                      if newdata[k] != kwargs[k]]
+        if len(duplicates) != 0:
+            raise ValueError("{} duplicate keys with different values: {}".
+                             format(len(duplicates), ", ".join(duplicates)))
+        for k, v in newdata.items():
+            setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
 
