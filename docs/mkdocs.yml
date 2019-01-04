@@ -1,0 +1,17 @@
+site_name: Peppy
+nav:
+  - Introduction: README.md
+    
+  - How-to Guides:
+    - How to use peppy: jupyter_build/tutorial.md
+    - How to use sample subannotation: jupyter_build/subannotation.md
+    - Subprojects tutorial: jupyter_build/subprojects.md
+
+  - Reference:
+    - API: autodoc_build/peppy.md
+    - Support: support.md
+    - Contributing: contributing.md
+
+  - Changelog: changelog.md
+
+#theme: readthedocs
