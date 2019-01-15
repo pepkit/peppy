@@ -42,7 +42,7 @@ if not logging.getLogger().handlers:
 
 def setup_peppy_logger(level, additional_locations=None, devmode=False):
     """
-    Establish a logger for a pe.
+    Establish a project logger.
 
     This configures a logger to provide information about pep models.
     Verbosity, destination(s) for messages, and message text format are
