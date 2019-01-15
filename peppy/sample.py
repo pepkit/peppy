@@ -316,8 +316,8 @@ class Sample(AttributeDict):
             originally provided via the sample sheet (i.e., the a map-like
             representation of the instance, excluding derived items)
         """
-        return OrderedDict([[k, getattr(self, k)]
-                            for k in self.sheet_attributes])
+        return OrderedDict(
+            [[k, getattr(self, k)] for k in self.sheet_attributes])
 
 
     def infer_attributes(self, implications):
