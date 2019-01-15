@@ -1068,8 +1068,8 @@ class Project(AttributeDict):
         # and https://github.com/pepkit/peppy/pull/160 for the pull request
         # that resolved it.
         try:
-            df = pd.read_table(sample_file, sep=None, dtype=dtype, index_col=False,
-                               engine="python", keep_default_na=False)
+            df = pd.read_csv(sample_file, sep=None, dtype=dtype, index_col=False,
+                             engine="python", keep_default_na=False)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
         else:
@@ -1077,7 +1077,7 @@ class Project(AttributeDict):
             req = [SAMPLE_NAME_COLNAME]
             missing = set(req) - set(df.columns)
             if len(missing) != 0:
-                _LOGGER.warninging(
+                _LOGGER.warning(
                     "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
                         format(sample_file, "\n".join(missing),
                                ", ".join(list(df.columns))))
