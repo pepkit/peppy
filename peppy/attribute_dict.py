@@ -10,7 +10,8 @@ else:
 from pandas import Series
 
 from .const import DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION
-from .utils import copy, warn_derived_cols, warn_implied_cols
+from .utils import \
+    copy, has_null_value, non_null_value, warn_derived_cols, warn_implied_cols
 
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
@@ -92,7 +93,7 @@ class AttributeDict(MutableMapping):
         :param object item: Key to check for presence and null value
         :return bool: True iff the item is present and has null value
         """
-        return item in self and self[item] is None
+        return has_null_value(item, self)
 
 
     def non_null(self, item):
@@ -102,7 +103,7 @@ class AttributeDict(MutableMapping):
         :param object item: Key to check for presence and non-null value
         :return bool: True iff the item is present and has non-null value
         """
-        return item in self and self[item] is not None
+        return non_null_value(item, self)
 
 
     def __setattr__(self, key, value):

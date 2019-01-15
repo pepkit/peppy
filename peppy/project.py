@@ -69,7 +69,7 @@ from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url, \
-    warn_derived_cols, warn_implied_cols
+    non_null_value, warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -774,6 +774,7 @@ class Project(AttributeDict):
         """
         Parse provided yaml config file and check required fields exist.
 
+        :param str subproject: Name of subproject to activate, optional
         :raises KeyError: if config file lacks required section(s)
         """
 
@@ -797,7 +798,7 @@ class Project(AttributeDict):
             self.__class__.__name__, len(self.keys()), self.keys()))
 
         # Overwrite any config entries with entries in the subproject.
-        if "subprojects" in config and subproject:
+        if non_null_value("subprojects", config) and subproject:
             _LOGGER.debug("Adding entries for subproject '{}'".
                           format(subproject))
             try:

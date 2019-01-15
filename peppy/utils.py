@@ -12,11 +12,12 @@ if sys.version_info < (3, 0):
     from urlparse import urlparse
 else:
     from urllib.parse import urlparse
+if sys.version_info < (3, 3):
+    from collections import Sized
+else:
+    from collections.abc import Sized
 import warnings
-
-
 import yaml
-
 from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 
 
@@ -110,6 +111,17 @@ def check_sample_sheet_row_count(sheet, filepath):
     # Always deduct 1 line for header; accommodate final whitespace line.
     deduction = 2 if "" == lines[-1].strip() else 1
     return len(sheet) == len(lines) - deduction
+
+
+
+def coll_like(c):
+    """
+    Determine whether an object is collection-like.
+
+    :param object c: Object to test as collection
+    :return bool: Whether the argument is a (non-string) collection
+    """
+    return isinstance(c, Iterable) and not isinstance(c, str)
 
 
 
@@ -246,6 +258,18 @@ def grab_project_data(prj):
 
 
 
+def has_null_value(k, m):
+    """
+    Determine whether a mapping has a null value for a given key.
+
+    :param Hashable k: Key to test for null value
+    :param Mapping m: Mapping to test for null value for given key
+    :return bool: Whether given mapping contains given key with null value
+    """
+    return k in m and _is_null(m[k])
+
+
+
 def import_from_source(module_filepath):
     """
     Import a module from a particular filesystem location.
@@ -293,6 +317,18 @@ def is_url(maybe_url):
     :return bool: whether path appears to be a URL
     """
     return urlparse(maybe_url).scheme != ""
+
+
+
+def non_null_value(k, m):
+    """
+    Determine whether a mapping has a non-null value for a given key.
+
+    :param Hashable k: Key to test for non-null value
+    :param Mapping m: Mapping to test for non-null value for given key
+    :return bool: Whether given mapping contains given key with non-null value
+    """
+    return k in m and not _is_null(m[k])
 
 
 
@@ -383,6 +419,11 @@ def standard_stream_redirector(stream):
 
 def warn_derived_cols():
     _warn_cols_to_attrs("derived")
+
+
+def _is_null(x):
+    """ Whether an object is effectively null """
+    return x in [None, ""] or (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
 def warn_implied_cols():
