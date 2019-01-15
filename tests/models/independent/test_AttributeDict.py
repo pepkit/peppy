@@ -588,7 +588,6 @@ class NullityTests:
 class SampleYamlTests:
     """ AttributeDict metadata only appear in YAML if non-default. """
 
-
     @pytest.mark.parametrize(
             argnames="metadata_attribute", argvalues=ATTRDICT_METADATA.keys(),
             ids=lambda attr_name: " metadata item = {} ".format(attr_name))
@@ -598,7 +597,6 @@ class SampleYamlTests:
             filepath = os.path.join(tmpdir.strpath, "sample{}.yaml".format(i))
             lines, _ = self._yaml_data(sample, filepath)
             assert all([metadata_attribute not in line for line in lines])
-
     
     @staticmethod
     def _yaml_data(sample, filepath, section_to_change=None,
@@ -622,3 +620,11 @@ class SampleYamlTests:
         with open(filepath, 'r') as f:
             lines = f.readlines()
         return lines, data
+
+
+@pytest.mark.parametrize(
+    ["func", "exp"],
+    [(repr, "{}"), (str, AttributeDict().__class__.__name__ + ": {}")])
+def test_text_repr_empty(func, exp):
+    """ Empty AttributeDict is correctly represented as text. """
+    assert exp == func(AttributeDict())
