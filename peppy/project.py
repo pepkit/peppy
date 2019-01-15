@@ -716,7 +716,7 @@ class Project(AttributeDict):
         if self.sample_subannotation is None:
             if sub_ann and os.path.isfile(sub_ann):
                 _LOGGER.info("Reading subannotations: %s", sub_ann)
-                self.sample_subannotation = pd.read_table(
+                self.sample_subannotation = pd.read_csv(
                         sub_ann, sep=None, engine="python")
                 _LOGGER.debug("Subannotations shape: {}".
                               format(self.sample_subannotation.shape))
