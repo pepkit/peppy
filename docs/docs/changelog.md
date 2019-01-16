@@ -1,9 +1,12 @@
 # Changelog
 
-## *Unreleased*
+## *v0.19* (2019-01-16)
+### New  
+- Added ``activate_subproject`` method to ``Project``.
 ### Changed
 - ``Project`` construction no longer requires sample annotations sheet.
 - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
+- ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.  
 
 ## *v0.18.2* (2018-07-23)
 ### Fixed
