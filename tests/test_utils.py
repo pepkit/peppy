@@ -212,27 +212,38 @@ def test_coll_like(arg, exp):
     assert exp == coll_like(arg)
 
 
+def _get_empty_attrdict(data):
+    ad = AttributeDict()
+    ad.add_entries(data)
+    return ad
+
 
 class NullValueHelperTests:
     """ Tests of accuracy of null value arbiter. """
 
-    _TYPES = [dict, AttributeDict, _DummyProject]
+    _TYPES = [dict(), _get_empty_attrdict({}), _DummyProject({})]
 
-    @pytest.fixture(params=_TYPES, ids=[t.__class.__name__ for t in _TYPES])
+
+    @pytest.mark.skip("Not implemented")
+    @pytest.fixture(params=_TYPES)
     def kvs(self, request):
         data = request.getfixturevalue("data")
         assert isinstance(data, Mapping), "Not a mapping: {}".format(type(data))
         return request.param
 
+    @pytest.mark.skip("Not implemented")
     def test_missing_key_has_neither_null_nor_non_null_value(self):
         pass
 
+    @pytest.mark.skip("Not implemented")
     def test_empty_collection_is_null(self):
         pass
 
+    @pytest.mark.skip("Not implemented")
     def test_None_is_null(self):
         pass
 
+    @pytest.mark.skip("Not implemented")
     def test_non_nulls(self):
         pass
 
