@@ -221,31 +221,47 @@ def _get_empty_attrdict(data):
 class NullValueHelperTests:
     """ Tests of accuracy of null value arbiter. """
 
-    _TYPES = [dict(), _get_empty_attrdict({}), _DummyProject({})]
-
+    _DATA = {"a": 1, "b": [2]}
 
     @pytest.mark.skip("Not implemented")
-    @pytest.fixture(params=_TYPES)
+    @pytest.fixture(
+        params=[lambda d: dict(d),
+                lambda d: AttributeDict().add_entries(d),
+                lambda d: _DummyProject(d)],
+        ids=["dict", AttributeDict.__name__, _DummyProject.__name__])
     def kvs(self, request):
-        data = request.getfixturevalue("data")
-        assert isinstance(data, Mapping), "Not a mapping: {}".format(type(data))
-        return request.param
+        """ For test cases provide KV pair map of parameterized type."""
+        return request.param(self._DATA)
 
-    @pytest.mark.skip("Not implemented")
-    def test_missing_key_has_neither_null_nor_non_null_value(self):
-        pass
+    def test_missing_key_neither_null_nor_non_null(self, kvs):
+        """ A key not in a mapping has neither null nor non-null value. """
+        k = "new_key"
+        assert k not in kvs
+        assert not has_null_value(k, kvs)
+        assert not non_null_value(k, kvs)
 
-    @pytest.mark.skip("Not implemented")
-    def test_empty_collection_is_null(self):
-        pass
+    @pytest.mark.parametrize("coll", [list(), set(), tuple(), dict()])
+    def test_empty_collection_is_null(self, coll, kvs):
+        """ A key with an empty collection instance as its value is null. """
+        ck = "empty"
+        assert ck not in kvs
+        kvs[ck] = coll
+        assert has_null_value(ck, kvs)
+        assert not non_null_value(ck, kvs)
 
-    @pytest.mark.skip("Not implemented")
-    def test_None_is_null(self):
-        pass
+    def test_None_is_null(self, kvs):
+        """ A key with None as value is null. """
+        bad_key = "nv"
+        assert bad_key not in kvs
+        kvs[bad_key] = None
+        assert has_null_value(bad_key, kvs)
+        assert not non_null_value(bad_key, kvs)
 
-    @pytest.mark.skip("Not implemented")
-    def test_non_nulls(self):
-        pass
+    @pytest.mark.parametrize("k", _DATA.keys())
+    def test_non_nulls(self, k, kvs):
+        """ Keys with non-None atomic or nonempty collection are non-null. """
+        assert k in kvs
+        assert non_null_value(k, kvs)
 
 
 

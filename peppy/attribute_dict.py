@@ -69,6 +69,7 @@ class AttributeDict(MutableMapping):
 
         :param Iterable[(object, object)] | Mapping | pandas.Series entries:
             collection of pairs of keys and values
+        :return AttributeDict: the updated instance
         """
         if entries is None:
             return
@@ -84,6 +85,7 @@ class AttributeDict(MutableMapping):
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
             self.__setitem__(key, value)
+        return self
 
 
     def is_null(self, item):
