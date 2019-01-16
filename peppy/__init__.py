@@ -14,12 +14,13 @@ from sys import stdout
 from ._version import __version__
 from .attribute_dict import AttributeDict
 from .const import *
+from .exceptions import PeppyError
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 
 
 __classes__ = ["AttributeDict", "Project", "Sample"]
-__all__ = __classes__
+__all__ = __classes__ + ["PeppyError"]
 
 
 LOGGING_LEVEL = "INFO"
@@ -41,7 +42,7 @@ if not logging.getLogger().handlers:
 
 def setup_peppy_logger(level, additional_locations=None, devmode=False):
     """
-    Establish a logger for a pe.
+    Establish a project logger.
 
     This configures a logger to provide information about pep models.
     Verbosity, destination(s) for messages, and message text format are

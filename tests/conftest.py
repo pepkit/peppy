@@ -35,14 +35,14 @@ PROJECT_CONFIG_LINES = """metadata:
   pipeline_interfaces: pipelines
   sample_subannotation: merge.csv
 
-derived_columns: [{derived_column_names}]
+derived_attributes: [{derived_attribute_names}]
 
 data_sources:
   src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
   src3: "{basedir}/data/{sample_name}.txt"
   src2: "{basedir}/data/{sample_name}-bamfile.bam"
 
-implied_columns:
+implied_attributes:
   sample_name:
     a:
       genome: hg38
@@ -127,7 +127,7 @@ PIPELINE_TO_REQD_INFILES_BY_SAMPLE = {
     "testngs.sh": FILE_BY_SAMPLE
 }
 
-SAMPLE_ANNOTATION_LINES = """sample_name,library,file,file2,organism,nonmerged_col,data_source,dcol2
+SAMPLE_ANNOTATION_LINES = """sample_name,protocol,file,file2,organism,nonmerged_col,data_source,dcol2
 a,testlib,src3,src3,,src3,src3,
 b,testlib,,,,src3,src3,src1
 c,testlib,src3,src3,,src3,src3,
@@ -170,7 +170,7 @@ _SEASON_HIERARCHY = {
 }
 COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
                         "keys", "values", "items"]
-COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
+COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "protocol"]
 PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": "annotations.csv"}}
 
 
@@ -312,8 +312,8 @@ class _DataSourceFormatMapping(dict):
     mechanism that pep uses to derive columns, but it's also the
     core string formatting mechanism.
     """
-    def __missing__(self, derived_column):
-        return "{" + derived_column + "}"
+    def __missing__(self, derived_attribute):
+        return "{" + derived_attribute + "}"
 
 
 
@@ -333,8 +333,8 @@ def _write_temp(lines, dirpath, fname):
     :return str: full path to written file
     """
     basedir_replacement = _DataSourceFormatMapping(basedir=dirpath)
-    derived_columns_replacement = _DataSourceFormatMapping(
-            **{"derived_column_names": ", ".join(DERIVED_COLNAMES)}
+    derived_attributes_replacement = _DataSourceFormatMapping(
+            **{"derived_attribute_names": ", ".join(DERIVED_COLNAMES)}
     )
     filepath = os.path.join(dirpath, fname)
     data_source_formatter = string.Formatter()
@@ -342,12 +342,14 @@ def _write_temp(lines, dirpath, fname):
     with open(filepath, 'w') as tmpf:
         for l in lines:
             if "{basedir}" in l:
-                l = data_source_formatter.vformat(
+                out = data_source_formatter.vformat(
                     l, (), basedir_replacement)
-            elif "{derived_column_names}" in l:
-                l = data_source_formatter.vformat(
-                    l, (), derived_columns_replacement)
-            tmpf.write(l)
+            elif "{derived_attribute_names}" in l:
+                out = data_source_formatter.vformat(
+                    l, (), derived_attributes_replacement)
+            else:
+                out = l
+            tmpf.write(out)
             num_lines += 1
     _LOGGER.debug("Wrote %d line(s) to disk: '%s'", num_lines, filepath)
     return filepath
@@ -442,6 +444,14 @@ def write_project_files(request):
 
 
 
+@pytest.fixture(scope="function")
+def subannotation_filepath(tmpdir):
+    """ Write sample subannotations (temp) file and return path to it. """
+    return _write_temp(SAMPLE_SUBANNOTATION_LINES,
+                       dirpath=tmpdir.strpath, fname=MERGE_TABLE_FILENAME)
+
+
+
 # Placed here (rather than near top of file) for data/use locality.
 _TEST_DATA_FOLDER = "data"
 _BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
@@ -505,8 +515,8 @@ def proj(request):
     Create project instance using data from file pointed to by request class.
 
     To use this fixture, the test case must reside within a class that
-    defines a "project_config_file" attribute. This is best done by marking
-    the class with "@pytest.mark.usefixtures("write_project_files")"
+    defines a "project_config_file" attribute. This is most easily done by
+    marking the class with "@pytest.mark.usefixtures('write_project_files')"
 
     :param pytest._pytest.fixtures.SubRequest request: test case requesting
         a project instance

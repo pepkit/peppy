@@ -9,7 +9,9 @@ else:
 
 from pandas import Series
 
-from .utils import copy
+from .const import DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION
+from .utils import \
+    copy, has_null_value, non_null_value, warn_derived_cols, warn_implied_cols
 
 
 ATTRDICT_METADATA = {"_force_nulls": False, "_attribute_identity": False}
@@ -67,6 +69,7 @@ class AttributeDict(MutableMapping):
 
         :param Iterable[(object, object)] | Mapping | pandas.Series entries:
             collection of pairs of keys and values
+        :return AttributeDict: the updated instance
         """
         if entries is None:
             return
@@ -82,6 +85,27 @@ class AttributeDict(MutableMapping):
         # Assume we now have pairs; allow corner cases to fail hard here.
         for key, value in entries_iter:
             self.__setitem__(key, value)
+        return self
+
+
+    def is_null(self, item):
+        """
+        Conjunction of presence in underlying mapping and value being None
+
+        :param object item: Key to check for presence and null value
+        :return bool: True iff the item is present and has null value
+        """
+        return has_null_value(item, self)
+
+
+    def non_null(self, item):
+        """
+        Conjunction of presence in underlying mapping and value not being None
+
+        :param object item: Key to check for presence and non-null value
+        :return bool: True iff the item is present and has non-null value
+        """
+        return non_null_value(item, self)
 
 
     def __setattr__(self, key, value):
@@ -141,6 +165,12 @@ class AttributeDict(MutableMapping):
         :raises _MetadataOperationException: if attempt is made
             to set value for privileged metadata key
         """
+        if key == "derived_columns":
+            warn_derived_cols()
+            key = DERIVATIONS_DECLARATION
+        elif key == "implied_columns":
+            warn_implied_cols()
+            key = IMPLICATIONS_DECLARATION
         if isinstance(value, Mapping):
             try:
                 # Combine AttributeDict instances.

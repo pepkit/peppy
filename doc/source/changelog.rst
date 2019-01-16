@@ -1,6 +1,21 @@
 Changelog
 ******************************
 
+- **v0.19** (*2019-01-16*):
+
+  - Changed
+
+    - ``Project`` construction no longer requires sample annotations sheet.
+
+    - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
+
+    - ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.
+  
+  - New
+    
+    - Added ``activate_subproject`` method to ``Project``.
+
+
 - **v0.18.2** (*2018-07-23*):
 
   - Fixed
@@ -22,7 +37,7 @@ Changelog
 
     - Add ``get_sample`` and ``get_samples`` functions to ``Project`` objects.
 
-    - Add ``get_subsamples``and ``get_subsample`` functions to both ``Project`` and ``Sample`` objects.
+    - Add ``get_subsamples`` and ``get_subsample`` functions to both ``Project`` and ``Sample`` objects.
 
     - Subsamples are now objects that can be retrieved individually by name, with the ``subsample_name`` as the index column header.
 

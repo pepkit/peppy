@@ -14,13 +14,12 @@ CHIP_NAME = "chip1"
 RNA_NAME = "rna_PE"
 WGBS_NAME = "wgbs-hs"
 RRBS_NAME = "rrbs_mm"
+RRBS_NAME = "rrbs_mm"
 ADD_PROJECT_DATA = {
-    "genome": {"organism": {
-        "mouse": "mm10", "human": "hg38", "rat": "rn6"}},
     "data_sources": {"src": "{sample}-{flowcell}.bam"},
-    "derived_columns": ["data_source"],
+    "derived_attributes": ["data_source"],
     "pipeline_args": {"--epilog": None},
-    "implied_columns": {"organism": "assembly"},
+    "implied_attributes": {"organism": "assembly"},
     "user": "test-user",
     "email": "tester@domain.org",
 }
@@ -112,8 +111,7 @@ class ProjectContextTests:
         argnames=["inclusion", "expected_names"],
         argvalues=[("ATAC", {"atac-PE"}),
                    (("WGBS", "RRBS"), {WGBS_NAME, RRBS_NAME}),
-                   ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})],
-        ids=lambda incl_exp_pair: "{}-{}".format(*incl_exp_pair))
+                   ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})])
     def test_inclusion(self, samples, project, inclusion, expected_names):
         """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)

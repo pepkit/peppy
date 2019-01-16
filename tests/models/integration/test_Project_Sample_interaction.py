@@ -31,21 +31,22 @@ PATH_BY_TYPE = {
 
 NAME_ANNOTATIONS_FILE = "annotations.csv"
 SAMPLE_NAMES = ["WGBS_mm10", "ATAC_mm10", "WGBS_rn6", "ATAC_rn6"]
-COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
+PROTOCOL_COLNAME = "protocol"
+COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", PROTOCOL_COLNAME]
 VALUES1 = [random.randint(-5, 5) for _ in range(len(SAMPLE_NAMES))]
 VALUES2 = [random.randint(-5, 5) for _ in range(len(SAMPLE_NAMES))]
-LIBRARIES = ["WGBS", "ATAC", "WGBS", "ATAC"]
-DATA = list(zip(SAMPLE_NAMES, VALUES1, VALUES2, LIBRARIES))
+PROTOCOLS = ["WGBS", "ATAC", "WGBS", "ATAC"]
+DATA = list(zip(SAMPLE_NAMES, VALUES1, VALUES2, PROTOCOLS))
 DATA_FOR_SAMPLES = [
     {SAMPLE_NAME_COLNAME: SAMPLE_NAMES},
-    {"val1": VALUES1}, {"val2": VALUES2}, {"library": LIBRARIES}]
+    {"val1": VALUES1}, {"val2": VALUES2}, {PROTOCOL_COLNAME: PROTOCOLS}]
 PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": NAME_ANNOTATIONS_FILE}}
-PROTOCOLS = ["WGBS", "ATAC"]
 
 
 
 def pytest_generate_tests(metafunc):
     """ Customization of test cases within this module. """
+    protos = ["WGBS", "ATAC"]
     if metafunc.cls == BuildSheetTests:
         if "protocols" in metafunc.fixturenames:
             # Apply the test case to each of the possible combinations of
@@ -53,10 +54,9 @@ def pytest_generate_tests(metafunc):
             metafunc.parametrize(
                     argnames="protocols",
                     argvalues=list(itertools.chain.from_iterable(
-                            itertools.combinations(PROTOCOLS, x)
-                            for x in range(1 + len(PROTOCOLS)))),
-                    ids=lambda protos:
-                    " protocols = {} ".format(",".join(protos)))
+                            itertools.combinations(protos, x)
+                            for x in range(1 + len(protos)))),
+                    ids=lambda ps: " protocols = {} ".format(",".join(ps)))
         if "delimiter" in metafunc.fixturenames:
             metafunc.parametrize(argnames="delimiter", argvalues=[",", "\t"])
 
@@ -102,7 +102,7 @@ def samples_rawdata():
 @pytest.fixture(scope="function")
 def sample_sheet(samples_rawdata):
     df = pd.DataFrame(samples_rawdata)
-    df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", "library"]
+    df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", PROTOCOL_COLNAME]
     return df
 
 
@@ -195,7 +195,7 @@ class BuildSheetTests:
 
         # But the sheet permits filtering to specific protocol(s).
         exp_num_samples = len(SAMPLE_NAMES) if not protocols else \
-            sum(sum(1 for l in LIBRARIES if l == p) for p in protocols)
+            sum(sum(1 for p2 in PROTOCOLS if p2 == p1) for p1 in protocols)
         sheet = p.build_sheet(*protocols)
         assert exp_num_samples == len(sheet)
         if protocols:

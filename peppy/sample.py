@@ -21,7 +21,7 @@ from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
     REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
-    grab_project_data, is_url,parse_ftype, sample_folder
+    grab_project_data, parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
 
@@ -205,7 +205,7 @@ class Sample(AttributeDict):
 
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
-            _LOGGER.warn("You must run set_pipeline_attributes "
+            _LOGGER.warning("You must run set_pipeline_attributes "
                          "before determine_missing_requirements")
             return null_return
 
@@ -316,11 +316,11 @@ class Sample(AttributeDict):
             originally provided via the sample sheet (i.e., the a map-like
             representation of the instance, excluding derived items)
         """
-        return OrderedDict([[k, getattr(self, k)]
-                            for k in self.sheet_attributes])
+        return OrderedDict(
+            [[k, getattr(self, k)] for k in self.sheet_attributes])
 
 
-    def infer_columns(self, implications):
+    def infer_attributes(self, implications):
         """
         Infer value for additional field(s) from other field(s).
 
@@ -480,7 +480,7 @@ class Sample(AttributeDict):
         try:
             # Grab a temporary dictionary of sample attributes and update these
             # with any provided extra variables to use in the replacement.
-            # This is necessary for derived_columns in the merge table.
+            # This is necessary for derived_attributes in the merge table.
             # Here the copy() prevents the actual sample from being
             # updated by update().
             temp_dict = self.__dict__.copy()
@@ -490,7 +490,7 @@ class Sample(AttributeDict):
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
                 if not val_globbed:
-                    _LOGGER.warn("Unmatched regex-like: '%s'", val)
+                    _LOGGER.warning("Unmatched regex-like: '%s'", val)
                 else:
                     val = " ".join(val_globbed)
                 _LOGGER.debug("Post-glob: %s", val)
@@ -524,7 +524,7 @@ class Sample(AttributeDict):
 
         project = project or self.prj
 
-        for col in project.get("derived_columns", []):
+        for col in project.get("derived_attributes", []):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if not hasattr(self, col):
@@ -659,16 +659,14 @@ class Sample(AttributeDict):
             # read_type, read_length, paired.
             self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
 
-            set_rtype = False
+            set_rtype_reason = ""
             if not hasattr(self, "read_type"):
                 set_rtype_reason = "read_type not yet set"
-                set_rtype = True
             elif not self.read_type or self.read_type.lower() \
                     not in VALID_READ_TYPES:
                 set_rtype_reason = "current read_type is invalid: '{}'". \
                     format(self.read_type)
-                set_rtype = True
-            if set_rtype:
+            if set_rtype_reason:
                 _LOGGER.debug(
                     "Setting read_type for %s '%s': %s",
                     self.__class__.__name__, self.name, set_rtype_reason)
@@ -747,7 +745,7 @@ class Sample(AttributeDict):
             except NotImplementedError as e:
                 if not permissive:
                     raise
-                _LOGGER.warn(e.message)
+                _LOGGER.warning(e.message)
                 return
             except IOError:
                 if not permissive:
@@ -798,7 +796,7 @@ class Sample(AttributeDict):
             setattr(self, feature, feat_val)
 
             if getattr(self, feature) is None and len(existing_files) > 0:
-                _LOGGER.warn("Not all input files agree on '%s': '%s'",
+                _LOGGER.warning("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
 
@@ -879,7 +877,7 @@ class Sample(AttributeDict):
                         for k, v in obj.__dict__.items() if
                         k not in to_skip}
             elif isinstance(obj, Series):
-                _LOGGER.warn("Serializing series as mapping, not array-like")
+                _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
             elif hasattr(obj, 'dtype'):  # numpy data types
                 # TODO: this fails with ValueError for multi-element array.
@@ -929,16 +927,24 @@ class Sample(AttributeDict):
             outfile.write(yaml_data)
 
 
-    def update(self, newdata):
+    def update(self, newdata, **kwargs):
         """
         Update Sample object with attributes from a dict.
         """
-        for key, value in newdata.items():
-            setattr(self, key, value)
+        duplicates = [k for k in set(newdata.keys()) & set(kwargs.keys())
+                      if newdata[k] != kwargs[k]]
+        if len(duplicates) != 0:
+            raise ValueError("{} duplicate keys with different values: {}".
+                             format(len(duplicates), ", ".join(duplicates)))
+        for k, v in newdata.items():
+            setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
 
-def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None):
+def merge_sample(sample, sample_subann,
+                 data_sources=None, derived_attributes=None):
     """
     Use merge table (subannotation) data to augment/modify Sample.
 
@@ -946,9 +952,9 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     :param sample_subann: data with which to alter Sample
     :param Mapping data_sources: collection of named paths to data locations,
         optional
-    :param Iterable[str] derived_columns: names of columns for which
+    :param Iterable[str] derived_attributes: names of attributes for which
         corresponding Sample attribute's value is data-derived, optional
-    :return Set[str]: names of columns that were merged
+    :return Set[str]: names of columns/attributes that were merged
     """
 
     merged_attrs = {}
@@ -966,9 +972,9 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
                   format(data_sources))
 
     # Hash derived columns for faster lookup in case of many samples/columns.
-    derived_columns = set(derived_columns or [])
-    _LOGGER.debug("Merging Sample with derived columns: {}".
-                  format(derived_columns))
+    derived_attributes = set(derived_attributes or [])
+    _LOGGER.debug("Merging Sample with derived attributes: {}".
+                  format(derived_attributes))
 
     sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
     sample_indexer = sample_subann[SAMPLE_NAME_COLNAME] == sample_name
@@ -988,7 +994,6 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
     merged_attrs = {key: "" for key in this_sample_rows.columns}
     subsamples = []
     _LOGGER.debug(this_sample_rows)
-    subsample_count = 0
     for subsample_row_id, row in this_sample_rows.iterrows():
         try:
             row['subsample_name']
@@ -1004,7 +1009,7 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
         # during-iteration change of dictionary size.
         for attr_name in this_sample_rows.columns:
             if attr_name == SAMPLE_NAME_COLNAME or \
-                            attr_name not in derived_columns:
+                            attr_name not in derived_attributes:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
 
@@ -1019,9 +1024,9 @@ def merge_sample(sample, sample_subann, data_sources=None, derived_columns=None)
                 extra_vars=rowdata)  # 1)
             rowdata[attr_name] = data_src_path
 
-        _LOGGER.log(5, "Adding derived columns")
+        _LOGGER.log(5, "Adding derived attributes")
 
-        for attr in derived_columns:
+        for attr in derived_attributes:
 
             # Skip over any attributes that the sample lacks or that are
             # covered by the data from the current (row's) data.

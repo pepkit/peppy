@@ -1,6 +1,13 @@
 """ Tests for utility functions """
 
 import copy
+import random
+import string
+import sys
+if sys.version_info < (3, 3):
+    from collections import Mapping
+else:
+    from collections.abc import Mapping
 
 import mock
 import pytest
@@ -8,7 +15,8 @@ import pytest
 from peppy import AttributeDict, Project, Sample
 from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from peppy.utils import \
-    add_project_sample_constants, copy as pepcopy, grab_project_data
+    add_project_sample_constants, coll_like, copy as pepcopy, \
+    grab_project_data, has_null_value, non_null_value
 from tests.helpers import named_param, nonempty_powerset
 
 
@@ -38,8 +46,8 @@ def basic_project_data():
             "output_dir": "outdir",
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
-        "derived_columns": ["data_source"],
-        "implied_columns": {"organism": {"genomes": {
+        "derived_attributes": ["data_source"],
+        "implied_attributes": {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }
@@ -168,6 +176,92 @@ class AddProjectSampleConstantsTests:
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]
+
+
+
+def _randcoll(pool, dt):
+    """
+    Generate random collection of 1-10 elements.
+    
+    :param Iterable pool: elements from which to choose
+    :param type dt: type of collection to create
+    :return Iterable[object]: collection of randomly generated elements
+    """
+    valid_types = [tuple, list, set, dict]
+    if dt not in valid_types:
+        raise TypeError("{} is an invalid type; choose from {}".
+                        format(str(dt), ", ".join(str(t) for t in valid_types)))
+    rs = [random.choice(pool) for _ in range(random.randint(1, 10))]
+    return dict(enumerate(rs)) if dt == dict else rs
+
+
+
+@pytest.mark.parametrize(
+    ["arg", "exp"],
+    [(random.randint(-sys.maxsize - 1, sys.maxsize), False),
+     (random.random(), False),
+     (random.choice(string.ascii_letters), False),
+     ([], True), (set(), True), (dict(), True), (tuple(), True),
+     (_randcoll(string.ascii_letters, list), True),
+     (_randcoll(string.ascii_letters, dict), True),
+     (_randcoll([int(d) for d in string.digits], tuple), True),
+     (_randcoll([int(d) for d in string.digits], set), True)]
+)
+def test_coll_like(arg, exp):
+    """ Test arbiter of whether an object is collection-like. """
+    assert exp == coll_like(arg)
+
+
+def _get_empty_attrdict(data):
+    ad = AttributeDict()
+    ad.add_entries(data)
+    return ad
+
+
+class NullValueHelperTests:
+    """ Tests of accuracy of null value arbiter. """
+
+    _DATA = {"a": 1, "b": [2]}
+
+    @pytest.mark.skip("Not implemented")
+    @pytest.fixture(
+        params=[lambda d: dict(d),
+                lambda d: AttributeDict().add_entries(d),
+                lambda d: _DummyProject(d)],
+        ids=["dict", AttributeDict.__name__, _DummyProject.__name__])
+    def kvs(self, request):
+        """ For test cases provide KV pair map of parameterized type."""
+        return request.param(self._DATA)
+
+    def test_missing_key_neither_null_nor_non_null(self, kvs):
+        """ A key not in a mapping has neither null nor non-null value. """
+        k = "new_key"
+        assert k not in kvs
+        assert not has_null_value(k, kvs)
+        assert not non_null_value(k, kvs)
+
+    @pytest.mark.parametrize("coll", [list(), set(), tuple(), dict()])
+    def test_empty_collection_is_null(self, coll, kvs):
+        """ A key with an empty collection instance as its value is null. """
+        ck = "empty"
+        assert ck not in kvs
+        kvs[ck] = coll
+        assert has_null_value(ck, kvs)
+        assert not non_null_value(ck, kvs)
+
+    def test_None_is_null(self, kvs):
+        """ A key with None as value is null. """
+        bad_key = "nv"
+        assert bad_key not in kvs
+        kvs[bad_key] = None
+        assert has_null_value(bad_key, kvs)
+        assert not non_null_value(bad_key, kvs)
+
+    @pytest.mark.parametrize("k", _DATA.keys())
+    def test_non_nulls(self, k, kvs):
+        """ Keys with non-None atomic or nonempty collection are non-null. """
+        assert k in kvs
+        assert non_null_value(k, kvs)
 
 
 

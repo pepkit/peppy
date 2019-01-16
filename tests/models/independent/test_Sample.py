@@ -36,7 +36,7 @@ class ParseSampleImplicationsTests:
     def test_project_no_implications(self, sample, implications):
         """ With no implications mapping, sample is unmodified. """
         before_inference = sample.__dict__
-        sample.infer_columns(implications)
+        sample.infer_attributes(implications)
         after_inference = sample.__dict__
         assert before_inference == after_inference
 
@@ -44,16 +44,13 @@ class ParseSampleImplicationsTests:
     def test_null_intersection_between_sample_and_implications(self, sample):
         """ Sample with none of implications' fields --> no change. """
         before_inference = sample.__dict__
-        sample.infer_columns(self.IMPLICATIONS_MAP)
+        sample.infer_attributes(self.IMPLICATIONS_MAP)
         assert before_inference == sample.__dict__
 
 
     @pytest.mark.parametrize(
         argnames=["implier_value", "implications"],
-        argvalues=IMPLICATIONS.items(),
-        ids=lambda implier_and_implications:
-        "implier='{}', implications={}".format(
-            implier_and_implications[0], str(implier_and_implications[1])))
+        argvalues=IMPLICATIONS.items())
     def test_intersection_between_sample_and_implications(
             self, sample, implier_value, implications):
         """ Intersection between implications and sample fields --> append. """
@@ -64,7 +61,7 @@ class ParseSampleImplicationsTests:
 
         # Set the parameterized value for the implications source field.
         setattr(sample, self.IMPLIER_NAME, implier_value)
-        sample.infer_columns(self.IMPLICATIONS_MAP)
+        sample.infer_attributes(self.IMPLICATIONS_MAP)
 
         # Validate updates to sample based on column implications & inference.
         for implied_name, implied_value in implications.items():
@@ -85,7 +82,7 @@ class ParseSampleImplicationsTests:
 
         no_implied_values()
         setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
-        sample.infer_columns(self.IMPLICATIONS_MAP)
+        sample.infer_attributes(self.IMPLICATIONS_MAP)
         no_implied_values()
 
 
@@ -246,7 +243,7 @@ class SetFilePathsTests:
                 "results_subdir": "results_pipeline",
                 "submission_subdir": "submission"},
             DATA_SOURCES_SECTION: self.DATA_SOURCES,
-            "derived_columns": [data_src]}
+            "derived_attributes": [data_src]}
 
 
     @named_param(
@@ -261,7 +258,7 @@ class SetFilePathsTests:
         # Explicitly-passed object needs to at least be an AttributeDict.
         sample_data = AttributeDict(
                 {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
-                 data_src_attr: src_key, "derived_columns": [data_src_attr]})
+                 data_src_attr: src_key, "derived_attributes": [data_src_attr]})
         
         # Create the samples and make the calls under test.
         s = Sample(sample_data)
@@ -291,8 +288,8 @@ class SetFilePathsTests:
         assert new_src_val == getattr(s, DATA_SOURCE_COLNAME)
 
 
-    @named_param(argnames="exclude_derived_columns", argvalues=[False, True])
-    def test_no_derived_columns(self, prj_data, exclude_derived_columns):
+    @named_param(argnames="exclude_derived_attributes", argvalues=[False, True])
+    def test_no_derived_attributes(self, prj_data, exclude_derived_attributes):
         """ Passing Sample's project is equivalent to its inference. """
 
         # Here we're disinterested in parameterization w.r.t. data source key,
@@ -300,8 +297,8 @@ class SetFilePathsTests:
         src_key = self.SOURCE_KEYS[0]
 
         # Explicitly-passed object needs to at least be an AttributeDict.
-        if exclude_derived_columns:
-            prj_data.pop("derived_columns")
+        if exclude_derived_attributes:
+            prj_data.pop("derived_attributes")
         sample_data = {
                 SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
                 DATA_SOURCE_COLNAME: src_key}
@@ -317,7 +314,7 @@ class SetFilePathsTests:
 
         # Check results.
         putative_new_attr = self.DATA_SOURCES[src_key]
-        if exclude_derived_columns:
+        if exclude_derived_attributes:
             # The value to which the source key maps won't have been added.
             assert not hasattr(s, putative_new_attr)
             assert putative_new_attr not in s
