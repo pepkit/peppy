@@ -547,7 +547,7 @@ class AttributeDictObjectSyntaxAccessTests:
 
 
 class NullityTests:
-    """ Tests of null/non-null value tests """
+    """ Tests of null/non-null values """
 
     _KEYNAMES = ["sample_name", "protocol", "arbitrary_attribute"]
 

@@ -1,6 +1,13 @@
 """ Tests for utility functions """
 
 import copy
+import random
+import string
+import sys
+if sys.version_info < (3, 3):
+    from collections import Mapping
+else:
+    from collections.abc import Mapping
 
 import mock
 import pytest
@@ -8,7 +15,8 @@ import pytest
 from peppy import AttributeDict, Project, Sample
 from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from peppy.utils import \
-    add_project_sample_constants, copy as pepcopy, grab_project_data
+    add_project_sample_constants, coll_like, copy as pepcopy, \
+    grab_project_data, has_null_value, non_null_value
 from tests.helpers import named_param, nonempty_powerset
 
 
@@ -168,6 +176,65 @@ class AddProjectSampleConstantsTests:
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]
+
+
+
+def _randcoll(pool, dt):
+    """
+    Generate random collection of 1-10 elements.
+    
+    :param Iterable pool: elements from which to choose
+    :param type dt: type of collection to create
+    :return Iterable[object]: collection of randomly generated elements
+    """
+    valid_types = [tuple, list, set, dict]
+    if dt not in valid_types:
+        raise TypeError("{} is an invalid type; choose from {}".
+                        format(str(dt), ", ".join(str(t) for t in valid_types)))
+    rs = [random.choice(pool) for _ in range(random.randint(1, 10))]
+    return dict(enumerate(rs)) if dt == dict else rs
+
+
+
+@pytest.mark.parametrize(
+    ["arg", "exp"],
+    [(random.randint(-sys.maxsize - 1, sys.maxsize), False),
+     (random.random(), False),
+     (random.choice(string.ascii_letters), False),
+     ([], True), (set(), True), (dict(), True), (tuple(), True),
+     (_randcoll(string.ascii_letters, list), True),
+     (_randcoll(string.ascii_letters, dict), True),
+     (_randcoll([int(d) for d in string.digits], tuple), True),
+     (_randcoll([int(d) for d in string.digits], set), True)]
+)
+def test_coll_like(arg, exp):
+    """ Test arbiter of whether an object is collection-like. """
+    assert exp == coll_like(arg)
+
+
+
+class NullValueHelperTests:
+    """ Tests of accuracy of null value arbiter. """
+
+    _TYPES = [dict, AttributeDict, _DummyProject]
+
+    @pytest.fixture(params=_TYPES, ids=[t.__class.__name__ for t in _TYPES])
+    def kvs(self, request):
+        data = request.getfixturevalue("data")
+        assert isinstance(data, Mapping), "Not a mapping: {}".format(type(data))
+        return request.param
+
+    def test_missing_key_has_neither_null_nor_non_null_value(self):
+        pass
+
+    def test_empty_collection_is_null(self):
+        pass
+
+    def test_None_is_null(self):
+        pass
+
+    def test_non_nulls(self):
+        pass
 
 
 
