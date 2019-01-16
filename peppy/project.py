@@ -335,14 +335,22 @@ class Project(AttributeDict):
 
     @property
     def default_compute_envfile(self):
-        """ Path to default compute environment settings file. """
+        """
+        Path to default compute environment settings file.
+
+        :return str: Path to this project's default compute env config file.
+        """
         return os.path.join(
             self.templates_folder, "default_compute_settings.yaml")
 
 
     @property
     def derived_columns(self):
-        """ Collection of sample attributes for which value of each is derived from elsewhere """
+        """
+        Collection of sample attributes for which value of each is derived from elsewhere
+
+        :return list[str]: sample attribute names for which value is derived
+        """
         warn_derived_cols()
         try:
             return self.derived_attributes
@@ -352,7 +360,11 @@ class Project(AttributeDict):
 
     @property
     def implied_columns(self):
-        """ Collection of sample attributes for which value of each is implied by other(s) """
+        """
+        Collection of sample attributes for which value of each is implied by other(s)
+
+        :return list[str]: sample attribute names for which value is implied by other(s)
+        """
         warn_implied_cols()
         try:
             return self.implied_attributes
@@ -362,7 +374,11 @@ class Project(AttributeDict):
 
     @property
     def num_samples(self):
-        """ Number of samples available in this Project. """
+        """
+        Count the number of samples available in this Project.
+
+        :return int: number of samples available in this Project.
+        """
         return sum(1 for _ in self.sample_names)
 
 
@@ -518,6 +534,7 @@ class Project(AttributeDict):
 
         return samples[0]
 
+
     def activate_subproject(self, subproject):
         """
         Activate a subproject.
@@ -579,9 +596,9 @@ class Project(AttributeDict):
         repeats = {name: n for name, n in Counter(
             s.name for s in self._samples).items() if n > 1}
         if repeats:
-            histogram_text = "\n".join(
+            hist_text = "\n".join(
                 "{}: {}".format(name, n) for name, n in repeats.items())
-            _LOGGER.warning("Non-unique sample names:\n{}".format(histogram_text))
+            _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
 
 
     def finalize_pipelines_directory(self, pipe_path=""):
@@ -831,7 +848,7 @@ class Project(AttributeDict):
 
         if "metadata" in config:
             if "pipelines_dir" in self.metadata:
-                _LOGGER.warninging("Looper v0.6 suggests "
+                _LOGGER.warning("Looper v0.6 suggests "
                                 "switching from pipelines_dir to "
                                 "pipeline_interfaces. See docs for details: "
                                 "https://pepkit.github.io/docs/home/")
@@ -966,9 +983,7 @@ class Project(AttributeDict):
 
 
     def set_project_permissions(self):
-        """
-        Make the project's public_html folder executable.
-        """
+        """ Make the project's public_html folder executable. """
         try:
             os.chmod(self.trackhubs.trackhub_dir, 0o0755)
         except OSError:
@@ -1075,13 +1090,12 @@ class Project(AttributeDict):
             raise Project.MissingSampleSheetError(sample_file)
         else:
             _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            req = [SAMPLE_NAME_COLNAME]
-            missing = set(req) - set(df.columns)
+            missing = {SAMPLE_NAME_COLNAME} - set(df.columns)
             if len(missing) != 0:
                 _LOGGER.warning(
-                    "Annotation sheet ('{}') is missing column(s):\n{}\nIt has: {}".
-                        format(sample_file, "\n".join(missing),
-                               ", ".join(list(df.columns))))
+                    "Annotation sheet ('{}') is missing column(s):\n{}\n"
+                    "It has: {}".format(sample_file, "\n".join(missing),
+                                        ", ".join(list(df.columns))))
         return df
 
 
@@ -1100,7 +1114,7 @@ class Project(AttributeDict):
         def __init__(self, sheetfile):
             super(Project.MissingSampleSheetError, self).__init__(
                 "Missing sample annotation sheet ({}); a project need not use "
-                "a sample sheet, but if it does the file must exist"
+                "a sample sheet, but if it does the file must exist."
                 .format(sheetfile))
 
 

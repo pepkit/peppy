@@ -418,7 +418,13 @@ def standard_stream_redirector(stream):
 
 
 def warn_derived_cols():
+    """ Produce deprecation warning about derived columns. """
     _warn_cols_to_attrs("derived")
+
+
+def warn_implied_cols():
+    """ Produce deprecation warning about implied columns. """
+    _warn_cols_to_attrs("implied")
 
 
 def _is_null(x):
@@ -426,11 +432,8 @@ def _is_null(x):
     return x in [None, ""] or (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
-def warn_implied_cols():
-    _warn_cols_to_attrs("implied")
-
-
 def _warn_cols_to_attrs(prefix):
+    """ Produce deprecation warning about 'columns' rather than 'attributes' """
     warnings.warn("{pfx}_columns should be encoded and referenced "
                   "as {pfx}_attributes".format(pfx=prefix), DeprecationWarning)
 

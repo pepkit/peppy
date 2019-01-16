@@ -205,7 +205,7 @@ class Sample(AttributeDict):
 
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
-            _LOGGER.warninging("You must run set_pipeline_attributes "
+            _LOGGER.warning("You must run set_pipeline_attributes "
                          "before determine_missing_requirements")
             return null_return
 

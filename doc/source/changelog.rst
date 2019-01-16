@@ -1,13 +1,15 @@
 Changelog
 ******************************
 
-- **Unreleased**:
+- **v0.19** (*2019-01-15*):
 
   - Changed
 
     - ``Project`` construction no longer requires sample annotations sheet.
 
     - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
+
+    - ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.
   
   - New
     
