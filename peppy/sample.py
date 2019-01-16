@@ -205,7 +205,7 @@ class Sample(AttributeDict):
 
         # set_pipeline_attributes must be run first.
         if not hasattr(self, "required_inputs"):
-            _LOGGER.warninging("You must run set_pipeline_attributes "
+            _LOGGER.warning("You must run set_pipeline_attributes "
                          "before determine_missing_requirements")
             return null_return
 
@@ -316,8 +316,8 @@ class Sample(AttributeDict):
             originally provided via the sample sheet (i.e., the a map-like
             representation of the instance, excluding derived items)
         """
-        return OrderedDict([[k, getattr(self, k)]
-                            for k in self.sheet_attributes])
+        return OrderedDict(
+            [[k, getattr(self, k)] for k in self.sheet_attributes])
 
 
     def infer_attributes(self, implications):

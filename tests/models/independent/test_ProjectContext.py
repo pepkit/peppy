@@ -111,8 +111,7 @@ class ProjectContextTests:
         argnames=["inclusion", "expected_names"],
         argvalues=[("ATAC", {"atac-PE"}),
                    (("WGBS", "RRBS"), {WGBS_NAME, RRBS_NAME}),
-                   ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})],
-        ids=lambda incl_exp_pair: "{}-{}".format(*incl_exp_pair))
+                   ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})])
     def test_inclusion(self, samples, project, inclusion, expected_names):
         """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)
