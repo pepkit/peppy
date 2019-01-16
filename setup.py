@@ -62,7 +62,9 @@ with open("peppy/_version.py", 'r') as versionfile:
 try:
     import pypandoc
     long_description = pypandoc.convert_file('README.md', 'rst')
+    print("Pandoc conversion succeeded")
 except(IOError, ImportError, OSError):
+    print("Warning: pandoc conversion failed!")
     long_description = open('README.md').read()
 
 
