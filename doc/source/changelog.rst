@@ -1,7 +1,7 @@
 Changelog
 ******************************
 
-- **v0.19** (*2019-01-15*):
+- **v0.19** (*2019-01-16*):
 
   - Changed
 
@@ -13,7 +13,7 @@ Changelog
   
   - New
     
-    - Added ``activate_subproject`` method to ``Project`` object
+    - Added ``activate_subproject`` method to ``Project``.
 
 
 - **v0.18.2** (*2018-07-23*):
