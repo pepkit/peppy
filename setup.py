@@ -50,9 +50,9 @@ def get_static(name, condition=None):
     else:
         return [i for i in filter(lambda x: eval(condition), static)]
 
+
 # scripts to be added to the $PATH
 # scripts = get_static("scripts", condition="'.' in x")
-# scripts removed (TO remove this)
 scripts = None
 
 with open("peppy/_version.py", 'r') as versionfile:
@@ -79,6 +79,8 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "Topic :: Scientific/Engineering :: Bio-Informatics"
     ],
     keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
