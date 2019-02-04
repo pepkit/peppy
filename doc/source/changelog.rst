@@ -1,6 +1,16 @@
 Changelog
 ******************************
 
+- **v0.20** (*unreleased*):
+
+  - Changed
+
+    - Add ``attribute`` parameter to ``fetch_samples`` function to enable more general applicability. Additionally, the attribute value matching is more strict now -- requires perfect match.
+
+  - New
+
+    -
+
 - **v0.19** (*2019-01-16*):
 
   - Changed
