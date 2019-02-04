@@ -68,7 +68,7 @@ from .const import \
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url, \
+    add_project_sample_constants, copy, fetch_samples, is_url, \
     non_null_value, warn_derived_cols, warn_implied_cols
 
 
@@ -571,7 +571,7 @@ class Project(AttributeDict):
             given, else all of this Project's samples
         """
         # Use all protocols if none are explicitly specified.
-        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
+        protocols = {p for p in (protocols or self.protocols)}
         include_samples = []
         for s in self.samples:
             try:
@@ -579,7 +579,7 @@ class Project(AttributeDict):
             except AttributeError:
                 include_samples.append(s)
                 continue
-            check_proto = alpha_cased(proto)
+            check_proto = proto
             if check_proto in protocols:
                 include_samples.append(s)
             else:

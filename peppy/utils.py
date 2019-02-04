@@ -41,20 +41,6 @@ def add_project_sample_constants(sample, project):
 
 
 
-def alpha_cased(text, lower=False):
-    """
-    Filter text to just letters and homogenize case.
-
-    :param str text: what to filter and homogenize.
-    :param bool lower: whether to convert to lowercase; default uppercase.
-    :return str: input filtered to just letters, with homogenized case.
-    """
-    text = "".join(filter(
-            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
-    return text.lower() if lower else text.upper()
-
-
-
 def check_bam(bam, o):
     """
     Check reads in BAM file for read type and lengths.
