@@ -184,6 +184,7 @@ def fetch_samples(proj, attribute="protocol", inclusion=None, exclusion=None):
     but if exclusion is specified, protocol-less Samples will be included.
 
     :param Project proj: the Project with Samples to fetch
+    :param Project str: the sample attribute to select for
     :param Iterable[str] | str inclusion: protocol(s) of interest;
         if specified, a Sample must
     :param Iterable[str] | str exclusion: protocol(s) to include
@@ -194,6 +195,12 @@ def fetch_samples(proj, attribute="protocol", inclusion=None, exclusion=None):
         specified; TypeError since it's basically providing two arguments
         when only one is accepted, so remain consistent with vanilla Python2
     """
+
+    # At least one of the samples has to have the specified attribute
+    if proj.samples and not any([hasattr(i, attribute) for i in proj.samples]):
+        raise AttributeError("The Project samples do not have the attribute '{attr}'"
+                             .format(attr=attribute))
+
     # Intersection between inclusion and exclusion is nonsense user error.
     if inclusion and exclusion:
         raise TypeError("Specify only inclusion or exclusion protocols, "
@@ -211,7 +218,7 @@ def fetch_samples(proj, attribute="protocol", inclusion=None, exclusion=None):
         return items
 
     # Use the attr check here rather than exception block in case the
-    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # hypothetical AttributeError would occur; we want such
     # an exception to arise, not to catch it as if the Sample lacks "protocol"
     if not inclusion:
         # Loose; keep all samples not in the exclusion.
