@@ -172,7 +172,7 @@ def get_file_size(filename):
 
 
 
-def fetch_samples(proj, inclusion=None, exclusion=None):
+def fetch_samples(proj, attribute="protocol", inclusion=None, exclusion=None):
     """
     Collect samples of particular protocol(s).
 
@@ -194,7 +194,6 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
         specified; TypeError since it's basically providing two arguments
         when only one is accepted, so remain consistent with vanilla Python2
     """
-
     # Intersection between inclusion and exclusion is nonsense user error.
     if inclusion and exclusion:
         raise TypeError("Specify only inclusion or exclusion protocols, "
@@ -209,7 +208,7 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
     def make_set(items):
         if isinstance(items, str):
             items = [items]
-        return {alpha_cased(i) for i in items}
+        return items
 
     # Use the attr check here rather than exception block in case the
     # hypothetical AttributeError would occur in alpha_cased; we want such
@@ -217,13 +216,13 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
     if not inclusion:
         # Loose; keep all samples not in the exclusion.
         def keep(s):
-            return not hasattr(s, "protocol") or \
-                   alpha_cased(s.protocol) not in make_set(exclusion)
+            return not hasattr(s, attribute) or \
+                   getattr(s, attribute) not in make_set(exclusion)
     else:
         # Strict; keep only samples in the inclusion.
         def keep(s):
-            return hasattr(s, "protocol") and \
-                   alpha_cased(s.protocol) in make_set(inclusion)
+            return hasattr(s, attribute) and \
+                   getattr(s, attribute) in make_set(inclusion)
 
     return list(filter(keep, proj.samples))
 
