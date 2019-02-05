@@ -17,4 +17,3 @@ branches:
   only:
     - dev
     - master
-
