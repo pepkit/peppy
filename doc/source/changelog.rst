@@ -7,9 +7,8 @@ Changelog
 
     - Add ``attribute`` parameter to ``fetch_samples`` function to enable more general applicability. Additionally, the attribute value matching is more strict now -- requires perfect match.
 
-  - New
+    - Remove Python 3.4 support.
 
-    -
 
 - **v0.19** (*2019-01-16*):
 
