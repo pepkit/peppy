@@ -10,7 +10,8 @@ from numpy import random as nprand
 import pytest
 import yaml
 
-from peppy import AttributeDict, Project, Sample
+from attmap import AttributeDict
+from peppy import Project, Sample
 from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
 from peppy.sample import COL_KEY_SUFFIX

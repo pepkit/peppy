@@ -3,7 +3,7 @@
 import logging
 import pytest
 import peppy
-from peppy import AttributeDict, Project
+from peppy import Project
 
 
 __author__ = "Vince Reuter"
@@ -13,7 +13,6 @@ __email__ = "vreuter@virgnia.edu"
 _LOGGER = logging.getLogger(__name__)
 
 
-
 def pytest_generate_tests(metafunc):
     """ Dynamic test case parameterization. """
     if "funcname" in metafunc.fixturenames:
@@ -21,26 +20,13 @@ def pytest_generate_tests(metafunc):
                 argnames="funcname", argvalues=["__repr__", "__str__"])
 
 
-
 @pytest.mark.usefixtures("write_project_files")
-class AttributeDictRepresentationTests:
+class RepresentationTests:
     """ Non-fail validation of AttributeDict representations. """
-
-
-    @pytest.mark.parametrize(
-            argnames="data",
-            argvalues=[[('CO', 145)], {'CO': {"US-50": [550, 62, 145]}}])
-    def test_AttributeDict_representations_smoke(
-            self, data, funcname):
-        """ Text representation of base AttributeDict doesn't fail. """
-        attrdict = AttributeDict(data)
-        getattr(attrdict, funcname).__call__()
-
 
     def test_Project_representations_smoke(self, proj, funcname):
         """ Representation of Project (AttributeDict subclass) is failsafe. """
         getattr(proj, funcname).__call__()
-
 
 
 class ModelCreationSmokeTests:
@@ -53,10 +39,8 @@ class ModelCreationSmokeTests:
         Project(path_empty_project)
 
 
-
 class ModelRepresentationSmokeTests:
     """ Tests for the text representation of important ADTs. """
-
 
     @pytest.mark.parametrize(
             argnames="class_name",

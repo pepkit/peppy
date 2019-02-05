@@ -16,7 +16,7 @@ from pandas import isnull, Series
 import yaml
 
 from . import SAMPLE_NAME_COLNAME
-from .attribute_dict import AttributeDict, ATTRDICT_METADATA, is_metadata
+from attmap import AttributeDict
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
     REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
@@ -866,9 +866,7 @@ class Sample(AttributeDict):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttributeDict):
                 return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
-                        if k not in to_skip and
-                        (not is_metadata(k) or
-                         v != ATTRDICT_METADATA[k])}
+                        if k not in to_skip}
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v, name=k)
                         for k, v in obj.items() if k not in to_skip}

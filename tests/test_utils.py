@@ -4,15 +4,12 @@ import copy
 import random
 import string
 import sys
-if sys.version_info < (3, 3):
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
 
 import mock
 import pytest
 
-from peppy import AttributeDict, Project, Sample
+from attmap import AttributeDict
+from peppy import Project, Sample
 from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from peppy.utils import \
     add_project_sample_constants, coll_like, copy as pepcopy, \

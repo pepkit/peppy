@@ -60,7 +60,7 @@ import warnings
 import pandas as pd
 import yaml
 
-from .attribute_dict import AttributeDict
+from attmap import AttMap
 from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
     DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
@@ -84,13 +84,11 @@ _LOGGER = logging.getLogger(__name__)
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-
     def __init__(self, prj, include_samples=None, exclude_samples=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
         self.include = include_samples
         self.exclude = exclude_samples
-
 
     def __getattr__(self, item):
         """ Samples are context-specific; other requests are handled
@@ -105,17 +103,14 @@ class ProjectContext(object):
             # Dispatch attribute request to Project.
             return getattr(self.prj, item)
 
-
     def __getitem__(self, item):
         """ Provide the Mapping-like item access to the instance's Project. """
         return self.prj[item]
-
 
     def __enter__(self):
         """ References pass through this instance as needed, so the context
          provided is the instance itself. """
         return self
-
 
     def __exit__(self, *args):
         """ Context teardown. """
@@ -124,7 +119,7 @@ class ProjectContext(object):
 
 
 @copy
-class Project(AttributeDict):
+class Project(AttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
@@ -172,7 +167,6 @@ class Project(AttributeDict):
     """
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
-
 
     def __init__(self, config_file, subproject=None,
                  default_compute=None, dry=False,
@@ -292,7 +286,6 @@ class Project(AttributeDict):
         else:
             self._set_basic_samples()
 
-
     def __repr__(self):
         """ Representation in interpreter. """
         if len(self) == 0:
@@ -310,7 +303,6 @@ class Project(AttributeDict):
         meta_text = super(Project, self).__repr__()
         return "{} -- {}".format(samples_message, meta_text)
 
-
     @property
     def compute_env_var(self):
         """
@@ -321,7 +313,6 @@ class Project(AttributeDict):
         """
         return COMPUTE_SETTINGS_VARNAME
 
-
     @property
     def constants(self):
         """
@@ -331,7 +322,6 @@ class Project(AttributeDict):
             of attribute name and attribute value
         """
         return self._constants
-
 
     @property
     def default_compute_envfile(self):
@@ -369,7 +359,7 @@ class Project(AttributeDict):
         try:
             return self.implied_attributes
         except AttributeError:
-            return AttributeDict()
+            return AttMap()
 
 
     @property
@@ -622,7 +612,7 @@ class Project(AttributeDict):
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             try:
-                # TODO: beware of AttributeDict with _attribute_identity = True
+                # TODO: beware of AttMap with _attribute_identity = True
                 #  here, as that may return 'pipelines_dir' name itself.
                 pipe_path = self.metadata.pipelines_dir
             except AttributeError:
@@ -648,7 +638,6 @@ class Project(AttributeDict):
         specified in the project config file.
         """
 
-
         def make_optarg_text(opt, arg):
             """ Transform flag/option into CLI-ready text version. """
             if arg:
@@ -660,7 +649,6 @@ class Project(AttributeDict):
                 return "{} {}".format(opt, arg)
             else:
                 return opt
-
 
         def create_argtext(name):
             """ Create command-line argstring text from config section. """
@@ -675,7 +663,6 @@ class Project(AttributeDict):
             _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
             # TODO: may need to fix some spacing issues here.
             return " ".join(optargs_texts)
-
 
         default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
         _LOGGER.debug("Creating additional argstring text for pipeline '%s'",
@@ -957,7 +944,7 @@ class Project(AttributeDict):
             # Augment compute, creating it if needed.
             if self.compute is None:
                 _LOGGER.debug("Creating Project compute")
-                self.compute = AttributeDict()
+                self.compute = AttMap()
                 _LOGGER.debug("Adding entries for setting '%s'", setting)
             self.compute.add_entries(self.environment.compute[setting])
 
@@ -1021,7 +1008,7 @@ class Project(AttributeDict):
 
             env_settings["compute"] = y
             if self.environment is None:
-                self.environment = AttributeDict(env_settings)
+                self.environment = AttMap(env_settings)
             else:
                 self.environment.add_entries(env_settings)
 
@@ -1116,6 +1103,25 @@ class Project(AttributeDict):
                 "Missing sample annotation sheet ({}); a project need not use "
                 "a sample sheet, but if it does the file must exist."
                 .format(sheetfile))
+
+    @staticmethod
+    def _omit_from_repr(k, cls):
+        """
+        Hook for exclusion of particular value from a representation
+
+        :param hashable k: key to consider for omission
+        :param type cls: data type on which to base the exclusion
+        :return bool: whether the given key k should be omitted from
+            text representation
+        """
+        exclusions_by_class = {
+            "Project": ["_samples", "sample_subannotation",
+                        "sheet", "interfaces_by_protocol"],
+            "Subsample": ["sheet", "sample", "merged_cols"],
+            "Sample": ["sheet", "prj", "merged_cols"]
+        }
+        return k in exclusions_by_class.get(
+            cls.__name__ if isinstance(cls, type) else cls, [])
 
 
 

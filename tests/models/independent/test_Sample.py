@@ -9,10 +9,10 @@ from pandas import Series
 import pytest
 import yaml
 
+from attmap import AttributeDict
 import peppy
-from peppy import \
-    AttributeDict, Sample, DATA_SOURCE_COLNAME, \
-    DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
+from peppy import Sample, \
+    DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
 from tests.helpers import named_param
 
 
