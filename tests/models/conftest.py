@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from peppy import SAMPLE_NAME_COLNAME
+from peppy.const import SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"

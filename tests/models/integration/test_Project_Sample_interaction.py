@@ -13,8 +13,6 @@ import yaml
 from peppy import \
         Project, Sample, \
         SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from peppy.utils import alpha_cased
-
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -199,9 +197,9 @@ class BuildSheetTests:
         sheet = p.build_sheet(*protocols)
         assert exp_num_samples == len(sheet)
         if protocols:
-            fuzzy_protos = {alpha_cased(p) for p in protocols}
+            fuzzy_protos = {p for p in protocols}
             for _, sample_data in sheet.iterrows():
-                assert alpha_cased(sample_data.protocol) in fuzzy_protos
+                assert sample_data.protocol in fuzzy_protos
 
 
 

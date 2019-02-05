@@ -41,20 +41,6 @@ def add_project_sample_constants(sample, project):
 
 
 
-def alpha_cased(text, lower=False):
-    """
-    Filter text to just letters and homogenize case.
-
-    :param str text: what to filter and homogenize.
-    :param bool lower: whether to convert to lowercase; default uppercase.
-    :return str: input filtered to just letters, with homogenized case.
-    """
-    text = "".join(filter(
-            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
-    return text.lower() if lower else text.upper()
-
-
-
 def check_bam(bam, o):
     """
     Check reads in BAM file for read type and lengths.
@@ -172,7 +158,7 @@ def get_file_size(filename):
 
 
 
-def fetch_samples(proj, inclusion=None, exclusion=None):
+def fetch_samples(proj, attribute="protocol", inclusion=None, exclusion=None):
     """
     Collect samples of particular protocol(s).
 
@@ -184,6 +170,7 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
     but if exclusion is specified, protocol-less Samples will be included.
 
     :param Project proj: the Project with Samples to fetch
+    :param Project str: the sample attribute to select for
     :param Iterable[str] | str inclusion: protocol(s) of interest;
         if specified, a Sample must
     :param Iterable[str] | str exclusion: protocol(s) to include
@@ -194,6 +181,11 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
         specified; TypeError since it's basically providing two arguments
         when only one is accepted, so remain consistent with vanilla Python2
     """
+
+    # At least one of the samples has to have the specified attribute
+    if proj.samples and not any([hasattr(i, attribute) for i in proj.samples]):
+        raise AttributeError("The Project samples do not have the attribute '{attr}'"
+                             .format(attr=attribute))
 
     # Intersection between inclusion and exclusion is nonsense user error.
     if inclusion and exclusion:
@@ -209,21 +201,21 @@ def fetch_samples(proj, inclusion=None, exclusion=None):
     def make_set(items):
         if isinstance(items, str):
             items = [items]
-        return {alpha_cased(i) for i in items}
+        return items
 
     # Use the attr check here rather than exception block in case the
-    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # hypothetical AttributeError would occur; we want such
     # an exception to arise, not to catch it as if the Sample lacks "protocol"
     if not inclusion:
         # Loose; keep all samples not in the exclusion.
         def keep(s):
-            return not hasattr(s, "protocol") or \
-                   alpha_cased(s.protocol) not in make_set(exclusion)
+            return not hasattr(s, attribute) or \
+                   getattr(s, attribute) not in make_set(exclusion)
     else:
         # Strict; keep only samples in the inclusion.
         def keep(s):
-            return hasattr(s, "protocol") and \
-                   alpha_cased(s.protocol) in make_set(inclusion)
+            return hasattr(s, attribute) and \
+                   getattr(s, attribute) in make_set(inclusion)
 
     return list(filter(keep, proj.samples))
 
