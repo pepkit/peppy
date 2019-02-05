@@ -1,5 +1,10 @@
 # Changelog
 
+## *v0.20* (unreleased):
+### Changed
+- Add ``attribute`` parameter to ``fetch_samples`` function to enable more general applicability. Additionally, the attribute value matching is more strict now -- requires perfect match.
+- Remove Python 3.4 support.
+
 ## *v0.19* (2019-01-16)
 ### New  
 - Added ``activate_subproject`` method to ``Project``.
