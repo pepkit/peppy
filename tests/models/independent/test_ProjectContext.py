@@ -115,7 +115,7 @@ class ProjectContextTests:
     def test_inclusion(self, samples, project, inclusion, expected_names):
         """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)
-        with ProjectContext(project, include_protocols=inclusion) as prj:
+        with ProjectContext(project, include_samples=inclusion) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
@@ -127,14 +127,14 @@ class ProjectContextTests:
     def test_exclusion(self, samples, project, exclusion, expected_names):
         """ Sample objects can be selected against by protocol. """
         _assert_samples(samples, project.samples)
-        with ProjectContext(project, exclude_protocols=exclusion) as prj:
+        with ProjectContext(project, exclude_samples=exclusion) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
     @pytest.mark.parametrize(
         argnames=["selection", "selection_type"],
-        argvalues=[({"CHIP", "WGBS", "RRBS"}, "exclude_protocols"),
-                   ({"WGBS", "ATAC"}, "include_protocols")],
+        argvalues=[({"CHIP", "WGBS", "RRBS"}, "exclude_samples"),
+                   ({"WGBS", "ATAC"}, "include_samples")],
         ids=lambda proto_seltype_pair: "{}:{}".format(*proto_seltype_pair))
     def test_restoration(self, samples, project, selection, selection_type):
         """ After exiting the context, original Project samples restore. """
