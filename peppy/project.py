@@ -85,11 +85,11 @@ class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
 
-    def __init__(self, prj, include_protocols=None, exclude_protocols=None):
+    def __init__(self, prj, include_samples=None, exclude_samples=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
-        self.include = include_protocols
-        self.exclude = exclude_protocols
+        self.include = include_samples
+        self.exclude = exclude_samples
 
 
     def __getattr__(self, item):
