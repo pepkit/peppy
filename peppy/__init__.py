@@ -12,14 +12,13 @@ import os
 from sys import stdout
 
 from ._version import __version__
-from .attribute_dict import AttributeDict
 from .const import *
 from .exceptions import PeppyError
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 
 
-__classes__ = ["AttributeDict", "Project", "Sample"]
+__classes__ = ["Project", "Sample"]
 __all__ = __classes__ + ["PeppyError"]
 
 

@@ -151,28 +151,12 @@ MERGED_SAMPLE_INDICES = {1}
 # src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
 
-
 # Discover name of attribute pointing to location of test config file based
 # on the type of model instance being requested in a test fixture.
 _ATTR_BY_TYPE = {Project: "project_config_file"}
 
-
-# TODO: split models conftest stuff into its own subdirectory.
-# Provide some basic atomic-type data for models tests.
-_BASE_KEYS = ("epigenomics", "H3K", "ac", "EWS", "FLI1")
-_BASE_VALUES = \
-    ("topic", "residue", "acetylation", "RNA binding protein", "FLI1")
-_SEASON_HIERARCHY = {
-    "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
-    "summer": {"June": 30, "July": 31, "August": 31},
-    "fall": {"September": 30, "October": 31, "November": 30},
-    "winter": {"December": 31, "January": 31}
-}
-COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
-                        "keys", "values", "items"]
 COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "protocol"]
 PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": "annotations.csv"}}
-
 
 
 def update_project_conf_data(extension):
@@ -184,13 +168,11 @@ def update_project_conf_data(extension):
     return updated
 
 
-
 def pytest_addoption(parser):
     """ Facilitate command-line test behavior adjustment. """
     parser.addoption("--logging-level",
                      default="WARN",
                      help="Project root logger level to use for tests")
-
 
 
 def pytest_generate_tests(metafunc):
@@ -202,7 +184,6 @@ def pytest_generate_tests(metafunc):
                 "empty_collection",
                 argvalues=[ctype() for ctype in collection_types],
                 ids=[ctype.__name__ for ctype in collection_types])
-
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -481,11 +462,9 @@ def _write_test_data_files(tempdir):
             testfile.write(data)
 
 
-
 def request_class_attribute(req, attr):
     """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
-
 
 
 def _create(request, data_type, **kwargs):
@@ -508,7 +487,6 @@ def _create(request, data_type, **kwargs):
         raise
 
 
-
 @pytest.fixture(scope="function")
 def proj(request):
     """
@@ -526,17 +504,3 @@ def proj(request):
     p = _create(request, Project)
     p.finalize_pipelines_directory()
     return p
-
-
-
-def basic_entries():
-    """ AttributeDict data that lack nested strcuture. """
-    for k, v in zip(_BASE_KEYS, _BASE_VALUES):
-        yield k, v
-
-
-
-def nested_entries():
-    """ AttributeDict data with some nesting going on. """
-    for k, v in _SEASON_HIERARCHY.items():
-        yield k, v
