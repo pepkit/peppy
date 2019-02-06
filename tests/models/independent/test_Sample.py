@@ -9,10 +9,10 @@ from pandas import Series
 import pytest
 import yaml
 
+from attmap import AttMap
 import peppy
-from peppy import \
-    AttributeDict, Sample, DATA_SOURCE_COLNAME, \
-    DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
+from peppy import Sample, \
+    DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
 from tests.helpers import named_param
 
 
@@ -255,8 +255,8 @@ class SetFilePathsTests:
             self, prj_data, data_src_attr, src_key, explicit):
         """ Passing Sample's project is equivalent to its inference. """
         
-        # Explicitly-passed object needs to at least be an AttributeDict.
-        sample_data = AttributeDict(
+        # Explicitly-passed object needs to at least be an AttMap.
+        sample_data = AttMap(
                 {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
                  data_src_attr: src_key, "derived_attributes": [data_src_attr]})
         
@@ -275,12 +275,12 @@ class SetFilePathsTests:
 
     def test_prefers_explicit_project_context(self, prj_data):
         """ Explicit project data overrides any pre-stored project data. """
-        prj_data_modified = AttributeDict(copy.deepcopy(prj_data))
+        prj_data_modified = AttMap(copy.deepcopy(prj_data))
         new_src = "src3"
         new_src_val = "newpath"
         assert new_src not in prj_data[DATA_SOURCES_SECTION]
         prj_data_modified[DATA_SOURCES_SECTION][new_src] = new_src_val
-        sample_data = AttributeDict(
+        sample_data = AttMap(
             {SAMPLE_NAME_COLNAME: "random-sample",
              "prj": prj_data, DATA_SOURCE_COLNAME: new_src})
         s = Sample(sample_data)
@@ -296,13 +296,13 @@ class SetFilePathsTests:
         # so make it constant.
         src_key = self.SOURCE_KEYS[0]
 
-        # Explicitly-passed object needs to at least be an AttributeDict.
+        # Explicitly-passed object needs to at least be an AttMap.
         if exclude_derived_attributes:
             prj_data.pop("derived_attributes")
         sample_data = {
                 SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
                 DATA_SOURCE_COLNAME: src_key}
-        sample_data = AttributeDict(sample_data)
+        sample_data = AttMap(sample_data)
         s = Sample(sample_data)
 
         assert not hasattr(s, src_key)
@@ -344,7 +344,7 @@ class LocateDataSourceTests:
         argnames="colname",
         argvalues=[DATA_SOURCE_COLNAME, "data", "src", "input", "filepath"])
     @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
-    @named_param(argnames="data_type", argvalues=[dict, AttributeDict])
+    @named_param(argnames="data_type", argvalues=[dict, AttMap])
     @named_param(argnames="include_data_sources", argvalues=[False, True])
     def test_accuracy_and_allows_empty_data_sources(
             self, colname, src_key, prj_data, data_type, include_data_sources):
@@ -353,6 +353,10 @@ class LocateDataSourceTests:
             {SAMPLE_NAME_COLNAME: "random-sample",
              "prj": prj_data, colname: src_key})
         s = Sample(sample_data)
+        # DEBUG
+        print(s.prj)
+        print(sample_data)
+        print("type(s.prj['data_sources']): {}".format(type(s.prj['data_sources'])))
         data_sources = s.prj.data_sources if include_data_sources else None
         path = s.locate_data_source(
                 data_sources, column_name=colname, source_key=src_key)

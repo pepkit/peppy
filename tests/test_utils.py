@@ -4,15 +4,12 @@ import copy
 import random
 import string
 import sys
-if sys.version_info < (3, 3):
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
 
 import mock
 import pytest
 
-from peppy import AttributeDict, Project, Sample
+from attmap import AttMap
+from peppy import Project, Sample
 from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from peppy.utils import \
     add_project_sample_constants, coll_like, copy as pepcopy, \
@@ -89,7 +86,7 @@ class GrabProjectDataTests:
         argnames="sections",
         argvalues=nonempty_powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS))
     @named_param(argnames="data_type",
-                 argvalues=[dict, AttributeDict, _DummyProject])
+                 argvalues=[dict, AttMap, _DummyProject])
     def test_does_not_need_all_sample_independent_data(
             self, sections, data_type,
             basic_project_data, sample_independent_data):
@@ -107,7 +104,7 @@ class GrabProjectDataTests:
             [{"pipeline_interfaces": [{"b": 1}, {"c": 2}]},
              {"pipeline_config": {}}]))
     @named_param(
-        argnames="data_type", argvalues=[dict, AttributeDict, _DummyProject])
+        argnames="data_type", argvalues=[dict, AttMap, _DummyProject])
     def test_grabs_only_sample_independent_data(
             self, sample_independent_data, extra_data, data_type):
         """ Only Project data defined as Sample-independent is retrieved. """
@@ -213,7 +210,7 @@ def test_coll_like(arg, exp):
 
 
 def _get_empty_attrdict(data):
-    ad = AttributeDict()
+    ad = AttMap()
     ad.add_entries(data)
     return ad
 
@@ -226,9 +223,9 @@ class NullValueHelperTests:
     @pytest.mark.skip("Not implemented")
     @pytest.fixture(
         params=[lambda d: dict(d),
-                lambda d: AttributeDict().add_entries(d),
+                lambda d: AttMap().add_entries(d),
                 lambda d: _DummyProject(d)],
-        ids=["dict", AttributeDict.__name__, _DummyProject.__name__])
+        ids=["dict", AttMap.__name__, _DummyProject.__name__])
     def kvs(self, request):
         """ For test cases provide KV pair map of parameterized type."""
         return request.param(self._DATA)
