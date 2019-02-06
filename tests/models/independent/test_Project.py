@@ -10,7 +10,7 @@ from numpy import random as nprand
 import pytest
 import yaml
 
-from attmap import AttributeDict
+from attmap import AttMap
 from peppy import Project, Sample
 from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
@@ -232,7 +232,7 @@ class ProjectDefaultEnvironmentSettingsTests:
         elif compute_env_attname == "environment":
             envs_with_reduced_filepaths = \
                     _env_paths_to_names(observed_attribute["compute"])
-            observed_attribute = AttributeDict(
+            observed_attribute = AttMap(
                     {"compute": envs_with_reduced_filepaths})
 
         assert expected_attribute == observed_attribute
@@ -696,7 +696,7 @@ class ProjectConstructorTest:
                  argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
         """ Samples not in the `sample_subannotation` lack merged columns. """
-        # Assert the negative to cover empty dict/AttributeDict/None/etc.
+        # Assert the negative to cover empty dict/AttMap/None/etc.
         assert not proj.samples[sample_index].merged_cols
 
 

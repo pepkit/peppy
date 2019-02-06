@@ -44,7 +44,8 @@ BASIC_PROTOMAP = {"ATAC": "ATACSeq.py"}
 def basic_data_raw():
     """ Provide minimal collection of data for a constructor, by type. """
     return copy.deepcopy({
-            "AttributeDict": {}, "ProtocolMapper": BASIC_PROTOMAP,
+            "AttMap": {},
+            "ProtocolMapper": BASIC_PROTOMAP,
             "Sample": {SAMPLE_NAME_COLNAME: "arbitrary-sample"}})
 
 
@@ -61,7 +62,7 @@ def basic_instance_data(request, instance_raw_data):
     :return object: basic instance data in a form accepted by its constructor
     """
     transformation_by_class = {
-            "AttributeDict": lambda data: data,
+            "AttMap": lambda data: data,
             "Sample": lambda data: pd.Series(data)}
     which_class = request.getfixturevalue("class_name")
     return transformation_by_class[which_class](instance_raw_data)

@@ -16,7 +16,7 @@ from pandas import isnull, Series
 import yaml
 
 from . import SAMPLE_NAME_COLNAME
-from attmap import AttributeDict
+from attmap import AttMap
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
     REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
@@ -29,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @copy
-class Subsample(AttributeDict):
+class Subsample(AttMap):
     """
     Class to model Subsamples.
 
@@ -51,7 +51,7 @@ class Subsample(AttributeDict):
 
 
 @copy
-class Sample(AttributeDict):
+class Sample(AttMap):
     """
     Class to model Samples based on a pandas Series.
 
@@ -78,6 +78,7 @@ class Sample(AttributeDict):
         # Create data, handling library/protocol.
         data = OrderedDict(series)
         _LOGGER.debug(data)
+
         try:
             protocol = data.pop("library")
         except KeyError:
@@ -86,7 +87,12 @@ class Sample(AttributeDict):
             data["protocol"] = protocol
         super(Sample, self).__init__(entries=data)
 
-        self.prj = prj
+        if "prj" in self and prj:
+            _LOGGER.warn("Project provided both directly and indirectly; "
+                         "using direct")
+        if prj:
+            self.prj = prj
+
         self.merged_cols = {}
         self.derived_cols_done = []
 
@@ -101,16 +107,6 @@ class Sample(AttributeDict):
         # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
 
-        # Ensure Project reference is actual Project or AttributeDict.
-        # TODO: solve mutual import problem better than this hack.
-        try:
-            prj_type = self.prj.__class__
-        except AttributeError:
-            self.prj = AttributeDict(self.prj or dict())
-        else:
-            if "Project" != prj_type.__name__:
-                self.prj = AttributeDict(self.prj or dict())
-                
         # Check if required attributes exist and are not empty.
         missing_attributes_message = self.check_valid()
         if missing_attributes_message:
@@ -135,18 +131,25 @@ class Sample(AttributeDict):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
+    def __setitem__(self, key, value):
+        if self._is_prj(value):
+            self.__dict__[key] = value
+        else:
+            super(Sample, self).__setitem__(key, value)
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
-
     def __ne__(self, other):
         return not self == other
-
 
     def __str__(self):
         return "Sample '{}'".format(self.name)
 
+    @staticmethod
+    def _is_prj(obj):
+        # TODO: this is a hacky solution to the circular import problem; fix.
+        return obj.__class__.__name__ == "Project"
 
     @property
     def input_file_paths(self):
@@ -516,8 +519,8 @@ class Sample(AttributeDict):
         """
         Sets the paths of all files for this sample.
 
-        :param AttributeDict project: object with pointers to data paths and
-            such, either full Project or AttributeDict with sufficient data
+        :param AttMap project: object with pointers to data paths and
+            such, either full Project or AttMap with sufficient data
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
@@ -864,7 +867,7 @@ class Sample(AttributeDict):
                 return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            if isinstance(obj, AttributeDict):
+            if isinstance(obj, AttMap):
                 return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
                         if k not in to_skip}
             elif isinstance(obj, Mapping):

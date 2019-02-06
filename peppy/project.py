@@ -418,7 +418,6 @@ class Project(AttMap):
                 _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
         return protos
 
-
     @property
     def required_metadata(self):
         """
@@ -433,12 +432,10 @@ class Project(AttMap):
         """
         return []
 
-
     @property
     def sample_names(self):
         """ Names of samples of which this Project is aware. """
         return iter(self.sheet[SAMPLE_NAME_COLNAME])
-
 
     @property
     def samples(self):
@@ -449,7 +446,6 @@ class Project(AttMap):
             of this Project's samples
         """
         return self._samples
-
 
     @property
     def sheet(self):
@@ -463,7 +459,6 @@ class Project(AttMap):
             self._sheet = self.parse_sample_sheet(self.metadata.sample_annotation)
         return cp(self._sheet)
 
-
     @property
     def templates_folder(self):
         """
@@ -472,7 +467,6 @@ class Project(AttMap):
         :return str: path to folder with default submission templates
         """
         return os.path.join(os.path.dirname(__file__), "submit_templates")
-
 
     def infer_name(self):
         """
@@ -1104,6 +1098,11 @@ class Project(AttMap):
                 "a sample sheet, but if it does the file must exist."
                 .format(sheetfile))
 
+    @property
+    def _lower_type_bound(self):
+        """ Type to which convert stored Mappings """
+        return AttMap
+
     @staticmethod
     def _omit_from_repr(k, cls):
         """
@@ -1116,7 +1115,7 @@ class Project(AttMap):
         """
         exclusions_by_class = {
             "Project": ["_samples", "sample_subannotation",
-                        "sheet", "interfaces_by_protocol"],
+                        "_sheet", "sheet", "interfaces_by_protocol"],
             "Subsample": ["sheet", "sample", "merged_cols"],
             "Sample": ["sheet", "prj", "merged_cols"]
         }

@@ -22,10 +22,10 @@ def pytest_generate_tests(metafunc):
 
 @pytest.mark.usefixtures("write_project_files")
 class RepresentationTests:
-    """ Non-fail validation of AttributeDict representations. """
+    """ Non-fail validation of AttMap representations. """
 
     def test_Project_representations_smoke(self, proj, funcname):
-        """ Representation of Project (AttributeDict subclass) is failsafe. """
+        """ Representation of Project (AttMap subclass) is failsafe. """
         getattr(proj, funcname).__call__()
 
 
