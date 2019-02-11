@@ -14,4 +14,8 @@ nav:
 
   - Changelog: changelog.md
 
+markdown_extensions:
+  - markdown_include.include:
+    base_path: docs
+
 #theme: readthedocs
