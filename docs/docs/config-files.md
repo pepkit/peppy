@@ -3,6 +3,7 @@
 Looper uses [YAML](http://www.yaml.org/) configuration files for several purposes. 
 It's designed to be organized, modular, and very configurable, so there are several configuration files. 
 We've organized these files so that each handle a different level of infrastructure
+
 - Environment
 - Project
 - Sample
@@ -10,8 +11,8 @@ We've organized these files so that each handle a different level of infrastruct
 
 This makes the system very adaptable and portable, but for a newcomer, it is easy to map each to its purpose. 
 So, here's an explanation of each for you to use as a reference until you are familiar with the whole ecosystem. 
-Which ones you need to know about will depend on whether you're a pipeline *user* (running pipelines on your project) 
-or a pipeline *developer* (building your own pipeline).
+Which ones you need to know about will depend on whether you're a **pipeline *user*** (running pipelines on your project) 
+or a **pipeline *developer*** (building your own pipeline).
 
 
 ## Pipeline users

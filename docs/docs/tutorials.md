@@ -2,7 +2,7 @@
 
 The best way to learn is by example, so here's an extended tutorial to get you started using looper to run pre-made pipelines on a pre-made project.
 
-First, install looper and pypiper. [`pypiper`](https://pypiper.readthedocs.io>) is our pipeline development framework. While `pypiper` is not required to use `looper` (which can work with any command-line tool), we install it now since this tutorial uses `pypiper` pipelines:
+First, install looper and pypiper. [`pypiper`](http://pypiper.readthedocs.io) is our pipeline development framework. While `pypiper` is not required to use `looper` (which can work with any command-line tool), we install it now since this tutorial uses `pypiper` pipelines:
 
 .. code:: bash
 
@@ -50,4 +50,4 @@ To use `looper` on your own, you will need to prepare 2 things: a **project** (m
 The next sections provide detailed instructions on how to define these:
 1. **Project**. To link your project to `looper`, you will need to [define your project](project-config.md) using a standard format. 
 2. **Pipelines**. You will want to either use pre-made `looper`-compatible pipelines or link your own custom-built pipelines. 
-Either way, the next section includes detailed instructions on how to [connect your pipeline](project-config.md) to `looper`.
+Either way, the next section includes detailed instructions on how to [connect your pipeline](pipeline-interface.md) to `looper`.

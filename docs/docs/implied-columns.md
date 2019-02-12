@@ -2,7 +2,7 @@
 
 At some point, you may have a situation where you need a single sample attribute (or column) 
 to populate several different pipeline arguments with different values. 
-In other words, the value of a given attribute may **imply** values for other attributes. 
+In other words, the value of a given attribute may *imply* values for other attributes. 
 It would be nice if you didn't have to enumerate all of these secondary, implied attributes, 
 and could instead just infer them from the value of the original attribute. 
 
@@ -14,7 +14,7 @@ You can certainly do this with `looper`, but a better way is to handle these thi
 
 As a more elegant alternative, in a project config file `looper` will recognize a section called `implied_columns`. 
 Instead of hard-coding `genome` and `macs_genome_size` in the sample annotation sheet, 
-you can simply specify that the attribute `organism` **implies** additional attribute-value pairs 
+you can simply specify that the attribute `organism` *implies* additional attribute-value pairs 
 (which may vary by sample based on the value of the `organism` attribute). 
 This lets you specify assemblies, genome size, and other similar variables all in your project config file.
 

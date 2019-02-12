@@ -19,7 +19,7 @@ compute:
   default:
     submission_template: templates/local_template.sub
     submission_command: sh
-  local:
+  loc:
     submission_template: templates/local_template.sub
     submission_command: sh    
   slurm:
@@ -29,10 +29,10 @@ compute:
 ```
 
 Each section within `compute` defines a "compute package" that can be activated. 
-By default, the package named `default` will be used, which in this example is identical to the `local` package. 
+By default, the package named `default` will be used, which in this example is identical to the `loc` package. 
 You can make your default whatever you like. 
 You may then choose a different compute package on the fly by specifying the `--compute` option: ``looper run --compute PACKAGE``. 
-In this case, `PACKAGE` could be either `local` (which would do the same thing as the default, so doesn't change anything) or `slurm`, 
+In this case, `PACKAGE` could be either `loc` (which would do the same thing as the default, so doesn't change anything) or `slurm`, 
 which would run the jobs on SLURM, from queue `queue_name`. 
 You can make as many compute packages as you wish (for example, to submit to different SLURM partitions).
 

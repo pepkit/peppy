@@ -7,7 +7,7 @@ yielding multiple input files that need to be merged and then run through the pi
 Rather than putting multiple lines in your sample annotation sheet, which causes conceptual and analytical challenges, 
 we introduce **two ways to merge inputs**:
 
-1. Use *shell expansion characters* (like '*' or '[]') in your `data_source` definition or filename; 
+1. Use *shell expansion characters* (`*` or `[]`) in your `data_source` definition or filename; 
 for relatively simple merge cases this works well.
 2. Specify a *merge table*, which maps input files to samples for samples with more than one input file. 
 To accommodate complex merger use cases, this is infinitely customizable.

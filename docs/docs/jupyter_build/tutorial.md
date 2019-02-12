@@ -1,7 +1,7 @@
 
 # Basic PEP example
 
-The PEP that this example is based on is available in the [example_peps repsitory](https://github.com/pepkit/example_peps) in the [example_basic](https://github.com/pepkit/example_peps/tree/master/example_basic) folder.
+The PEP that this example is based on is available in the [`example_peps` repsitory](https://github.com/pepkit/example_peps) in the [example_basic](https://github.com/pepkit/example_peps/tree/master/example_basic) folder.
 
 This vignette will show you a simple example PEP-formatted project, and how to read it into python using the `peppy` package.
 

@@ -1,7 +1,8 @@
 
 # Subprojects
 
-The PEP that this example is based on is available in the [example_peps repsitory](https://github.com/pepkit/example_peps) in the [example_subprojects1 folder](https://github.com/pepkit/example_peps/tree/master/example_subprojects1).
+The PEP that this example is based on is available in the [`example_peps` repsitory](https://github.com/pepkit/example_peps) 
+in the [`example_subprojects1` folder](https://github.com/pepkit/example_peps/tree/master/example_subprojects1).
 
 The example below demonstrates how and why to use implied attributes functionality to **define numerous similar projects in a single project config file**. This functionality is extremely convenient when one has to define projects with small settings discreptancies, like different attributes in the annotation sheet. For example libraries `ABCD` and `EFGH` instead of the original `RRBS`.
 

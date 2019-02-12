@@ -13,8 +13,6 @@ nav:
     - Configuration files: config-files.md
     - Contributing: contributing.md
     - Derived columns: derived-columns.md
-    - FAQ: faq.md
-    - Features: features.md
     - Hello World: hello-world.md
     - Implied columns: implied-columns.md
     - Models: models.md
@@ -24,6 +22,7 @@ nav:
   - API: autodoc_build/peppy.md
   - Changelog: changelog.md
   - Support: support.md
+  - FAQ: faq.md
 
 #markdown_extensions:
 #  - markdown_include.include:

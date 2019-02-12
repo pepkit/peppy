@@ -71,4 +71,4 @@ As a side bonus, you can easily include samples from different locations, and yo
 The only thing you have to change is the project-level expression describing the location, not any sample attributes. 
 Plus, you get to eliminate those annoying `long/path/arguments/in/your/sample/annotation/sheet`.
 
-Check out the complete working example in the [`microtest` repository](https://github.com/epigen/microtest/tree/master/config).
+Check out the complete working example in the [`microtest` repository](https://github.com/databio/microtest/tree/master/config).

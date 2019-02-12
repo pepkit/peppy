@@ -1,7 +1,7 @@
 
 # Sample subannotation
 
-The PEPs that this examples are based on are available in the [example_peps repsitory](https://github.com/pepkit/example_peps).
+The PEPs that this examples are based on are available in the [`example_peps` repsitory](https://github.com/pepkit/example_peps).
 
 This vignette will show you how sample subannotations work in a series of examples.
 
