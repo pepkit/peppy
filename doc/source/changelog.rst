@@ -13,7 +13,7 @@ Changelog
    
   - New
   
-    - Add ``selector-attribute`` parameter to ``fetch_samples`` function to enable more general applicability.
+    - Add ``selector_attribute`` parameter to ``fetch_samples`` function to enable more general applicability.
 
 
 - **v0.19** (*2019-01-16*):
