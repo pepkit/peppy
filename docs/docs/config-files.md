@@ -24,7 +24,7 @@ and other variables that allow to configure the pipelines specifically for this 
 It follows the standard `looper` format (now referred to as `PEP`, or "*portable encapsulated project*" format).
 
 If you are planning to submit jobs to a cluster, then you need to know about a second config file:
-- The [`PEPENV` config](cluster-computing): This file tells `looper` how to use compute resource managers, like SLURM. 
+- The [`PEPENV` config](#cluster-computing): This file tells `looper` how to use compute resource managers, like SLURM. 
 After initial setup it typically requires little (if any) editing or maintenance.
 
 That should be all you need to worry about as a pipeline user. 
@@ -36,7 +36,7 @@ over pipelines, you'll need knowledge of the config files used by pipeline devel
 
 If you want to make pipeline compatible with `looper`, tweak the way `looper` interacts with a pipeline for a given project, 
 or change the default cluster resources requested by a pipeline, you need to know about a configuration file that coordinates linking pipelines to a project.
-- The [pipeline interface file](pipeline-interface):
+- The [pipeline interface file](#pipeline-interface):
 This file sas two sections"
   - `protocol_mapping` tells looper which pipelines exist, and how to map each protocol (sample data type) to a pipeline
   - `pipelines` describes options, arguments, and compute resources that defined how `looper` should communicate with each pipeline.
