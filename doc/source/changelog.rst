@@ -5,9 +5,15 @@ Changelog
 
   - Changed
 
-    - Add ``attribute`` parameter to ``fetch_samples`` function to enable more general applicability. Additionally, the attribute value matching is more strict now -- requires perfect match.
+    - make the the attribute value matching is more strict -- require perfect match.
+    
+    - change the paramater names: ``exclude_samples`` and ``include_samples`` to ``selector_exclude`` and ``selector_include``, respectively
 
     - Remove Python 3.4 support.
+   
+  - New
+  
+    - Add ``selector-attribute`` parameter to ``fetch_samples`` function to enable more general applicability.
 
 
 - **v0.19** (*2019-01-16*):
