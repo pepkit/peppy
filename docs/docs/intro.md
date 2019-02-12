@@ -8,7 +8,7 @@ These files are written using the simple **YAML** and **TSV/CSV** formats,
 and they can be read by a variety of tools in the pep toolkit, including `peppy`. 
 
 If you don't already understand why the PEP concept is useful to you, 
-you may begin by reading the [`pepkit website](http://pepkit.github.io), 
+you may begin by reading the [`pepkit` website](http://pepkit.github.io), 
 where you can also find example projects. 
 
 ### *Why* use `peppy`?
@@ -17,13 +17,15 @@ where you can also find example projects.
 
 ### *Who* should use `peppy`?
 
-There are two key users that will be interested in `peppy`  
-  - A tool *developer*
-  - A data *analyst* 
+There are two key users that will be interested in `peppy`:
 
-If you don't fit into one of those, you may be interested in the `pepr` R package, 
-which provides an R interface to PEP objects, or the `looper` tool, 
-which lets you run any command-line tool or pipeline on all your samples in your project. 
+- A tool *developer*
+- A data *analyst* 
+
+If you neither of those describes you, you may be interested in `pepr` (R package), 
+which provides an R interface to PEP objects, or `looper` (command-line application), 
+which lets you run any command-line tool or pipeline on any/all samples in a project. 
+
 Read more about those and other tools on the [`pepkit` website](http://pepkit.github.io).
 
 **Developer**
@@ -33,6 +35,6 @@ This will simplify use of your tool, because users may already have PEP-formatte
 
 **Analyst**
 
-`peppy` provides an easy way to read project metadata into python. 
+`peppy` provides an easy way to read project metadata into Python. 
 You will have access to an API to access samples and their attributes, facilitating downstream analysis.
  
