@@ -22,7 +22,9 @@ It specifies the source of data for the sample (e.g. ATAC-seq, RNA-seq, RRBS).
 `looper` uses this information to determine which pipelines are relevant for the `Sample`.
 - `data_source` - This column is used by default to specify the location of the input data file. 
 Usually you want your annotation sheet to specify the locations of files corresponding to each sample. 
-You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. For more details, see the advanced section :ref:`advanced-derived-columns`. Really, you just need any column specifying at least 1 data file for input. This is **required** for `looper` to submit job(s) for a `Sample`.
+You can use this to simplify pointing to file locations with a neat string-replacement method that keeps things clean and portable. 
+For more details, see the [derived columns page](derived-columns.md) 
+Really, you just need any column specifying at least 1 data file for input. This is **required** for `looper` to submit job(s) for a `Sample`.
 - `toggle` - If the value of this column is not 1, `looper` will not submit the pipeline for that sample. 
 This enables you to submit a subset of samples.
 
@@ -41,4 +43,5 @@ sample_name, library, organism, flowcell, lane, BSF_name, data_source
 
 ```
 
-<sup>1</sup> The sample name should contain no whitespace. If it does, an error will be thrown. Similarly, `looper` will not allow any duplicate entries under sample_name.
+<sup>1</sup> The sample name should contain no whitespace. If it does, an error will be thrown. 
+Similarly, `looper` will not allow any duplicate entries under sample_name.

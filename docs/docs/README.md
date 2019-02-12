@@ -7,4 +7,4 @@ You can then use this for interactive analysis, or to develop a novel python too
 
 `peppy` is primarily useful to tool developers and data analysts who want a standard way of representing sample-intensive research project metadata. 
 
-To get started, proceed with the [Introduction](#intro).
+To get started, proceed with the [Introduction](intro.md).
