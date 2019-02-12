@@ -101,40 +101,40 @@ class ProjectContextTests:
 
 
     def test_no_filtration(self, samples, project):
-        """ With no inclusion/exclusion, all Sample objects are in play. """
+        """ With no selector_include/selector_exclude, all Sample objects are in play. """
         _assert_samples(samples, project.samples)
         with ProjectContext(project) as prj:
             _assert_samples(project.samples, prj.samples)
 
 
     @pytest.mark.parametrize(
-        argnames=["inclusion", "expected_names"],
+        argnames=["selector_include", "expected_names"],
         argvalues=[("ATAC", {"atac-PE"}),
                    (("WGBS", "RRBS"), {WGBS_NAME, RRBS_NAME}),
                    ({"RNA", "CHIP"}, {RNA_NAME, CHIP_NAME})])
-    def test_inclusion(self, samples, project, inclusion, expected_names):
+    def test_inclusion(self, samples, project, selector_include, expected_names):
         """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)
-        with ProjectContext(project, include_samples=inclusion) as prj:
+        with ProjectContext(project, selector_include=selector_include) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
     @pytest.mark.parametrize(
-        argnames=["exclusion", "expected_names"],
+        argnames=["selector_exclude", "expected_names"],
         argvalues=[({"RNA", "CHIP"}, {ATAC_NAME, WGBS_NAME, RRBS_NAME}),
                    ("ATAC", {CHIP_NAME, RNA_NAME, WGBS_NAME, RRBS_NAME}),
                    ({"WGBS", "RRBS"}, {ATAC_NAME, CHIP_NAME, RNA_NAME})])
-    def test_exclusion(self, samples, project, exclusion, expected_names):
+    def test_exclusion(self, samples, project, selector_exclude, expected_names):
         """ Sample objects can be selected against by protocol. """
         _assert_samples(samples, project.samples)
-        with ProjectContext(project, exclude_samples=exclusion) as prj:
+        with ProjectContext(project, selector_exclude=selector_exclude) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
 
 
     @pytest.mark.parametrize(
         argnames=["selection", "selection_type"],
-        argvalues=[({"CHIP", "WGBS", "RRBS"}, "exclude_samples"),
-                   ({"WGBS", "ATAC"}, "include_samples")],
+        argvalues=[({"CHIP", "WGBS", "RRBS"}, "selector_exclude"),
+                   ({"WGBS", "ATAC"}, "selector_include")],
         ids=lambda proto_seltype_pair: "{}:{}".format(*proto_seltype_pair))
     def test_restoration(self, samples, project, selection, selection_type):
         """ After exiting the context, original Project samples restore. """
@@ -166,7 +166,7 @@ class ProjectContextTests:
         """ Certain attributes are on the context manager itself. """
         # add_project_data is used by the project fixture.
         with ProjectContext(project) as prj:
-            # No inclusion/exclusion protocols --> those attributes are null.
+            # No selector_include/selector_exclude protocols --> those attributes are null.
             assert getattr(prj, attr_name) is \
                    (project if attr_name == "prj" else None)
 
