@@ -84,18 +84,18 @@ _LOGGER = logging.getLogger(__name__)
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-    def __init__(self, prj, include_samples=None, exclude_samples=None):
+    def __init__(self, prj, selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
-        self.include = include_samples
-        self.exclude = exclude_samples
+        self.include = selector_include
+        self.exclude = selector_exclude
 
     def __getattr__(self, item):
         """ Samples are context-specific; other requests are handled
         locally or dispatched to Project. """
         if item == "samples":
             return fetch_samples(
-                self.prj, inclusion=self.include, exclusion=self.exclude)
+                self.prj, selector_include=self.include, selector_exclude=self.exclude)
         if item in ["prj", "include", "exclude"]:
             # Attributes requests that this context/wrapper handles
             return self.__dict__[item]
@@ -556,19 +556,19 @@ class Project(AttMap):
         """
         # Use all protocols if none are explicitly specified.
         protocols = {p for p in (protocols or self.protocols)}
-        include_samples = []
+        selector_include = []
         for s in self.samples:
             try:
                 proto = s.protocol
             except AttributeError:
-                include_samples.append(s)
+                selector_include.append(s)
                 continue
             check_proto = proto
             if check_proto in protocols:
-                include_samples.append(s)
+                selector_include.append(s)
             else:
                 _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
-        return pd.DataFrame(include_samples)
+        return pd.DataFrame(selector_include)
 
 
     def _check_unique_samples(self):
