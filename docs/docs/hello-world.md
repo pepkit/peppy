@@ -46,4 +46,4 @@ samp[0].file
 
 That's it! You've got `peppy` running on an example project. 
 Now you can play around with project metadata from within python. 
-This example and others are explored in more detail in the [tutorials section](#tutorials).
+This example and others are explored in more detail in the [tutorials section](tutorials.md).

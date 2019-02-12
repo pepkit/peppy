@@ -31,7 +31,7 @@ compute:
 Each section within `compute` defines a "compute package" that can be activated. 
 By default, the package named `default` will be used, which in this example is identical to the `local` package. 
 You can make your default whatever you like. 
-You may then choose a different compute package on the fly by specifying the `--compute` argument to looper run like this: ``looper run --compute PACKAGE``. 
+You may then choose a different compute package on the fly by specifying the `--compute` option: ``looper run --compute PACKAGE``. 
 In this case, `PACKAGE` could be either `local` (which would do the same thing as the default, so doesn't change anything) or `slurm`, 
 which would run the jobs on SLURM, from queue `queue_name`. 
 You can make as many compute packages as you wish (for example, to submit to different SLURM partitions).
@@ -48,6 +48,6 @@ submission script produced to actually run it (`sbatch` for SLURM, `qsub` for SG
 ## Resources
 You may notice that the compute config file does not specify resources to request (like memory, CPUs, or time). Yet, these are required as well in order to submit a job to a cluster. In the looper system, **resources are not handled by the pepenv file** because they not relative to a particular computing environment; instead they are are variable and specific to a pipeline and a sample. As such, these items are defined in the ``pipeline_interface.yaml`` file (``pipelines`` section) that connects looper to a pipeline. The reason for this is that the pipeline developer is the most likely to know what sort of resources her pipeline requires, so she is in the best position to define the resources requested.
 
-For more information on how to adjust resources, see the [pipeline interface `pipelines` section](#pipeline-configuration). 
+For more information on how to adjust resources, see the `pipelines` section of the [pipeline interface page](pipeline-interface.md). 
 If all the different configuration files seem confusing, 
-now is a good time to review [who's who in configuration files](#configuration-files).
+now is a good time to review [who's who in configuration files](config-files.md).

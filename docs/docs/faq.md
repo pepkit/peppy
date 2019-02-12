@@ -7,11 +7,11 @@
 
 - How can I run my jobs on a **cluster**?
 	
-	See the page about [cluster computing](#cluster-computing)
+	See the page about [cluster computing](cluster-computing.md)
 
 - Which configuration file has which settings?
 	
-	There's a list on the [config files page](#config-files)
+	There's a list on the [config files page](config-files.md)
 
 - What's the difference between `looper` and `pypiper`?
 	

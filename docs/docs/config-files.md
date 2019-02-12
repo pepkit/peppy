@@ -18,13 +18,13 @@ or a pipeline *developer* (building your own pipeline).
 
 Users (non-developers) of pipelines only need to be aware of one or two config files:
 
-- The [project config](#project-config): This file is specific to each project and 
+- The [project config](project-config.md): This file is specific to each project and 
 contains information about the project's metadata, where the processed files should be saved, 
 and other variables that allow to configure the pipelines specifically for this project. 
 It follows the standard `looper` format (now referred to as `PEP`, or "*portable encapsulated project*" format).
 
 If you are planning to submit jobs to a cluster, then you need to know about a second config file:
-- The [`PEPENV` config](#cluster-computing): This file tells `looper` how to use compute resource managers, like SLURM. 
+- The [`PEPENV` config](cluster-computing.md): This file tells `looper` how to use compute resource managers, like SLURM. 
 After initial setup it typically requires little (if any) editing or maintenance.
 
 That should be all you need to worry about as a pipeline user. 
@@ -36,7 +36,7 @@ over pipelines, you'll need knowledge of the config files used by pipeline devel
 
 If you want to make pipeline compatible with `looper`, tweak the way `looper` interacts with a pipeline for a given project, 
 or change the default cluster resources requested by a pipeline, you need to know about a configuration file that coordinates linking pipelines to a project.
-- The [pipeline interface file](#pipeline-interface):
+- The [pipeline interface file](pipeline-interface.md):
 This file sas two sections"
   - `protocol_mapping` tells looper which pipelines exist, and how to map each protocol (sample data type) to a pipeline
   - `pipelines` describes options, arguments, and compute resources that defined how `looper` should communicate with each pipeline.
@@ -47,4 +47,4 @@ it uses a pipeline-specific configuration file, which is detailed in the [`pypip
 Essentially, each pipeline may provide a configuration file describing where software is, 
 and parameters to use for tasks within the pipeline. This configuration file is by default named like pipeline name, 
 with a `.yaml` extension instead of `.py`. For example, by default `rna_seq.py` looks for an accompanying `rna_seq.yaml` file. 
-These files can be changed on a per-project level using the `pipeline_config` section of a [project configuration file](#project-config).
+These files can be changed on a per-project level using the `pipeline_config` section of a [project configuration file](project-config.md).

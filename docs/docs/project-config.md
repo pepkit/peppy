@@ -23,7 +23,7 @@ metadata:
 
 Let's break that down:
 - The `output_dir` key specifies where to save results. 
-- The `pipeline_interfaces` key points to `looper`-compatible pipelines, as described in the [pipeline interface documentation](#how-to-link-a-pipeline-to-your-project). 
+- The `pipeline_interfaces` key points to `looper`-compatible pipelines, as described on the [pipeline interface page](pipeline-interface.md). 
 - The `sample_annotation` key points to another file, which is a tabular (e.g., CSV or TSV) file describing samples in the project. 
 
 Here's a small example sample annotation file:
@@ -42,7 +42,7 @@ to your project configuration file and sample annotation file.
 For example, by default, your jobs will run serially on your local computer, where you're running `looper`. 
 If you want to submit to a cluster resource manager (like SLURM or SGE), you just need to specify a `compute` section.
 
-For more detail about additional features of sample annotation sheets, please refer to the [annotation sheet documentation](#sample-annotation-sheet)
+For more detail about additional features of sample annotation sheets, please see the [annotation sheet page](sample-annotation-sheet.md)
 Below is information about additional features of the project config file.
 
 ### Project config section: `data_sources`
@@ -59,7 +59,7 @@ data_sources:
   source3: ${HOME}/{test_id}.fastq
 ```
 
-For more details, see the [derived columns documentation](#derived-columns).
+For more details, see the [derived columns page](derived-columns.md).
 
 ### Project config section: `derived_attributes`
 This section is a list that tells `looper` which column names it should populate as `data_sources`. 
@@ -73,7 +73,7 @@ This enables you to point to more than one input file for each sample (for examp
 derived_columns: [read1, read2, data_1]
 ```
 
-For more details, see the [derived columns documentation](#derived-columns).
+For more details, see the [derived columns page](derived-columns.md).
 
 ### Project config section: `implied_attributes`
 This section lets you infer additional attributes, which can be useful for pipeline arguments.
@@ -88,7 +88,7 @@ implied_columns:
       macs_genome_size: "hs"
 ```
 
-For more details, see :ref:`advanced-implied-columns`.
+For more details, see the [implied columns page](implied-columns.md).
 
 ### Project config section: `constants`
 This section lets you declare additional attributes, for each of which there's a single value across all samples. This is particularly useful when combined with ``derived_columns`` and/or ``implied_columns``, especially when there are many samples.
@@ -103,7 +103,9 @@ constants:
 ```
 
 ### Project config section: `subprojects`
-Subprojects are useful to define multiple similar projects within a single project config file. Under the subprojects key, you can specify names of subprojects, and then underneath these you can specify any project config variables that you want to overwrite for that particular subproject. Tell looper to load a particular subproject by passing ``--sp subproject-name`` on the command line.
+Subprojects are useful to define multiple similar projects within a single project config file. 
+Under the subprojects key, you can specify names of subprojects, and then within those you can specify any project config variables that you want to overwrite for that particular subproject. 
+Tell looper to load a particular subproject by passing `--sp subproject-name` on the command line.
 
 **Example**:
 
@@ -117,10 +119,14 @@ subprojects:
       sample_annotation: psa_rrbs_intracancer.csv
 ```
 
-This project would specify 2 subprojects that have almost the exact same settings, but change only their ``metadata.sample_annotation`` parameter (so, each subproject points to a different sample annotation sheet). Rather than defining two 99% identical project config files, you can use a subproject. 
+This project would specify 2 subprojects that have almost the exact same settings, 
+but change only their `metadata.sample_annotation` parameter (so, each subproject points to a different sample annotation sheet). 
+Rather than defining two 99% identical project config files, you can use a subproject. 
 
 ### Project config section: `pipeline_config`
-Occasionally, a particular project needs to run a particular flavor of a pipeline. Rather than creating an entirely new pipeline, you can parameterize the differences with a **pipeline config** file, and then specify that file in the **project config** file.
+Occasionally, a particular project needs to run a particular flavor of a pipeline. 
+Rather than creating an entirely new pipeline, you can parameterize the differences with a **pipeline config** file, 
+and then specify that file in the **project config** file.
 
 **Example**:
 
@@ -135,7 +141,8 @@ pipeline_config:
   wgbs.py: wgbs_flavor1.yaml
 ```
 
-This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of wgbs.py (for this project only). Your pipelines will need to understand the config file (which will happen automatically if you use pypiper).
+This will instruct `looper` to pass `-C wgbs_flavor1.yaml` to any invocations of wgbs.py (for this project only). 
+Your pipelines will need to understand the config file (which will happen automatically if you use pypiper).
 
 
 ### Project config section: `pipeline_args`
@@ -172,7 +179,8 @@ compute:
 ```
 
 ### Project config section: `track_configurations`
-***Warning***: The `track_configurations` section is for making UCSC trackhubs. This is a work in progress that is functional, but ill-documented, so it is best avoided for now.
+***Warning***: The `track_configurations` section is for making UCSC trackhubs. 
+This is a work in progress that is functional, but ill-documented, so for now it should be used with caution.
 
 ### Project config complete example
 ```yaml
