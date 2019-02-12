@@ -13,11 +13,16 @@ where you can also find example projects.
 
 ### *Why* use `peppy`?
 
-`peppy` parses a PEP and provides and API with which to interact from Python with PEP metadata.
+`peppy` provides and API with which to interact from Python with PEP metadata. 
+This is often useful on its own, but the big wins include:
+
+- *Portability* between computing environments
+- *Reusability* among different tools and project stages
+- *Durability* with respect to data movement
 
 ### *Who* should use `peppy`?
 
-There are two key users that will be interested in `peppy`:
+There are **two main kinds of user** that may have interest:
 
 - A tool *developer*
 - A data *analyst* 
