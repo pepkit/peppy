@@ -84,18 +84,19 @@ _LOGGER = logging.getLogger(__name__)
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-    def __init__(self, prj, selector_include=None, selector_exclude=None):
+    def __init__(self, prj, selector_attribute="protocol", selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
         self.include = selector_include
         self.exclude = selector_exclude
+        self.attribute = selector_attribute
 
     def __getattr__(self, item):
         """ Samples are context-specific; other requests are handled
         locally or dispatched to Project. """
         if item == "samples":
             return fetch_samples(
-                self.prj, selector_include=self.include, selector_exclude=self.exclude)
+                self.prj, selector_attribute=self.attribute, selector_include=self.include, selector_exclude=self.exclude)
         if item in ["prj", "include", "exclude"]:
             # Attributes requests that this context/wrapper handles
             return self.__dict__[item]
