@@ -18,7 +18,7 @@ else:
     from collections.abc import Sized
 import warnings
 import yaml
-from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 
 
 _LOGGER = logging.getLogger(__name__)
