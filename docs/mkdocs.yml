@@ -20,9 +20,9 @@ nav:
     - Project configuration: project-config.md
     - Sample annotation sheet: sample-annotation-sheet.md
   - API: autodoc_build/peppy.md
-  - Changelog: changelog.md
-  - Support: support.md
   - FAQ: faq.md
+  - Support: support.md
+  - Changelog: changelog.md
 
 #markdown_extensions:
 #  - markdown_include.include:
