@@ -1,12 +1,12 @@
 site_name: Peppy
 nav:
-  - Introduction: README.md
-    
+  - Home: README.md
+  - Introduction: intro.md
+  - Tutorials: tutorials.md
   - How-to Guides:
     - How to use peppy: jupyter_build/tutorial.md
     - How to use sample subannotation: jupyter_build/subannotation.md
     - Subprojects tutorial: jupyter_build/subprojects.md
-
   - Reference:
     - Advanced: advanced.md
     - Cluster computing: cluster-computing.md
@@ -17,16 +17,13 @@ nav:
     - Features: features.md
     - Hello World: hello-world.md
     - Implied columns: implied-columns.md
-    - Introduction: intro.md
     - Models: models.md
     - Pipeline interface: pipeline-interface.md
     - Project configuration: project-config.md
     - Sample annotation sheet: sample-annotation-sheet.md
-
   - API: autodoc_build/peppy.md
   - Changelog: changelog.md
   - Support: support.md
-  - Tutorials: tutorials.md
 
 #markdown_extensions:
 #  - markdown_include.include:
