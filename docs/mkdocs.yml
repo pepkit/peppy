@@ -8,14 +8,28 @@ nav:
     - Subprojects tutorial: jupyter_build/subprojects.md
 
   - Reference:
-    - API: autodoc_build/peppy.md
-    - Support: support.md
+    - Advanced: advanced.md
+    - Cluster computing: cluster-computing.md
+    - Configuration files: config-files.md
     - Contributing: contributing.md
+    - Derived columns: derived-columns.md
+    - FAQ: faq.md
+    - Features: features.md
+    - Hello World: hello-world.md
+    - Implied columns: implied-columns.md
+    - Introduction: intro.md
+    - Models: models.md
+    - Pipeline interface: pipeline-interface.md
+    - Project configuration: project-config.md
+    - Sample annotation sheet: sample-annotation-sheet.md
 
+  - API: autodoc_build/peppy.md
   - Changelog: changelog.md
+  - Support: support.md
+  - Tutorials: tutorials.md
 
-markdown_extensions:
-  - markdown_include.include:
-    base_path: docs
+#markdown_extensions:
+#  - markdown_include.include:
+#    base_path: docs
 
 #theme: readthedocs
