@@ -20,6 +20,9 @@ nav:
     - Project configuration: project-config.md
     - Sample annotation sheet: sample-annotation-sheet.md
   - API: autodoc_build/peppy.md
+  #  - Project: autodoc_build/project.md
+  #  - Sample: autodoc_build/sample.md
+  #  - Tools: autodoc_build/utils.md
   - FAQ: faq.md
   - Support: support.md
   - Changelog: changelog.md
