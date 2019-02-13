@@ -158,12 +158,10 @@ class Project(AttMap):
     :type defer_sample_construction: bool
 
 
-    :Example:
-
-    .. code-block:: python
-
-        from models import Project
-        prj = Project("config.yaml")
+    ```python
+    from models import Project
+    prj = Project("config.yaml")
+    ```
 
     """
 
