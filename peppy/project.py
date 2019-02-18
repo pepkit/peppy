@@ -549,7 +549,7 @@ class Project(AttMap):
 
     def build_sheet(self, *protocols):
         """
-        Create all Sample object for this project for the given protocol(s).
+        Create table of subset of samples matching one of given protocols.
 
         :return pandas.core.frame.DataFrame: DataFrame with from base version
             of each of this Project's samples, for indicated protocol(s) if
@@ -558,6 +558,7 @@ class Project(AttMap):
         # Use all protocols if none are explicitly specified.
         known = set(protocols or self.protocols)
         selector_include = []
+        skipped = []
         for s in self.samples:
             try:
                 p = s.protocol
@@ -567,7 +568,12 @@ class Project(AttMap):
                 if p in known:
                     selector_include.append(s)
                 else:
-                    _LOGGER.debug("Sample skipped due to protocol ('%s')", p)
+                    skipped.append(s)
+        if skipped:
+            msg_data = "\n".join(["{} ({})".format(s, s.protocol)
+                                  for s in skipped])
+            _LOGGER.debug("Skipped %d sample(s) for protocol. Known: %s\n%s",
+                          len(skipped), ", ".join(known), msg_data)
         return pd.DataFrame(selector_include)
 
 
