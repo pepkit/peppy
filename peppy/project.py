@@ -52,9 +52,9 @@ import logging
 import os
 import sys
 if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping
+    from collections import Iterable, Mapping, Sized
 else:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Mapping, Sized
 import warnings
 
 import pandas as pd
@@ -477,26 +477,27 @@ class Project(AttMap):
         unless that folder is named "metadata", in which case the project name
         is the parent of that folder.
         
-        :param str path_config_file: path to the project's config file.
         :return str: inferred name for project.
         """
         if hasattr(self, "name"):
-            return(self.name)
-        
+            return self.name
         config_folder = os.path.dirname(self.config_file)
         project_name = os.path.basename(config_folder)
-        
         if project_name == "metadata":
             project_name = os.path.basename(os.path.dirname(config_folder))
-
         return project_name
 
-
     def get_subsample(self, sample_name, subsample_name):
+        """
+        From indicated sample get particular subsample.
 
+        :param str sample_name: Name of Sample from which to get subsample
+        :param str subsample_name: Name of Subsample to get
+        :return peppy.Subsample: The Subsample of requested name from indicated
+            sample matching given name
+        """
         s = self.get_sample(sample_name)
         return s.get_subsample(subsample_name)
-
 
     def get_sample(self, sample_name):
         """
@@ -509,33 +510,49 @@ class Project(AttMap):
         :param str sample_name: The name of a sample to retrieve
         :return Sample: The requested Sample object
         """
-
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
             _LOGGER.warning("More than one sample was detected; returning the first")
-
-        if len(samples) == 0:
-            raise ValueError("Project has no sample named {name}.".format(name=sample_name))
-
-        return samples[0]
-
+        try:
+            return samples[0]
+        except IndexError:
+            raise ValueError("Project has no sample named {}.".format(sample_name))
 
     def activate_subproject(self, subproject):
         """
-        Activate a subproject.
+        Update settings based on subproject-specific values.
 
         This method will update Project attributes, adding new values
         associated with the subproject indicated, and in case of collision with
         an existing key/attribute the subproject's value will be favored.
 
         :param str subproject: A string with a subproject name to be activated
-        :return Project: A Project with the selected subproject activated
+        :return peppy.Project: Updated Project instance
         """
-        conf_file = self.config_file
-        self.clear()
-        self.__init__(conf_file, subproject)
-        return self
 
+        def empty(x):
+            return x is None or (isinstance(x, Sized) and len(x) == 0)
+
+        previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
+
+        conf_file = self.config_file
+        self.__init__(conf_file, subproject)
+
+        for k, v in previous:
+            if k not in self or empty(self[k]):
+                _LOGGER.debug("Restoring {}: {}".format(k, v))
+                self[k] = v
+            elif isinstance(v, Mapping):
+                try:
+                    self[k].update(v)
+                except Exception as e:
+                    _LOGGER.error(
+                        "Failed to merge previous mapping with new value for "
+                        "key '{}': {}".format(k, e.message))
+                else:
+                    _LOGGER.debug("Merged mappings for key: {}".format(k))\
+
+        return self
 
     def get_samples(self, sample_names):
         """
@@ -545,7 +562,6 @@ class Project(AttMap):
         :return list[Sample]: A list of Sample objects
         """
         return [s for s in self.samples if s.name in sample_names]
-
 
     def build_sheet(self, *protocols):
         """
@@ -1017,6 +1033,10 @@ class Project(AttMap):
 
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
+        if not isinstance(maybe_relpath, str):
+            raise TypeError(
+                "Attempting to ensure non-text value is absolute path: {} ({})".
+                format(maybe_relpath, type(maybe_relpath)))
         _LOGGER.log(5, "Ensuring absolute: '%s'", maybe_relpath)
         if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
             _LOGGER.log(5, "Already absolute")
