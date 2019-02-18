@@ -84,18 +84,19 @@ _LOGGER = logging.getLogger(__name__)
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-    def __init__(self, prj, include_samples=None, exclude_samples=None):
+    def __init__(self, prj, selector_attribute="protocol", selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
-        self.include = include_samples
-        self.exclude = exclude_samples
+        self.include = selector_include
+        self.exclude = selector_exclude
+        self.attribute = selector_attribute
 
     def __getattr__(self, item):
         """ Samples are context-specific; other requests are handled
         locally or dispatched to Project. """
         if item == "samples":
             return fetch_samples(
-                self.prj, inclusion=self.include, exclusion=self.exclude)
+                self.prj, selector_attribute=self.attribute, selector_include=self.include, selector_exclude=self.exclude)
         if item in ["prj", "include", "exclude"]:
             # Attributes requests that this context/wrapper handles
             return self.__dict__[item]
@@ -555,20 +556,19 @@ class Project(AttMap):
             given, else all of this Project's samples
         """
         # Use all protocols if none are explicitly specified.
-        protocols = {p for p in (protocols or self.protocols)}
-        include_samples = []
+        known = set(protocols or self.protocols)
+        selector_include = []
         for s in self.samples:
             try:
-                check_proto = s.protocol
+                p = s.protocol
             except AttributeError:
-                include_samples.append(s)
+                selector_include.append(s)
             else:
-                if check_proto in protocols:
-                    include_samples.append(s)
+                if p in known:
+                    selector_include.append(s)
                 else:
-                    _LOGGER.debug("Sample skipped due to protocol ('%s')",
-                                  check_proto)
-        return pd.DataFrame(include_samples)
+                    _LOGGER.debug("Sample skipped due to protocol ('%s')", p)
+        return pd.DataFrame(selector_include)
 
 
     def _check_unique_samples(self):
