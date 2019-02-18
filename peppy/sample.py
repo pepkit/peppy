@@ -278,13 +278,11 @@ class Sample(AttMap):
             "{}{}{}".format(self.name, delimiter, self.__class__.__name__)
         return "{}.yaml".format(base)
 
-
     def generate_name(self):
         """
         Generate name for the sample by joining some of its attribute strings.
         """
         raise NotImplementedError("Not implemented in new code base.")
-
 
     def get_attr_values(self, attrlist):
         """
@@ -307,7 +305,6 @@ class Sample(AttMap):
         # Strings contained here are appended later so shouldn't be null.
         return [getattr(self, attr, "") for attr in attribute_list]
 
-
     def get_sheet_dict(self):
         """
         Create a K-V pairs for items originally passed in via the sample sheet.
@@ -321,7 +318,6 @@ class Sample(AttMap):
         """
         return OrderedDict(
             [[k, getattr(self, k)] for k in self.sheet_attributes])
-
 
     def infer_attributes(self, implications):
         """
@@ -363,7 +359,6 @@ class Sample(AttMap):
                     5, "Unknown implied value for implier '%s' = '%s'",
                     implier_name, implier_value)
 
-
     def is_dormant(self):
         """
         Determine whether this Sample is inactive.
@@ -383,7 +378,6 @@ class Sample(AttMap):
         # If specified, the activation flag must be set to '1'.
         return flag != "1"
 
-
     @property
     def library(self):
         """
@@ -395,7 +389,6 @@ class Sample(AttMap):
                       "refer to 'protocol'", DeprecationWarning)
         return self.protocol
 
-
     def get_subsample(self, subsample_name):
         """
         Retrieve a single subsample by name.
@@ -404,28 +397,24 @@ class Sample(AttMap):
             match the subsample_name column in the subannotation sheet.
         :return Subsample: Requested Subsample object
         """
-        subsamples = self.get_subsamples(subsample_name)
-
+        subsamples = self.get_subsamples([subsample_name])
         if len(subsamples) > 1:
             _LOGGER.error("More than one subsample with that name.")
-
-        if len(subsamples) == 0:
+        try:
+            return subsamples[0]
+        except IndexError:
             raise ValueError(
                 "Sample {sample} has no subsamples named {subsample}.".format(
                 sample=self.name, subsample=subsample_name))
-
-        return subsamples[0]
-
 
     def get_subsamples(self, subsample_names):
         """
         Retrieve subsamples assigned to this sample
 
-        :param list subsample_names: List of names of subsamples to retrieve
-        :return list: List of subsamples
+        :param list[str] subsample_names: List of names of subsamples to retrieve
+        :return list[peppy.Subsample]: List of subsamples
         """
         return [s for s in self.subsamples if s.subsample_name in subsample_names]
-
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):

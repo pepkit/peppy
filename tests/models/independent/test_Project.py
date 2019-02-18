@@ -720,7 +720,6 @@ class SubprojectActivationTest:
         "oligodendrocytes": {MARK_NAME: "NG2"}, "microglia": {MARK_NAME: "Iba1"}
     }
 
-
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_returns_project(self, tmpdir, sub):
         """ Subproject activation returns the project instance. """
@@ -728,19 +727,28 @@ class SubprojectActivationTest:
         updated_prj = prj.activate_subproject(sub)
         assert updated_prj is prj
 
-
     @pytest.mark.parametrize(
-        argnames="attr", argvalues=["permissive", "file_checks"])
-    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
-    def test_sp_act_resets_all_attributes(self, tmpdir, attr, sub):
-        """ Subproject activation doesn't affect non-config attributes. """
-        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
-        original = prj[attr]
-        prj[attr] = not original
-        assert prj[attr] is not original
-        prj.activate_subproject(sub)
-        assert prj[attr] is original
-
+        ["super_data", "sub_data", "preserved"],
+        [({"a": "1", "b": "2"}, {"c": "3"}, ["a", "b"]),
+         ({"a": "1", "b": "2"}, {"b": "1"}, ["a"])]
+    )
+    def test_sp_act_preserves_nonoverlapping_entries(
+            self, tmpdir, super_data, sub_data, preserved):
+        """ Existing entries not in subproject should be kept as-is. """
+        sp = "sub"
+        meta_key = "metadata"
+        conf_data = {meta_key: super_data,
+                     "subprojects": {sp: {meta_key: sub_data}}}
+        conf_file = tmpdir.join("conf.yaml").strpath
+        with open(conf_file, 'w') as f:
+            yaml.dump(conf_data, f)
+        p = Project(conf_file)
+        originals = [(k, p[meta_key][k]) for k in preserved]
+        print(p.metadata)
+        p = p.activate_subproject(sp)
+        print(p.metadata)
+        for k, v in originals:
+            assert v == p[meta_key][k]
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_adds_new_config_entries(self, tmpdir, sub):
@@ -750,7 +758,6 @@ class SubprojectActivationTest:
         prj.activate_subproject(sub)
         assert self.MARK_NAME in prj
         assert self.SUBPROJ_SECTION[sub][self.MARK_NAME] == prj[self.MARK_NAME]
-
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_sp_act_overwrites_existing_config_entries(self, tmpdir, sub):
@@ -762,13 +769,11 @@ class SubprojectActivationTest:
         expected = self.SUBPROJ_SECTION[sub][self.MARK_NAME]
         assert expected == prj[self.MARK_NAME]
 
-
     def test_activate_unknown_subproj(self, tmpdir):
         """ With subprojects, attempt to activate undefined one is an error. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         with pytest.raises(Exception):
             prj.activate_subproject("DNE-subproject")
-
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_when_none_exist(self, tmpdir, sub):
@@ -787,7 +792,6 @@ class SubprojectActivationTest:
         else:
             raise AssertionError("Did not find expected message among lines: "
                                  "{}".format(exception_messages))
-
 
     @classmethod
     def make_proj(cls, folder, incl_subs):
