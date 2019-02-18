@@ -744,9 +744,9 @@ class SubprojectActivationTest:
             yaml.dump(conf_data, f)
         p = Project(conf_file)
         originals = [(k, p[meta_key][k]) for k in preserved]
-        print(p.metadata)
+        print("INITIAL METADATA: {}".format(p.metadata))
         p = p.activate_subproject(sp)
-        print(p.metadata)
+        print("UPDATED METADATA: {}".format(p.metadata))
         for k, v in originals:
             assert v == p[meta_key][k]
 

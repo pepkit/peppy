@@ -533,16 +533,25 @@ class Project(AttMap):
         def empty(x):
             return x is None or (isinstance(x, Sized) and len(x) == 0)
 
+        previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
+
         conf_file = self.config_file
-        current = [(k, v) for k, v in self.items() if not k.startswith("_")]
         self.__init__(conf_file, subproject)
-        for k, v in current:
+
+        for k, v in previous:
             if k not in self or empty(self[k]):
-                msg_fmt = "Restoring {}: {}"
+                _LOGGER.debug("Restoring {}: {}".format(k, v))
                 self[k] = v
-            else:
-                msg_fmt = "Already present: {} = ({})"
-            _LOGGER.debug(msg_fmt.format(k, v))
+            elif isinstance(v, Mapping):
+                try:
+                    self[k].update(v)
+                except Exception as e:
+                    _LOGGER.error(
+                        "Failed to merge previous mapping with new value for "
+                        "key '{}': {}".format(k, e.message))
+                else:
+                    _LOGGER.debug("Merged mappings for key: {}".format(k))\
+
         return self
 
     def get_samples(self, sample_names):
