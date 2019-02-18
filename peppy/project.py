@@ -559,15 +559,15 @@ class Project(AttMap):
         include_samples = []
         for s in self.samples:
             try:
-                proto = s.protocol
+                check_proto = s.protocol
             except AttributeError:
                 include_samples.append(s)
-                continue
-            check_proto = proto
-            if check_proto in protocols:
-                include_samples.append(s)
             else:
-                _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
+                if check_proto in protocols:
+                    include_samples.append(s)
+                else:
+                    _LOGGER.debug("Sample skipped due to protocol ('%s')",
+                                  check_proto)
         return pd.DataFrame(include_samples)
 
 
