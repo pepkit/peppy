@@ -135,14 +135,12 @@ class BuildSheetTests:
     # Note: seemingly unused parameters may affect parameterization
     # logic of other fixtures used by a test case; tread lightly.
 
-
     def test_no_samples(self, protocols, delimiter, path_empty_project):
         """ Lack of Samples is unproblematic for the sheet build. """
         # Regardless of protocol(s), the sheet should be empty.
         p = Project(path_empty_project)
         sheet = p.build_sheet(*protocols)
         assert sheet.empty
-
 
     @pytest.mark.parametrize(
             argnames="which_sample_index", argvalues=range(len(SAMPLE_NAMES)))
@@ -181,7 +179,6 @@ class BuildSheetTests:
                 except AssertionError:
                     raise e
 
-
     def test_multiple_samples(
             self, protocols, path_anns_file, path_proj_conf_file):
         """ Project also processes multiple Sample fine. """
@@ -196,10 +193,16 @@ class BuildSheetTests:
             sum(sum(1 for p2 in PROTOCOLS if p2 == p1) for p1 in protocols)
         sheet = p.build_sheet(*protocols)
         assert exp_num_samples == len(sheet)
+
         if protocols:
-            fuzzy_protos = {p for p in protocols}
-            for _, sample_data in sheet.iterrows():
-                assert sample_data.protocol in fuzzy_protos
+            def as_expected(sd):
+                return sd.protocol in set(protocols)
+        else:
+            def as_expected(sd):
+                return sd.protocol not in set(protocols)
+
+        for _, sample_data in sheet.iterrows():
+            assert as_expected(sample_data)
 
 
 
