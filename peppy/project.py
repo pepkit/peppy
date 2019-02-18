@@ -857,7 +857,7 @@ class Project(AttMap):
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
             if var not in self.metadata:
-                raise ValueError("Missing required metadata item: '%s'")
+                raise ValueError("Missing required metadata item: '{}'".format(var))
             setattr(self.metadata, var,
                     os.path.expandvars(getattr(self.metadata, var)))
 
