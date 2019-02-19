@@ -241,7 +241,7 @@ def grab_project_data(prj):
     for section in SAMPLE_INDEPENDENT_PROJECT_SECTIONS:
         try:
             data[section] = getattr(prj, section)
-        except KeyError:
+        except AttributeError:
             _LOGGER.debug("Project lacks section '%s', skipping", section)
     return data
 
