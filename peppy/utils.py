@@ -164,7 +164,7 @@ def get_file_size(filename):
 
 
 
-def fetch_samples(proj, selector_attribute="protocol", selector_include=None, selector_exclude=None):
+def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
     """
     Collect samples of particular protocol(s).
 
@@ -187,6 +187,10 @@ def fetch_samples(proj, selector_attribute="protocol", selector_include=None, se
         specified; TypeError since it's basically providing two arguments
         when only one is accepted, so remain consistent with vanilla Python2
     """
+    if selector_attribute is None or (not selector_include and not selector_exclude):
+        # Simple; keep all samples.  In this case, this function simply
+        # offers a list rather than an iterator.
+        return list(proj.samples)
 
     # At least one of the samples has to have the specified attribute
     if proj.samples and not any([hasattr(i, selector_attribute) for i in proj.samples]):
@@ -197,11 +201,6 @@ def fetch_samples(proj, selector_attribute="protocol", selector_include=None, se
     if selector_include and selector_exclude:
         raise TypeError("Specify only selector_include or selector_exclude parameter, "
                          "not both.")
-
-    if not selector_include and not selector_exclude:
-        # Simple; keep all samples.  In this case, this function simply
-        # offers a list rather than an iterator.
-        return list(proj.samples)
 
     # Ensure that we're working with sets.
     def make_set(items):
@@ -241,17 +240,14 @@ def grab_project_data(prj):
     :param Project prj: Project from which to grab data
     :return Mapping: Sample-independent data sections from given Project
     """
-
     if not prj:
         return {}
-
     data = {}
     for section in SAMPLE_INDEPENDENT_PROJECT_SECTIONS:
         try:
-            data[section] = prj[section]
-        except KeyError:
+            data[section] = getattr(prj, section)
+        except AttributeError:
             _LOGGER.debug("Project lacks section '%s', skipping", section)
-
     return data
 
 

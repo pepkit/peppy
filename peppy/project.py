@@ -68,8 +68,8 @@ from .const import \
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, copy, fetch_samples, is_url, \
-    non_null_value, warn_derived_cols, warn_implied_cols
+    add_project_sample_constants, copy, fetch_samples, is_url, non_null_value, \
+    warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -811,7 +811,7 @@ class Project(AttMap):
         _LOGGER.debug("Adding attributes for {}: {}".format(
             self.__class__.__name__, config.keys()))
         _LOGGER.debug("Config metadata: {}".format(config["metadata"]))
-        self.add_entries(config)
+        self.add_entries(AttMap(config))
         _LOGGER.debug("{} now has {} keys: {}".format(
             self.__class__.__name__, len(self.keys()), self.keys()))
 
