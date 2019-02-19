@@ -6,7 +6,7 @@ metadata:
   sample_annotation: microtest_sample_annotation.csv
   merge_table: microtest_merge_table.csv
 
-derived_columns: [data_source]
+derived_attributes: [data_source]
 
 data_sources:
   bsf_samples: "{RAWDATA}{flowcell}/{flowcell}_{lane}_samples/{flowcell}_{lane}#{BSF_name}.bam"
@@ -18,7 +18,7 @@ subprojects:
     pipeline_config:
       wgbs.py: wgbs_ds.yaml
 
-implied_columns:
+implied_attributes:
   organism:
     human:
       genomes: hg19
