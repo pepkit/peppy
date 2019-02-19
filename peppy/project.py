@@ -63,8 +63,8 @@ import yaml
 from attmap import AttMap
 from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
-    DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+    DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
+    IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -303,6 +303,21 @@ class Project(AttMap):
                 samples_message += ": {}".format(repr(self._samples))
         meta_text = super(Project, self).__repr__()
         return "{} -- {}".format(samples_message, meta_text)
+
+    def __setitem__(self, key, value):
+        """
+        Override here to handle deprecated special-meaning keys.
+
+        :param str key: Key to map to given value
+        :param object value: Arbitrary value to bind to given key
+        """
+        if key == "derived_columns":
+            warn_derived_cols()
+            key = DERIVATIONS_DECLARATION
+        elif key == "implied_columns":
+            warn_implied_cols()
+            key = IMPLICATIONS_DECLARATION
+        super(Project, self).__setitem__(key, value)
 
     @property
     def compute_env_var(self):
