@@ -86,7 +86,7 @@ class GrabProjectDataTests:
         argnames="sections",
         argvalues=nonempty_powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS))
     @named_param(argnames="data_type",
-                 argvalues=[dict, AttMap, _DummyProject])
+                 argvalues=[AttMap, _DummyProject])
     def test_does_not_need_all_sample_independent_data(
             self, sections, data_type,
             basic_project_data, sample_independent_data):
@@ -104,7 +104,7 @@ class GrabProjectDataTests:
             [{"pipeline_interfaces": [{"b": 1}, {"c": 2}]},
              {"pipeline_config": {}}]))
     @named_param(
-        argnames="data_type", argvalues=[dict, AttMap, _DummyProject])
+        argnames="data_type", argvalues=[AttMap, _DummyProject])
     def test_grabs_only_sample_independent_data(
             self, sample_independent_data, extra_data, data_type):
         """ Only Project data defined as Sample-independent is retrieved. """
