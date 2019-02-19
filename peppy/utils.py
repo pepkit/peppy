@@ -235,17 +235,14 @@ def grab_project_data(prj):
     :param Project prj: Project from which to grab data
     :return Mapping: Sample-independent data sections from given Project
     """
-
     if not prj:
         return {}
-
     data = {}
     for section in SAMPLE_INDEPENDENT_PROJECT_SECTIONS:
         try:
-            data[section] = prj[section]
-        except KeyError:
+            data[section] = getattr(prj, section)
+        except AttributeError:
             _LOGGER.debug("Project lacks section '%s', skipping", section)
-
     return data
 
 

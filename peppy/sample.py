@@ -830,11 +830,6 @@ class Sample(AttMap):
         self.yaml_file = path
 
 
-        def _is_project(obj, name=None):
-            """ Determine if item to prep for disk is Sample's project. """
-            return name == "prj"
-
-
         def obj2dict(obj, name=None, 
                      to_skip=("sample_subannotation", "samples", 
                               "sheet", "sheet_attributes")):
@@ -848,8 +843,8 @@ class Sample(AttMap):
             """
             if name:
                 _LOGGER.log(5, "Converting to dict: '{}'".format(name))
-            if _is_project(obj, name):
-                _LOGGER.debug("Attempting to store %s's project metadata",
+            if name == "prj":
+                _LOGGER.debug("Attempting to store %s's project data",
                               self.__class__.__name__)
                 prj_data = grab_project_data(obj)
                 _LOGGER.debug("Sample's project data: {}".format(prj_data))
