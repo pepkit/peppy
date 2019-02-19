@@ -18,7 +18,7 @@ else:
     from collections.abc import Sized
 import warnings
 import yaml
-from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -235,17 +235,14 @@ def grab_project_data(prj):
     :param Project prj: Project from which to grab data
     :return Mapping: Sample-independent data sections from given Project
     """
-
     if not prj:
         return {}
-
     data = {}
     for section in SAMPLE_INDEPENDENT_PROJECT_SECTIONS:
         try:
-            data[section] = prj[section]
+            data[section] = getattr(prj, section)
         except KeyError:
             _LOGGER.debug("Project lacks section '%s', skipping", section)
-
     return data
 
 
