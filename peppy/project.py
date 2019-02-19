@@ -334,7 +334,6 @@ class Project(AttMap):
         return os.path.join(
             self.templates_folder, "default_compute_settings.yaml")
 
-
     @property
     def derived_columns(self):
         """
@@ -347,7 +346,6 @@ class Project(AttMap):
             return self.derived_attributes
         except AttributeError:
             return []
-
 
     @property
     def implied_columns(self):
@@ -362,7 +360,6 @@ class Project(AttMap):
         except AttributeError:
             return AttMap()
 
-
     @property
     def num_samples(self):
         """
@@ -371,7 +368,6 @@ class Project(AttMap):
         :return int: number of samples available in this Project.
         """
         return sum(1 for _ in self.sample_names)
-
 
     @property
     def output_dir(self):
@@ -393,7 +389,6 @@ class Project(AttMap):
         except AttributeError:
             return os.path.dirname(self.config_file)
 
-
     @property
     def project_folders(self):
         """
@@ -402,7 +397,6 @@ class Project(AttMap):
         :return Iterable[str]: names of output-nested folders
         """
         return ["results_subdir", "submission_subdir"]
-
 
     @property
     def protocols(self):
