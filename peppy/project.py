@@ -63,8 +63,8 @@ import yaml
 from attmap import AttMap
 from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
-    DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+    DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
+    IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -304,6 +304,21 @@ class Project(AttMap):
         meta_text = super(Project, self).__repr__()
         return "{} -- {}".format(samples_message, meta_text)
 
+    def __setitem__(self, key, value):
+        """
+        Override here to handle deprecated special-meaning keys.
+
+        :param str key: Key to map to given value
+        :param object value: Arbitrary value to bind to given key
+        """
+        if key == "derived_columns":
+            warn_derived_cols()
+            key = DERIVATIONS_DECLARATION
+        elif key == "implied_columns":
+            warn_implied_cols()
+            key = IMPLICATIONS_DECLARATION
+        super(Project, self).__setitem__(key, value)
+
     @property
     def compute_env_var(self):
         """
@@ -334,7 +349,6 @@ class Project(AttMap):
         return os.path.join(
             self.templates_folder, "default_compute_settings.yaml")
 
-
     @property
     def derived_columns(self):
         """
@@ -347,7 +361,6 @@ class Project(AttMap):
             return self.derived_attributes
         except AttributeError:
             return []
-
 
     @property
     def implied_columns(self):
@@ -362,7 +375,6 @@ class Project(AttMap):
         except AttributeError:
             return AttMap()
 
-
     @property
     def num_samples(self):
         """
@@ -371,7 +383,6 @@ class Project(AttMap):
         :return int: number of samples available in this Project.
         """
         return sum(1 for _ in self.sample_names)
-
 
     @property
     def output_dir(self):
@@ -393,7 +404,6 @@ class Project(AttMap):
         except AttributeError:
             return os.path.dirname(self.config_file)
 
-
     @property
     def project_folders(self):
         """
@@ -402,7 +412,6 @@ class Project(AttMap):
         :return Iterable[str]: names of output-nested folders
         """
         return ["results_subdir", "submission_subdir"]
-
 
     @property
     def protocols(self):
