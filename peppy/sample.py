@@ -132,7 +132,8 @@ class Sample(AttMap):
         self.paths = Paths()
 
     def __setitem__(self, key, value):
-        if self._is_prj(value):
+        # TODO: better solution for this cyclical dependency hack
+        if value.__class__.__name__ == "Project":
             self.__dict__[key] = value
         else:
             super(Sample, self).__setitem__(key, value)
@@ -145,11 +146,6 @@ class Sample(AttMap):
 
     def __str__(self):
         return "Sample '{}'".format(self.name)
-
-    @staticmethod
-    def _is_prj(obj):
-        # TODO: this is a hacky solution to the circular import problem; fix.
-        return obj.__class__.__name__ == "Project"
 
     @property
     def input_file_paths(self):

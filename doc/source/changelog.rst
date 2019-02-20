@@ -5,11 +5,15 @@ Changelog
 
   - Changed
 
-    - make the the attribute value matching is more strict -- require perfect match.
+    - Make the attribute value matching more strict (require perfect match.)
     
-    - change the paramater names: ``exclude_samples`` and ``include_samples`` to ``selector_exclude`` and ``selector_include``, respectively
+    - Change the parameter names: ``exclude_samples`` and ``include_samples`` to ``selector_exclude`` and ``selector_include``, respectively.
 
     - Remove Python 3.4 support.
+
+    - Begin using the ``attmap`` project for implementation of what's been called ``AttributeDict``.
+
+
    
   - New
   
