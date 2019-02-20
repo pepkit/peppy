@@ -71,7 +71,7 @@ from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, is_url, non_null_value, \
-    safely_update, warn_derived_cols, warn_implied_cols
+    warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
