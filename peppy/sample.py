@@ -156,7 +156,6 @@ class Sample(AttMap):
         """
         return self.data_source.split(" ") if self.data_source else []
 
-
     def as_series(self):
         """
         Returns a `pandas.Series` object with all the sample's attributes.
@@ -167,7 +166,6 @@ class Sample(AttMap):
         # Note that this preserves metadata, but it could be excluded
         # with self.items() rather than self.__dict__.
         return Series(self.__dict__)
-
 
     def check_valid(self, required=None):
         """
