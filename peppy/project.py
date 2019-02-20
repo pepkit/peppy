@@ -52,9 +52,9 @@ import logging
 import os
 import sys
 if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping, Sized
+    from collections import Iterable, Mapping
 else:
-    from collections.abc import Iterable, Mapping, Sized
+    from collections.abc import Iterable, Mapping
 import warnings
 
 import pandas as pd
@@ -745,6 +745,10 @@ class Project(AttMap):
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
+
+        assert isinstance(config, Mapping), \
+            "Config file parse did not yield a Mapping; got {} ({})".\
+            format(config, type(config))
 
         for msg in suggest_implied_attributes(config):
             warnings.warn(msg, DeprecationWarning)
