@@ -267,7 +267,7 @@ def project(request, tmpdir, env_config_filepath):
     with open(conf_path, 'w') as conf_file:
         yaml.safe_dump(config_data, conf_file)
 
-    return Project(conf_path, default_compute=env_config_filepath)
+    return Project(conf_path)
 
 
 

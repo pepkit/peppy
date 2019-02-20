@@ -61,6 +61,7 @@ import pandas as pd
 import yaml
 
 from attmap import AttMap
+from divvy import ComputingConfiguration
 from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
     DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
@@ -169,8 +170,7 @@ class Project(AttMap):
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
-    def __init__(self, config_file, subproject=None,
-                 default_compute=None, dry=False,
+    def __init__(self, config_file, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None,
                  defer_sample_construction=False):
@@ -179,50 +179,10 @@ class Project(AttMap):
                       self.__class__.__name__, config_file)
         super(Project, self).__init__()
 
-        # Initialize local, serial compute as default (no cluster submission)
-        # Start with default environment settings.
-        _LOGGER.debug("Establishing default environment settings")
-        self.environment, self.environment_file = None, None
+        dcc = ComputingConfiguration(config_file=compute_env_file, no_env_error=no_environment_exception,
+                                     no_compute_exception=no_compute_exception)
 
-        try:
-            self.update_environment(
-                default_compute or self.default_compute_envfile)
-        except Exception as e:
-            _LOGGER.error("Can't load environment config file '%s'",
-                          str(default_compute))
-            _LOGGER.error(str(type(e).__name__) + str(e))
-
-        self._handle_missing_env_attrs(
-            default_compute, when_missing=no_environment_exception)
-
-        # Load settings from environment yaml for local compute infrastructure.
-        compute_env_file = compute_env_file or os.getenv(self.compute_env_var)
-        if compute_env_file:
-            if os.path.isfile(compute_env_file):
-                self.update_environment(compute_env_file)
-            else:
-                _LOGGER.warning("Compute env path isn't a file: {}".
-                             format(compute_env_file))
-        else:
-            _LOGGER.info("No compute env file was provided and {} is unset; "
-                         "using default".format(self.compute_env_var))
-
-        # Initialize default compute settings.
-        _LOGGER.debug("Establishing project compute settings")
-        self.compute = None
-        self.set_compute(DEFAULT_COMPUTE_RESOURCES_NAME)
-
-        # Either warn or raise exception if the compute is null.
-        if self.compute is None:
-            message = "Failed to establish project compute settings"
-            if no_compute_exception:
-                no_compute_exception(message)
-            else:
-                _LOGGER.warning(message)
-        else:
-            _LOGGER.debug("Compute: %s", str(self.compute))
-
-        # Optional behavioral parameters
+        self.compute = dcc.compute
         self.permissive = permissive
         self.file_checks = file_checks
 
@@ -338,16 +298,6 @@ class Project(AttMap):
             of attribute name and attribute value
         """
         return self._constants
-
-    @property
-    def default_compute_envfile(self):
-        """
-        Path to default compute environment settings file.
-
-        :return str: Path to this project's default compute env config file.
-        """
-        return os.path.join(
-            self.templates_folder, "default_compute_settings.yaml")
 
     @property
     def derived_columns(self):
@@ -1042,6 +992,7 @@ class Project(AttMap):
 
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
+
         if not isinstance(maybe_relpath, str):
             raise TypeError(
                 "Attempting to ensure non-text value is absolute path: {} ({})".
@@ -1172,3 +1123,5 @@ def suggest_implied_attributes(prj):
         return "To declare {}, consider using {}".format(
             key, IMPLICATIONS_DECLARATION)
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
+
+
