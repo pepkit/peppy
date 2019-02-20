@@ -63,8 +63,7 @@ import yaml
 from attmap import AttMap
 from divvy import ComputingConfiguration
 from .const import \
-    COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
-    DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
+    DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
     IMPLICATIONS_DECLARATION, METADATA_KEY, SAMPLE_ANNOTATIONS_KEY, \
     SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
@@ -877,15 +876,8 @@ class Project(AttMap):
                 _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
                 setattr(relative_vars, var, absolute)
 
-        # Project config may have made compute.submission_template relative.
-        # Make sure it's absolute.
         if self.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
-        elif not os.path.isabs(self.compute.submission_template):
-            # Relative to environment config file.
-            self.compute.submission_template = os.path.join(
-                os.path.dirname(self.environment_file),
-                self.compute.submission_template)
 
         # Required variables check
         if not hasattr(self[METADATA_KEY], SAMPLE_ANNOTATIONS_KEY):

@@ -5,12 +5,9 @@ __email__ = "vreuter@virginia.edu"
 
 
 # Compute-related
-COMPUTE_SETTINGS_VARNAME = "PEPENV"
 DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 SAMPLE_NAME_COLNAME = "sample_name"
-COMPUTE_CONSTANTS = ["COMPUTE_SETTINGS_VARNAME",
-                     "DEFAULT_COMPUTE_RESOURCES_NAME",
-                     "SAMPLE_NAME_COLNAME"]
+COMPUTE_CONSTANTS = ["DEFAULT_COMPUTE_RESOURCES_NAME", "SAMPLE_NAME_COLNAME"]
 
 # Project-related
 DATA_SOURCES_SECTION = "data_sources"
