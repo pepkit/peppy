@@ -27,7 +27,7 @@ __email__ = "vreuter@virginia.edu"
 
 
 _GENOMES = {"human": "hg19", "mouse": "mm10"}
-_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
+_TRANSCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
 
 
 
@@ -812,8 +812,8 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize(
         "ideally_implied_mappings",
-        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
-         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
+        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES},
+         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES}])
     def test_suggests_implied_attributes(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, ideally_implied_mappings):
@@ -847,9 +847,9 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize("assembly_implications",
         [{"genome": {"organism": _GENOMES}},
-         {"transcriptome": {"organism": _TRASCRIPTOMES}},
+         {"transcriptome": {"organism": _TRANSCRIPTOMES}},
          {"genome": {"organism": _GENOMES},
-           "transcriptome": {"organism": _TRASCRIPTOMES}}])
+           "transcriptome": {"organism": _TRANSCRIPTOMES}}])
     def test_no_warning_if_assemblies_are_implied(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, assembly_implications):
