@@ -64,7 +64,8 @@ from attmap import AttMap
 from .const import \
     COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
     DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
-    IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+    IMPLICATIONS_DECLARATION, METADATA_KEY, SAMPLE_ANNOTATIONS_KEY, \
+    SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -492,7 +493,7 @@ class Project(AttMap):
             return self.name
         config_folder = os.path.dirname(self.config_file)
         project_name = os.path.basename(config_folder)
-        if project_name == "metadata":
+        if project_name == METADATA_KEY:
             project_name = os.path.basename(os.path.dirname(config_folder))
         return project_name
 
@@ -821,7 +822,7 @@ class Project(AttMap):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
             self.__class__.__name__, config.keys()))
-        _LOGGER.debug("Config metadata: {}".format(config["metadata"]))
+        _LOGGER.debug("Config metadata: {}".format(config[METADATA_KEY]))
         self.add_entries(AttMap(config))
         _LOGGER.debug("{} now has {} keys: {}".format(
             self.__class__.__name__, len(self.keys()), self.keys()))
@@ -858,7 +859,7 @@ class Project(AttMap):
         # In looper 0.6, we added pipeline_interfaces to metadata
         # For backwards compatibility, merge it with pipelines_dir
 
-        if "metadata" in config:
+        if METADATA_KEY in config:
             if "pipelines_dir" in self.metadata:
                 _LOGGER.warning("Looper v0.6 suggests "
                                 "switching from pipelines_dir to "
@@ -911,7 +912,7 @@ class Project(AttMap):
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
-        relative_sections = ["metadata", "pipeline_config"]
+        relative_sections = [METADATA_KEY, "pipeline_config"]
 
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
@@ -950,7 +951,7 @@ class Project(AttMap):
                 self.compute.submission_template)
 
         # Required variables check
-        if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
+        if not hasattr(self[METADATA_KEY], SAMPLE_ANNOTATIONS_KEY):
             self.metadata.sample_annotation = None
 
 
