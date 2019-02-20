@@ -70,7 +70,7 @@ from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, is_url, non_null_value, \
-    warn_derived_cols, warn_implied_cols
+    safely_update, warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -539,29 +539,12 @@ class Project(AttMap):
         :param str subproject: A string with a subproject name to be activated
         :return peppy.Project: Updated Project instance
         """
-
-        def empty(x):
-            return x is None or (isinstance(x, Sized) and len(x) == 0)
-
         previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
-
         conf_file = self.config_file
         self.__init__(conf_file, subproject)
-
         for k, v in previous:
-            if k not in self or empty(self[k]):
-                _LOGGER.debug("Restoring {}: {}".format(k, v))
+            if k not in self or (self.is_null(k) and v is not None):
                 self[k] = v
-            elif isinstance(v, Mapping):
-                try:
-                    self[k].update(v)
-                except Exception as e:
-                    _LOGGER.error(
-                        "Failed to merge previous mapping with new value for "
-                        "key '{}': {}".format(k, e.message))
-                else:
-                    _LOGGER.debug("Merged mappings for key: {}".format(k))\
-
         return self
 
     def get_samples(self, sample_names):
