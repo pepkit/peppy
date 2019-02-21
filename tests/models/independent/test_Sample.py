@@ -353,10 +353,6 @@ class LocateDataSourceTests:
             {SAMPLE_NAME_COLNAME: "random-sample",
              "prj": prj_data, colname: src_key})
         s = Sample(sample_data)
-        # DEBUG
-        print(s.prj)
-        print(sample_data)
-        print("type(s.prj['data_sources']): {}".format(type(s.prj['data_sources'])))
         data_sources = s.prj.data_sources if include_data_sources else None
         path = s.locate_data_source(
                 data_sources, column_name=colname, source_key=src_key)
