@@ -129,9 +129,6 @@ class Project(AttMap):
     :type config_file: str
     :param subproject: Subproject to use within configuration file, optional
     :type subproject: str
-    :param default_compute: Configuration file (YAML) for
-        default compute settings.
-    :type default_compute: str
     :param dry: If dry mode is activated, no directories
         will be created upon project instantiation.
     :type dry: bool
