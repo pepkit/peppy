@@ -277,16 +277,6 @@ class Project(AttMap):
         super(Project, self).__setitem__(key, value)
 
     @property
-    def compute_env_var(self):
-        """
-        Environment variable through which to access compute settings.
-
-        :return str: name of the environment variable to pointing to
-            compute settings
-        """
-        return COMPUTE_SETTINGS_VARNAME
-
-    @property
     def constants(self):
         """
         Return key-value pairs of pan-Sample constants for this Project.
