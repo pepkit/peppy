@@ -13,8 +13,6 @@ Changelog
 
     - Begin using the ``attmap`` project for implementation of what's been called ``AttributeDict``.
 
-
-   
   - New
   
     - Add ``selector_attribute`` parameter to ``fetch_samples`` function to enable more general applicability.
@@ -29,7 +27,9 @@ Changelog
     - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
 
     - ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.
-  
+
+    - use ``divvy`` for computing environment configuration
+
   - New
     
     - Added ``activate_subproject`` method to ``Project``.
