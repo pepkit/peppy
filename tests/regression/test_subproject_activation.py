@@ -70,6 +70,6 @@ class SubprojectSampleAnnotationTests:
         """ Subproject's sample annotation file pointer replaces original. """
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
             p = Project(conf_file)
-        p.activate_subproject(_SP_NAME)
+            p.activate_subproject(_SP_NAME)
         _, anns_file = os.path.split(p.metadata.sample_annotation)
         assert _CHILD_ANNS == anns_file
