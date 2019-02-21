@@ -74,6 +74,8 @@ from .utils import \
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
+OLD_PIPES_KEY = "pipelines_dir"
+NEW_PIPES_KEY = "pipeline_interfaces"
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
@@ -224,8 +226,8 @@ class Project(AttMap):
         # SampleSheet creation populates project's samples, adds the
         # sheet itself, and adds any derived columns.
         _LOGGER.debug("Processing {} pipeline location(s): {}".
-                      format(len(self.metadata.pipelines_dir),
-                             self.metadata.pipelines_dir))
+                      format(len(self.metadata.pipeline_interfaces),
+                             self.metadata.pipeline_interfaces))
 
         path_anns_file = self.metadata.sample_annotation
         if path_anns_file:
@@ -274,6 +276,8 @@ class Project(AttMap):
         elif key == "implied_columns":
             warn_implied_cols()
             key = IMPLICATIONS_DECLARATION
+        elif key == METADATA_KEY:
+            value = _Metadata(value)
         super(Project, self).__setitem__(key, value)
 
     @property
@@ -521,7 +525,6 @@ class Project(AttMap):
                           len(skipped), ", ".join(known), msg_data)
         return pd.DataFrame(selector_include)
 
-
     def _check_unique_samples(self):
         """ Handle scenario in which sample names are not unique. """
         # Defining this here but then calling out to the repeats counter has
@@ -534,7 +537,6 @@ class Project(AttMap):
             hist_text = "\n".join(
                 "{}: {}".format(name, n) for name, n in repeats.items())
             _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
-
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
@@ -551,18 +553,12 @@ class Project(AttMap):
             can't be interpreted as a single path or as a flat collection
             of path(s)
         """
-
-        # TODO: check for local pipelines or those from environment.
-
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             try:
-                # TODO: beware of AttMap with _attribute_identity = True
-                #  here, as that may return 'pipelines_dir' name itself.
-                pipe_path = self.metadata.pipelines_dir
+                pipe_path = self.metadata.pipeline_interfaces
             except AttributeError:
                 pipe_path = []
-
         # Ensure we're working with a flattened list.
         if isinstance(pipe_path, str):
             pipe_path = [pipe_path]
@@ -573,9 +569,7 @@ class Project(AttMap):
             _LOGGER.debug("Got {} as pipelines path(s) ({})".
                           format(pipe_path, type(pipe_path)))
             pipe_path = []
-
-        self.metadata.pipelines_dir = pipe_path
-
+        self.metadata.pipeline_interfaces = pipe_path
 
     def get_arg_string(self, pipeline_name):
         """
@@ -779,28 +773,6 @@ class Project(AttMap):
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
 
-        # In looper 0.6, we added pipeline_interfaces to metadata
-        # For backwards compatibility, merge it with pipelines_dir
-
-        if METADATA_KEY in config:
-            if "pipelines_dir" in self.metadata:
-                _LOGGER.warning("Looper v0.6 suggests "
-                                "switching from pipelines_dir to "
-                                "pipeline_interfaces. See docs for details: "
-                                "https://pepkit.github.io/docs/home/")
-            if "pipeline_interfaces" in self.metadata:
-                if "pipelines_dir" in self.metadata:
-                    raise AttributeError(
-                        "You defined both 'pipeline_interfaces' and "
-                        "'pipelines_dir'. Please remove your "
-                        "'pipelines_dir' definition.")
-                else:
-                    self.metadata.pipelines_dir = \
-                        self.metadata.pipeline_interfaces
-                _LOGGER.debug("Adding pipeline_interfaces to "
-                              "pipelines_dir. New value: {}".
-                              format(self.metadata.pipelines_dir))
-
         self._constants = config.get("constants", dict())
 
         # Ensure required absolute paths are present and absolute.
@@ -826,9 +798,9 @@ class Project(AttMap):
         for key, value in config_vars.items():
             if hasattr(self.metadata, key):
                 if not os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key,
-                            os.path.join(self.output_dir,
-                                          getattr(self.metadata, key)))
+                    v = os.path.join(
+                            self.output_dir, getattr(self.metadata, key))
+                    setattr(self.metadata, key, v)
             else:
                 outpath = os.path.join(self.output_dir, value)
                 setattr(self.metadata, key, outpath)
@@ -960,11 +932,6 @@ class Project(AttMap):
                 "a sample sheet, but if it does the file must exist."
                 .format(sheetfile))
 
-    @property
-    def _lower_type_bound(self):
-        """ Type to which convert stored Mappings """
-        return AttMap
-
     @staticmethod
     def _omit_from_repr(k, cls):
         """
@@ -985,7 +952,6 @@ class Project(AttMap):
             cls.__name__ if isinstance(cls, type) else cls, [])
 
 
-
 def suggest_implied_attributes(prj):
     """
     If given project contains what could be implied attributes, suggest that.
@@ -1001,3 +967,26 @@ def suggest_implied_attributes(prj):
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
 
 
+class _Metadata(AttMap):
+    """ Project section with important information """
+
+    def __getattr__(self, item, default=None):
+        """ Reference the new attribute and warn about deprecation. """
+        if item == OLD_PIPES_KEY:
+            _warn_pipes_deprecation()
+            item = NEW_PIPES_KEY
+        return super(_Metadata, self).__getattr__(item, default=None)
+
+    def __setitem__(self, key, value):
+        """ Store the new key and warn about deprecation. """
+        if key == OLD_PIPES_KEY:
+            _warn_pipes_deprecation()
+            key = NEW_PIPES_KEY
+        return super(_Metadata, self).__setitem__(key, value)
+
+
+def _warn_pipes_deprecation():
+    """ Handle messaging regarding pipelines pointer deprecation. """
+    msg = "Use of {} is deprecated; favor {}".\
+        format(OLD_PIPES_KEY, NEW_PIPES_KEY)
+    warnings.warn(msg, DeprecationWarning)
