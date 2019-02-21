@@ -10,9 +10,11 @@ import pandas as pd
 import pytest
 import yaml
 
-from peppy import \
-        Project, Sample, \
-        SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from peppy import Project, Sample, \
+    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from peppy.const import METADATA_KEY
+from peppy.sample import PRJ_REF
+from tests.helpers import randomize_filename
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -271,3 +273,57 @@ def project(request, tmpdir, env_config_filepath):
 
 
 
+class SampleTextTests:
+    """ Tests for representation of sample as text """
+
+    _SAMPLE_LINES = [
+        "sample_name,library,file"
+        "frog_1,anySampleType,frog1_data.txt"
+        "frog_2,anySampleType,frog2_data.txt"
+        "frog_3,anySampleType,frog3_data.txt"
+        "frog_4,anySampleType,frog4_data.txt"
+    ]
+
+    _ANNS_NAME = "sample_annotation.csv"
+
+    _PRJ_DATA = {
+        METADATA_KEY: {
+            SAMPLE_ANNOTATIONS_KEY: _ANNS_NAME,
+            "output_dir": os.path.join("$HOME", "hello_looper_results"),
+            "pipeline_interfaces": "$HOME/pipelines/pipeline_interface.yaml"
+        }
+    }
+
+    @pytest.fixture(scope="function")
+    def sample_lines(self):
+        """ Provide test case with lines for sample sheet / anns file. """
+        return copy.copy(self._SAMPLE_LINES)
+
+    @pytest.fixture(scope="function")
+    def prj_data(self):
+        """ Provide test case with lines for project config file. """
+        return copy.deepcopy(self._PRJ_DATA)
+
+    @staticmethod
+    def _write_lines(fp, lines):
+        with open(fp, 'w') as f:
+            f.write(os.linesep.join(lines))
+
+    @pytest.fixture(scope="function")
+    def prj(self, tmpdir, prj_data, sample_lines):
+        conf = tmpdir.join(randomize_filename()).strpath
+        anns = tmpdir.join(self._ANNS_NAME).strpath
+        with open(conf, 'w') as f:
+            yaml.dump(prj_data, f)
+        self._write_lines(anns, sample_lines)
+        assert os.path.isfile(conf), "Missing proj conf: {}".format(conf)
+        assert os.path.isfile(anns), "Missing annotations: {}".format(anns)
+        return Project(conf)
+
+    @pytest.mark.parametrize("func", [repr, str])
+    def test_sample_text_excludes_project_reference(self, func, prj):
+        """ Text representation of a Sample does not include its Project ref. """
+        assert len(prj.samples) > 0, "No samples"    # precondition
+        for s in prj.samples:
+            assert PRJ_REF in s
+            assert PRJ_REF not in func(s)

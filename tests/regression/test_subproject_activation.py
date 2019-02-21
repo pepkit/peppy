@@ -2,14 +2,12 @@
 
 import mock
 import os
-import random
-import string
 import pytest
 import yaml
 from peppy import Project
 from peppy import SAMPLE_ANNOTATIONS_KEY
 from peppy.const import METADATA_KEY
-
+from tests.helpers import randomize_filename
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -21,6 +19,7 @@ _SP_NAME = "dog"
 
 
 def touch(folder, name):
+    """ In provided folder, create empty file with given name. """
     fp = os.path.join(folder, name)
     with open(fp, 'w'):
         return fp
@@ -47,8 +46,7 @@ def conf_data(tmpdir):
 @pytest.fixture(scope="function")
 def conf_file(tmpdir, conf_data):
     """ Write project config data to a tempfile and provide the filepath. """
-    conf = tmpdir.join("".join(
-        [random.choice(string.ascii_letters) for _ in range(20)])).strpath
+    conf = tmpdir.join(randomize_filename(n_char=20)).strpath
     with open(conf, 'w') as f:
         yaml.dump(conf_data, f)
     return conf
