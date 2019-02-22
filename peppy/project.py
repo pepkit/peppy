@@ -415,7 +415,7 @@ class Project(AttMap):
 
         :return str: path to folder with default submission templates
         """
-        return os.path.join(os.path.dirname(__file__), "submit_templates")
+        return self.dcc.templates_folder
 
     def infer_name(self):
         """
