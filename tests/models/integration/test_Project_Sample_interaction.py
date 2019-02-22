@@ -61,12 +61,10 @@ def pytest_generate_tests(metafunc):
             metafunc.parametrize(argnames="delimiter", argvalues=[",", "\t"])
 
 
-
 @pytest.fixture(scope="function")
 def proj_conf():
     """ Provide the basic configuration data. """
     return copy.deepcopy(PROJECT_CONFIG_DATA)
-
 
 
 @pytest.fixture(scope="function")
@@ -76,7 +74,6 @@ def path_proj_conf_file(tmpdir, proj_conf):
     with open(conf_path, 'w') as conf:
         yaml.safe_dump(proj_conf, conf)
     return conf_path
-
 
 
 @pytest.fixture(scope="function")
@@ -92,31 +89,28 @@ def path_anns_file(request, tmpdir, sample_sheet):
     return filepath
 
 
-
 @pytest.fixture(scope="function")
 def samples_rawdata():
+    """ Proovide test case with raw data defining a collection of samples. """
     return copy.deepcopy(DATA)
-
 
 
 @pytest.fixture(scope="function")
 def sample_sheet(samples_rawdata):
+    """ Provide a test case with a DataFrame representing a sample sheet. """
     df = pd.DataFrame(samples_rawdata)
     df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", PROTOCOL_COLNAME]
     return df
 
 
-
 @pytest.mark.usefixtures("write_project_files")
 class SampleSheetAttrTests:
     """ Tests of properties of sample sheet attributes on a sample """
-
     def test_sheet_attr_order(self, proj):
         """ The sample's sheet attributes are ordered. """
         s = Sample(proj.sheet.iloc[0])
         d = s.get_sheet_dict()
         assert SAMPLE_NAME_COLNAME == list(d)[0]
-
 
 
 def test_samples_are_generic(path_anns_file, path_proj_conf_file):
@@ -128,7 +122,6 @@ def test_samples_are_generic(path_anns_file, path_proj_conf_file):
     samples = list(p.samples)
     assert p.num_samples == len(samples)
     assert all([Sample is type(s) for s in samples])
-
 
 
 class BuildSheetTests:
@@ -207,7 +200,6 @@ class BuildSheetTests:
             assert as_expected(sample_data)
 
 
-
 class SampleFolderCreationTests:
     """ Tests for interaction between Project and Sample. """
 
@@ -235,7 +227,6 @@ class SampleFolderCreationTests:
         for s in project.samples:
             s.make_sample_dirs()
             assert all([os.path.exists(path) for path in s.paths])
-
 
 
 @pytest.fixture(scope="function")
@@ -270,7 +261,6 @@ def project(request, tmpdir, env_config_filepath):
         yaml.safe_dump(config_data, conf_file)
 
     return Project(conf_path)
-
 
 
 class SampleTextTests:
