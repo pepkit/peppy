@@ -178,10 +178,8 @@ class Project(AttMap):
                       self.__class__.__name__, config_file)
         super(Project, self).__init__()
 
-        dcc = ComputingConfiguration(config_file=compute_env_file, no_env_error=no_environment_exception,
-                                     no_compute_exception=no_compute_exception)
-
-        self.compute = dcc.compute
+        self.dcc = ComputingConfiguration(config_file=compute_env_file, no_env_error=no_environment_exception,
+                                          no_compute_exception=no_compute_exception)
         self.permissive = permissive
         self.file_checks = file_checks
 
@@ -835,7 +833,7 @@ class Project(AttMap):
                 _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
                 setattr(relative_vars, var, absolute)
 
-        if self.compute is None:
+        if self.dcc.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
 
         # Required variables check
