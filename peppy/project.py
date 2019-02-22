@@ -618,7 +618,6 @@ class Project(AttMap):
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
 
-
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -634,7 +633,6 @@ class Project(AttMap):
                 except OSError as e:
                     _LOGGER.warning("Could not create project folder: '%s'",
                                  str(e))
-
 
     def _set_basic_samples(self):
         """ Build the base Sample objects from the annotations sheet data. """
@@ -670,7 +668,6 @@ class Project(AttMap):
         # Set samples and handle non-unique names situation.
         self._samples = self._prep_samples()
         self._check_unique_samples()
-
 
     def _prep_samples(self):
         """
@@ -709,7 +706,6 @@ class Project(AttMap):
             samples.append(sample)
 
         return samples
-
 
     def parse_config_file(self, subproject=None):
         """
@@ -840,7 +836,6 @@ class Project(AttMap):
         if not hasattr(self[METADATA_KEY], SAMPLE_ANNOTATIONS_KEY):
             self.metadata.sample_annotation = None
 
-
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """
         try:
@@ -849,7 +844,6 @@ class Project(AttMap):
             # This currently does not fail now
             # ("cannot change folder's mode: %s" % d)
             pass
-
 
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
@@ -876,7 +870,6 @@ class Project(AttMap):
         _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
-
 
     @staticmethod
     def parse_sample_sheet(sample_file, dtype=str):
@@ -911,7 +904,6 @@ class Project(AttMap):
                                         ", ".join(list(df.columns))))
         return df
 
-
     class MissingMetadataException(PeppyError):
         """ Project needs certain metadata. """
         def __init__(self, missing_section, path_config_file=None):
@@ -920,7 +912,6 @@ class Project(AttMap):
             if path_config_file:
                 reason += "; used config file '{}'".format(path_config_file)
             super(Project.MissingMetadataException, self).__init__(reason)
-
 
     class MissingSampleSheetError(PeppyError):
         """ Represent case in which sample sheet is specified but nonexistent. """
