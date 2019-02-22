@@ -43,7 +43,6 @@ DATA_FOR_SAMPLES = [
 PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": NAME_ANNOTATIONS_FILE}}
 
 
-
 def pytest_generate_tests(metafunc):
     """ Customization of test cases within this module. """
     protos = ["WGBS", "ATAC"]
@@ -267,10 +266,10 @@ class SampleTextTests:
     """ Tests for representation of sample as text """
 
     _SAMPLE_LINES = [
-        "sample_name,library,file"
-        "frog_1,anySampleType,frog1_data.txt"
-        "frog_2,anySampleType,frog2_data.txt"
-        "frog_3,anySampleType,frog3_data.txt"
+        "sample_name,library,file",
+        "frog_1,anySampleType,frog1_data.txt",
+        "frog_2,anySampleType,frog2_data.txt",
+        "frog_3,anySampleType,frog3_data.txt",
         "frog_4,anySampleType,frog4_data.txt"
     ]
 
