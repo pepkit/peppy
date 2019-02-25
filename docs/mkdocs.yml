@@ -19,8 +19,8 @@ nav:
     - Pipeline interface: pipeline-interface.md
     - Project configuration: project-config.md
     - Sample annotation sheet: sample-annotation-sheet.md
-  #- API: autodoc_build/peppy_oradoc.md
-  - API: autodoc_build/peppy_pydoc.md
+  - API: autodoc_build/peppy_oradoc.md
+  #- API: autodoc_build/peppy_pydoc.md
   #  - Project: autodoc_build/project.md
   #  - Sample: autodoc_build/sample.md
   #  - Tools: autodoc_build/utils.md
