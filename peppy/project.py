@@ -763,6 +763,7 @@ class Project(AttMap):
                     subproject, ", ".join([sp for sp in config["subprojects"]])))
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
+            self._subproject = subproject
         elif subproject:
             _LOGGER.warning("Subproject {} requested but no subprojects "
                          "are defined".format(subproject))
