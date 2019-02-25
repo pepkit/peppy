@@ -27,7 +27,7 @@ __email__ = "vreuter@virginia.edu"
 
 
 _GENOMES = {"human": "hg19", "mouse": "mm10"}
-_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
+_TRANSCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
 
 
 
@@ -159,22 +159,20 @@ class ProjectRequirementsTests:
         # Write the (sans-annotations) config and assert Project is created.
         conf_path = _write_project_config(
             project_config_data, dirpath=tmpdir.strpath)
-        prj = Project(conf_path, default_compute=env_config_filepath)
+        prj = Project(conf_path)
         assert isinstance(prj, Project)
 
 
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
-        Project(config_file=minimal_project_conf_path,
-                default_compute=env_config_filepath)
+        Project(config_file=minimal_project_conf_path)
 
 
     def test_minimal_configuration_name_inference(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
         """ Project infers name from where its configuration lives. """
-        project = Project(minimal_project_conf_path,
-                          default_compute=env_config_filepath)
+        project = Project(minimal_project_conf_path)
         _, expected_name = os.path.split(tmpdir.strpath)
         assert expected_name == project.name
 
@@ -182,147 +180,8 @@ class ProjectRequirementsTests:
     def test_minimal_configuration_output_dir(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
         """ Project infers output path from its configuration location. """
-        project = Project(minimal_project_conf_path,
-                          default_compute=env_config_filepath)
+        project = Project(minimal_project_conf_path)
         assert tmpdir.strpath == project.output_dir
-
-
-
-class ProjectDefaultEnvironmentSettingsTests:
-    """ Project can use default environment settings but doesn't need them. """
-
-    # Base/default environment data to write to disk
-    ENVIRONMENT_CONFIG_DATA = {"compute": {
-        "default": {
-            "submission_template": "templates/slurm_template.sub",
-            "submission_command": "sbatch",
-            "partition": "serial"},
-        "local": {
-            "submission_template": "templates/localhost_template.sub",
-            "submission_command": "sh"}
-    }}
-
-
-    @pytest.mark.parametrize(
-            argnames="explicit_null", argvalues=[False, True],
-            ids=lambda explicit_null: "explicit_null={}".format(explicit_null))
-    @pytest.mark.parametrize(
-            argnames="compute_env_attname",
-            argvalues=["environment", "environment_file", "compute"],
-            ids=lambda attr: "attr={}".format(attr))
-    def test_no_default_env_settings_provided(
-            self, minimal_project_conf_path,
-            explicit_null, compute_env_attname):
-        """ Project doesn't require default environment settings. """
-
-        kwargs = {"default_compute": None} if explicit_null else {}
-        project = Project(minimal_project_conf_path, **kwargs)
-
-        observed_attribute = getattr(project, compute_env_attname)
-        expected_attribute = \
-                self.default_compute_settings(project)[compute_env_attname]
-
-        if compute_env_attname == "compute":
-            # 'compute' refers to a section in the default environment
-            # settings file and also to a Project attribute. A Project
-            # instance selects just one of the options in the 'compute'
-            # section of the file as the value for its 'compute' attribute.
-            expected_attribute = expected_attribute["default"]
-            observed_attribute = _compute_paths_to_names(observed_attribute)
-        elif compute_env_attname == "environment":
-            envs_with_reduced_filepaths = \
-                    _env_paths_to_names(observed_attribute["compute"])
-            observed_attribute = AttMap(
-                    {"compute": envs_with_reduced_filepaths})
-
-        assert expected_attribute == observed_attribute
-
-
-    @pytest.mark.parametrize(
-            argnames="envconf_filename",
-            argvalues=["arbitrary-envconf.yaml",
-                       "nonexistent_environment.yaml"])
-    def test_nonexistent_env_settings_file(
-            self, tmpdir, minimal_project_conf_path,
-            env_config_filepath, envconf_filename):
-        """ Project doesn't require default environment settings. """
-
-        # Create name to nonexistent file based on true default file.
-        envconf_dirpath, _ = os.path.split(env_config_filepath)
-        misnamed_envconf = os.path.join(envconf_dirpath, envconf_filename)
-
-        # Create and add log message handler for expected errors.
-        log = tmpdir.join("project-error-messages.log").strpath
-        logview = TempLogFileHandler(log, level=logging.ERROR)
-
-        with logview:
-            # Create Project, expecting to generate error messages.
-            project = Project(
-                minimal_project_conf_path, default_compute=misnamed_envconf)
-
-        # Ensure nulls for all relevant Project attributes.
-        self._assert_null_compute_environment(project)
-
-        # We should have two error messages, describing the exception caught
-        # during default environment parsing and that it couldn't be set.
-        exception_messages = logview.messages
-        assert 2 == len(exception_messages), \
-            "Exception messages: {}".format(exception_messages)
-
-
-    def test_project_environment_uses_default_environment_settings(
-            self, project, expected_environment):
-        """ Project updates environment settings if given extant file. """
-        assert expected_environment == project.environment
-
-
-    def test_project_compute_uses_default_environment_settings(
-            self, project, expected_environment):
-        """ Project parses out 'default' environment settings as 'compute'. """
-        assert project.compute == expected_environment["compute"]["default"]
-
-
-    @pytest.fixture(scope="function")
-    def project(self, tmpdir, minimal_project_conf_path):
-        """ Create a Project with base/default environment. """
-        # Write base/default environment data to disk.
-        env_config_filename = "env-conf.yaml"
-        env_config_filepath = tmpdir.join(env_config_filename).strpath
-        with open(env_config_filepath, 'w') as env_conf:
-            yaml.safe_dump(self.ENVIRONMENT_CONFIG_DATA, env_conf)
-        return Project(minimal_project_conf_path,
-                          default_compute=env_config_filepath)
-
-
-    @pytest.fixture(scope="function")
-    def expected_environment(self, tmpdir):
-        """ Derive Project's expected base/default environment. """
-        # Expand submission template paths in expected environment.
-        expected_environment = copy.deepcopy(self.ENVIRONMENT_CONFIG_DATA)
-        for envname, envdata in self.ENVIRONMENT_CONFIG_DATA[
-            "compute"].items():
-            base_submit_template = envdata["submission_template"]
-            expected_environment["compute"][envname]["submission_template"] = \
-                os.path.join(tmpdir.strpath, base_submit_template)
-        return expected_environment
-
-
-    @staticmethod
-    def _assert_null_compute_environment(project):
-        assert project.environment is None
-        assert project.environment_file is None
-        assert project.compute is None
-
-
-    @staticmethod
-    def default_compute_settings(project):
-        settings_filepath = project.default_compute_envfile
-        with open(settings_filepath, 'r') as settings_data_file:
-            settings = yaml.safe_load(settings_data_file)
-        return {"environment": copy.deepcopy(settings),
-                "environment_file": settings_filepath,
-                "compute": copy.deepcopy(settings)["compute"]}
-
 
 
 class DerivedAttributesTests:
@@ -333,7 +192,7 @@ class DerivedAttributesTests:
 
 
     def create_project(
-            self, project_config_data, default_env_path, case_type, dirpath):
+            self, project_config_data, case_type, dirpath):
         """
         For a test case, determine expectations and create Project instance.
         
@@ -373,7 +232,7 @@ class DerivedAttributesTests:
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
-            project = Project(conf_file_path, default_compute=default_env_path)
+            project = Project(conf_file_path)
         return expected_derived_attributes, project
 
 
@@ -384,7 +243,6 @@ class DerivedAttributesTests:
 
         expected_derived_attributes, project = self.create_project(
                 project_config_data=project_config_data,
-                default_env_path=env_config_filepath,
                 case_type=case_type, dirpath=tmpdir.strpath)
 
         # Rough approximation of order-agnostic validation of
@@ -399,7 +257,6 @@ class DerivedAttributesTests:
         from collections import Counter
         _, project = self.create_project(
                 project_config_data=project_config_data,
-                default_env_path=env_config_filepath,
                 case_type=case_type, dirpath=tmpdir.strpath)
         num_occ_by_derived_attribute = Counter(project.derived_attributes)
         for default_derived_colname in Project.DERIVED_ATTRIBUTES_DEFAULT:
@@ -586,7 +443,7 @@ class ProjectPipelineArgstringTests:
 
         # Subvert requirement for sample annotations file.
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
-            project = Project(conf_file_path, default_compute=envpath)
+            project = Project(conf_file_path)
 
         argstring = project.get_arg_string(pipeline)
         return argstring.split(" ")
@@ -812,8 +669,8 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize(
         "ideally_implied_mappings",
-        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
-         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
+        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES},
+         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES}])
     def test_suggests_implied_attributes(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, ideally_implied_mappings):
@@ -847,9 +704,9 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize("assembly_implications",
         [{"genome": {"organism": _GENOMES}},
-         {"transcriptome": {"organism": _TRASCRIPTOMES}},
+         {"transcriptome": {"organism": _TRANSCRIPTOMES}},
          {"genome": {"organism": _GENOMES},
-           "transcriptome": {"organism": _TRASCRIPTOMES}}])
+           "transcriptome": {"organism": _TRANSCRIPTOMES}}])
     def test_no_warning_if_assemblies_are_implied(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, assembly_implications):

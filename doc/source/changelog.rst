@@ -5,12 +5,14 @@ Changelog
 
   - Changed
 
-    - make the the attribute value matching is more strict -- require perfect match.
+    - Make the attribute value matching more strict (require perfect match.)
     
-    - change the paramater names: ``exclude_samples`` and ``include_samples`` to ``selector_exclude`` and ``selector_include``, respectively
+    - Change the parameter names: ``exclude_samples`` and ``include_samples`` to ``selector_exclude`` and ``selector_include``, respectively.
 
     - Remove Python 3.4 support.
-   
+
+    - Begin using the ``attmap`` project for implementation of what's been called ``AttributeDict``.
+
   - New
   
     - Add ``selector_attribute`` parameter to ``fetch_samples`` function to enable more general applicability.
@@ -25,7 +27,9 @@ Changelog
     - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
 
     - ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.
-  
+
+    - use ``divvy`` for computing environment configuration
+
   - New
     
     - Added ``activate_subproject`` method to ``Project``.

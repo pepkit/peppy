@@ -24,7 +24,6 @@ from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 _LOGGER = logging.getLogger(__name__)
 
 
-
 def add_project_sample_constants(sample, project):
     """
     Update a Sample with constants declared by a Project.
@@ -38,7 +37,6 @@ def add_project_sample_constants(sample, project):
     """
     sample.update(project.constants)
     return sample
-
 
 
 def check_bam(bam, o):
@@ -245,7 +243,6 @@ def grab_project_data(prj):
     return data
 
 
-
 def has_null_value(k, m):
     """
     Determine whether a mapping has a null value for a given key.
@@ -254,8 +251,7 @@ def has_null_value(k, m):
     :param Mapping m: Mapping to test for null value for given key
     :return bool: Whether given mapping contains given key with null value
     """
-    return k in m and _is_null(m[k])
-
+    return k in m and is_null_like(m[k])
 
 
 def import_from_source(module_filepath):
@@ -296,6 +292,16 @@ def import_from_source(module_filepath):
     return mod
 
 
+def is_null_like(x):
+    """
+    Determine whether an object is effectively null.
+
+    :param object x: Object for which null likeness is to be determined.
+    :return bool: Whether given object is effectively "null."
+    """
+    return x in [None, ""] or \
+        (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
+
 
 def is_url(maybe_url):
     """
@@ -307,7 +313,6 @@ def is_url(maybe_url):
     return urlparse(maybe_url).scheme != ""
 
 
-
 def non_null_value(k, m):
     """
     Determine whether a mapping has a non-null value for a given key.
@@ -316,8 +321,7 @@ def non_null_value(k, m):
     :param Mapping m: Mapping to test for non-null value for given key
     :return bool: Whether given mapping contains given key with non-null value
     """
-    return k in m and not _is_null(m[k])
-
+    return k in m and not is_null_like(m[k])
 
 
 def parse_ftype(input_file):
@@ -338,7 +342,6 @@ def parse_ftype(input_file):
     else:
         raise TypeError("Type of input file ends in neither '.bam' "
                         "nor '.fastq' [file: '" + input_file + "']")
-
 
 
 def parse_text_data(lines_or_path, delimiter=os.linesep):
@@ -369,7 +372,6 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
                          format(lines_or_path, type(lines_or_path)))
 
 
-
 def sample_folder(prj, sample):
     """
     Get the path to this Project's root folder for the given Sample.
@@ -381,7 +383,6 @@ def sample_folder(prj, sample):
     """
     return os.path.join(prj.metadata.results_subdir,
                         sample["sample_name"])
-
 
 
 @contextlib.contextmanager
@@ -404,7 +405,6 @@ def standard_stream_redirector(stream):
         sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
 
 
-
 def warn_derived_cols():
     """ Produce deprecation warning about derived columns. """
     _warn_cols_to_attrs("derived")
@@ -413,11 +413,6 @@ def warn_derived_cols():
 def warn_implied_cols():
     """ Produce deprecation warning about implied columns. """
     _warn_cols_to_attrs("implied")
-
-
-def _is_null(x):
-    """ Whether an object is effectively null """
-    return x in [None, ""] or (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
 def _warn_cols_to_attrs(prefix):
@@ -444,7 +439,6 @@ class CommandChecker(object):
     :type sections_to_skip: Iterable[str]
 
     """
-
 
     def __init__(self, path_conf_file,
                  sections_to_check=None, sections_to_skip=None):
@@ -511,7 +505,6 @@ class CommandChecker(object):
                     self._logger.debug("Command '%s': %s", command,
                                        "SUCCESS" if success else "FAILURE")
 
-
     def _store_status(self, section, command, name):
         """
         Based on new command execution attempt, update instance's
@@ -526,7 +519,6 @@ class CommandChecker(object):
             self.failures_by_section[section].append(command)
             self.failures.add(command)
         return succeeded
-
 
     @property
     def failed(self):
@@ -543,7 +535,6 @@ class CommandChecker(object):
         if not self.section_to_status_by_command:
             raise ValueError("No commands validated")
         return 0 == len(self.failures)
-
 
 
 def is_command_callable(command, name=""):
