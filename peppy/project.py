@@ -182,6 +182,9 @@ class Project(AttMap):
                                           no_compute_exception=no_compute_exception)
         self.permissive = permissive
         self.file_checks = file_checks
+        # pre populate the subproject attribute, it remains the same if subprojects are not activated
+        # is changed when activate_subroject method is called
+        self._subproject = None
 
         # Include the path to the config file.
         self.config_file = os.path.abspath(config_file)
@@ -277,6 +280,28 @@ class Project(AttMap):
         elif key == METADATA_KEY:
             value = _Metadata(value)
         super(Project, self).__setitem__(key, value)
+
+
+    @property
+    def subproject(self):
+        """
+        Return currently active subproject or None if none was activated
+
+        :return: currently active subproject
+        :rtype: str
+        """
+        return self._subproject
+
+    @subproject.setter
+    def subproject(self, sp):
+        """
+        Set the subproject property value
+
+        :param str sp: value to be assigned to the subproject attribute
+        :return: name of the subproject
+        :rtype: str
+        """
+        self._subproject = sp
 
     @property
     def constants(self):
@@ -483,6 +508,7 @@ class Project(AttMap):
         for k, v in previous:
             if k not in self or (self.is_null(k) and v is not None):
                 self[k] = v
+        self.subproject = subproject
         return self
 
     def get_samples(self, sample_names):
