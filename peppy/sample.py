@@ -24,6 +24,7 @@ from .utils import check_bam, check_fastq, copy, get_file_size, \
     grab_project_data, parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
+PRJ_REF = "prj"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class Sample(AttMap):
             data["protocol"] = protocol
         super(Sample, self).__init__(entries=data)
 
-        if "prj" in self and prj:
+        if PRJ_REF in self and prj:
             _LOGGER.warn("Project provided both directly and indirectly; "
                          "using direct")
         if prj:
@@ -131,8 +132,15 @@ class Sample(AttMap):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
+    @staticmethod
+    def _omit_from_repr(k, cls):
+        """ Exclude the Project reference from representation. """
+        # TODO: better solution for this cyclical dependency hack
+        return k == PRJ_REF
+
     def __setitem__(self, key, value):
-        if self._is_prj(value):
+        # TODO: better solution for this cyclical dependency hack
+        if value.__class__.__name__ == "Project":
             self.__dict__[key] = value
         else:
             super(Sample, self).__setitem__(key, value)
@@ -146,11 +154,6 @@ class Sample(AttMap):
     def __str__(self):
         return "Sample '{}'".format(self.name)
 
-    @staticmethod
-    def _is_prj(obj):
-        # TODO: this is a hacky solution to the circular import problem; fix.
-        return obj.__class__.__name__ == "Project"
-
     @property
     def input_file_paths(self):
         """
@@ -159,7 +162,6 @@ class Sample(AttMap):
         :return list[str]: paths to data sources / input file for this Sample.
         """
         return self.data_source.split(" ") if self.data_source else []
-
 
     def as_series(self):
         """
@@ -171,7 +173,6 @@ class Sample(AttMap):
         # Note that this preserves metadata, but it could be excluded
         # with self.items() rather than self.__dict__.
         return Series(self.__dict__)
-
 
     def check_valid(self, required=None):
         """
@@ -385,8 +386,7 @@ class Sample(AttMap):
 
         :return str: The protocol / NGS library name for this Sample.
         """
-        warnings.warn("Sample 'library' attribute is deprecated; instead, "
-                      "refer to 'protocol'", DeprecationWarning)
+        warnings.warn("Replace 'library' with 'protocol'", DeprecationWarning)
         return self.protocol
 
     def get_subsample(self, subsample_name):
@@ -395,7 +395,7 @@ class Sample(AttMap):
 
         :param str subsample_name: The name of the desired subsample. Should 
             match the subsample_name column in the subannotation sheet.
-        :return Subsample: Requested Subsample object
+        :return peppy.Subsample: Requested Subsample object
         """
         subsamples = self.get_subsamples([subsample_name])
         if len(subsamples) > 1:
@@ -403,9 +403,8 @@ class Sample(AttMap):
         try:
             return subsamples[0]
         except IndexError:
-            raise ValueError(
-                "Sample {sample} has no subsamples named {subsample}.".format(
-                sample=self.name, subsample=subsample_name))
+            raise ValueError("Sample {} has no subsample named {}.".
+                             format(self.name, subsample_name))
 
     def get_subsamples(self, subsample_names):
         """
@@ -843,7 +842,7 @@ class Sample(AttMap):
             """
             if name:
                 _LOGGER.log(5, "Converting to dict: '{}'".format(name))
-            if name == "prj":
+            if name == PRJ_REF:
                 _LOGGER.debug("Attempting to store %s's project data",
                               self.__class__.__name__)
                 prj_data = grab_project_data(obj)
