@@ -292,17 +292,6 @@ class Project(AttMap):
         """
         return self._subproject
 
-    @subproject.setter
-    def subproject(self, sp):
-        """
-        Set the subproject property value
-
-        :param str sp: value to be assigned to the subproject attribute
-        :return: name of the subproject
-        :rtype: str
-        """
-        self._subproject = sp
-
     @property
     def constants(self):
         """
@@ -508,7 +497,7 @@ class Project(AttMap):
         for k, v in previous:
             if k not in self or (self.is_null(k) and v is not None):
                 self[k] = v
-        self.subproject = subproject
+        self._subproject = subproject
         return self
 
     def get_samples(self, sample_names):
