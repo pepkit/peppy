@@ -503,6 +503,9 @@ class Project(AttMap):
         :param str subproject: A string with a subproject name to be activated
         :return peppy.Project: Updated Project instance
         """
+        if subproject is None:
+            raise TypeError("The subproject argument can not be NoneType."
+                            " To deactivate a subproject use the deactivate_subproject method.")
         previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
         conf_file = self.config_file
         self.__init__(conf_file, subproject)
