@@ -52,19 +52,20 @@ import logging
 import os
 import sys
 if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping, Sized
+    from collections import Iterable, Mapping
 else:
-    from collections.abc import Iterable, Mapping, Sized
+    from collections.abc import Iterable, Mapping
 import warnings
 
 import pandas as pd
 import yaml
 
 from attmap import AttMap
+from divvy import ComputingConfiguration
 from .const import \
-    COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
-    DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+    DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
+    IMPLICATIONS_DECLARATION, METADATA_KEY, SAMPLE_ANNOTATIONS_KEY, \
+    SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -73,6 +74,8 @@ from .utils import \
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
+OLD_PIPES_KEY = "pipelines_dir"
+NEW_PIPES_KEY = "pipeline_interfaces"
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
@@ -128,9 +131,6 @@ class Project(AttMap):
     :type config_file: str
     :param subproject: Subproject to use within configuration file, optional
     :type subproject: str
-    :param default_compute: Configuration file (YAML) for
-        default compute settings.
-    :type default_compute: str
     :param dry: If dry mode is activated, no directories
         will be created upon project instantiation.
     :type dry: bool
@@ -169,8 +169,7 @@ class Project(AttMap):
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
-    def __init__(self, config_file, subproject=None,
-                 default_compute=None, dry=False,
+    def __init__(self, config_file, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None,
                  defer_sample_construction=False):
@@ -179,52 +178,13 @@ class Project(AttMap):
                       self.__class__.__name__, config_file)
         super(Project, self).__init__()
 
-        # Initialize local, serial compute as default (no cluster submission)
-        # Start with default environment settings.
-        _LOGGER.debug("Establishing default environment settings")
-        self.environment, self.environment_file = None, None
-
-        try:
-            self.update_environment(
-                default_compute or self.default_compute_envfile)
-        except Exception as e:
-            _LOGGER.error("Can't load environment config file '%s'",
-                          str(default_compute))
-            _LOGGER.error(str(type(e).__name__) + str(e))
-
-        self._handle_missing_env_attrs(
-            default_compute, when_missing=no_environment_exception)
-
-        # Load settings from environment yaml for local compute infrastructure.
-        compute_env_file = compute_env_file or os.getenv(self.compute_env_var)
-        if compute_env_file:
-            if os.path.isfile(compute_env_file):
-                self.update_environment(compute_env_file)
-            else:
-                _LOGGER.warning("Compute env path isn't a file: {}".
-                             format(compute_env_file))
-        else:
-            _LOGGER.info("No compute env file was provided and {} is unset; "
-                         "using default".format(self.compute_env_var))
-
-        # Initialize default compute settings.
-        _LOGGER.debug("Establishing project compute settings")
-        self.compute = None
-        self.set_compute(DEFAULT_COMPUTE_RESOURCES_NAME)
-
-        # Either warn or raise exception if the compute is null.
-        if self.compute is None:
-            message = "Failed to establish project compute settings"
-            if no_compute_exception:
-                no_compute_exception(message)
-            else:
-                _LOGGER.warning(message)
-        else:
-            _LOGGER.debug("Compute: %s", str(self.compute))
-
-        # Optional behavioral parameters
+        self.dcc = ComputingConfiguration(config_file=compute_env_file, no_env_error=no_environment_exception,
+                                          no_compute_exception=no_compute_exception)
         self.permissive = permissive
         self.file_checks = file_checks
+        # pre populate the subproject attribute, it remains the same if subprojects are not activated
+        # is changed when activate_subroject method is called
+        self._subproject = None
 
         # Include the path to the config file.
         self.config_file = os.path.abspath(config_file)
@@ -267,8 +227,8 @@ class Project(AttMap):
         # SampleSheet creation populates project's samples, adds the
         # sheet itself, and adds any derived columns.
         _LOGGER.debug("Processing {} pipeline location(s): {}".
-                      format(len(self.metadata.pipelines_dir),
-                             self.metadata.pipelines_dir))
+                      format(len(self.metadata.pipeline_interfaces),
+                             self.metadata.pipeline_interfaces))
 
         path_anns_file = self.metadata.sample_annotation
         if path_anns_file:
@@ -304,15 +264,33 @@ class Project(AttMap):
         meta_text = super(Project, self).__repr__()
         return "{} -- {}".format(samples_message, meta_text)
 
-    @property
-    def compute_env_var(self):
+    def __setitem__(self, key, value):
         """
-        Environment variable through which to access compute settings.
+        Override here to handle deprecated special-meaning keys.
 
-        :return str: name of the environment variable to pointing to
-            compute settings
+        :param str key: Key to map to given value
+        :param object value: Arbitrary value to bind to given key
         """
-        return COMPUTE_SETTINGS_VARNAME
+        if key == "derived_columns":
+            warn_derived_cols()
+            key = DERIVATIONS_DECLARATION
+        elif key == "implied_columns":
+            warn_implied_cols()
+            key = IMPLICATIONS_DECLARATION
+        elif key == METADATA_KEY:
+            value = _Metadata(value)
+        super(Project, self).__setitem__(key, value)
+
+
+    @property
+    def subproject(self):
+        """
+        Return currently active subproject or None if none was activated
+
+        :return: currently active subproject
+        :rtype: str
+        """
+        return self._subproject
 
     @property
     def constants(self):
@@ -323,17 +301,6 @@ class Project(AttMap):
             of attribute name and attribute value
         """
         return self._constants
-
-    @property
-    def default_compute_envfile(self):
-        """
-        Path to default compute environment settings file.
-
-        :return str: Path to this project's default compute env config file.
-        """
-        return os.path.join(
-            self.templates_folder, "default_compute_settings.yaml")
-
 
     @property
     def derived_columns(self):
@@ -348,7 +315,6 @@ class Project(AttMap):
         except AttributeError:
             return []
 
-
     @property
     def implied_columns(self):
         """
@@ -362,7 +328,6 @@ class Project(AttMap):
         except AttributeError:
             return AttMap()
 
-
     @property
     def num_samples(self):
         """
@@ -371,7 +336,6 @@ class Project(AttMap):
         :return int: number of samples available in this Project.
         """
         return sum(1 for _ in self.sample_names)
-
 
     @property
     def output_dir(self):
@@ -393,7 +357,6 @@ class Project(AttMap):
         except AttributeError:
             return os.path.dirname(self.config_file)
 
-
     @property
     def project_folders(self):
         """
@@ -402,7 +365,6 @@ class Project(AttMap):
         :return Iterable[str]: names of output-nested folders
         """
         return ["results_subdir", "submission_subdir"]
-
 
     @property
     def protocols(self):
@@ -467,7 +429,7 @@ class Project(AttMap):
 
         :return str: path to folder with default submission templates
         """
-        return os.path.join(os.path.dirname(__file__), "submit_templates")
+        return self.dcc.templates_folder
 
     def infer_name(self):
         """
@@ -483,7 +445,7 @@ class Project(AttMap):
             return self.name
         config_folder = os.path.dirname(self.config_file)
         project_name = os.path.basename(config_folder)
-        if project_name == "metadata":
+        if project_name == METADATA_KEY:
             project_name = os.path.basename(os.path.dirname(config_folder))
         return project_name
 
@@ -529,29 +491,13 @@ class Project(AttMap):
         :param str subproject: A string with a subproject name to be activated
         :return peppy.Project: Updated Project instance
         """
-
-        def empty(x):
-            return x is None or (isinstance(x, Sized) and len(x) == 0)
-
         previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
-
         conf_file = self.config_file
         self.__init__(conf_file, subproject)
-
         for k, v in previous:
-            if k not in self or empty(self[k]):
-                _LOGGER.debug("Restoring {}: {}".format(k, v))
+            if k not in self or (self.is_null(k) and v is not None):
                 self[k] = v
-            elif isinstance(v, Mapping):
-                try:
-                    self[k].update(v)
-                except Exception as e:
-                    _LOGGER.error(
-                        "Failed to merge previous mapping with new value for "
-                        "key '{}': {}".format(k, e.message))
-                else:
-                    _LOGGER.debug("Merged mappings for key: {}".format(k))\
-
+        self._subproject = subproject
         return self
 
     def get_samples(self, sample_names):
@@ -592,7 +538,6 @@ class Project(AttMap):
                           len(skipped), ", ".join(known), msg_data)
         return pd.DataFrame(selector_include)
 
-
     def _check_unique_samples(self):
         """ Handle scenario in which sample names are not unique. """
         # Defining this here but then calling out to the repeats counter has
@@ -605,7 +550,6 @@ class Project(AttMap):
             hist_text = "\n".join(
                 "{}: {}".format(name, n) for name, n in repeats.items())
             _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
-
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
@@ -622,18 +566,12 @@ class Project(AttMap):
             can't be interpreted as a single path or as a flat collection
             of path(s)
         """
-
-        # TODO: check for local pipelines or those from environment.
-
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             try:
-                # TODO: beware of AttMap with _attribute_identity = True
-                #  here, as that may return 'pipelines_dir' name itself.
-                pipe_path = self.metadata.pipelines_dir
+                pipe_path = self.metadata.pipeline_interfaces
             except AttributeError:
                 pipe_path = []
-
         # Ensure we're working with a flattened list.
         if isinstance(pipe_path, str):
             pipe_path = [pipe_path]
@@ -644,9 +582,7 @@ class Project(AttMap):
             _LOGGER.debug("Got {} as pipelines path(s) ({})".
                           format(pipe_path, type(pipe_path)))
             pipe_path = []
-
-        self.metadata.pipelines_dir = pipe_path
-
+        self.metadata.pipeline_interfaces = pipe_path
 
     def get_arg_string(self, pipeline_name):
         """
@@ -697,7 +633,6 @@ class Project(AttMap):
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
 
-
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -713,7 +648,6 @@ class Project(AttMap):
                 except OSError as e:
                     _LOGGER.warning("Could not create project folder: '%s'",
                                  str(e))
-
 
     def _set_basic_samples(self):
         """ Build the base Sample objects from the annotations sheet data. """
@@ -749,7 +683,6 @@ class Project(AttMap):
         # Set samples and handle non-unique names situation.
         self._samples = self._prep_samples()
         self._check_unique_samples()
-
 
     def _prep_samples(self):
         """
@@ -789,7 +722,6 @@ class Project(AttMap):
 
         return samples
 
-
     def parse_config_file(self, subproject=None):
         """
         Parse provided yaml config file and check required fields exist.
@@ -803,6 +735,10 @@ class Project(AttMap):
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
+        assert isinstance(config, Mapping), \
+            "Config file parse did not yield a Mapping; got {} ({})".\
+            format(config, type(config))
+
         for msg in suggest_implied_attributes(config):
             warnings.warn(msg, DeprecationWarning)
 
@@ -812,8 +748,8 @@ class Project(AttMap):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
             self.__class__.__name__, config.keys()))
-        _LOGGER.debug("Config metadata: {}".format(config["metadata"]))
-        self.add_entries(config)
+        _LOGGER.debug("Config metadata: {}".format(config[METADATA_KEY]))
+        self.add_entries(AttMap(config))
         _LOGGER.debug("{} now has {} keys: {}".format(
             self.__class__.__name__, len(self.keys()), self.keys()))
 
@@ -829,6 +765,7 @@ class Project(AttMap):
                     subproject, ", ".join([sp for sp in config["subprojects"]])))
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
+            self._subproject = subproject
         elif subproject:
             _LOGGER.warning("Subproject {} requested but no subprojects "
                          "are defined".format(subproject))
@@ -845,28 +782,6 @@ class Project(AttMap):
             self.metadata.add_entries(self.paths)
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
-
-        # In looper 0.6, we added pipeline_interfaces to metadata
-        # For backwards compatibility, merge it with pipelines_dir
-
-        if "metadata" in config:
-            if "pipelines_dir" in self.metadata:
-                _LOGGER.warning("Looper v0.6 suggests "
-                                "switching from pipelines_dir to "
-                                "pipeline_interfaces. See docs for details: "
-                                "https://pepkit.github.io/docs/home/")
-            if "pipeline_interfaces" in self.metadata:
-                if "pipelines_dir" in self.metadata:
-                    raise AttributeError(
-                        "You defined both 'pipeline_interfaces' and "
-                        "'pipelines_dir'. Please remove your "
-                        "'pipelines_dir' definition.")
-                else:
-                    self.metadata.pipelines_dir = \
-                        self.metadata.pipeline_interfaces
-                _LOGGER.debug("Adding pipeline_interfaces to "
-                              "pipelines_dir. New value: {}".
-                              format(self.metadata.pipelines_dir))
 
         self._constants = config.get("constants", dict())
 
@@ -893,16 +808,16 @@ class Project(AttMap):
         for key, value in config_vars.items():
             if hasattr(self.metadata, key):
                 if not os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key,
-                            os.path.join(self.output_dir,
-                                          getattr(self.metadata, key)))
+                    v = os.path.join(
+                            self.output_dir, getattr(self.metadata, key))
+                    setattr(self.metadata, key, v)
             else:
                 outpath = os.path.join(self.output_dir, value)
                 setattr(self.metadata, key, outpath)
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
-        relative_sections = ["metadata", "pipeline_config"]
+        relative_sections = [METADATA_KEY, "pipeline_config"]
 
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
@@ -930,60 +845,12 @@ class Project(AttMap):
                 _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
                 setattr(relative_vars, var, absolute)
 
-        # Project config may have made compute.submission_template relative.
-        # Make sure it's absolute.
-        if self.compute is None:
+        if self.dcc.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
-        elif not os.path.isabs(self.compute.submission_template):
-            # Relative to environment config file.
-            self.compute.submission_template = os.path.join(
-                os.path.dirname(self.environment_file),
-                self.compute.submission_template)
 
         # Required variables check
-        if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
+        if not hasattr(self[METADATA_KEY], SAMPLE_ANNOTATIONS_KEY):
             self.metadata.sample_annotation = None
-
-
-    def set_compute(self, setting):
-        """
-        Set the compute attributes according to the
-        specified settings in the environment file.
-
-        :param str setting:	name for non-resource compute bundle, the name of
-            a subsection in an environment configuration file
-        :return bool: success flag for attempt to establish compute settings
-        """
-
-        # Hope that environment & environment compute are present.
-        if setting and self.environment and "compute" in self.environment:
-            # Augment compute, creating it if needed.
-            if self.compute is None:
-                _LOGGER.debug("Creating Project compute")
-                self.compute = AttMap()
-                _LOGGER.debug("Adding entries for setting '%s'", setting)
-            self.compute.add_entries(self.environment.compute[setting])
-
-            # Ensure submission template is absolute.
-            if not os.path.isabs(self.compute.submission_template):
-                try:
-                    self.compute.submission_template = os.path.join(
-                        os.path.dirname(self.environment_file),
-                        self.compute.submission_template)
-                except AttributeError as e:
-                    # Environment and environment compute should at least have been
-                    # set as null-valued attributes, so execution here is an error.
-                    _LOGGER.error(str(e))
-                    # Compute settings have been established.
-                else:
-                    return True
-        else:
-            # Scenario in which environment and environment compute are
-            # both present--but don't evaluate to True--is fairly harmless.
-            _LOGGER.debug("Environment = {}".format(self.environment))
-
-        return False
-
 
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """
@@ -994,45 +861,9 @@ class Project(AttMap):
             # ("cannot change folder's mode: %s" % d)
             pass
 
-
-    def update_environment(self, env_settings_file):
-        """
-        Parse data from environment configuration file.
-
-        :param str env_settings_file: path to file with
-            new environment configuration data
-        """
-
-        with open(env_settings_file, 'r') as f:
-            _LOGGER.info("Loading %s: %s",
-                         self.compute_env_var, env_settings_file)
-            env_settings = yaml.load(f)
-            _LOGGER.debug("Parsed environment settings: %s",
-                          str(env_settings))
-
-            # Any compute.submission_template variables should be made
-            # absolute, relative to current environment settings file.
-            y = env_settings["compute"]
-            for key, value in y.items():
-                if type(y[key]) is dict:
-                    for key2, value2 in y[key].items():
-                        if key2 == "submission_template":
-                            if not os.path.isabs(y[key][key2]):
-                                y[key][key2] = os.path.join(
-                                    os.path.dirname(env_settings_file),
-                                    y[key][key2])
-
-            env_settings["compute"] = y
-            if self.environment is None:
-                self.environment = AttMap(env_settings)
-            else:
-                self.environment.add_entries(env_settings)
-
-        self.environment_file = env_settings_file
-
-
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
+
         if not isinstance(maybe_relpath, str):
             raise TypeError(
                 "Attempting to ensure non-text value is absolute path: {} ({})".
@@ -1055,22 +886,6 @@ class Project(AttMap):
         _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
-
-
-    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
-        """ Default environment settings aren't required; warn, though. """
-        missing_env_attrs = \
-            [attr for attr in ["environment", "environment_file"]
-             if not hasattr(self, attr) or getattr(self, attr) is None]
-        if not missing_env_attrs:
-            return
-        message = "'{}' lacks environment attributes: {}". \
-            format(env_settings_file, missing_env_attrs)
-        if when_missing is None:
-            _LOGGER.warning(message)
-        else:
-            when_missing(message)
-
 
     @staticmethod
     def parse_sample_sheet(sample_file, dtype=str):
@@ -1105,7 +920,6 @@ class Project(AttMap):
                                         ", ".join(list(df.columns))))
         return df
 
-
     class MissingMetadataException(PeppyError):
         """ Project needs certain metadata. """
         def __init__(self, missing_section, path_config_file=None):
@@ -1115,7 +929,6 @@ class Project(AttMap):
                 reason += "; used config file '{}'".format(path_config_file)
             super(Project.MissingMetadataException, self).__init__(reason)
 
-
     class MissingSampleSheetError(PeppyError):
         """ Represent case in which sample sheet is specified but nonexistent. """
         def __init__(self, sheetfile):
@@ -1123,11 +936,6 @@ class Project(AttMap):
                 "Missing sample annotation sheet ({}); a project need not use "
                 "a sample sheet, but if it does the file must exist."
                 .format(sheetfile))
-
-    @property
-    def _lower_type_bound(self):
-        """ Type to which convert stored Mappings """
-        return AttMap
 
     @staticmethod
     def _omit_from_repr(k, cls):
@@ -1149,7 +957,6 @@ class Project(AttMap):
             cls.__name__ if isinstance(cls, type) else cls, [])
 
 
-
 def suggest_implied_attributes(prj):
     """
     If given project contains what could be implied attributes, suggest that.
@@ -1163,3 +970,28 @@ def suggest_implied_attributes(prj):
         return "To declare {}, consider using {}".format(
             key, IMPLICATIONS_DECLARATION)
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
+
+
+class _Metadata(AttMap):
+    """ Project section with important information """
+
+    def __getattr__(self, item, default=None):
+        """ Reference the new attribute and warn about deprecation. """
+        if item == OLD_PIPES_KEY:
+            _warn_pipes_deprecation()
+            item = NEW_PIPES_KEY
+        return super(_Metadata, self).__getattr__(item, default=None)
+
+    def __setitem__(self, key, value):
+        """ Store the new key and warn about deprecation. """
+        if key == OLD_PIPES_KEY:
+            _warn_pipes_deprecation()
+            key = NEW_PIPES_KEY
+        return super(_Metadata, self).__setitem__(key, value)
+
+
+def _warn_pipes_deprecation():
+    """ Handle messaging regarding pipelines pointer deprecation. """
+    msg = "Use of {} is deprecated; favor {}".\
+        format(OLD_PIPES_KEY, NEW_PIPES_KEY)
+    warnings.warn(msg, DeprecationWarning)
