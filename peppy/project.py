@@ -480,6 +480,18 @@ class Project(AttMap):
         except IndexError:
             raise ValueError("Project has no sample named {}.".format(sample_name))
 
+    def deactivate_subproject(self):
+        """
+        Bring the original project settings back
+
+        This method will bring the original project settings back after the subproject activation.
+
+        :return: peppy.Project: Updated Project instance
+        """
+        if self.subproject is None:
+            _LOGGER.warning("No subproject has been activated.")
+        return self.activate_subproject(None)
+
     def activate_subproject(self, subproject):
         """
         Update settings based on subproject-specific values.
