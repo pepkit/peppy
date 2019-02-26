@@ -490,7 +490,8 @@ class Project(AttMap):
         """
         if self.subproject is None:
             _LOGGER.warning("No subproject has been activated.")
-        return self.activate_subproject(None)
+        self.__init__(self.config_file)
+        return self
 
     def activate_subproject(self, subproject):
         """
