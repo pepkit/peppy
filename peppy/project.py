@@ -480,6 +480,19 @@ class Project(AttMap):
         except IndexError:
             raise ValueError("Project has no sample named {}.".format(sample_name))
 
+    def deactivate_subproject(self):
+        """
+        Bring the original project settings back
+
+        This method will bring the original project settings back after the subproject activation.
+
+        :return: peppy.Project: Updated Project instance
+        """
+        if self.subproject is None:
+            _LOGGER.warning("No subproject has been activated.")
+        self.__init__(self.config_file)
+        return self
+
     def activate_subproject(self, subproject):
         """
         Update settings based on subproject-specific values.
@@ -491,6 +504,9 @@ class Project(AttMap):
         :param str subproject: A string with a subproject name to be activated
         :return peppy.Project: Updated Project instance
         """
+        if subproject is None:
+            raise TypeError("The subproject argument can not be NoneType."
+                            " To deactivate a subproject use the deactivate_subproject method.")
         previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
         conf_file = self.config_file
         self.__init__(conf_file, subproject)
