@@ -25,10 +25,8 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-
 _GENOMES = {"human": "hg19", "mouse": "mm10"}
 _TRANSCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
-
 
 
 @pytest.fixture(scope="function")
@@ -41,7 +39,6 @@ def project_config_data():
             "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
     }
-
 
 
 def pytest_generate_tests(metafunc):
@@ -568,8 +565,8 @@ class ProjectConstructorTest:
 
 
 
-class SubprojectActivationTest:
-    """ Test cases for the effect of activating a subproject. """
+class SubprojectActivationDeactivationTest:
+    """ Test cases for the effect of activating/deactivating a subproject. """
 
     MARK_NAME = "marker"
     SUBPROJ_SECTION = {
@@ -583,6 +580,41 @@ class SubprojectActivationTest:
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         assert updated_prj is prj
+
+    @pytest.mark.parametrize("sub", [None])
+    def test_subproj_activation_errors_on_none(self, tmpdir, sub):
+        """ Subproject deactivation returns raises TypeError when input is NoneType. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        with pytest.raises(TypeError):
+            prj.activate_subproject(sub)
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_deactivation_returns_project(self, tmpdir, sub):
+        """ Subproject deactivation returns the project instance. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        deactivated_subprj = updated_prj.deactivate_subproject()
+        assert deactivated_subprj is prj
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_deactivation_doesnt_change_project(self, tmpdir, sub):
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        deactivated_subprj = updated_prj.deactivate_subproject()
+        assert deactivated_subprj == prj
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_activation_changes_subproject_attr(self, tmpdir, sub):
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        assert updated_prj.subproject is not None
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_deactivation_changes_subproject_attr_to_none(self, tmpdir, sub):
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        deactivated_subprj = updated_prj.deactivate_subproject()
+        assert deactivated_subprj.subproject is None
 
     @pytest.mark.parametrize(
         ["super_data", "sub_data", "preserved"],
