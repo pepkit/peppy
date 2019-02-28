@@ -43,10 +43,8 @@ class Subsample(AttMap):
     """
     def __init__(self, series, sample=None):
         data = OrderedDict(series)
-        _LOGGER.debug(data)
+        _LOGGER.debug("Subsample data:\n{}".format(data))
         super(Subsample, self).__init__(entries=data)
-
-        # lookback link
         self.sample = sample
 
 
