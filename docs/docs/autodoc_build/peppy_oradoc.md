@@ -293,7 +293,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f1179bda030>):
+def pop(self, key, default=<object object at 0x7fac8e82e030>):
 ```
 
 
@@ -659,7 +659,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f1179bda030>):
+def pop(self, key, default=<object object at 0x7fac8e82e030>):
 ```
 
 
@@ -788,4 +788,62 @@ def values(self):
 ## Class PeppyError
 Base error type for peppy custom errors. 
 Base error type for peppy custom errors. 
+
+
+## Class CommandChecker
+Validate PATH availability of executables referenced by a config file.
+Validate PATH availability of executables referenced by a config file.
+
+**Parameters:**
+
+- `path_conf_file` -- `str`:  path to configuration file withsections detailing executable tools to validate
+- `sections_to_check` -- `Iterable[str]`:  names ofsections of the given configuration file that are relevant; optional, will default to all sections if not given, but some may be excluded via another optional parameter
+
+
+### fetch\_samples
+Collect samples of particular protocol(s).
+
+Protocols can't be both positively selected for and negatively
+selected against. That is, it makes no sense and is not allowed to
+specify both selector_include and selector_exclude protocols. On the other hand, if
+neither is provided, all of the Project's Samples are returned.
+If selector_include is specified, Samples without a protocol will be excluded,
+but if selector_exclude is specified, protocol-less Samples will be included.
+```python
+def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
+```
+
+**Parameters:**
+
+- `proj` -- `Project`:  the Project with Samples to fetch
+- `str` -- `Project`:  the sample selector_attribute to select for
+- `selector_include` -- `Iterable[str] | str`:  protocol(s) of interest;if specified, a Sample must
+- `selector_exclude` -- `Iterable[str] | str`:  protocol(s) to include
+
+
+**Returns:**
+
+`list[Sample]`:  Collection of this Project's samples withprotocol that either matches one of those in selector_include, or either lacks a protocol or does not match one of those in selector_exclude
+
+
+
+
+### grab\_project\_data
+From the given Project, grab Sample-independent data.
+
+There are some aspects of a Project of which it's beneficial for a Sample
+to be aware, particularly for post-hoc analysis. Since Sample objects
+within a Project are mutually independent, though, each doesn't need to
+know about any of the others. A Project manages its, Sample instances,
+so for each Sample knowledge of Project data is limited. This method
+facilitates adoption of that conceptual model.
+```python
+def grab_project_data(prj):
+```
+
+**Parameters:**
+
+- `prj` -- `Project`:  Project from which to grab data
+
+
 
