@@ -350,7 +350,7 @@ class Sample(AttMap):
                         implied_value_by_column.items():
                     _LOGGER.log(5, "Setting '%s'=%s",
                                 colname, implied_value)
-                    setattr(self, colname, implied_value)
+                    self.__setitem__(colname, implied_value)
             except KeyError:
                 _LOGGER.log(
                     5, "Unknown implied value for implier '%s' = '%s'",
