@@ -78,31 +78,9 @@ def check_bam(bam, o):
     return read_lengths, paired
 
 
-
 def check_fastq(fastq, o):
     raise NotImplementedError("Detection of read type/length for "
                               "fastq input is not yet implemented.")
-
-
-
-def check_sample_sheet_row_count(sheet, filepath):
-    """
-    Quick-and-dirt proxy for Sample count validation.
-
-    Check that that the number of rows in a DataFrame (representing the
-    Sample annotations sheet) seems correct given the number of lines in
-    the file from which it was parsed/built.
-
-    :param pandas.core.frame.DataFrame sheet: the sample annotations sheet
-    :param str filepath: the path from which the sheet was built
-    :return bool: flag indicating whether Sample (row) count seems correct
-    """
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
-    # Always deduct 1 line for header; accommodate final whitespace line.
-    deduction = 2 if "" == lines[-1].strip() else 1
-    return len(sheet) == len(lines) - deduction
-
 
 
 def coll_like(c):
@@ -113,7 +91,6 @@ def coll_like(c):
     :return bool: Whether the argument is a (non-string) collection
     """
     return isinstance(c, Iterable) and not isinstance(c, str)
-
 
 
 def copy(obj):
@@ -128,7 +105,6 @@ def copy(obj):
     return obj
 
 
-
 def expandpath(path):
     """
     Expand a filesystem path that may or may not contain user/env vars.
@@ -137,7 +113,6 @@ def expandpath(path):
     :return str: expanded version of input path
     """
     return os.path.expandvars(os.path.expanduser(path)).replace("//", "/")
-
 
 
 def get_file_size(filename):
@@ -160,7 +135,6 @@ def get_file_size(filename):
         return 0.0
     else:
         return float(total_bytes) / (1024 ** 3)
-
 
 
 def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
@@ -222,7 +196,6 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
                    getattr(s, selector_attribute) in make_set(selector_include)
 
     return list(filter(keep, proj.samples))
-
 
 
 def grab_project_data(prj):
