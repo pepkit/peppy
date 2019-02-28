@@ -39,8 +39,7 @@ class Subsample(AttMap):
     PEP by a subannotation table. Each row in the subannotation (or unit) table
     corresponds to a Subsample object.
 
-    :param series: Subsample data
-    :type series: Mapping | pandas.core.series.Series
+    :param Mapping | pandas.core.series.Series series: Subsample data
     """
     def __init__(self, series, sample=None):
         data = OrderedDict(series)
@@ -56,8 +55,7 @@ class Sample(AttMap):
     """
     Class to model Samples based on a pandas Series.
 
-    :param series: Sample's data.
-    :type series: Mapping | pandas.core.series.Series
+    :param Mapping | pandas.core.series.Series series: Sample's data.
 
     :Example:
 
@@ -680,13 +678,11 @@ class Sample(AttMap):
         For a sample with attr `ngs_inputs` set, this sets the 
         read type (single, paired) and read length of an input file.
 
-        :param rlen_sample_size: Number of reads to sample to infer read type,
+        :param int rlen_sample_size: Number of reads to sample to infer read type,
             default 10.
-        :type rlen_sample_size: int
-        :param permissive: whether to simply log a warning or error message 
+        :param bool permissive: whether to simply log a warning or error message
             rather than raising an exception if sample file is not found or 
             otherwise cannot be read, default True.
-        :type permissive: bool
         """
 
         # TODO: determine how return is being used and standardized (null vs. bool)
