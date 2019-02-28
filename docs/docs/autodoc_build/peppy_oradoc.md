@@ -10,34 +10,28 @@ local level, but this will at least provide a foundation.
 
 ## Class Project
 A class to model a Project (collection of samples and metadata).
+A class to model a Project (collection of samples and metadata).
 
-:param str config_file: Project config file (YAML).
-:param str subproject: Subproject to use within configuration file, optional
-:param bool dry: If dry mode is activated, no directories
-    will be created upon project instantiation.
-:param bool permissive: Whether a error should be thrown if
-    a sample input file(s) do not exist or cannot be open.
-:param bool file_checks: Whether sample input files should be checked
-    for their  attributes (read type, read length)
-    if this is not set in sample metadata.
-:param str compute_env_file: Environment configuration YAML file specifying
-    compute settings.
-:param type no_environment_exception: type of exception to raise if environment
-    settings can't be established, optional; if null (the default),
-    a warning message will be logged, and no exception will be raised.
-:param type no_compute_exception: type of exception to raise if compute
-    settings can't be established, optional; if null (the default),
-    a warning message will be logged, and no exception will be raised.
-:param bool defer_sample_construction: whether to wait to build this Project's
-    Sample objects until they're needed, optional; by default, the basic
-    Sample is created during Project construction
+**Parameters:**
 
-:Example:
+- `config_file` -- `str`:  Project config file (YAML).
+- `subproject` -- `str`:  Subproject to use within configuration file, optional
+- `dry` -- `bool`:  If dry mode is activated, no directorieswill be created upon project instantiation.
+- `permissive` -- `bool`:  Whether a error should be thrown ifa sample input file(s) do not exist or cannot be open.
+- `file_checks` -- `bool`:  Whether sample input files should be checkedfor their  attributes (read type, read length) if this is not set in sample metadata.
+- `compute_env_file` -- `str`:  Environment configuration YAML file specifyingcompute settings.
+- `no_environment_exception` -- `type`:  type of exception to raise if environmentsettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
+- `no_compute_exception` -- `type`:  type of exception to raise if computesettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
 
-.. code-block:: python
 
-    from models import Project
-    prj = Project("config.yaml")
+**Example(s):**
+
+```python
+from models import Project
+prj = Project("config.yaml")
+```
+
+
 ### activate\_subproject
 Update settings based on subproject-specific values.
 
@@ -119,7 +113,7 @@ def finalize_pipelines_directory(self, pipe_path=''):
 
 **Raises:**
 
-- `PipelinesException`: [' if (prioritized) search in attempt to', ' if (prioritized) search in attempt to', 'confirm or set pipelines directory failed']
+- `PipelinesException`:  if (prioritized) search in attempt toconfirm or set pipelines directory failed
 
 
 
@@ -299,7 +293,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f27139f1030>):
+def pop(self, key, default=<object object at 0x7fa58b543030>):
 ```
 
 
@@ -358,21 +352,28 @@ def values(self):
 
 ## Class MissingMetadataException
 Project needs certain metadata. 
+Project needs certain metadata. 
+
+
 ## Class MissingSampleSheetError
 Represent case in which sample sheet is specified but nonexistent. 
+Represent case in which sample sheet is specified but nonexistent. 
+
+
 ## Class Sample
 Class to model Samples based on a pandas Series.
+Class to model Samples based on a pandas Series.
 
-:param Mapping | pandas.core.series.Series series: Sample's data.
+**Example(s):**
 
-:Example:
+```python
+from models import Project, SampleSheet, Sample
+prj = Project("ngs")
+sheet = SampleSheet("~/projects/example/sheet.csv", prj)
+s1 = Sample(sheet.iloc[0])
+```
 
-.. code-block:: python
 
-    from models import Project, SampleSheet, Sample
-    prj = Project("ngs")
-    sheet = SampleSheet("~/projects/example/sheet.csv", prj)
-    s1 = Sample(sheet.iloc[0])
 ### add\_entries
 Update this instance with provided key-value pairs.
 ```python
@@ -399,7 +400,7 @@ def check_valid(self, required=None):
 
 **Parameters:**
 
-- `Iterable[str]` `required`: [' collection of required sample attribute', ' collection of required sample attribute', 'names, optional; if unspecified, only a name is required.']
+- `Iterable[str]` `required`:  collection of required sample attributenames, optional; if unspecified, only a name is required.
 
 
 
@@ -444,7 +445,7 @@ def generate_filename(self, delimiter='_'):
 
 **Parameters:**
 
-- `str` `delimiter`: [' what to place between sample name and name of', ' what to place between sample name and name of', 'subtype; this is only relevant if the instance is of a subclass']
+- `str` `delimiter`:  what to place between sample name and name ofsubtype; this is only relevant if the instance is of a subclass
 
 
 
@@ -500,7 +501,7 @@ def get_subsample(self, subsample_name):
 
 **Parameters:**
 
-- `str` `subsample_name`: [' The name of the desired subsample. Should', ' The name of the desired subsample. Should', 'match the subsample_name column in the subannotation sheet.']
+- `str` `subsample_name`:  The name of the desired subsample. Shouldmatch the subsample_name column in the subannotation sheet.
 
 
 
@@ -618,15 +619,15 @@ def locate_data_source(self, data_sources, column_name='data_source', source_key
 
 **Parameters:**
 
-- `Mapping` `data_sources`: [' mapping from key name (as a value in', ' mapping from key name (as a value in', 'a cell of a tabular data structure) to, e.g., filepath']
-- `str` `column_name`: [' Name of sample attribute', ' Name of sample attribute', '(equivalently, sample sheet column) specifying a derived column.']
-- `str` `source_key`: [' The key of the data_source,', ' The key of the data_source,', 'used to index into the project config data_sources section.', 'By default, the source key will be taken as the value of', 'the specified column (as a sample attribute).', "For cases where the sample doesn't have this attribute yet", '(e.g. in a merge table), you must specify the source key.']
-- `dict` `extra_vars`: [' By default, this will look to', ' By default, this will look to', 'populate the template location using attributes found in the', 'current sample; however, you may also provide a dict of extra', 'variables that can also be used for variable replacement.', 'These extra variables are given a higher priority.']
+- `Mapping` `data_sources`:  mapping from key name (as a value ina cell of a tabular data structure) to, e.g., filepath
+- `str` `column_name`:  Name of sample attribute(equivalently, sample sheet column) specifying a derived column.
+- `str` `source_key`:  The key of the data_source,used to index into the project config data_sources section. By default, the source key will be taken as the value of the specified column (as a sample attribute). For cases where the sample doesn't have this attribute yet (e.g. in a merge table), you must specify the source key.
+- `dict` `extra_vars`:  By default, this will look topopulate the template location using attributes found in the current sample; however, you may also provide a dict of extra variables that can also be used for variable replacement. These extra variables are given a higher priority.
 
 
 **Returns:**
 
-str: [' regex expansion of data source specified in configuration,', ' regex expansion of data source specified in configuration,', 'with variable substitutions made']
+str:  regex expansion of data source specified in configuration,with variable substitutions made
 
 
 
@@ -658,7 +659,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f27139f1030>):
+def pop(self, key, default=<object object at 0x7fa58b543030>):
 ```
 
 
@@ -707,7 +708,7 @@ def set_pipeline_attributes(self, pipeline_interface, pipeline_name, permissive=
 
 **Parameters:**
 
-- `PipelineInterface` `pipeline_interface`: [' A PipelineInterface', ' A PipelineInterface', 'object that has the settings for this given pipeline.']
+- `PipelineInterface` `pipeline_interface`:  A PipelineInterfaceobject that has the settings for this given pipeline.
 - `str` `pipeline_name`:  Which pipeline to choose.
 
 
@@ -723,7 +724,7 @@ def set_read_type(self, rlen_sample_size=10, permissive=True):
 
 **Parameters:**
 
-- `int` `rlen_sample_size`: [' Number of reads to sample to infer read type,', ' Number of reads to sample to infer read type,', 'default 10.']
+- `int` `rlen_sample_size`:  Number of reads to sample to infer read type,default 10.
 
 
 
@@ -754,14 +755,14 @@ def to_yaml(self, path=None, subs_folder_path=None, delimiter='_'):
 
 **Parameters:**
 
-- `str` `path`: [' A file path to write yaml to; provide this or', ' A file path to write yaml to; provide this or', 'the subs_folder_path']
-- `str` `subs_folder_path`: [' path to folder in which to place file', ' path to folder in which to place file', "that's being written; provide this or a full filepath"]
-- `str` `delimiter`: [' text to place between the sample name and the', ' text to place between the sample name and the', "suffix within the filename; irrelevant if there's no suffix"]
+- `str` `path`:  A file path to write yaml to; provide this orthe subs_folder_path
+- `str` `subs_folder_path`:  path to folder in which to place filethat's being written; provide this or a full filepath
+- `str` `delimiter`:  text to place between the sample name and thesuffix within the filename; irrelevant if there's no suffix
 
 
 **Returns:**
 
-str: [' filepath used (same as input if given, otherwise the', ' filepath used (same as input if given, otherwise the', 'path value that was inferred)']
+str:  filepath used (same as input if given, otherwise thepath value that was inferred)
 
 
 
@@ -786,3 +787,5 @@ def values(self):
 
 ## Class PeppyError
 Base error type for peppy custom errors. 
+Base error type for peppy custom errors. 
+
