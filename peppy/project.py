@@ -261,10 +261,13 @@ class Project(AttMap):
         :param str key: Key to map to given value
         :param object value: Arbitrary value to bind to given key
         """
+        print("Setting: {}".format(key))
         if key == "derived_columns":
             warn_derived_cols()
             key = DERIVATIONS_DECLARATION
         elif key == "implied_columns":
+            # DEBUG
+            print("SETTING IMPLIED COLUMNS")
             warn_implied_cols()
             key = IMPLICATIONS_DECLARATION
         elif key == METADATA_KEY:
@@ -740,6 +743,9 @@ class Project(AttMap):
                       self.__class__.__name__, self.config_file)
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
+
+        # DEBUG
+        print("KEYS: {}".format(config.keys()))
 
         assert isinstance(config, Mapping), \
             "Config file parse did not yield a Mapping; got {} ({})".\
