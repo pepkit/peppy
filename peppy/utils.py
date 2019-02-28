@@ -426,17 +426,14 @@ class CommandChecker(object):
     """
     Validate PATH availability of executables referenced by a config file.
 
-    :param path_conf_file: path to configuration file with
+    :param str path_conf_file: path to configuration file with
         sections detailing executable tools to validate
-    :type path_conf_file: str
-    :param sections_to_check: names of
+    :param Iterable[str] sections_to_check: names of
         sections of the given configuration file that are relevant;
         optional, will default to all sections if not given, but some
         may be excluded via another optional parameter
-    :type sections_to_check: Iterable[str]
-    :param sections_to_skip: analogous to
+    :param Iterable[str] sections_to_skip: analogous to
         the check names parameter, but for specific sections to skip.
-    :type sections_to_skip: Iterable[str]
 
     """
 
