@@ -127,36 +127,26 @@ class Project(AttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
-    :param config_file: Project config file (YAML).
-    :type config_file: str
-    :param subproject: Subproject to use within configuration file, optional
-    :type subproject: str
-    :param dry: If dry mode is activated, no directories
+    :param str config_file: Project config file (YAML).
+    :param str subproject: Subproject to use within configuration file, optional
+    :param bool dry: If dry mode is activated, no directories
         will be created upon project instantiation.
-    :type dry: bool
-    :param permissive: Whether a error should be thrown if
+    :param bool permissive: Whether a error should be thrown if
         a sample input file(s) do not exist or cannot be open.
-    :type permissive: bool
-    :param file_checks: Whether sample input files should be checked
+    :param bool file_checks: Whether sample input files should be checked
         for their  attributes (read type, read length)
         if this is not set in sample metadata.
-    :type file_checks: bool
-    :param compute_env_file: Environment configuration YAML file specifying
+    :param str compute_env_file: Environment configuration YAML file specifying
         compute settings.
-    :type compute_env_file: str
-    :param no_environment_exception: type of exception to raise if environment
+    :param type no_environment_exception: type of exception to raise if environment
         settings can't be established, optional; if null (the default),
         a warning message will be logged, and no exception will be raised.
-    :type no_environment_exception: type
-    :param no_compute_exception: type of exception to raise if compute
+    :param type no_compute_exception: type of exception to raise if compute
         settings can't be established, optional; if null (the default),
         a warning message will be logged, and no exception will be raised.
-    :type no_compute_exception: type
-    :param defer_sample_construction: whether to wait to build this Project's
+    :param bool defer_sample_construction: whether to wait to build this Project's
         Sample objects until they're needed, optional; by default, the basic
         Sample is created during Project construction
-    :type defer_sample_construction: bool
-
 
     ```python
     from models import Project
