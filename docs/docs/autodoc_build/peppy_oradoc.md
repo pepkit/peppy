@@ -44,7 +44,7 @@ def activate_subproject(self, subproject):
 
 **Parameters:**
 
-- `str` `subproject`:  A string with a subproject name to be activated
+- `subproject` -- `str`:  A string with a subproject name to be activated
 
 
 
@@ -108,7 +108,7 @@ def finalize_pipelines_directory(self, pipe_path=''):
 
 **Parameters:**
 
-- `str` `pipe_path`:  (absolute) path to pipelines
+- `pipe_path` -- `str`:  (absolute) path to pipelines
 
 
 **Raises:**
@@ -150,7 +150,7 @@ def get_sample(self, sample_name):
 
 **Parameters:**
 
-- `str` `sample_name`:  The name of a sample to retrieve
+- `sample_name` -- `str`:  The name of a sample to retrieve
 
 
 
@@ -163,7 +163,7 @@ def get_samples(self, sample_names):
 
 **Parameters:**
 
-- `list` `sample_names`:  A list of sample names to retrieve
+- `sample_names` -- `list`:  A list of sample names to retrieve
 
 
 
@@ -176,8 +176,8 @@ def get_subsample(self, sample_name, subsample_name):
 
 **Parameters:**
 
-- `str` `sample_name`:  Name of Sample from which to get subsample
-- `str` `subsample_name`:  Name of Subsample to get
+- `sample_name` -- `str`:  Name of Sample from which to get subsample
+- `subsample_name` -- `str`:  Name of Subsample to get
 
 
 
@@ -203,7 +203,7 @@ def is_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and null value
+- `item` -- `object`:  Key to check for presence and null value
 
 
 
@@ -270,7 +270,7 @@ def non_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and non-null value
+- `item` -- `object`:  Key to check for presence and non-null value
 
 
 
@@ -283,7 +283,7 @@ def parse_config_file(self, subproject=None):
 
 **Parameters:**
 
-- `str` `subproject`:  Name of subproject to activate, optional
+- `subproject` -- `str`:  Name of subproject to activate, optional
 
 
 
@@ -293,7 +293,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7fa58b543030>):
+def pop(self, key, default=<object object at 0x7f1179bda030>):
 ```
 
 
@@ -400,7 +400,7 @@ def check_valid(self, required=None):
 
 **Parameters:**
 
-- `Iterable[str]` `required`:  collection of required sample attributenames, optional; if unspecified, only a name is required.
+- `required` -- `Iterable[str]`:  collection of required sample attributenames, optional; if unspecified, only a name is required.
 
 
 
@@ -445,7 +445,7 @@ def generate_filename(self, delimiter='_'):
 
 **Parameters:**
 
-- `str` `delimiter`:  what to place between sample name and name ofsubtype; this is only relevant if the instance is of a subclass
+- `delimiter` -- `str`:  what to place between sample name and name ofsubtype; this is only relevant if the instance is of a subclass
 
 
 
@@ -476,7 +476,7 @@ def get_attr_values(self, attrlist):
 
 **Parameters:**
 
-- `str` `attrlist`:  name of an attribute storing a list of attr names
+- `attrlist` -- `str`:  name of an attribute storing a list of attr names
 
 
 
@@ -501,7 +501,7 @@ def get_subsample(self, subsample_name):
 
 **Parameters:**
 
-- `str` `subsample_name`:  The name of the desired subsample. Shouldmatch the subsample_name column in the subannotation sheet.
+- `subsample_name` -- `str`:  The name of the desired subsample. Shouldmatch the subsample_name column in the subannotation sheet.
 
 
 
@@ -514,7 +514,7 @@ def get_subsamples(self, subsample_names):
 
 **Parameters:**
 
-- `list[str]` `subsample_names`:  List of names of subsamples to retrieve
+- `subsample_names` -- `list[str]`:  List of names of subsamples to retrieve
 
 
 
@@ -531,7 +531,7 @@ def infer_attributes(self, implications):
 
 **Parameters:**
 
-- `Mapping` `implications`:  Project's implied columns data
+- `implications` -- `Mapping`:  Project's implied columns data
 
 
 
@@ -558,7 +558,7 @@ def is_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and null value
+- `item` -- `object`:  Key to check for presence and null value
 
 
 
@@ -619,15 +619,15 @@ def locate_data_source(self, data_sources, column_name='data_source', source_key
 
 **Parameters:**
 
-- `Mapping` `data_sources`:  mapping from key name (as a value ina cell of a tabular data structure) to, e.g., filepath
-- `str` `column_name`:  Name of sample attribute(equivalently, sample sheet column) specifying a derived column.
-- `str` `source_key`:  The key of the data_source,used to index into the project config data_sources section. By default, the source key will be taken as the value of the specified column (as a sample attribute). For cases where the sample doesn't have this attribute yet (e.g. in a merge table), you must specify the source key.
-- `dict` `extra_vars`:  By default, this will look topopulate the template location using attributes found in the current sample; however, you may also provide a dict of extra variables that can also be used for variable replacement. These extra variables are given a higher priority.
+- `data_sources` -- `Mapping`:  mapping from key name (as a value ina cell of a tabular data structure) to, e.g., filepath
+- `column_name` -- `str`:  Name of sample attribute(equivalently, sample sheet column) specifying a derived column.
+- `source_key` -- `str`:  The key of the data_source,used to index into the project config data_sources section. By default, the source key will be taken as the value of the specified column (as a sample attribute). For cases where the sample doesn't have this attribute yet (e.g. in a merge table), you must specify the source key.
+- `extra_vars` -- `dict`:  By default, this will look topopulate the template location using attributes found in the current sample; however, you may also provide a dict of extra variables that can also be used for variable replacement. These extra variables are given a higher priority.
 
 
 **Returns:**
 
-str:  regex expansion of data source specified in configuration,with variable substitutions made
+`str`:  regex expansion of data source specified in configuration,with variable substitutions made
 
 
 
@@ -649,7 +649,7 @@ def non_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and non-null value
+- `item` -- `object`:  Key to check for presence and non-null value
 
 
 
@@ -659,7 +659,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7fa58b543030>):
+def pop(self, key, default=<object object at 0x7f1179bda030>):
 ```
 
 
@@ -708,8 +708,8 @@ def set_pipeline_attributes(self, pipeline_interface, pipeline_name, permissive=
 
 **Parameters:**
 
-- `PipelineInterface` `pipeline_interface`:  A PipelineInterfaceobject that has the settings for this given pipeline.
-- `str` `pipeline_name`:  Which pipeline to choose.
+- `pipeline_interface` -- `PipelineInterface`:  A PipelineInterfaceobject that has the settings for this given pipeline.
+- `pipeline_name` -- `str`:  Which pipeline to choose.
 
 
 
@@ -724,7 +724,7 @@ def set_read_type(self, rlen_sample_size=10, permissive=True):
 
 **Parameters:**
 
-- `int` `rlen_sample_size`:  Number of reads to sample to infer read type,default 10.
+- `rlen_sample_size` -- `int`:  Number of reads to sample to infer read type,default 10.
 
 
 
@@ -755,14 +755,14 @@ def to_yaml(self, path=None, subs_folder_path=None, delimiter='_'):
 
 **Parameters:**
 
-- `str` `path`:  A file path to write yaml to; provide this orthe subs_folder_path
-- `str` `subs_folder_path`:  path to folder in which to place filethat's being written; provide this or a full filepath
-- `str` `delimiter`:  text to place between the sample name and thesuffix within the filename; irrelevant if there's no suffix
+- `path` -- `str`:  A file path to write yaml to; provide this orthe subs_folder_path
+- `subs_folder_path` -- `str`:  path to folder in which to place filethat's being written; provide this or a full filepath
+- `delimiter` -- `str`:  text to place between the sample name and thesuffix within the filename; irrelevant if there's no suffix
 
 
 **Returns:**
 
-str:  filepath used (same as input if given, otherwise thepath value that was inferred)
+`str`:  filepath used (same as input if given, otherwise thepath value that was inferred)
 
 
 
