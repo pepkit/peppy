@@ -3,10 +3,6 @@
 ## Class Project
 A class to model a Project (collection of samples and metadata).
 
-new
-text
-lines
-
 **Parameters:**
 
 - `config_file` -- `str`:  Project config file (YAML).
@@ -49,19 +45,6 @@ def activate_subproject(self, subproject):
 
 
 
-### add\_entries
-Update this instance with provided key-value pairs.
-```python
-def add_entries(self, entries):
-```
-
-**Parameters:**
-
-- `entries` -- `Iterable[(object, object)] | Mapping | pandas.Series`: collection of pairs of keys and values
-
-
-
-
 ### build\_sheet
 Create table of subset of samples matching one of given protocols.
 ```python
@@ -71,15 +54,6 @@ def build_sheet(self, *protocols):
 **Returns:**
 
 `pandas.core.frame.DataFrame`:  DataFrame with from base versionof each of this Project's samples, for indicated protocol(s) if given, else all of this Project's samples
-
-
-
-
-### clear
-D.clear() -> None.  Remove all items from D.
-```python
-def clear(self):
-```
 
 
 
@@ -153,15 +127,6 @@ def finalize_pipelines_directory(self, pipe_path=''):
 
 - `PipelinesException`:  if (prioritized) search in attempt toconfirm or set pipelines directory failed
 - `TypeError`:  if pipeline(s) path(s) argument is provided andcan't be interpreted as a single path or as a flat collection of path(s)
-
-
-
-
-### get
-D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
-```python
-def get(self, key, default=None):
-```
 
 
 
@@ -264,92 +229,11 @@ def infer_name(self):
 
 
 
-### is\_null
-Conjunction of presence in underlying mapping and value being None
-```python
-def is_null(self, item):
-```
-
-**Parameters:**
-
-- `item` -- `object`:  Key to check for presence and null value
-
-
-**Returns:**
-
-`bool`:  True iff the item is present and has null value
-
-
-
-
-### items
-D.items() -> list of D's (key, value) pairs, as 2-tuples
-```python
-def items(self):
-```
-
-
-
-
-### iteritems
-D.iteritems() -> an iterator over the (key, value) items of D
-```python
-def iteritems(self):
-```
-
-
-
-
-### iterkeys
-D.iterkeys() -> an iterator over the keys of D
-```python
-def iterkeys(self):
-```
-
-
-
-
-### itervalues
-D.itervalues() -> an iterator over the values of D
-```python
-def itervalues(self):
-```
-
-
-
-
-### keys
-D.keys() -> list of D's keys
-```python
-def keys(self):
-```
-
-
-
-
 ### make\_project\_dirs
 Creates project directory structure if it doesn't exist.
 ```python
 def make_project_dirs(self):
 ```
-
-
-
-
-### non\_null
-Conjunction of presence in underlying mapping and value not being None
-```python
-def non_null(self, item):
-```
-
-**Parameters:**
-
-- `item` -- `object`:  Key to check for presence and non-null value
-
-
-**Returns:**
-
-`bool`:  True iff the item is present and has non-null value
 
 
 
@@ -400,24 +284,6 @@ def parse_config_file(self, subproject=None):
 **Raises:**
 
 - `KeyError`:  if config file lacks required section(s)
-
-
-
-
-### pop
-D.pop(k[,d]) -> v, remove specified key and return the corresponding value. If key is not found, d is returned if given, otherwise KeyError is raised.
-```python
-def pop(self, key, default=<object object at 0x7fc3d90f0030>):
-```
-
-
-
-
-### popitem
-D.popitem() -> (k, v), remove and return some (key, value) pair as a 2-tuple; but raise KeyError if D is empty.
-```python
-def popitem(self):
-```
 
 
 
@@ -497,15 +363,6 @@ def set_project_permissions(self):
 
 
 
-### setdefault
-D.setdefault(k[,d]) -> D.get(k,d), also set D[k]=d if k not in D
-```python
-def setdefault(self, key, default=None):
-```
-
-
-
-
 ### sheet
 Annotations/metadata sheet describing this Project's samples.
 ```python
@@ -545,24 +402,6 @@ def templates_folder:
 
 
 
-### update
-D.update([E, ]**F) -> None.  Update D from mapping/iterable E and F. If E present and has a .keys() method, does:     for k in E: D[k] = E[k] If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v In either case, this is followed by: for k, v in F.items(): D[k] = v
-```python
-def update(*args, **kwds):
-```
-
-
-
-
-### values
-D.values() -> list of D's values
-```python
-def values(self):
-```
-
-
-
-
 ## Class MissingMetadataException
 Project needs certain metadata.
 
@@ -582,19 +421,6 @@ prj = Project("ngs")
 sheet = SampleSheet("~/projects/example/sheet.csv", prj)
 s1 = Sample(sheet.iloc[0])
 ```
-
-
-### add\_entries
-Update this instance with provided key-value pairs.
-```python
-def add_entries(self, entries):
-```
-
-**Parameters:**
-
-- `entries` -- `Iterable[(object, object)] | Mapping | pandas.Series`: collection of pairs of keys and values
-
-
 
 
 ### as\_series
@@ -624,15 +450,6 @@ def check_valid(self, required=None):
 **Returns:**
 
 `(Exception | NoneType, str, str)`:  exception and messages aboutwhat's missing/empty; null with empty messages if there was nothing exceptional or required inputs are absent or not set
-
-
-
-
-### clear
-D.clear() -> None.  Remove all items from D.
-```python
-def clear(self):
-```
 
 
 
@@ -686,15 +503,6 @@ def generate_filename(self, delimiter='_'):
 Generate name for the sample by joining some of its attribute strings.
 ```python
 def generate_name(self):
-```
-
-
-
-
-### get
-D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
-```python
-def get(self, key, default=None):
 ```
 
 
@@ -823,69 +631,6 @@ def is_dormant(self):
 
 
 
-### is\_null
-Conjunction of presence in underlying mapping and value being None
-```python
-def is_null(self, item):
-```
-
-**Parameters:**
-
-- `item` -- `object`:  Key to check for presence and null value
-
-
-**Returns:**
-
-`bool`:  True iff the item is present and has null value
-
-
-
-
-### items
-D.items() -> list of D's (key, value) pairs, as 2-tuples
-```python
-def items(self):
-```
-
-
-
-
-### iteritems
-D.iteritems() -> an iterator over the (key, value) items of D
-```python
-def iteritems(self):
-```
-
-
-
-
-### iterkeys
-D.iterkeys() -> an iterator over the keys of D
-```python
-def iterkeys(self):
-```
-
-
-
-
-### itervalues
-D.itervalues() -> an iterator over the values of D
-```python
-def itervalues(self):
-```
-
-
-
-
-### keys
-D.keys() -> list of D's keys
-```python
-def keys(self):
-```
-
-
-
-
 ### library
 Backwards-compatible alias.
 ```python
@@ -929,42 +674,6 @@ def locate_data_source(self, data_sources, column_name='data_source', source_key
 Creates sample directory structure if it doesn't exist.
 ```python
 def make_sample_dirs(self):
-```
-
-
-
-
-### non\_null
-Conjunction of presence in underlying mapping and value not being None
-```python
-def non_null(self, item):
-```
-
-**Parameters:**
-
-- `item` -- `object`:  Key to check for presence and non-null value
-
-
-**Returns:**
-
-`bool`:  True iff the item is present and has non-null value
-
-
-
-
-### pop
-D.pop(k[,d]) -> v, remove specified key and return the corresponding value. If key is not found, d is returned if given, otherwise KeyError is raised.
-```python
-def pop(self, key, default=<object object at 0x7fc3d90f0030>):
-```
-
-
-
-
-### popitem
-D.popitem() -> (k, v), remove and return some (key, value) pair as a 2-tuple; but raise KeyError if D is empty.
-```python
-def popitem(self):
 ```
 
 
@@ -1044,15 +753,6 @@ def set_transcriptome(self, transcriptomes):
 
 
 
-### setdefault
-D.setdefault(k[,d]) -> D.get(k,d), also set D[k]=d if k not in D
-```python
-def setdefault(self, key, default=None):
-```
-
-
-
-
 ### to\_yaml
 Serializes itself in YAML format.
 ```python
@@ -1082,15 +782,6 @@ def to_yaml(self, path=None, subs_folder_path=None, delimiter='_'):
 Update Sample object with attributes from a dict.
 ```python
 def update(self, newdata, **kwargs):
-```
-
-
-
-
-### values
-D.values() -> list of D's values
-```python
-def values(self):
 ```
 
 
