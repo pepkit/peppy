@@ -275,8 +275,7 @@ class Project(AttMap):
         """
         Return currently active subproject or None if none was activated
 
-        :return: currently active subproject
-        :rtype: str
+        :return str: currently active subproject
         """
         return self._subproject
 

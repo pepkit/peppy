@@ -16,10 +16,15 @@ from .const import *
 from .exceptions import PeppyError
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
+from .utils import fetch_samples, grab_project_data, CommandChecker
+
+_EXPORT_FROM_UTILS = [fetch_samples.__name__, grab_project_data.__name__,
+                      CommandChecker.__name__]
 
 
 __classes__ = ["Project", "Sample"]
-__all__ = __classes__ + ["PeppyError"]
+__all__ = __classes__ + ["PeppyError"] + _EXPORT_FROM_UTILS
+
 
 
 LOGGING_LEVEL = "INFO"

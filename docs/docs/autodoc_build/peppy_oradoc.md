@@ -10,34 +10,28 @@ local level, but this will at least provide a foundation.
 
 ## Class Project
 A class to model a Project (collection of samples and metadata).
+A class to model a Project (collection of samples and metadata).
 
-:param str config_file: Project config file (YAML).
-:param str subproject: Subproject to use within configuration file, optional
-:param bool dry: If dry mode is activated, no directories
-    will be created upon project instantiation.
-:param bool permissive: Whether a error should be thrown if
-    a sample input file(s) do not exist or cannot be open.
-:param bool file_checks: Whether sample input files should be checked
-    for their  attributes (read type, read length)
-    if this is not set in sample metadata.
-:param str compute_env_file: Environment configuration YAML file specifying
-    compute settings.
-:param type no_environment_exception: type of exception to raise if environment
-    settings can't be established, optional; if null (the default),
-    a warning message will be logged, and no exception will be raised.
-:param type no_compute_exception: type of exception to raise if compute
-    settings can't be established, optional; if null (the default),
-    a warning message will be logged, and no exception will be raised.
-:param bool defer_sample_construction: whether to wait to build this Project's
-    Sample objects until they're needed, optional; by default, the basic
-    Sample is created during Project construction
+**Parameters:**
 
-:Example:
+- `config_file` -- `str`:  Project config file (YAML).
+- `subproject` -- `str`:  Subproject to use within configuration file, optional
+- `dry` -- `bool`:  If dry mode is activated, no directorieswill be created upon project instantiation.
+- `permissive` -- `bool`:  Whether a error should be thrown ifa sample input file(s) do not exist or cannot be open.
+- `file_checks` -- `bool`:  Whether sample input files should be checkedfor their  attributes (read type, read length) if this is not set in sample metadata.
+- `compute_env_file` -- `str`:  Environment configuration YAML file specifyingcompute settings.
+- `no_environment_exception` -- `type`:  type of exception to raise if environmentsettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
+- `no_compute_exception` -- `type`:  type of exception to raise if computesettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
 
-.. code-block:: python
 
-    from models import Project
-    prj = Project("config.yaml")
+**Example(s):**
+
+```python
+from models import Project
+prj = Project("config.yaml")
+```
+
+
 ### activate\_subproject
 Update settings based on subproject-specific values.
 
@@ -50,7 +44,7 @@ def activate_subproject(self, subproject):
 
 **Parameters:**
 
-- `str` `subproject`:  A string with a subproject name to be activated
+- `subproject` -- `str`:  A string with a subproject name to be activated
 
 
 
@@ -114,12 +108,12 @@ def finalize_pipelines_directory(self, pipe_path=''):
 
 **Parameters:**
 
-- `str` `pipe_path`:  (absolute) path to pipelines
+- `pipe_path` -- `str`:  (absolute) path to pipelines
 
 
 **Raises:**
 
-- `PipelinesException`: [' if (prioritized) search in attempt to', ' if (prioritized) search in attempt to', 'confirm or set pipelines directory failed']
+- `PipelinesException`:  if (prioritized) search in attempt toconfirm or set pipelines directory failed
 
 
 
@@ -156,7 +150,7 @@ def get_sample(self, sample_name):
 
 **Parameters:**
 
-- `str` `sample_name`:  The name of a sample to retrieve
+- `sample_name` -- `str`:  The name of a sample to retrieve
 
 
 
@@ -169,7 +163,7 @@ def get_samples(self, sample_names):
 
 **Parameters:**
 
-- `list` `sample_names`:  A list of sample names to retrieve
+- `sample_names` -- `list`:  A list of sample names to retrieve
 
 
 
@@ -182,8 +176,8 @@ def get_subsample(self, sample_name, subsample_name):
 
 **Parameters:**
 
-- `str` `sample_name`:  Name of Sample from which to get subsample
-- `str` `subsample_name`:  Name of Subsample to get
+- `sample_name` -- `str`:  Name of Sample from which to get subsample
+- `subsample_name` -- `str`:  Name of Subsample to get
 
 
 
@@ -209,7 +203,7 @@ def is_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and null value
+- `item` -- `object`:  Key to check for presence and null value
 
 
 
@@ -276,7 +270,7 @@ def non_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and non-null value
+- `item` -- `object`:  Key to check for presence and non-null value
 
 
 
@@ -289,7 +283,7 @@ def parse_config_file(self, subproject=None):
 
 **Parameters:**
 
-- `str` `subproject`:  Name of subproject to activate, optional
+- `subproject` -- `str`:  Name of subproject to activate, optional
 
 
 
@@ -299,7 +293,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f27139f1030>):
+def pop(self, key, default=<object object at 0x7fac8e82e030>):
 ```
 
 
@@ -358,21 +352,28 @@ def values(self):
 
 ## Class MissingMetadataException
 Project needs certain metadata. 
+Project needs certain metadata. 
+
+
 ## Class MissingSampleSheetError
 Represent case in which sample sheet is specified but nonexistent. 
+Represent case in which sample sheet is specified but nonexistent. 
+
+
 ## Class Sample
 Class to model Samples based on a pandas Series.
+Class to model Samples based on a pandas Series.
 
-:param Mapping | pandas.core.series.Series series: Sample's data.
+**Example(s):**
 
-:Example:
+```python
+from models import Project, SampleSheet, Sample
+prj = Project("ngs")
+sheet = SampleSheet("~/projects/example/sheet.csv", prj)
+s1 = Sample(sheet.iloc[0])
+```
 
-.. code-block:: python
 
-    from models import Project, SampleSheet, Sample
-    prj = Project("ngs")
-    sheet = SampleSheet("~/projects/example/sheet.csv", prj)
-    s1 = Sample(sheet.iloc[0])
 ### add\_entries
 Update this instance with provided key-value pairs.
 ```python
@@ -399,7 +400,7 @@ def check_valid(self, required=None):
 
 **Parameters:**
 
-- `Iterable[str]` `required`: [' collection of required sample attribute', ' collection of required sample attribute', 'names, optional; if unspecified, only a name is required.']
+- `required` -- `Iterable[str]`:  collection of required sample attributenames, optional; if unspecified, only a name is required.
 
 
 
@@ -444,7 +445,7 @@ def generate_filename(self, delimiter='_'):
 
 **Parameters:**
 
-- `str` `delimiter`: [' what to place between sample name and name of', ' what to place between sample name and name of', 'subtype; this is only relevant if the instance is of a subclass']
+- `delimiter` -- `str`:  what to place between sample name and name ofsubtype; this is only relevant if the instance is of a subclass
 
 
 
@@ -475,7 +476,7 @@ def get_attr_values(self, attrlist):
 
 **Parameters:**
 
-- `str` `attrlist`:  name of an attribute storing a list of attr names
+- `attrlist` -- `str`:  name of an attribute storing a list of attr names
 
 
 
@@ -500,7 +501,7 @@ def get_subsample(self, subsample_name):
 
 **Parameters:**
 
-- `str` `subsample_name`: [' The name of the desired subsample. Should', ' The name of the desired subsample. Should', 'match the subsample_name column in the subannotation sheet.']
+- `subsample_name` -- `str`:  The name of the desired subsample. Shouldmatch the subsample_name column in the subannotation sheet.
 
 
 
@@ -513,7 +514,7 @@ def get_subsamples(self, subsample_names):
 
 **Parameters:**
 
-- `list[str]` `subsample_names`:  List of names of subsamples to retrieve
+- `subsample_names` -- `list[str]`:  List of names of subsamples to retrieve
 
 
 
@@ -530,7 +531,7 @@ def infer_attributes(self, implications):
 
 **Parameters:**
 
-- `Mapping` `implications`:  Project's implied columns data
+- `implications` -- `Mapping`:  Project's implied columns data
 
 
 
@@ -557,7 +558,7 @@ def is_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and null value
+- `item` -- `object`:  Key to check for presence and null value
 
 
 
@@ -618,15 +619,15 @@ def locate_data_source(self, data_sources, column_name='data_source', source_key
 
 **Parameters:**
 
-- `Mapping` `data_sources`: [' mapping from key name (as a value in', ' mapping from key name (as a value in', 'a cell of a tabular data structure) to, e.g., filepath']
-- `str` `column_name`: [' Name of sample attribute', ' Name of sample attribute', '(equivalently, sample sheet column) specifying a derived column.']
-- `str` `source_key`: [' The key of the data_source,', ' The key of the data_source,', 'used to index into the project config data_sources section.', 'By default, the source key will be taken as the value of', 'the specified column (as a sample attribute).', "For cases where the sample doesn't have this attribute yet", '(e.g. in a merge table), you must specify the source key.']
-- `dict` `extra_vars`: [' By default, this will look to', ' By default, this will look to', 'populate the template location using attributes found in the', 'current sample; however, you may also provide a dict of extra', 'variables that can also be used for variable replacement.', 'These extra variables are given a higher priority.']
+- `data_sources` -- `Mapping`:  mapping from key name (as a value ina cell of a tabular data structure) to, e.g., filepath
+- `column_name` -- `str`:  Name of sample attribute(equivalently, sample sheet column) specifying a derived column.
+- `source_key` -- `str`:  The key of the data_source,used to index into the project config data_sources section. By default, the source key will be taken as the value of the specified column (as a sample attribute). For cases where the sample doesn't have this attribute yet (e.g. in a merge table), you must specify the source key.
+- `extra_vars` -- `dict`:  By default, this will look topopulate the template location using attributes found in the current sample; however, you may also provide a dict of extra variables that can also be used for variable replacement. These extra variables are given a higher priority.
 
 
 **Returns:**
 
-str: [' regex expansion of data source specified in configuration,', ' regex expansion of data source specified in configuration,', 'with variable substitutions made']
+`str`:  regex expansion of data source specified in configuration,with variable substitutions made
 
 
 
@@ -648,7 +649,7 @@ def non_null(self, item):
 
 **Parameters:**
 
-- `object` `item`:  Key to check for presence and non-null value
+- `item` -- `object`:  Key to check for presence and non-null value
 
 
 
@@ -658,7 +659,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f27139f1030>):
+def pop(self, key, default=<object object at 0x7fac8e82e030>):
 ```
 
 
@@ -707,8 +708,8 @@ def set_pipeline_attributes(self, pipeline_interface, pipeline_name, permissive=
 
 **Parameters:**
 
-- `PipelineInterface` `pipeline_interface`: [' A PipelineInterface', ' A PipelineInterface', 'object that has the settings for this given pipeline.']
-- `str` `pipeline_name`:  Which pipeline to choose.
+- `pipeline_interface` -- `PipelineInterface`:  A PipelineInterfaceobject that has the settings for this given pipeline.
+- `pipeline_name` -- `str`:  Which pipeline to choose.
 
 
 
@@ -723,7 +724,7 @@ def set_read_type(self, rlen_sample_size=10, permissive=True):
 
 **Parameters:**
 
-- `int` `rlen_sample_size`: [' Number of reads to sample to infer read type,', ' Number of reads to sample to infer read type,', 'default 10.']
+- `rlen_sample_size` -- `int`:  Number of reads to sample to infer read type,default 10.
 
 
 
@@ -754,14 +755,14 @@ def to_yaml(self, path=None, subs_folder_path=None, delimiter='_'):
 
 **Parameters:**
 
-- `str` `path`: [' A file path to write yaml to; provide this or', ' A file path to write yaml to; provide this or', 'the subs_folder_path']
-- `str` `subs_folder_path`: [' path to folder in which to place file', ' path to folder in which to place file', "that's being written; provide this or a full filepath"]
-- `str` `delimiter`: [' text to place between the sample name and the', ' text to place between the sample name and the', "suffix within the filename; irrelevant if there's no suffix"]
+- `path` -- `str`:  A file path to write yaml to; provide this orthe subs_folder_path
+- `subs_folder_path` -- `str`:  path to folder in which to place filethat's being written; provide this or a full filepath
+- `delimiter` -- `str`:  text to place between the sample name and thesuffix within the filename; irrelevant if there's no suffix
 
 
 **Returns:**
 
-str: [' filepath used (same as input if given, otherwise the', ' filepath used (same as input if given, otherwise the', 'path value that was inferred)']
+`str`:  filepath used (same as input if given, otherwise thepath value that was inferred)
 
 
 
@@ -786,3 +787,63 @@ def values(self):
 
 ## Class PeppyError
 Base error type for peppy custom errors. 
+Base error type for peppy custom errors. 
+
+
+## Class CommandChecker
+Validate PATH availability of executables referenced by a config file.
+Validate PATH availability of executables referenced by a config file.
+
+**Parameters:**
+
+- `path_conf_file` -- `str`:  path to configuration file withsections detailing executable tools to validate
+- `sections_to_check` -- `Iterable[str]`:  names ofsections of the given configuration file that are relevant; optional, will default to all sections if not given, but some may be excluded via another optional parameter
+
+
+### fetch\_samples
+Collect samples of particular protocol(s).
+
+Protocols can't be both positively selected for and negatively
+selected against. That is, it makes no sense and is not allowed to
+specify both selector_include and selector_exclude protocols. On the other hand, if
+neither is provided, all of the Project's Samples are returned.
+If selector_include is specified, Samples without a protocol will be excluded,
+but if selector_exclude is specified, protocol-less Samples will be included.
+```python
+def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
+```
+
+**Parameters:**
+
+- `proj` -- `Project`:  the Project with Samples to fetch
+- `str` -- `Project`:  the sample selector_attribute to select for
+- `selector_include` -- `Iterable[str] | str`:  protocol(s) of interest;if specified, a Sample must
+- `selector_exclude` -- `Iterable[str] | str`:  protocol(s) to include
+
+
+**Returns:**
+
+`list[Sample]`:  Collection of this Project's samples withprotocol that either matches one of those in selector_include, or either lacks a protocol or does not match one of those in selector_exclude
+
+
+
+
+### grab\_project\_data
+From the given Project, grab Sample-independent data.
+
+There are some aspects of a Project of which it's beneficial for a Sample
+to be aware, particularly for post-hoc analysis. Since Sample objects
+within a Project are mutually independent, though, each doesn't need to
+know about any of the others. A Project manages its, Sample instances,
+so for each Sample knowledge of Project data is limited. This method
+facilitates adoption of that conceptual model.
+```python
+def grab_project_data(prj):
+```
+
+**Parameters:**
+
+- `prj` -- `Project`:  Project from which to grab data
+
+
+
