@@ -755,7 +755,7 @@ class Project(AttMap):
         _LOGGER.debug("Adding attributes for {}: {}".format(
             self.__class__.__name__, config.keys()))
         _LOGGER.debug("Config metadata: {}".format(config[METADATA_KEY]))
-        self.add_entries(AttMap(config))
+        self.add_entries(config)
         _LOGGER.debug("{} now has {} keys: {}".format(
             self.__class__.__name__, len(self.keys()), self.keys()))
 
