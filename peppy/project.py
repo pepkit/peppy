@@ -473,7 +473,7 @@ class Project(AttMap):
 
         This method will bring the original project settings back after the subproject activation.
 
-        :return: peppy.Project: Updated Project instance
+        :return peppy.Project: Updated Project instance
         """
         if self.subproject is None:
             _LOGGER.warning("No subproject has been activated.")
