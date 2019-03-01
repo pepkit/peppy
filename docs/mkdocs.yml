@@ -39,4 +39,5 @@ plugins:
   - databio:
       autodoc_build: "docs/autodoc_build"
       autodoc_package: "peppy"
+      no_top_level: true
   - search

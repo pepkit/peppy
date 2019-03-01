@@ -1,13 +1,5 @@
 # Package peppy Documentation
 
-Project configuration, particularly for logging.
-
-Project-scope constants may reside here, but more importantly, some setup here
-will provide a logging infrastructure for all of the project's modules.
-Individual modules and classes may provide separate configuration on a more
-local level, but this will at least provide a foundation.
-
-
 ## Class Project
 A class to model a Project (collection of samples and metadata).
 A class to model a Project (collection of samples and metadata).
@@ -293,7 +285,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f4d31816030>):
+def pop(self, key, default=<object object at 0x7f3de4253030>):
 ```
 
 
@@ -659,7 +651,7 @@ D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
 
 If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f4d31816030>):
+def pop(self, key, default=<object object at 0x7f3de4253030>):
 ```
 
 
