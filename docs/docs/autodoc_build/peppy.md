@@ -2,7 +2,10 @@
 
 ## Class Project
 A class to model a Project (collection of samples and metadata).
-A class to model a Project (collection of samples and metadata).
+
+new
+text
+lines
 
 **Parameters:**
 
@@ -39,6 +42,11 @@ def activate_subproject(self, subproject):
 - `subproject` -- `str`:  A string with a subproject name to be activated
 
 
+**Returns:**
+
+`peppy.Project`:  Updated Project instance
+
+
 
 
 ### add\_entries
@@ -46,6 +54,10 @@ Update this instance with provided key-value pairs.
 ```python
 def add_entries(self, entries):
 ```
+
+**Parameters:**
+
+- `entries` -- `Iterable[(object, object)] | Mapping | pandas.Series`: collection of pairs of keys and values
 
 
 
@@ -56,6 +68,10 @@ Create table of subset of samples matching one of given protocols.
 def build_sheet(self, *protocols):
 ```
 
+**Returns:**
+
+`pandas.core.frame.DataFrame`:  DataFrame with from base versionof each of this Project's samples, for indicated protocol(s) if given, else all of this Project's samples
+
 
 
 
@@ -64,6 +80,19 @@ D.clear() -> None.  Remove all items from D.
 ```python
 def clear(self):
 ```
+
+
+
+
+### constants
+Return key-value pairs of pan-Sample constants for this Project.
+```python
+def constants:
+```
+
+**Returns:**
+
+`Mapping`:  collection of KV pairs, each representing a pairingof attribute name and attribute value
 
 
 
@@ -84,6 +113,23 @@ This method will bring the original project settings back after the subproject a
 ```python
 def deactivate_subproject(self):
 ```
+
+**Returns:**
+
+`peppy.Project`:  Updated Project instance
+
+
+
+
+### derived\_columns
+Collection of sample attributes for which value of each is derived from elsewhere
+```python
+def derived_columns:
+```
+
+**Returns:**
+
+`list[str]`:  sample attribute names for which value is derived
 
 
 
@@ -106,6 +152,7 @@ def finalize_pipelines_directory(self, pipe_path=''):
 **Raises:**
 
 - `PipelinesException`:  if (prioritized) search in attempt toconfirm or set pipelines directory failed
+- `TypeError`:  if pipeline(s) path(s) argument is provided andcan't be interpreted as a single path or as a flat collection of path(s)
 
 
 
@@ -120,9 +167,7 @@ def get(self, key, default=None):
 
 
 ### get\_arg\_string
-For this project, given a pipeline, return an argument string
-
-specified in the project config file.
+For this project, given a pipeline, return an argument string specified in the project config file.
 ```python
 def get_arg_string(self, pipeline_name):
 ```
@@ -145,6 +190,11 @@ def get_sample(self, sample_name):
 - `sample_name` -- `str`:  The name of a sample to retrieve
 
 
+**Returns:**
+
+`Sample`:  The requested Sample object
+
+
 
 
 ### get\_samples
@@ -156,6 +206,11 @@ def get_samples(self, sample_names):
 **Parameters:**
 
 - `sample_names` -- `list`:  A list of sample names to retrieve
+
+
+**Returns:**
+
+`list[Sample]`:  A list of Sample objects
 
 
 
@@ -172,6 +227,24 @@ def get_subsample(self, sample_name, subsample_name):
 - `subsample_name` -- `str`:  Name of Subsample to get
 
 
+**Returns:**
+
+`peppy.Subsample`:  The Subsample of requested name from indicatedsample matching given name
+
+
+
+
+### implied\_columns
+Collection of sample attributes for which value of each is implied by other(s)
+```python
+def implied_columns:
+```
+
+**Returns:**
+
+`list[str]`:  sample attribute names for which value is implied by other(s)
+
+
 
 
 ### infer\_name
@@ -183,6 +256,10 @@ is the parent of that folder.
 ```python
 def infer_name(self):
 ```
+
+**Returns:**
+
+`str`:  inferred name for project.
 
 
 
@@ -196,6 +273,11 @@ def is_null(self, item):
 **Parameters:**
 
 - `item` -- `object`:  Key to check for presence and null value
+
+
+**Returns:**
+
+`bool`:  True iff the item is present and has null value
 
 
 
@@ -265,6 +347,43 @@ def non_null(self, item):
 - `item` -- `object`:  Key to check for presence and non-null value
 
 
+**Returns:**
+
+`bool`:  True iff the item is present and has non-null value
+
+
+
+
+### num\_samples
+Count the number of samples available in this Project.
+```python
+def num_samples:
+```
+
+**Returns:**
+
+`int`:  number of samples available in this Project.
+
+
+
+
+### output\_dir
+Directory in which to place results and submissions folders.
+
+By default, assume that the project's configuration file specifies
+an output directory, and that this is therefore available within
+the project metadata. If that assumption does not hold, though,
+consider the folder in which the project configuration file lives
+to be the project's output directory.
+```python
+def output_dir:
+```
+
+**Returns:**
+
+`str`:  path to the project's output directory, either asspecified in the configuration file or the folder that contains the project's configuration file.
+
+
 
 
 ### parse\_config\_file
@@ -278,23 +397,24 @@ def parse_config_file(self, subproject=None):
 - `subproject` -- `str`:  Name of subproject to activate, optional
 
 
+**Raises:**
+
+- `KeyError`:  if config file lacks required section(s)
+
+
 
 
 ### pop
-D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
-
-If key is not found, d is returned if given, otherwise KeyError is raised.
+D.pop(k[,d]) -> v, remove specified key and return the corresponding value. If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f3de4253030>):
+def pop(self, key, default=<object object at 0x7fc3d90f0030>):
 ```
 
 
 
 
 ### popitem
-D.popitem() -> (k, v), remove and return some (key, value) pair
-
-as a 2-tuple; but raise KeyError if D is empty.
+D.popitem() -> (k, v), remove and return some (key, value) pair as a 2-tuple; but raise KeyError if D is empty.
 ```python
 def popitem(self):
 ```
@@ -302,8 +422,74 @@ def popitem(self):
 
 
 
+### project\_folders
+Names of folders to nest within a project output directory.
+```python
+def project_folders:
+```
+
+**Returns:**
+
+`Iterable[str]`:  names of output-nested folders
+
+
+
+
+### protocols
+Determine this Project's unique protocol names.
+```python
+def protocols:
+```
+
+**Returns:**
+
+`Set[str]`:  collection of this Project's unique protocol names
+
+
+
+
+### required\_metadata
+Names of metadata fields that must be present for a valid project.
+
+Make a base project as unconstrained as possible by requiring no
+specific metadata attributes. It's likely that some common-sense
+requirements may arise in domain-specific client applications, in
+which case this can be redefined in a subclass.
+```python
+def required_metadata:
+```
+
+**Returns:**
+
+`Iterable[str]`:  names of metadata fields required by a project
+
+
+
+
+### sample\_names
+Names of samples of which this Project is aware.
+```python
+def sample_names:
+```
+
+
+
+
+### samples
+Generic/base Sample instance for each of this Project's samples.
+```python
+def samples:
+```
+
+**Returns:**
+
+`Iterable[Sample]`:  Sample instance for eachof this Project's samples
+
+
+
+
 ### set\_project\_permissions
-Make the project's public_html folder executable. 
+Make the project's public_html folder executable.
 ```python
 def set_project_permissions(self):
 ```
@@ -320,12 +506,47 @@ def setdefault(self, key, default=None):
 
 
 
-### update
-D.update([E, ]**F) -> None.  Update D from mapping/iterable E and F.
+### sheet
+Annotations/metadata sheet describing this Project's samples.
+```python
+def sheet:
+```
 
-If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
-If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
-In either case, this is followed by: for k, v in F.items(): D[k] = v
+**Returns:**
+
+`pandas.core.frame.DataFrame`:  table of samples in this Project
+
+
+
+
+### subproject
+Return currently active subproject or None if none was activated
+```python
+def subproject:
+```
+
+**Returns:**
+
+`str`:  currently active subproject
+
+
+
+
+### templates\_folder
+Path to folder with default submission templates.
+```python
+def templates_folder:
+```
+
+**Returns:**
+
+`str`:  path to folder with default submission templates
+
+
+
+
+### update
+D.update([E, ]**F) -> None.  Update D from mapping/iterable E and F. If E present and has a .keys() method, does:     for k in E: D[k] = E[k] If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v In either case, this is followed by: for k, v in F.items(): D[k] = v
 ```python
 def update(*args, **kwds):
 ```
@@ -343,17 +564,14 @@ def values(self):
 
 
 ## Class MissingMetadataException
-Project needs certain metadata. 
-Project needs certain metadata. 
+Project needs certain metadata.
 
 
 ## Class MissingSampleSheetError
-Represent case in which sample sheet is specified but nonexistent. 
-Represent case in which sample sheet is specified but nonexistent. 
+Represent case in which sample sheet is specified but nonexistent.
 
 
 ## Class Sample
-Class to model Samples based on a pandas Series.
 Class to model Samples based on a pandas Series.
 
 **Example(s):**
@@ -372,6 +590,10 @@ Update this instance with provided key-value pairs.
 def add_entries(self, entries):
 ```
 
+**Parameters:**
+
+- `entries` -- `Iterable[(object, object)] | Mapping | pandas.Series`: collection of pairs of keys and values
+
 
 
 
@@ -380,6 +602,10 @@ Returns a `pandas.Series` object with all the sample's attributes.
 ```python
 def as_series(self):
 ```
+
+**Returns:**
+
+`pandas.core.series.Series`:  pandas Series representationof this Sample, with its attributes.
 
 
 
@@ -393,6 +619,11 @@ def check_valid(self, required=None):
 **Parameters:**
 
 - `required` -- `Iterable[str]`:  collection of required sample attributenames, optional; if unspecified, only a name is required.
+
+
+**Returns:**
+
+`(Exception | NoneType, str, str)`:  exception and messages aboutwhat's missing/empty; null with empty messages if there was nothing exceptional or required inputs are absent or not set
 
 
 
@@ -421,6 +652,10 @@ Determine which of this Sample's required attributes/files are missing.
 def determine_missing_requirements(self):
 ```
 
+**Returns:**
+
+`(type, str)`:  hypothetical exception type along with messageabout what's missing; null and empty if nothing exceptional is detected
+
 
 
 
@@ -438,6 +673,11 @@ def generate_filename(self, delimiter='_'):
 **Parameters:**
 
 - `delimiter` -- `str`:  what to place between sample name and name ofsubtype; this is only relevant if the instance is of a subclass
+
+
+**Returns:**
+
+`str`:  name for file with which to represent this Sample on disk
 
 
 
@@ -471,6 +711,11 @@ def get_attr_values(self, attrlist):
 - `attrlist` -- `str`:  name of an attribute storing a list of attr names
 
 
+**Returns:**
+
+`list | NoneType`:  value (or empty string) corresponding toeach named attribute; null if this Sample's value for the attribute given by the argument to the "attrlist" parameter is empty/null, or if this Sample lacks the indicated attribute
+
+
 
 
 ### get\_sheet\_dict
@@ -481,6 +726,10 @@ sample that excludes things like config files and derived entries.
 ```python
 def get_sheet_dict(self):
 ```
+
+**Returns:**
+
+`OrderedDict`:  mapping from name to value for data elementsoriginally provided via the sample sheet (i.e., the a map-like representation of the instance, excluding derived items)
 
 
 
@@ -496,6 +745,11 @@ def get_subsample(self, subsample_name):
 - `subsample_name` -- `str`:  The name of the desired subsample. Shouldmatch the subsample_name column in the subannotation sheet.
 
 
+**Returns:**
+
+`peppy.Subsample`:  Requested Subsample object
+
+
 
 
 ### get\_subsamples
@@ -507,6 +761,11 @@ def get_subsamples(self, subsample_names):
 **Parameters:**
 
 - `subsample_names` -- `list[str]`:  List of names of subsamples to retrieve
+
+
+**Returns:**
+
+`list[peppy.Subsample]`:  List of subsamples
 
 
 
@@ -526,6 +785,24 @@ def infer_attributes(self, implications):
 - `implications` -- `Mapping`:  Project's implied columns data
 
 
+**Returns:**
+
+`None`:  this function mutates state and is strictly for effect
+
+
+
+
+### input\_file\_paths
+List the sample's data source / input files
+```python
+def input_file_paths:
+```
+
+**Returns:**
+
+`list[str]`:  paths to data sources / input file for this Sample.
+
+
 
 
 ### is\_dormant
@@ -539,6 +816,10 @@ in order to be considered switched 'on.'
 def is_dormant(self):
 ```
 
+**Returns:**
+
+`bool`:  whether this Sample's been designated as dormant
+
 
 
 
@@ -551,6 +832,11 @@ def is_null(self, item):
 **Parameters:**
 
 - `item` -- `object`:  Key to check for presence and null value
+
+
+**Returns:**
+
+`bool`:  True iff the item is present and has null value
 
 
 
@@ -600,11 +886,21 @@ def keys(self):
 
 
 
-### locate\_data\_source
-Uses the template path provided in the project config section
+### library
+Backwards-compatible alias.
+```python
+def library:
+```
 
-"data_sources" to piece together an actual path by substituting
-variables (encoded by "{variable}"") with sample attributes.
+**Returns:**
+
+`str`:  The protocol / NGS library name for this Sample.
+
+
+
+
+### locate\_data\_source
+Uses the template path provided in the project config section "data_sources" to piece together an actual path by substituting variables (encoded by "{variable}"") with sample attributes.
 ```python
 def locate_data_source(self, data_sources, column_name='data_source', source_key=None, extra_vars=None):
 ```
@@ -620,6 +916,11 @@ def locate_data_source(self, data_sources, column_name='data_source', source_key
 **Returns:**
 
 `str`:  regex expansion of data source specified in configuration,with variable substitutions made
+
+
+**Raises:**
+
+- `ValueError`:  if argument to data_sources parameter is null/empty
 
 
 
@@ -644,23 +945,24 @@ def non_null(self, item):
 - `item` -- `object`:  Key to check for presence and non-null value
 
 
+**Returns:**
+
+`bool`:  True iff the item is present and has non-null value
+
+
 
 
 ### pop
-D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
-
-If key is not found, d is returned if given, otherwise KeyError is raised.
+D.pop(k[,d]) -> v, remove specified key and return the corresponding value. If key is not found, d is returned if given, otherwise KeyError is raised.
 ```python
-def pop(self, key, default=<object object at 0x7f3de4253030>):
+def pop(self, key, default=<object object at 0x7fc3d90f0030>):
 ```
 
 
 
 
 ### popitem
-D.popitem() -> (k, v), remove and return some (key, value) pair
-
-as a 2-tuple; but raise KeyError if D is empty.
+D.popitem() -> (k, v), remove and return some (key, value) pair as a 2-tuple; but raise KeyError if D is empty.
 ```python
 def popitem(self):
 ```
@@ -674,6 +976,10 @@ Sets the paths of all files for this sample.
 def set_file_paths(self, project=None):
 ```
 
+**Parameters:**
+
+- `project` -- `AttMap`:  object with pointers to data paths andsuch, either full Project or AttMap with sufficient data
+
 
 
 
@@ -682,6 +988,10 @@ Set the genome for this Sample.
 ```python
 def set_genome(self, genomes):
 ```
+
+**Parameters:**
+
+- `genomes` -- `Mapping[str, str]`:  genome assembly by organism name
 
 
 
@@ -702,14 +1012,13 @@ def set_pipeline_attributes(self, pipeline_interface, pipeline_name, permissive=
 
 - `pipeline_interface` -- `PipelineInterface`:  A PipelineInterfaceobject that has the settings for this given pipeline.
 - `pipeline_name` -- `str`:  Which pipeline to choose.
+- `permissive` -- `bool`:  whether to simply log a warning or errormessage rather than raising an exception if sample file is not found or otherwise cannot be read, default True
 
 
 
 
 ### set\_read\_type
-For a sample with attr `ngs_inputs` set, this sets the 
-
-read type (single, paired) and read length of an input file.
+For a sample with attr `ngs_inputs` set, this sets the read type (single, paired) and read length of an input file.
 ```python
 def set_read_type(self, rlen_sample_size=10, permissive=True):
 ```
@@ -717,6 +1026,7 @@ def set_read_type(self, rlen_sample_size=10, permissive=True):
 **Parameters:**
 
 - `rlen_sample_size` -- `int`:  Number of reads to sample to infer read type,default 10.
+- `permissive` -- `bool`:  whether to simply log a warning or error messagerather than raising an exception if sample file is not found or otherwise cannot be read, default True.
 
 
 
@@ -726,6 +1036,10 @@ Set the transcriptome for this Sample.
 ```python
 def set_transcriptome(self, transcriptomes):
 ```
+
+**Parameters:**
+
+- `transcriptomes` -- `Mapping[str, str]`:  transcriptome assembly byorganism name
 
 
 
@@ -757,6 +1071,11 @@ def to_yaml(self, path=None, subs_folder_path=None, delimiter='_'):
 `str`:  filepath used (same as input if given, otherwise thepath value that was inferred)
 
 
+**Raises:**
+
+- `ValueError`:  if neither full filepath nor path to extantparent directory is provided.
+
+
 
 
 ### update
@@ -778,18 +1097,30 @@ def values(self):
 
 
 ## Class PeppyError
-Base error type for peppy custom errors. 
-Base error type for peppy custom errors. 
+Base error type for peppy custom errors.
 
 
 ## Class CommandChecker
-Validate PATH availability of executables referenced by a config file.
 Validate PATH availability of executables referenced by a config file.
 
 **Parameters:**
 
 - `path_conf_file` -- `str`:  path to configuration file withsections detailing executable tools to validate
 - `sections_to_check` -- `Iterable[str]`:  names ofsections of the given configuration file that are relevant; optional, will default to all sections if not given, but some may be excluded via another optional parameter
+- `sections_to_skip` -- `Iterable[str]`:  analogous tothe check names parameter, but for specific sections to skip.
+
+
+### failed
+Determine whether *every* command succeeded for *every* config file section that was validated during instance construction.
+```python
+def failed:
+```
+
+**Returns:**
+
+`bool`:  conjunction of execution success test result values,obtained by testing each executable in every validated section
+
+
 
 
 ### fetch\_samples
@@ -818,6 +1149,11 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
 `list[Sample]`:  Collection of this Project's samples withprotocol that either matches one of those in selector_include, or either lacks a protocol or does not match one of those in selector_exclude
 
 
+**Raises:**
+
+- `TypeError`:  if both selector_include and selector_exclude protocols arespecified; TypeError since it's basically providing two arguments when only one is accepted, so remain consistent with vanilla Python2
+
+
 
 
 ### grab\_project\_data
@@ -836,6 +1172,11 @@ def grab_project_data(prj):
 **Parameters:**
 
 - `prj` -- `Project`:  Project from which to grab data
+
+
+**Returns:**
+
+`Mapping`:  Sample-independent data sections from given Project
 
 
 
