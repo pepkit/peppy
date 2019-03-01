@@ -19,7 +19,8 @@ nav:
     - Pipeline interface: pipeline-interface.md
     - Project configuration: project-config.md
     - Sample annotation sheet: sample-annotation-sheet.md
-  - API: autodoc_build/peppy_oradoc.md
+  #- API: autodoc_build/peppy_oradoc.md
+  - API: autodoc_build/peppy.md
   #- API: autodoc_build/peppy_pydoc.md
   #  - Project: autodoc_build/project.md
   #  - Sample: autodoc_build/sample.md
@@ -32,4 +33,10 @@ nav:
 #  - markdown_include.include:
 #    base_path: docs
 
-#theme: readthedocs
+theme: databio
+
+plugins:
+  - databio:
+      autodoc_build: "docs/autodoc_build"
+      autodoc_package: "peppy"
+  - search
