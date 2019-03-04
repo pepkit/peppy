@@ -2,7 +2,7 @@ site_name: Peppy
 nav:
   - Home: README.md
   - Introduction: intro.md
-  - Tutorials: tutorials.md
+  - Installing and Hello World: hello-world.md
   - How-to Guides:
     - How to use peppy: jupyter_build/tutorial.md
     - How to use sample subannotation: jupyter_build/subannotation.md
@@ -13,7 +13,6 @@ nav:
     - Configuration files: config-files.md
     - Contributing: contributing.md
     - Derived columns: derived-columns.md
-    - Hello World: hello-world.md
     - Implied columns: implied-columns.md
     - Models: models.md
     - Pipeline interface: pipeline-interface.md
@@ -29,7 +28,7 @@ theme: databio
 plugins:
   - databio:
       autodoc_build: "docs/autodoc_build"
-      autodoc_package: "divvy"
+      autodoc_package: "peppy"
       no_top_level: true
   - search
 

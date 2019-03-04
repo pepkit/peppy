@@ -4,11 +4,10 @@ The best way to learn is by example, so here's an extended tutorial to get you s
 
 First, install looper and pypiper. [`pypiper`](http://pypiper.readthedocs.io) is our pipeline development framework. While `pypiper` is not required to use `looper` (which can work with any command-line tool), we install it now since this tutorial uses `pypiper` pipelines:
 
-.. code:: bash
-
-	pip install --user https://github.com/epigen/looper/zipball/master
-	pip install --user https://github.com/epigen/pypiper/zipball/master
-
+```bash
+pip install --user https://github.com/epigen/looper/zipball/master
+pip install --user https://github.com/epigen/pypiper/zipball/master
+```
 
 Now, you will need to grab a project to run, and some pipelines to run on it. We have a functional working project example and an open source pipeline repository on github.
 
