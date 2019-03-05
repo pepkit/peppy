@@ -9,26 +9,18 @@ nav:
     - How to use peppy: tutorial.md
     - How to use sample subannotation: subannotation.md
     - Subprojects tutorial: subprojects.md
+    - How to use project models: models.md
   - Reference:
     - Advanced: advanced.md
-    - Cluster computing: cluster-computing.md
-    - Configuration files: config-files.md
+    - API: autodoc_build/peppy.md
+    - Support: support.md
     - Contributing: contributing.md
-    - Derived columns: derived-columns.md
-    - Implied columns: implied-columns.md
-    - Models: models.md
-    - Pipeline interface: pipeline-interface.md
-    - Project configuration: project-config.md
-    - Sample annotation sheet: sample-annotation-sheet.md
+    - Changelog: changelog.md
   #- API: autodoc_build/peppy_oradoc.md
-  - API: autodoc_build/peppy.md
   #- API: autodoc_build/peppy_pydoc.md
   #  - Project: autodoc_build/project.md
   #  - Sample: autodoc_build/sample.md
   #  - Tools: autodoc_build/utils.md
-  - FAQ: faq.md
-  - Support: support.md
-  - Changelog: changelog.md
 
 theme: databio
 
