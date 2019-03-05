@@ -2,14 +2,13 @@
 
 [![Build Status](https://travis-ci.org/pepkit/peppy.svg?branch=master)](https://travis-ci.org/pepkit/peppy)
 [![Coverage Status](https://coveralls.io/repos/github/vreuter/peppy/badge.svg?branch=master)](https://coveralls.io/github/vreuter/peppy?branch=master)
-[![Documentation Status](http://readthedocs.org/projects/pep/badge/?version=latest)](http://peppy.readthedocs.io/en/latest/?badge=latest)
 [![PEP compatible](http://pepkit.github.io/img/PEP-compatible-green.svg)](http://pepkit.github.io)
 
 `peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in `python`. 
 
 Links to complete documentation:
 
-* Complete documentation and API for the `peppy` python package is at [peppy.readthedocs.io](http://peppy.readthedocs.io/).
+* Complete documentation and API for the `peppy` python package is at [code.databio.org/peppy](http://code.databio.org/peppy/).
 * Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
 * Example PEPs for testing `peppy` are in the [example_peps repository](https://github.com/pepkit/example_peps).
 
