@@ -18,6 +18,8 @@ from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 from .utils import fetch_samples, grab_project_data, CommandChecker
 
+from attmap import AttMap, AttributeDict
+
 _EXPORT_FROM_UTILS = [fetch_samples.__name__, grab_project_data.__name__,
                       CommandChecker.__name__]
 
@@ -26,7 +28,8 @@ __classes__ = ["Project", "Sample"]
 __all__ = __classes__ + ["PeppyError"] + _EXPORT_FROM_UTILS
 
 
-
+# TODO: remove
+COMPUTE_SETTINGS_VARNAME = "DIVCFG"
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
 
