@@ -1,0 +1,9 @@
+metadata:
+  sample_annotation: sample_annotation.csv
+
+bioconductor:
+  readFunName: readBedFiles_resize
+  readFunPath: readBedFiles_resize.R
+  funcArgs: 
+    resize.width: 100
+

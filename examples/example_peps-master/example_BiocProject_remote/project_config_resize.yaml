@@ -1,0 +1,6 @@
+metadata:
+  sample_annotation: sample_annotation.csv
+
+bioconductor:
+  read_fun_name: readRemoteData_resize
+  read_fun_path: readRemoteData_resize.R
