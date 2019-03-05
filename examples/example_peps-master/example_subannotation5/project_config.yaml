@@ -1,0 +1,12 @@
+metadata:
+  sample_annotation: sample_annotation.csv
+  sample_subannotation: sample_subannotation.csv
+  output_dir: $HOME/hello_looper_results
+  pipeline_interfaces: [../pipeline/pipeline_interface.yaml]
+
+derived_attributes: [read1, read2]
+
+data_sources:
+  R1: "../data/{identifier}{file_id}_R1.fq.gz"
+  R2: "../data/{identifier}{file_id}_R2.fq.gz"
+

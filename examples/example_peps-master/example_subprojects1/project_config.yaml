@@ -1,0 +1,17 @@
+metadata:
+    sample_annotation: sample_annotation.csv
+    output_dir: $HOME/hello_looper_results
+
+derived_attributes: [file_path]
+data_sources:
+    source1: /data/lab/project/{organism}_{time}h.fastq
+    source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
+
+subprojects:
+    newLib:
+        metadata:
+            sample_annotation: sample_annotation_newLib.csv
+    newLib2:
+        metadata:
+            sample_annotation: sample_annotation_newLib2.csv
+
