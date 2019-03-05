@@ -1,12 +1,11 @@
 site_name: Peppy
 nav:
-  - Home: README.md
-  - Introduction: intro.md
+  - Introduction: README.md
   - Installing and Hello World: hello-world.md
   - How-to Guides:
-    - How to use peppy: jupyter_build/tutorial.md
-    - How to use sample subannotation: jupyter_build/subannotation.md
-    - Subprojects tutorial: jupyter_build/subprojects.md
+    - How to use peppy: tutorial.md
+    - How to use sample subannotation: subannotation.md
+    - Subprojects tutorial: subprojects.md
   - Reference:
     - Advanced: advanced.md
     - Cluster computing: cluster-computing.md
@@ -30,24 +29,11 @@ nav:
 
 theme: databio
 
-plugins:
-  - databio:
-      autodoc_build: "docs/autodoc_build"
-      autodoc_package: "peppy"
-      no_top_level: true
-  - search
-
-
-
-#markdown_extensions:
-#  - markdown_include.include:
-#    base_path: docs
-
 theme: databio
 
 plugins:
   - databio:
       autodoc_build: "docs/autodoc_build"
-      autodoc_package: "peppy"
+      autodoc_package: null
       no_top_level: true
   - search
