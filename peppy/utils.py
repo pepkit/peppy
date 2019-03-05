@@ -34,6 +34,7 @@ __all__ = [
 def alpha_cased(text, lower=False):
     """
     Filter text to just letters and homogenize case.
+    
     :param str text: what to filter and homogenize.
     :param bool lower: whether to convert to lowercase; default uppercase.
     :return str: input filtered to just letters, with homogenized case.
