@@ -15,8 +15,6 @@ nav:
     - Support: support.md
     - Contributing: contributing.md
     - Changelog: changelog.md
-  #- API: autodoc_build/peppy_oradoc.md
-  #- API: autodoc_build/peppy_pydoc.md
   #  - Project: autodoc_build/project.md
   #  - Sample: autodoc_build/sample.md
   #  - Tools: autodoc_build/utils.md
