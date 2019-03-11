@@ -13,13 +13,14 @@ A class to model a Project (collection of samples and metadata).
 - `compute_env_file` -- `str`:  Environment configuration YAML file specifyingcompute settings.
 - `no_environment_exception` -- `type`:  type of exception to raise if environmentsettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
 - `no_compute_exception` -- `type`:  type of exception to raise if computesettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
+- `defer_sample_construction` -- `bool`:  whether to wait to build this Project'sSample objects until they're needed, optional; by default, the basic Sample is created during Project construction
 
 
 **Example(s):**
 
 ```python
-from models import Project
-prj = Project("config.yaml")
+    from models import Project
+    prj = Project("config.yaml")
 ```
 
 
@@ -413,13 +414,18 @@ Represent case in which sample sheet is specified but nonexistent.
 ## Class Sample
 Class to model Samples based on a pandas Series.
 
+**Parameters:**
+
+- `series` -- `Mapping | pandas.core.series.Series`:  Sample's data.
+
+
 **Example(s):**
 
 ```python
-from models import Project, SampleSheet, Sample
-prj = Project("ngs")
-sheet = SampleSheet("~/projects/example/sheet.csv", prj)
-s1 = Sample(sheet.iloc[0])
+    from models import Project, SampleSheet, Sample
+    prj = Project("ngs")
+    sheet = SampleSheet("~/projects/example/sheet.csv", prj)
+    s1 = Sample(sheet.iloc[0])
 ```
 
 
