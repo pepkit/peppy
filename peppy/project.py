@@ -221,7 +221,6 @@ class Project(AttMap):
         path_anns_file = self.metadata.sample_annotation
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-            _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
             self._sheet = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
