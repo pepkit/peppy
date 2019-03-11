@@ -11,7 +11,7 @@ nav:
     - Subprojects tutorial: subprojects.md
     - How to use project models: models.md
   - Reference:
-    - API: autodoc_build/peppy.md
+    #- API: autodoc_build/peppy.md
     - Support: support.md
     - Contributing: contributing.md
     - Changelog: changelog.md
