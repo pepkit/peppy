@@ -148,10 +148,12 @@ class Project(AttMap):
         Sample objects until they're needed, optional; by default, the basic
         Sample is created during Project construction
 
-    ```python
-    from models import Project
-    prj = Project("config.yaml")
-    ```
+    :Example:
+
+    .. code-block:: python
+
+        from models import Project
+        prj = Project("config.yaml")
 
     """
 
