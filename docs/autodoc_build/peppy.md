@@ -13,22 +13,21 @@ A class to model a Project (collection of samples and metadata).
 - `compute_env_file` -- `str`:  Environment configuration YAML file specifyingcompute settings.
 - `no_environment_exception` -- `type`:  type of exception to raise if environmentsettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
 - `no_compute_exception` -- `type`:  type of exception to raise if computesettings can't be established, optional; if null (the default), a warning message will be logged, and no exception will be raised.
+- `defer_sample_construction` -- `bool`:  whether to wait to build this Project'sSample objects until they're needed, optional; by default, the basic Sample is created during Project construction
 
 
 **Example(s):**
 
 ```python
-from models import Project
-prj = Project("config.yaml")
+    from models import Project
+    prj = Project("config.yaml")
 ```
 
 
 ### activate\_subproject
 Update settings based on subproject-specific values.
 
-This method will update Project attributes, adding new values
-associated with the subproject indicated, and in case of collision with
-an existing key/attribute the subproject's value will be favored.
+
 ```python
 def activate_subproject(self, subproject):
 ```
@@ -83,7 +82,7 @@ def copy(self):
 ### deactivate\_subproject
 Bring the original project settings back
 
-This method will bring the original project settings back after the subproject activation.
+
 ```python
 def deactivate_subproject(self):
 ```
@@ -111,9 +110,7 @@ def derived_columns:
 ### finalize\_pipelines\_directory
 Finalize the establishment of a path to this project's pipelines.
 
-With the passed argument, override anything already set.
-Otherwise, prefer path provided in this project's config, then
-local pipelines folder, then a location set in project environment.
+
 ```python
 def finalize_pipelines_directory(self, pipe_path=''):
 ```
@@ -143,9 +140,7 @@ def get_arg_string(self, pipeline_name):
 ### get\_sample
 Get an individual sample object from the project.
 
-Will raise a ValueError if the sample is not found. In the case of multiple
-samples with the same name (which is not typically allowed), a warning is
-raised and the first sample is returned.
+
 ```python
 def get_sample(self, sample_name):
 ```
@@ -215,9 +210,7 @@ def implied_columns:
 ### infer\_name
 Infer project name from config file path.
 
-First assume the name is the folder in which the config file resides,
-unless that folder is named "metadata", in which case the project name
-is the parent of that folder.
+
 ```python
 def infer_name(self):
 ```
@@ -254,11 +247,7 @@ def num_samples:
 ### output\_dir
 Directory in which to place results and submissions folders.
 
-By default, assume that the project's configuration file specifies
-an output directory, and that this is therefore available within
-the project metadata. If that assumption does not hold, though,
-consider the folder in which the project configuration file lives
-to be the project's output directory.
+
 ```python
 def output_dir:
 ```
@@ -317,10 +306,7 @@ def protocols:
 ### required\_metadata
 Names of metadata fields that must be present for a valid project.
 
-Make a base project as unconstrained as possible by requiring no
-specific metadata attributes. It's likely that some common-sense
-requirements may arise in domain-specific client applications, in
-which case this can be redefined in a subclass.
+
 ```python
 def required_metadata:
 ```
@@ -413,13 +399,18 @@ Represent case in which sample sheet is specified but nonexistent.
 ## Class Sample
 Class to model Samples based on a pandas Series.
 
+**Parameters:**
+
+- `series` -- `Mapping | pandas.core.series.Series`:  Sample's data.
+
+
 **Example(s):**
 
 ```python
-from models import Project, SampleSheet, Sample
-prj = Project("ngs")
-sheet = SampleSheet("~/projects/example/sheet.csv", prj)
-s1 = Sample(sheet.iloc[0])
+    from models import Project, SampleSheet, Sample
+    prj = Project("ngs")
+    sheet = SampleSheet("~/projects/example/sheet.csv", prj)
+    s1 = Sample(sheet.iloc[0])
 ```
 
 
@@ -479,10 +470,7 @@ def determine_missing_requirements(self):
 ### generate\_filename
 Create a name for file in which to represent this Sample.
 
-This uses knowledge of the instance's subtype, sandwiching a delimiter
-between the name of this Sample and the name of the subtype before the
-extension. If the instance is a base Sample type, then the filename
-is simply the sample name with an extension.
+
 ```python
 def generate_filename(self, delimiter='_'):
 ```
@@ -529,8 +517,7 @@ def get_attr_values(self, attrlist):
 ### get\_sheet\_dict
 Create a K-V pairs for items originally passed in via the sample sheet.
 
-This is useful for summarizing; it provides a representation of the
-sample that excludes things like config files and derived entries.
+
 ```python
 def get_sheet_dict(self):
 ```
@@ -581,9 +568,7 @@ def get_subsamples(self, subsample_names):
 ### infer\_attributes
 Infer value for additional field(s) from other field(s).
 
-Add columns/fields to the sample based on values in those already-set
-that the sample's project defines as indicative of implications for
-additional data elements for the sample.
+
 ```python
 def infer_attributes(self, implications):
 ```
@@ -616,10 +601,7 @@ def input_file_paths:
 ### is\_dormant
 Determine whether this Sample is inactive.
 
-By default, a Sample is regarded as active. That is, if it lacks an
-indication about activation status, it's assumed to be active. If,
-however, and there's an indication of such status, it must be '1'
-in order to be considered switched 'on.'
+
 ```python
 def is_dormant(self):
 ```
@@ -708,11 +690,7 @@ def set_genome(self, genomes):
 ### set\_pipeline\_attributes
 Set pipeline-specific sample attributes.
 
-Some sample attributes are relative to a particular pipeline run,
-like which files should be considered inputs, what is the total
-input file size for the sample, etc. This function sets these
-pipeline-specific sample attributes, provided via a PipelineInterface
-object and the name of a pipeline to select from that interface.
+
 ```python
 def set_pipeline_attributes(self, pipeline_interface, pipeline_name, permissive=True):
 ```
@@ -817,12 +795,7 @@ def failed:
 ### fetch\_samples
 Collect samples of particular protocol(s).
 
-Protocols can't be both positively selected for and negatively
-selected against. That is, it makes no sense and is not allowed to
-specify both selector_include and selector_exclude protocols. On the other hand, if
-neither is provided, all of the Project's Samples are returned.
-If selector_include is specified, Samples without a protocol will be excluded,
-but if selector_exclude is specified, protocol-less Samples will be included.
+
 ```python
 def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
 ```
@@ -850,12 +823,7 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
 ### grab\_project\_data
 From the given Project, grab Sample-independent data.
 
-There are some aspects of a Project of which it's beneficial for a Sample
-to be aware, particularly for post-hoc analysis. Since Sample objects
-within a Project are mutually independent, though, each doesn't need to
-know about any of the others. A Project manages its, Sample instances,
-so for each Sample knowledge of Project data is limited. This method
-facilitates adoption of that conceptual model.
+
 ```python
 def grab_project_data(prj):
 ```
