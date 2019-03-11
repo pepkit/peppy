@@ -179,8 +179,6 @@ class Project(AttMap):
 
         # Parse config file
         _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
-        if subproject:
-            _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
         if self.non_null("data_sources"):
@@ -785,9 +783,10 @@ class Project(AttMap):
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
             self._subproject = subproject
+            _LOGGER.info("Using subproject: '{}'".format(subproject))
         elif subproject:
-            _LOGGER.warning("Subproject {} requested but no subprojects "
-                         "are defined".format(subproject))
+            _LOGGER.warning("Subproject '{}' requested but no subprojects "
+                         "are defined. Disregarding".format(subproject))
         else:
             _LOGGER.debug("No subproject requested")
 
