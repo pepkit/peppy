@@ -148,10 +148,12 @@ class Project(AttMap):
         Sample objects until they're needed, optional; by default, the basic
         Sample is created during Project construction
 
-    ```python
-    from models import Project
-    prj = Project("config.yaml")
-    ```
+    :Example:
+
+    .. code-block:: python
+
+        from models import Project
+        prj = Project("config.yaml")
 
     """
 
@@ -179,8 +181,6 @@ class Project(AttMap):
 
         # Parse config file
         _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
-        if subproject:
-            _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
         if self.non_null("data_sources"):
@@ -221,7 +221,6 @@ class Project(AttMap):
         path_anns_file = self.metadata.sample_annotation
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-            _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
             self._sheet = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
@@ -684,6 +683,7 @@ class Project(AttMap):
             _LOGGER.debug("Already parsed sample subannotations")
 
         # Set samples and handle non-unique names situation.
+        self._check_subann_name_overlap()
         self._samples = self._prep_samples()
         self._check_unique_samples()
 
@@ -724,6 +724,22 @@ class Project(AttMap):
             samples.append(sample)
 
         return samples
+
+    def _check_subann_name_overlap(self):
+        """
+        Check if all subannotations have a matching sample, and warn if not
+
+        :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
+        """
+        if self.sample_subannotation is not None:
+            sample_subann_names = self.sample_subannotation.sample_name.tolist()
+            sample_names_list = list(self.sample_names)
+            info = " matching sample name for subannotation '{}'"
+            for n in sample_subann_names:
+                _LOGGER.warning(("Couldn't find" + info).format(n)) if n not in sample_names_list\
+                    else _LOGGER.debug(("Found" + info).format(n))
+        else:
+            _LOGGER.debug("No sample subannotations found for this Project.")
 
     def parse_config_file(self, subproject=None):
         """
@@ -769,9 +785,10 @@ class Project(AttMap):
             _LOGGER.debug("Updating with: {}".format(subproj_updates))
             self.add_entries(subproj_updates)
             self._subproject = subproject
+            _LOGGER.info("Using subproject: '{}'".format(subproject))
         elif subproject:
-            _LOGGER.warning("Subproject {} requested but no subprojects "
-                         "are defined".format(subproject))
+            _LOGGER.warning("Subproject '{}' requested but no subprojects "
+                         "are defined. Disregarding".format(subproject))
         else:
             _LOGGER.debug("No subproject requested")
 

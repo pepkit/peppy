@@ -30,6 +30,7 @@ __all__ = __classes__ + ["PeppyError"] + _EXPORT_FROM_UTILS
 
 # TODO: remove
 COMPUTE_SETTINGS_VARNAME = "DIVCFG"
+
 LOGGING_LEVEL = "INFO"
 LOGGING_LOCATIONS = (stdout, )
 
@@ -44,7 +45,6 @@ DEV_LOGGING_FMT = "%(module)s:%(lineno)d (%(funcName)s) [%(levelname)s] > %(mess
 _LOGGER = logging.getLogger(__name__)
 if not logging.getLogger().handlers:
     _LOGGER.addHandler(logging.NullHandler())
-
 
 
 def setup_peppy_logger(level, additional_locations=None, devmode=False):
@@ -67,10 +67,10 @@ def setup_peppy_logger(level, additional_locations=None, devmode=False):
     fmt = DEV_LOGGING_FMT if devmode else DEFAULT_LOGGING_FMT
 
     # Establish the logger.
-    LOOPER_LOGGER = logging.getLogger("peppy")
+    PEPPY_LOGGER = logging.getLogger("peppy")
     # First remove any previously-added handlers
-    LOOPER_LOGGER.handlers = []
-    LOOPER_LOGGER.propagate = False
+    PEPPY_LOGGER.handlers = []
+    PEPPY_LOGGER.propagate = False
 
     # Handle int- or text-specific logging level.
     try:
@@ -79,12 +79,12 @@ def setup_peppy_logger(level, additional_locations=None, devmode=False):
         level = level.upper()
 
     try:
-        LOOPER_LOGGER.setLevel(level)
+        PEPPY_LOGGER.setLevel(level)
     except Exception:
         logging.error("Can't set logging level to %s; instead using: '%s'",
                       str(level), str(LOGGING_LEVEL))
         level = LOGGING_LEVEL
-        LOOPER_LOGGER.setLevel(level)
+        PEPPY_LOGGER.setLevel(level)
 
     # Process any additional locations.
     locations_exception = None
@@ -126,6 +126,9 @@ def setup_peppy_logger(level, additional_locations=None, devmode=False):
 
         handler.setLevel(level)
         handler.setFormatter(formatter)
-        LOOPER_LOGGER.addHandler(handler)
+        PEPPY_LOGGER.addHandler(handler)
 
-    return LOOPER_LOGGER
+    return PEPPY_LOGGER
+
+
+setup_peppy_logger(LOGGING_LEVEL)
