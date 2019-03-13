@@ -211,12 +211,6 @@ class Project(AttMap):
 
         self.finalize_pipelines_directory()
 
-        # SampleSheet creation populates project's samples, adds the
-        # sheet itself, and adds any derived columns.
-        _LOGGER.debug("Processing {} pipeline location(s): {}".
-                      format(len(self.metadata.pipeline_interfaces),
-                             self.metadata.pipeline_interfaces))
-
         path_anns_file = self.metadata.sample_annotation
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
