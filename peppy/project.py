@@ -994,7 +994,7 @@ class MissingSubprojectError(PeppyError):
 
     def __init__(self, sp, defined=None):
         """
-        Create the exception with the subproject name and possibly the Project.
+        Create exception with missing subproj request.
 
         :param str sp: the requested (and missing) subproject
         :param Iterable[str] defined: collection of names of defined subprojects
