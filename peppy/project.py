@@ -564,8 +564,8 @@ class Project(AttMap):
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             try:
-                pipe_path = self.metadata.pipeline_interfaces
-            except AttributeError:
+                pipe_path = self.metadata[NEW_PIPES_KEY]
+            except KeyError:
                 pipe_path = []
         # Ensure we're working with a flattened list.
         if isinstance(pipe_path, str):
@@ -577,7 +577,7 @@ class Project(AttMap):
             _LOGGER.debug("Got {} as pipelines path(s) ({})".
                           format(pipe_path, type(pipe_path)))
             pipe_path = []
-        self.metadata.pipeline_interfaces = pipe_path
+        setattr(self.metadata, NEW_PIPES_KEY, pipe_path)
 
     def get_arg_string(self, pipeline_name):
         """
