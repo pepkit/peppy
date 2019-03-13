@@ -477,7 +477,7 @@ class Sample(AttMap):
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
                 if not val_globbed:
-                    _LOGGER.warning("Unmatched regex-like: '%s'", val)
+                    _LOGGER.debug("No files match provided glob: '%s'", val)
                 else:
                     val = " ".join(val_globbed)
                 _LOGGER.debug("Post-glob: %s", val)
