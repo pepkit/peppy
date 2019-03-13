@@ -773,22 +773,23 @@ class Project(AttMap):
             self.__class__.__name__, len(self.keys()), self.keys()))
 
         # Overwrite any config entries with entries in the subproject.
-        if non_null_value("subprojects", config) and subproject:
-            _LOGGER.debug("Adding entries for subproject '{}'".
-                          format(subproject))
-            try:
-                subproj_updates = config['subprojects'][subproject]
-            except KeyError:
-                raise Exception(
-                    "Unknown subproject ({}); defined subprojects: {}".format(
-                    subproject, ", ".join([sp for sp in config["subprojects"]])))
-            _LOGGER.debug("Updating with: {}".format(subproj_updates))
-            self.add_entries(subproj_updates)
-            self._subproject = subproject
-            _LOGGER.info("Using subproject: '{}'".format(subproject))
-        elif subproject:
-            _LOGGER.warning("Subproject '{}' requested but no subprojects "
-                         "are defined. Disregarding".format(subproject))
+        if subproject:
+            if non_null_value("subprojects", config):
+                _LOGGER.debug("Adding entries for subproject '{}'".
+                              format(subproject))
+                try:
+                    subproj_updates = config["subprojects"][subproject]
+                except KeyError:
+                    raise Exception(
+                        "Subproject '{}' not found; defined subprojects: {}".
+                            format(subproject, ", ".join(config["subprojects"])))
+                _LOGGER.debug("Updating with: {}".format(subproj_updates))
+                self.add_entries(subproj_updates)
+                self._subproject = subproject
+                _LOGGER.info("Using subproject: '{}'".format(subproject))
+            else:
+                raise Exception("Subproject '{}' requested but no subprojects "
+                                "are defined.".format(subproject))
         else:
             _LOGGER.debug("No subproject requested")
 
