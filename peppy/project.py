@@ -920,8 +920,15 @@ class Project(AttMap):
         # See https://github.com/pepkit/peppy/issues/159 for the original issue
         # and https://github.com/pepkit/peppy/pull/160 for the pull request
         # that resolved it.
+        ext = os.path.splitext(sample_file)[1][1:].lower()
+        if ext in ["txt", "tsv"]:
+            sep = "\t"
+        elif ext == "csv":
+            sep = ","
+        else:
+            sep = None
         try:
-            df = pd.read_csv(sample_file, sep=None, dtype=dtype, index_col=False,
+            df = pd.read_csv(sample_file, sep=sep, dtype=dtype, index_col=False,
                              engine="python", keep_default_na=False)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
