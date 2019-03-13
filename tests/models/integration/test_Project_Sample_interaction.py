@@ -233,7 +233,7 @@ def project(request, tmpdir, env_config_filepath):
     """ Provide requesting test case with a basic Project instance. """
 
     # Write just the sample names as the annotations.
-    annotations_filename = "anns-fill.csv"
+    annotations_filename = "anns-fill.tsv"
     anns_path = tmpdir.join(annotations_filename).strpath
     num_samples = request.getfixturevalue("num_samples")
     df = pd.DataFrame(OrderedDict(
