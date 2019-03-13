@@ -10,10 +10,10 @@ from numpy import random as nprand
 import pytest
 import yaml
 
-from attmap import AttMap
 from peppy import Project, Sample
 from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
-from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
+from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY, \
+    MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
@@ -668,19 +668,8 @@ class SubprojectActivationDeactivationTest:
     def test_subproj_activation_when_none_exist(self, tmpdir, sub):
         """ Without subprojects, activation attempt produces warning. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=False)
-        logfile = tmpdir.join("project-error-messages.log").strpath
-        logview = TempLogFileHandler(logfile, level=logging.WARN)
-        with logview:
-            # Call that should produce a warning message
+        with pytest.raises(MissingSubprojectError):
             prj.activate_subproject(sub)
-        # Check for warning message.
-        exception_messages = logview.messages
-        for msg in exception_messages:
-            if "no subprojects are defined" in msg:
-                break
-        else:
-            raise AssertionError("Did not find expected message among lines: "
-                                 "{}".format(exception_messages))
 
     @classmethod
     def make_proj(cls, folder, incl_subs):

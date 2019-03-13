@@ -83,7 +83,6 @@ IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
 _LOGGER = logging.getLogger(__name__)
 
 
-
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
@@ -780,16 +779,13 @@ class Project(AttMap):
                 try:
                     subproj_updates = config["subprojects"][subproject]
                 except KeyError:
-                    raise Exception(
-                        "Subproject '{}' not found; defined subprojects: {}".
-                            format(subproject, ", ".join(config["subprojects"])))
+                    raise MissingSubprojectError(subproject, config["subprojects"])
                 _LOGGER.debug("Updating with: {}".format(subproj_updates))
                 self.add_entries(subproj_updates)
                 self._subproject = subproject
                 _LOGGER.info("Using subproject: '{}'".format(subproject))
             else:
-                raise Exception("Subproject '{}' requested but no subprojects "
-                                "are defined.".format(subproject))
+                raise MissingSubprojectError(subproject)
         else:
             _LOGGER.debug("No subproject requested")
 
@@ -991,6 +987,23 @@ def suggest_implied_attributes(prj):
         return "To declare {}, consider using {}".format(
             key, IMPLICATIONS_DECLARATION)
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
+
+
+class MissingSubprojectError(PeppyError):
+    """ Error when project config lacks a requested subproject. """
+
+    def __init__(self, sp, defined=None):
+        """
+        Create the exception with the subproject name and possibly the Project.
+
+        :param str sp: the requested (and missing) subproject
+        :param Iterable[str] defined: collection of names of defined subprojects
+        """
+        msg = "Subproject '{}' not found".format(sp)
+        if isinstance(defined, Iterable):
+            ctx = "defined subproject(s): {}".format(", ".join(map(str, defined)))
+            msg = "{}; {}".format(msg, ctx)
+        super(MissingSubprojectError, self).__init__(msg)
 
 
 class _Metadata(AttMap):
