@@ -905,6 +905,8 @@ class Project(AttMap):
 
         :param str sample_file: path to sample annotations file.
         :param type dtype: data type for CSV read.
+        :return pandas.core.frame.DataFrame: table populated by the project's
+            sample annotations data
         :raises IOError: if given annotations file can't be read.
         :raises ValueError: if required column(s) is/are missing.
         """
