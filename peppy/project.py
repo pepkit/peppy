@@ -86,7 +86,8 @@ _LOGGER = logging.getLogger(__name__)
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-    def __init__(self, prj, selector_attribute="protocol", selector_include=None, selector_exclude=None):
+    def __init__(self, prj, selector_attribute="protocol",
+                 selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
         self.include = selector_include
@@ -98,7 +99,8 @@ class ProjectContext(object):
         locally or dispatched to Project. """
         if item == "samples":
             return fetch_samples(
-                self.prj, selector_attribute=self.attribute, selector_include=self.include, selector_exclude=self.exclude)
+                self.prj, selector_attribute=self.attribute,
+                selector_include=self.include, selector_exclude=self.exclude)
         if item in ["prj", "include", "exclude"]:
             # Attributes requests that this context/wrapper handles
             return self.__dict__[item]
@@ -167,12 +169,12 @@ class Project(AttMap):
                       self.__class__.__name__, config_file)
         super(Project, self).__init__()
 
-        self.dcc = ComputingConfiguration(config_file=compute_env_file, no_env_error=no_environment_exception,
-                                          no_compute_exception=no_compute_exception)
+        self.dcc = ComputingConfiguration(
+            config_file=compute_env_file, no_env_error=no_environment_exception,
+            no_compute_exception=no_compute_exception)
         self.permissive = permissive
         self.file_checks = file_checks
-        # pre populate the subproject attribute, it remains the same if subprojects are not activated
-        # is changed when activate_subroject method is called
+
         self._subproject = None
 
         # Include the path to the config file.
