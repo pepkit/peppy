@@ -668,7 +668,7 @@ class Project(AttMap):
             if sub_ann and os.path.isfile(sub_ann):
                 _LOGGER.info("Reading subannotations: %s", sub_ann)
                 self.sample_subannotation = pd.read_csv(
-                        sub_ann, sep=None, engine="python")
+                        sub_ann, sep=None, engine="python", dtype=str)
                 _LOGGER.debug("Subannotations shape: {}".
                               format(self.sample_subannotation.shape))
             else:
