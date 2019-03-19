@@ -18,7 +18,7 @@ from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 from .utils import fetch_samples, grab_project_data, CommandChecker
 
-from attmap import PepAttMap
+from attmap import PathExAttMap
 
 _EXPORT_FROM_UTILS = [fetch_samples.__name__, grab_project_data.__name__,
                       CommandChecker.__name__]

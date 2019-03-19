@@ -16,7 +16,7 @@ from pandas import isnull, Series
 import yaml
 
 from . import SAMPLE_NAME_COLNAME
-from attmap import AttMap, PepAttMap
+from attmap import AttMap, PathExAttMap
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
     REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @copy
-class Subsample(PepAttMap):
+class Subsample(PathExAttMap):
     """
     Class to model Subsamples.
 
@@ -49,7 +49,7 @@ class Subsample(PepAttMap):
 
 
 @copy
-class Sample(PepAttMap):
+class Sample(PathExAttMap):
     """
     Class to model Samples based on a pandas Series.
 
@@ -503,8 +503,8 @@ class Sample(PepAttMap):
         """
         Sets the paths of all files for this sample.
 
-        :param PepAttMap project: object with pointers to data paths and
-            such, either full Project or PepAttMap with sufficient data
+        :param PathExAttMap project: object with pointers to data paths and
+            such, either full Project or PathExAttMap with sufficient data
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.

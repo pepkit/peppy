@@ -60,7 +60,7 @@ import warnings
 import pandas as pd
 import yaml
 
-from attmap import PepAttMap
+from attmap import PathExAttMap
 from divvy import ComputingConfiguration
 from .const import \
     DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
@@ -124,7 +124,7 @@ class ProjectContext(object):
 
 
 @copy
-class Project(PepAttMap):
+class Project(PathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
@@ -307,7 +307,7 @@ class Project(PepAttMap):
         try:
             return self.implied_attributes
         except AttributeError:
-            return PepAttMap()
+            return PathExAttMap()
 
     @property
     def num_samples(self):
@@ -1006,7 +1006,7 @@ class MissingSubprojectError(PeppyError):
         super(MissingSubprojectError, self).__init__(msg)
 
 
-class _Metadata(PepAttMap):
+class _Metadata(PathExAttMap):
     """ Project section with important information """
 
     def __getattr__(self, item, default=None):
