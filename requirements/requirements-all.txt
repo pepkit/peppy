@@ -1,4 +1,4 @@
-attmap>=0.3
+attmap>=0.4
 pandas>=0.20.2
 pyyaml>=5
 divvy>=0.2.1rc0
