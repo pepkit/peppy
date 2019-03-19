@@ -4,7 +4,7 @@
 ### Changed
 - Add ``attribute`` parameter to ``fetch_samples`` function to enable more general applicability. Additionally, the attribute value matching is more strict now -- requires perfect match.
 - Remove Python 3.4 support.
-- Use ``attmap`` for implementation of attribute-style access into a key-value collection
+- Use ``attmap`` for implementation of attribute-style access into a key-value collection.
 
 ## *v0.19* (2019-01-16)
 ### New  

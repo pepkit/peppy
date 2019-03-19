@@ -748,7 +748,9 @@ class ProjectWarningTests:
         assert 0 == len(recwarn)
         warnings.simplefilter('always')
         Project(conf_file)
-        assert 0 == len(recwarn)
+        num_yaml_warns = sum(1 for w in recwarn if
+                             issubclass(w.category, yaml.YAMLLoadWarning))
+        assert 0 == (len(recwarn) - num_yaml_warns)
 
 
 

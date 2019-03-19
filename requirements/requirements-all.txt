@@ -1,4 +1,5 @@
-attmap>=0.2
+attmap>=0.3
 pandas>=0.20.2
-pyyaml>=3.12
-divvy
+pyyaml>=5
+divvy>=0.2.1rc0
+
