@@ -63,9 +63,9 @@ import yaml
 from attmap import PathExAttMap
 from divvy import ComputingConfiguration
 from .const import \
-    DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, DERIVATIONS_DECLARATION, \
-    IMPLICATIONS_DECLARATION, METADATA_KEY, SAMPLE_ANNOTATIONS_KEY, \
-    SAMPLE_NAME_COLNAME
+    ASSAY_KEY, DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, \
+    DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION, METADATA_KEY, \
+    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -86,7 +86,7 @@ _LOGGER = logging.getLogger(__name__)
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-    def __init__(self, prj, selector_attribute="protocol",
+    def __init__(self, prj, selector_attribute=ASSAY_KEY,
                  selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj

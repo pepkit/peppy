@@ -15,7 +15,7 @@ import warnings
 from pandas import isnull, Series
 import yaml
 
-from . import SAMPLE_NAME_COLNAME
+from . import ASSAY_KEY, SAMPLE_NAME_COLNAME
 from attmap import AttMap, PathExAttMap
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
@@ -81,7 +81,7 @@ class Sample(PathExAttMap):
         except KeyError:
             pass
         else:
-            data["protocol"] = protocol
+            data[ASSAY_KEY] = protocol
         super(Sample, self).__init__(entries=data)
 
         if PRJ_REF in self and prj:
