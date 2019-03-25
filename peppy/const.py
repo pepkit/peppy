@@ -30,7 +30,8 @@ REQUIRED_INPUTS_ATTR_NAME = "required_inputs_attr"
 ALL_INPUTS_ATTR_NAME = "all_inputs_attr"
 SAMPLE_CONSTANTS = ["ALL_INPUTS_ATTR_NAME", "ASSAY_KEY", "DATA_SOURCE_COLNAME",
                     "REQUIRED_INPUTS_ATTR_NAME", "SAMPLE_ANNOTATIONS_KEY",
-                    "SAMPLE_EXECUTION_TOGGLE", "VALID_READ_TYPES"]
+                    "SAMPLE_SUBANNOTATIONS_KEY", "SAMPLE_EXECUTION_TOGGLE",
+                    "VALID_READ_TYPES"]
 
 # Other
 FLAGS = ["completed", "running", "failed", "waiting", "partial"]
