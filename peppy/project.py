@@ -65,7 +65,7 @@ from divvy import ComputingConfiguration
 from .const import \
     ASSAY_KEY, DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, \
     DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION, METADATA_KEY, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+    SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -653,7 +653,7 @@ class Project(PathExAttMap):
         # base Sample objects if they don't already exist.
         sub_ann = None
         try:
-            sub_ann = self.metadata["sample_subannotation"]
+            sub_ann = self.metadata[SAMPLE_SUBANNOTATIONS_KEY]
         except KeyError:
             try:
                 # Backwards compatibility

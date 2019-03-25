@@ -1,7 +1,6 @@
 """ Tests for the NGS Project model. """
 
 import copy
-import logging
 import os
 import warnings
 
@@ -11,14 +10,15 @@ import pytest
 import yaml
 
 from peppy import Project, Sample
-from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
+from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY, \
+    SAMPLE_SUBANNOTATIONS_KEY
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY, \
     MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     MERGED_SAMPLE_INDICES, NUM_SAMPLES
-from tests.helpers import named_param, TempLogFileHandler
+from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
@@ -76,16 +76,16 @@ class ProjectConstructorTests:
         """ Subannotation attribute remains null if config lacks subannotation. """
         metadata = proj_conf_data["metadata"]
         try:
-            assert "sample_subannotation" in metadata
+            assert SAMPLE_SUBANNOTATIONS_KEY in metadata
         except AssertionError:
             print("Project metadata section lacks 'sample_subannotation'")
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
         if spec_type == "as_null":
-            metadata["sample_subannotation"] = None
+            metadata[SAMPLE_SUBANNOTATIONS_KEY] = None
         elif spec_type == "missing":
-            del metadata["sample_subannotation"]
+            del metadata[SAMPLE_SUBANNOTATIONS_KEY]
         else:
             raise ValueError("Unknown way to specify no merge table: {}".
                              format(spec_type))

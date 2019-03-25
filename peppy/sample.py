@@ -19,7 +19,8 @@ from . import ASSAY_KEY, SAMPLE_NAME_COLNAME
 from attmap import AttMap, PathExAttMap
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
-    REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+    REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
+    SAMPLE_SUBANNOTATIONS_KEY, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
     grab_project_data, parse_ftype, sample_folder
 
@@ -824,7 +825,7 @@ class Sample(PathExAttMap):
 
 
         def obj2dict(obj, name=None, 
-                     to_skip=("sample_subannotation", "samples", 
+                     to_skip=(SAMPLE_SUBANNOTATIONS_KEY, "samples",
                               "sheet", "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
