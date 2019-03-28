@@ -19,7 +19,7 @@ from . import ASSAY_KEY, SAMPLE_NAME_COLNAME
 from attmap import AttMap, PathExAttMap
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
-    REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
+    NAME_TABLE_ATTR, REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
     SAMPLE_SUBANNOTATIONS_KEY, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
     grab_project_data, parse_ftype, sample_folder
@@ -191,7 +191,6 @@ class Sample(PathExAttMap):
             "Sample lacks attribute(s). missing={}; empty={}". \
                 format(missing, empty) if (missing or empty) else ""
         return missing_attributes_message
-
 
     def determine_missing_requirements(self):
         """
@@ -489,7 +488,6 @@ class Sample(PathExAttMap):
 
         return val
 
-
     def make_sample_dirs(self):
         """
         Creates sample directory structure if it doesn't exist.
@@ -498,12 +496,11 @@ class Sample(PathExAttMap):
             if not os.path.exists(path):
                 os.makedirs(path)
 
-
     def set_file_paths(self, project=None):
         """
         Sets the paths of all files for this sample.
 
-        :param PathExAttMap project: object with pointers to data paths and
+        :param attmap.PathExAttMap project: object with pointers to data paths and
             such, either full Project or PathExAttMap with sufficient data
         """
         # Any columns specified as "derived" will be constructed
@@ -784,7 +781,6 @@ class Sample(PathExAttMap):
                 _LOGGER.warning("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
-
     def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
         """
         Serializes itself in YAML format.
@@ -822,10 +818,9 @@ class Sample(PathExAttMap):
                       self.__class__.__name__, path)
         self.yaml_file = path
 
-
         def obj2dict(obj, name=None, 
                      to_skip=(SAMPLE_SUBANNOTATIONS_KEY, "samples",
-                              "sheet", "sheet_attributes")):
+                              NAME_TABLE_ATTR, "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
@@ -867,7 +862,6 @@ class Sample(PathExAttMap):
             else:
                 return obj
 
-
         _LOGGER.debug("Serializing %s: '%s'",
                       self.__class__.__name__, self.name)
         serial = obj2dict(self)
@@ -904,7 +898,6 @@ class Sample(PathExAttMap):
                 raise
             outfile.write(yaml_data)
 
-
     def update(self, newdata, **kwargs):
         """
         Update Sample object with attributes from a dict.
@@ -918,7 +911,6 @@ class Sample(PathExAttMap):
             setattr(self, k, v)
         for k, v in kwargs.items():
             setattr(self, k, v)
-
 
 
 def merge_sample(sample, sample_subann,
@@ -1064,13 +1056,11 @@ def merge_sample(sample, sample_subann,
 class Paths(object):
     """ A class to hold paths as attributes. """
 
-
     def __getitem__(self, key):
         """
         Provides dict-style access to attributes
         """
         return getattr(self, key)
-
 
     def __iter__(self):
         """
@@ -1082,7 +1072,6 @@ class Paths(object):
 
         """
         return iter(self.__dict__.values())
-
 
     def __repr__(self):
         return "Paths object."

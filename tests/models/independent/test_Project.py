@@ -78,7 +78,7 @@ class ProjectConstructorTests:
         try:
             assert SAMPLE_SUBANNOTATIONS_KEY in metadata
         except AssertionError:
-            print("Project metadata section lacks 'sample_subannotation'")
+            print("Project metadata section lacks '{}'".format(SAMPLE_SUBANNOTATIONS_KEY))
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
@@ -93,8 +93,7 @@ class ProjectConstructorTests:
         with open(path_config_file, 'w') as conf_file:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
-        assert p.sample_subannotation is None
-
+        assert getattr(p, SAMPLE_SUBANNOTATIONS_KEY) is None
 
     def test_counting_samples_doesnt_create_samples(
             self, sample_annotation_lines,
@@ -108,18 +107,14 @@ class ProjectConstructorTests:
         assert expected_sample_count == p.num_samples
         assert p._samples is None
 
-
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_creation_laziness(
             self, path_project_conf, path_sample_anns, lazy):
         """ Project offers control over whether to create base Sample(s). """
-
         p = Project(path_project_conf, defer_sample_construction=lazy)
-
         if lazy:
             # Samples should remain null during lazy Project construction.
             assert p._samples is None
-
         else:
             # Eager Project construction builds Sample objects.
             assert p._samples is not None
@@ -130,7 +125,6 @@ class ProjectConstructorTests:
             num_samples_expected = sum(1 for l in anns_file_lines[1:] if l)
             assert num_samples_expected == len(p._samples)
             assert all([Sample == type(s) for s in p._samples])
-
 
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_name_availability(
@@ -143,10 +137,8 @@ class ProjectConstructorTests:
         assert expected_sample_names == list(p.sample_names)
 
 
-
 class ProjectRequirementsTests:
     """ Tests for a Project's set of requirements. """
-
 
     def test_lacks_sample_annotation(
             self, project_config_data, env_config_filepath, tmpdir):
@@ -159,12 +151,10 @@ class ProjectRequirementsTests:
         prj = Project(conf_path)
         assert isinstance(prj, Project)
 
-
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
         Project(config_file=minimal_project_conf_path)
-
 
     def test_minimal_configuration_name_inference(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
@@ -172,7 +162,6 @@ class ProjectRequirementsTests:
         project = Project(minimal_project_conf_path)
         _, expected_name = os.path.split(tmpdir.strpath)
         assert expected_name == project.name
-
 
     def test_minimal_configuration_output_dir(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
@@ -549,7 +538,7 @@ class ProjectConstructorTest:
     @named_param(argnames="sample_index",
                  argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
-        """ Samples not in the `sample_subannotation` lack merged columns. """
+        """ Samples not in the `subsample_table` lack merged columns. """
         # Assert the negative to cover empty dict/AttMap/None/etc.
         assert not proj.samples[sample_index].merged_cols
 
@@ -762,10 +751,12 @@ class SampleSubannotationTests:
             subannotation_filepath,  path_project_conf, path_sample_anns):
         """ Merge table is constructed iff samples are constructed. """
         p = Project(path_project_conf, defer_sample_construction=defer)
+        def get_subsheet(prj):
+            return getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
         if defer:
-            assert p.sample_subannotation is None
+            assert get_subsheet(p) is None
         else:
-            assert p.sample_subannotation is not None
+            assert get_subsheet(p) is not None
 
 
 

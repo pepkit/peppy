@@ -35,7 +35,7 @@ Explore:
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
-    prj.sheet.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
+    prj.sample_table.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
 
     # project options are read from the config file
     # but can be changed on the fly:
@@ -64,8 +64,9 @@ from attmap import PathExAttMap
 from divvy import ComputingConfiguration
 from .const import \
     ASSAY_KEY, DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, \
-    DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION, METADATA_KEY, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+    NAME_TABLE_ATTR, DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION, \
+    METADATA_KEY, SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY, \
+    SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -214,17 +215,18 @@ class Project(PathExAttMap):
         self.finalize_pipelines_directory()
 
         path_anns_file = self.metadata.sample_annotation
+        self_table_attr = "_" + NAME_TABLE_ATTR
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-            self._sheet = self.parse_sample_sheet(path_anns_file)
+            setattr(self, self_table_attr, self.parse_sample_sheet(path_anns_file))
         else:
             _LOGGER.warning("No sample annotations sheet in config")
-            self._sheet = None
+            setattr(self, self_table_attr, None)
 
-        self.sample_subannotation = None
+        setattr(self, SAMPLE_SUBANNOTATIONS_KEY, None)
 
         # Basic sample maker will handle name uniqueness check.
-        if defer_sample_construction or self._sheet is None:
+        if defer_sample_construction or self._sample_table is None:
             self._samples = None
         else:
             self._set_basic_samples()
@@ -262,7 +264,6 @@ class Project(PathExAttMap):
         elif key == METADATA_KEY:
             value = _Metadata(value)
         super(Project, self).__setitem__(key, value)
-
 
     @property
     def subproject(self):
@@ -379,7 +380,7 @@ class Project(PathExAttMap):
     @property
     def sample_names(self):
         """ Names of samples of which this Project is aware. """
-        return iter(self.sheet[SAMPLE_NAME_COLNAME])
+        return iter(getattr(self, NAME_TABLE_ATTR)[SAMPLE_NAME_COLNAME])
 
     @property
     def samples(self):
@@ -392,16 +393,35 @@ class Project(PathExAttMap):
         return self._samples
 
     @property
+    def sample_subannotation(self):
+        """
+        Return the data table that stores metadata for subsamples/units.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of
+            subsamples/units metadata
+        """
+        warnings.warn("sample_subannotation is deprecated; use {}".
+                      format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
+        return getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+
+    @property
+    def sample_table(self):
+        from copy import copy as cp
+        if self._sample_table is None:
+            self._sample_table = \
+                self.parse_sample_sheet(self.metadata.sample_annotation)
+        return cp(self._sample_table)
+
+    @property
     def sheet(self):
         """
         Annotations/metadata sheet describing this Project's samples.
 
         :return pandas.core.frame.DataFrame: table of samples in this Project
         """
-        from copy import copy as cp
-        if self._sheet is None:
-            self._sheet = self.parse_sample_sheet(self.metadata.sample_annotation)
-        return cp(self._sheet)
+        warnings.warn("sheet is deprecated; instead use {}".
+                      format(NAME_TABLE_ATTR), DeprecationWarning)
+        return getattr(self, NAME_TABLE_ATTR)
 
     @property
     def templates_folder(self):
@@ -661,16 +681,16 @@ class Project(PathExAttMap):
             except KeyError:
                 _LOGGER.debug("No sample subannotations")
             else:
-                _LOGGER.warning("'merge_table' attribute is deprecated. Please use "
-                    "'sample_subannotation' instead.")
+                warnings.warn("merge_table is deprecated; please instead use {}".
+                              format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
 
-        if self.sample_subannotation is None:
+        if getattr(self, SAMPLE_SUBANNOTATIONS_KEY) is None:
             if sub_ann and os.path.isfile(sub_ann):
                 _LOGGER.info("Reading subannotations: %s", sub_ann)
-                self.sample_subannotation = pd.read_csv(
-                        sub_ann, sep=None, engine="python", dtype=str)
-                _LOGGER.debug("Subannotations shape: {}".
-                              format(self.sample_subannotation.shape))
+                subann_table = pd.read_csv(
+                    sub_ann, sep=None, engine="python", dtype=str)
+                setattr(self, SAMPLE_SUBANNOTATIONS_KEY, subann_table)
+                _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
             else:
                 _LOGGER.debug("Alleged path to sample subannotations data is "
                               "not a file: '%s'", str(sub_ann))
@@ -691,7 +711,7 @@ class Project(PathExAttMap):
 
         samples = []
 
-        for _, row in self.sheet.iterrows():
+        for _, row in getattr(self, NAME_TABLE_ATTR).iterrows():
             sample = Sample(row.dropna(), prj=self)
 
             # Add values that are constant across this Project's samples.
@@ -702,7 +722,7 @@ class Project(PathExAttMap):
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, self.sample_subannotation,
+            merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
                          self.data_sources, self.derived_attributes)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
@@ -726,8 +746,8 @@ class Project(PathExAttMap):
 
         :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
         """
-        if self.sample_subannotation is not None:
-            sample_subann_names = self.sample_subannotation.sample_name.tolist()
+        if getattr(self, SAMPLE_SUBANNOTATIONS_KEY) is not None:
+            sample_subann_names = getattr(self, SAMPLE_SUBANNOTATIONS_KEY).sample_name.tolist()
             sample_names_list = list(self.sample_names)
             info = " matching sample name for subannotation '{}'"
             for n in sample_subann_names:
@@ -965,10 +985,11 @@ class Project(PathExAttMap):
             text representation
         """
         exclusions_by_class = {
-            "Project": ["_samples", "sample_subannotation",
-                        "_sheet", "sheet", "interfaces_by_protocol"],
-            "Subsample": ["sheet", "sample", "merged_cols"],
-            "Sample": ["sheet", "prj", "merged_cols"]
+            "Project": ["_samples", SAMPLE_SUBANNOTATIONS_KEY,
+                        "_" + NAME_TABLE_ATTR, NAME_TABLE_ATTR,
+                        "interfaces_by_protocol"],
+            "Subsample": [NAME_TABLE_ATTR, "sample", "merged_cols"],
+            "Sample": [NAME_TABLE_ATTR, "prj", "merged_cols"]
         }
         return k in exclusions_by_class.get(
             cls.__name__ if isinstance(cls, type) else cls, [])
