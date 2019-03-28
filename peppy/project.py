@@ -214,7 +214,7 @@ class Project(PathExAttMap):
 
         self.finalize_pipelines_directory()
 
-        path_anns_file = self.metadata.sample_annotation
+        path_anns_file = getattr(self.metadata, NAME_TABLE_ATTR)
         self_table_attr = "_" + NAME_TABLE_ATTR
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
@@ -393,6 +393,17 @@ class Project(PathExAttMap):
         return self._samples
 
     @property
+    def sample_annotation(self):
+        """
+        Get the path to the project's sample annotations sheet.
+
+        :return str: path to the project's sample annotations sheet
+        """
+        warnings.warn("sample_annotation is deprecated; please instead use {}".
+                      format(NAME_TABLE_ATTR), DeprecationWarning)
+        return getattr(self, NAME_TABLE_ATTR)
+
+    @property
     def sample_subannotation(self):
         """
         Return the data table that stores metadata for subsamples/units.
@@ -409,7 +420,7 @@ class Project(PathExAttMap):
         from copy import copy as cp
         if self._sample_table is None:
             self._sample_table = \
-                self.parse_sample_sheet(self.metadata.sample_annotation)
+                self.parse_sample_sheet(getattr(self.metadata, NAME_TABLE_ATTR))
         return cp(self._sample_table)
 
     @property
@@ -881,9 +892,8 @@ class Project(PathExAttMap):
         if self.dcc.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
 
-        # Required variables check
-        if not hasattr(self[METADATA_KEY], SAMPLE_ANNOTATIONS_KEY):
-            self.metadata.sample_annotation = None
+        if NAME_TABLE_ATTR not in self[METADATA_KEY]:
+            self[METADATA_KEY][NAME_TABLE_ATTR] = None
 
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """

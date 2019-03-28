@@ -3,6 +3,7 @@
 import pytest
 import yaml    # TODO: remove once project can take raw config data?
 from peppy import Project, ProjectContext, Sample
+from peppy.const import *
 
 
 __author__ = "Vince Reuter"
@@ -14,12 +15,11 @@ CHIP_NAME = "chip1"
 RNA_NAME = "rna_PE"
 WGBS_NAME = "wgbs-hs"
 RRBS_NAME = "rrbs_mm"
-RRBS_NAME = "rrbs_mm"
 ADD_PROJECT_DATA = {
-    "data_sources": {"src": "{sample}-{flowcell}.bam"},
-    "derived_attributes": ["data_source"],
+    DATA_SOURCES_SECTION: {"src": "{sample}-{flowcell}.bam"},
+    DERIVATIONS_DECLARATION: ["data_source"],
     "pipeline_args": {"--epilog": None},
-    "implied_attributes": {"organism": "assembly"},
+    IMPLICATIONS_DECLARATION: {"organism": "assembly"},
     "user": "test-user",
     "email": "tester@domain.org",
 }
@@ -37,7 +37,7 @@ def protocols():
 
 @pytest.fixture
 def samples(sample_names, protocols):
-    return [Sample({"sample_name": sn, "protocol": p})
+    return [Sample({SAMPLE_NAME_COLNAME: sn, "protocol": p})
             for sn, p in zip(sample_names, protocols)]
 
 
@@ -72,17 +72,17 @@ def project(request, sample_names, protocols, tmpdir):
     """
 
     outdir = tmpdir.mkdir("output")
-    metadir = tmpdir.mkdir("metadata")
+    metadir = tmpdir.mkdir(METADATA_KEY)
 
     # Write annotations file.
-    anns_data = [("sample_name", "protocol")] + \
+    anns_data = [(SAMPLE_NAME_COLNAME, "protocol")] + \
                 list(zip(sample_names, protocols))
     anns = metadir.join("anns.csv")
     anns.write("\n".join(["{},{}".format(sn, p) for sn, p in anns_data]))
 
     # Create config data.
-    conf_data = {"metadata": {
-        "sample_annotation": anns.strpath, "output_dir": outdir.strpath}}
+    conf_data = {METADATA_KEY: {
+        NAME_TABLE_ATTR: anns.strpath, "output_dir": outdir.strpath}}
     # Provide a hook for a test case to add data.
     if "add_project_data" in request.fixturenames:
         conf_data.update(request.getfixturevalue("add_project_data"))

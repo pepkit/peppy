@@ -10,8 +10,8 @@ import pytest
 import yaml
 
 from peppy import Project, Sample
-from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY, \
-    SAMPLE_SUBANNOTATIONS_KEY
+from peppy.const import IMPLICATIONS_DECLARATION, METADATA_KEY, \
+    SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY, \
     MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
@@ -33,7 +33,7 @@ _TRANSCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
 def project_config_data():
     """ Provide some basic data for a Project configuration. """
     return {
-        "metadata": {
+        METADATA_KEY: {
             SAMPLE_ANNOTATIONS_KEY: "samples.csv",
             "output_dir": "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
@@ -74,7 +74,7 @@ class ProjectConstructorTests:
     def test_no_sample_subannotation_in_config(
             self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
         """ Subannotation attribute remains null if config lacks subannotation. """
-        metadata = proj_conf_data["metadata"]
+        metadata = proj_conf_data[METADATA_KEY]
         try:
             assert SAMPLE_SUBANNOTATIONS_KEY in metadata
         except AssertionError:
@@ -144,7 +144,7 @@ class ProjectRequirementsTests:
             self, project_config_data, env_config_filepath, tmpdir):
         """ Project can be built without sample annotations. """
         # Remove sample annotations KV pair from config data for this test.
-        del project_config_data["metadata"][SAMPLE_ANNOTATIONS_KEY]
+        del project_config_data[METADATA_KEY][SAMPLE_ANNOTATIONS_KEY]
         # Write the (sans-annotations) config and assert Project is created.
         conf_path = _write_project_config(
             project_config_data, dirpath=tmpdir.strpath)
@@ -614,7 +614,7 @@ class SubprojectActivationDeactivationTest:
             self, tmpdir, super_data, sub_data, preserved):
         """ Existing entries not in subproject should be kept as-is. """
         sp = "sub"
-        meta_key = "metadata"
+        meta_key = METADATA_KEY
         conf_data = {meta_key: super_data,
                      "subprojects": {sp: {meta_key: sub_data}}}
         conf_file = tmpdir.join("conf.yaml").strpath
@@ -664,7 +664,7 @@ class SubprojectActivationDeactivationTest:
     def make_proj(cls, folder, incl_subs):
         """ Write temp config and create Project with subproject option. """
         conf_file_path = os.path.join(folder, "conf.yaml")
-        conf_data = {"metadata": {}}
+        conf_data = {METADATA_KEY: {}}
         if incl_subs:
             conf_data.update(**{"subprojects": cls.SUBPROJ_SECTION})
         with open(conf_file_path, 'w') as f:

@@ -21,6 +21,7 @@ import yaml
 
 from peppy import \
     setup_peppy_logger, Project, SAMPLE_NAME_COLNAME
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR
 
 
 _LOGGER = logging.getLogger("peppy")
@@ -29,18 +30,18 @@ _LOGGER = logging.getLogger("peppy")
 P_CONFIG_FILENAME = "project_config.yaml"
 
 # {basedir} lines are formatted during file write; other braced entries remain.
-PROJECT_CONFIG_LINES = """metadata:
-  sample_annotation: samples.csv
+PROJECT_CONFIG_LINES = """{md_key}:
+  {tab_key}: samples.csv
   output_dir: test
   pipeline_interfaces: pipelines
   subsample_table: merge.csv
 
-derived_attributes: [{derived_attribute_names}]
+derived_attributes: [{{derived_attribute_names}}]
 
 data_sources:
-  src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
-  src3: "{basedir}/data/{sample_name}.txt"
-  src2: "{basedir}/data/{sample_name}-bamfile.bam"
+  src1: "{{basedir}}/data/{{sample_name}}{{col_modifier}}.txt"
+  src3: "{{basedir}}/data/{{sample_name}}.txt"
+  src2: "{{basedir}}/data/{{sample_name}}-bamfile.bam"
 
 implied_attributes:
   sample_name:
@@ -49,7 +50,7 @@ implied_attributes:
       phenome: hg72
     b:
       genome: hg38
-""".splitlines(True)
+""".format(md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR).splitlines(True)
 # Will populate the corresponding string format entry in project config lines.
 DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
                     "nonmerged_col", "nonmerged_col", "data_source"]
@@ -156,15 +157,15 @@ EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
 _ATTR_BY_TYPE = {Project: "project_config_file"}
 
 COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "protocol"]
-PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": "annotations.csv"}}
+PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: "annotations.csv"}}
 
 
 def update_project_conf_data(extension):
     """ Updated Project configuration data mapping based on file extension """
     updated = copy.deepcopy(PROJECT_CONFIG_DATA)
-    filename = updated["metadata"]["sample_annotation"]
+    filename = updated[METADATA_KEY][NAME_TABLE_ATTR]
     base, _ = os.path.splitext(filename)
-    updated["metadata"]["sample_annotation"] = "{}.{}".format(base, extension)
+    updated[METADATA_KEY][NAME_TABLE_ATTR] = "{}.{}".format(base, extension)
     return updated
 
 
@@ -222,7 +223,7 @@ def path_empty_project(request, tmpdir):
 
     # Write the needed files.
     anns_path = os.path.join(
-            tmpdir.strpath, conf_data["metadata"]["sample_annotation"])
+            tmpdir.strpath, conf_data[METADATA_KEY][NAME_TABLE_ATTR])
 
     with open(anns_path, 'w') as anns_file:
         anns_file.write(delimiter.join(COLUMNS))
