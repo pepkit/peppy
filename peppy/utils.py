@@ -285,6 +285,17 @@ def import_from_source(module_filepath):
     return mod
 
 
+def infer_delimiter(filepath):
+    """
+    From extension infer delimiter used in a separated values file.
+
+    :param str filepath: path to file about which to make inference
+    :return str | NoneType: extension if inference succeeded; else null
+    """
+    ext = os.path.splitext(filepath)[1][1:].lower()
+    return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
+
+
 def is_null_like(x):
     """
     Determine whether an object is effectively null.
@@ -412,7 +423,6 @@ def _warn_cols_to_attrs(prefix):
     """ Produce deprecation warning about 'columns' rather than 'attributes' """
     warnings.warn("{pfx}_columns should be encoded and referenced "
                   "as {pfx}_attributes".format(pfx=prefix), DeprecationWarning)
-
 
 
 class CommandChecker(object):

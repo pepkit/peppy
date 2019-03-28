@@ -9,6 +9,7 @@ import pytest
 import yaml
 
 from peppy import Project, Sample
+from peppy.const import *
 from peppy.utils import fetch_samples
 
 
@@ -78,7 +79,7 @@ def samples():
     :return Iterable[Sample]: collection of bare bones Sample objects, with
         only name and protocol defined
     """
-    return [Sample({"sample_name": sn, "protocol": p})
+    return [Sample({SAMPLE_NAME_COLNAME: sn, "protocol": p})
             for sn, p in PROTOCOL_BY_SAMPLE.items()]
 
 
@@ -101,10 +102,10 @@ def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
     def write_anns(fh, samples):
         fh.write("\n".join(map(
             lambda name_proto_pair: "{},{}".format(*name_proto_pair),
-            [("sample_name", "protocol")] + sample_data(samples))))
+            [(SAMPLE_NAME_COLNAME, "protocol")] + sample_data(samples))))
 
     # Create paths.
-    metadir = tmpdir.mkdir("metadata")
+    metadir = tmpdir.mkdir(METADATA_KEY)
 
     # Write annotations
     full_anns = metadir.join("anns.csv")
@@ -117,11 +118,11 @@ def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
     outdir = tmpdir.mkdir("output")
 
     conf_data = {
-        "metadata": {
-            "sample_annotation": full_anns.strpath, "output_dir": outdir.strpath,
+        METADATA_KEY: {
+            NAME_TABLE_ATTR: full_anns.strpath, "output_dir": outdir.strpath,
             "pipeline_interfaces": pipe_path},
         "subprojects": {sp_name: {
-            "metadata": {"sample_annotation": sp_anns.strpath}}}
+            METADATA_KEY: {NAME_TABLE_ATTR: sp_anns.strpath}}}
     }
 
     conf = metadir.join("conf.yaml")
@@ -142,24 +143,28 @@ def test_has_attribute(selector_attribute, selector_exclude, samples):
 
 
 @pytest.mark.parametrize(
-    argnames=["selector_attribute", "selector_include", "selector_exclude"], argvalues=itertools.product(
+    argnames=["selector_attribute", "selector_include", "selector_exclude"],
+    argvalues=itertools.product(
         ["protocol"], ["ATAC-Seq", "ChIPmentation", {"RNA-Seq", "ChIP"}],
-            ["WGBS", {"WGBS", "RRBS"}]))
+        ["WGBS", {"WGBS", "RRBS"}]))
 def test_only_inclusion_or_exclusion(selector_attribute, selector_include, selector_exclude, samples):
     """ Only an selector_include or selector_exclude set is permitted. """
     prj = mock.MagicMock(samples=samples)
     with pytest.raises(TypeError):
-        fetch_samples(prj, selector_attribute, selector_include=selector_include, selector_exclude=selector_exclude)
+        fetch_samples(prj, selector_attribute,
+            selector_include=selector_include, selector_exclude=selector_exclude)
 
 
 @pytest.mark.parametrize(
-    argnames=["selector_attribute", "selector_include", "selector_exclude"], argvalues=[
-            ("protocol", "ATAC-Seq", None), ("protocol", {"ChIPmentation", "RNA-Seq"}, None),
-            ("protocol", None, "ChIP-Seq"), ("protocol", None, {"ATAC-Seq", "ChIPmentation"})])
+    argnames=["selector_attribute", "selector_include", "selector_exclude"],
+    argvalues=[
+        ("protocol", "ATAC-Seq", None), ("protocol", {"ChIPmentation", "RNA-Seq"}, None),
+        ("protocol", None, "ChIP-Seq"), ("protocol", None, {"ATAC-Seq", "ChIPmentation"})])
 def test_no_samples(selector_attribute, selector_include, selector_exclude):
     """ Regardless of filtration, lack of samples means empty collection. """
     prj = mock.MagicMock(samples=[])
-    observed = fetch_samples(prj, selector_attribute=selector_attribute, selector_include=selector_include, selector_exclude=selector_exclude)
+    observed = fetch_samples(prj, selector_attribute=selector_attribute,
+        selector_include=selector_include, selector_exclude=selector_exclude)
     assert [] == observed
 
 
@@ -169,7 +174,8 @@ def test_no_samples(selector_attribute, selector_include, selector_exclude):
 def test_no_filter(selector_attribute, selector_include, selector_exclude, samples):
     """ Without a filtration mechanism, all Samples are retained. """
     prj = mock.MagicMock(samples=samples)
-    assert samples == fetch_samples(prj, selector_attribute=selector_attribute, selector_include=selector_include, selector_exclude=selector_exclude)
+    assert samples == fetch_samples(prj, selector_attribute=selector_attribute,
+        selector_include=selector_include, selector_exclude=selector_exclude)
 
 
 class ProtocolInclusionTests:
@@ -182,12 +188,14 @@ class ProtocolInclusionTests:
 
     @pytest.mark.parametrize(
         argnames=["selector_attribute", "selector_include"],
-        argvalues=[("protocol", "totally-radical-protocol"), ("protocol", "WackyNewProtocol"), ("protocol", "arbitrary_protocol")])
+        argvalues=[("protocol", "totally-radical-protocol"),
+                   ("protocol", "WackyNewProtocol"), ("protocol", "arbitrary_protocol")])
     def test_empty_intersection_with_inclusion(
             self, samples, selector_attribute, selector_include):
         """ Sensitivity and specificity for positive protocol selection. """
         prj = mock.MagicMock(samples=samples)
-        observed = fetch_samples(prj, selector_attribute=selector_attribute, selector_include=selector_include)
+        observed = fetch_samples(
+            prj, selector_attribute=selector_attribute, selector_include=selector_include)
         assert set() == set(observed)
 
     @pytest.mark.parametrize(
@@ -206,7 +214,8 @@ class ProtocolInclusionTests:
         print("Inclusion specification: {}".format(selector_include))
 
         # Perform the call under test and make the associated assertions.
-        observed = fetch_samples(prj, selector_attribute=selector_attribute, selector_include=selector_include)
+        observed = fetch_samples(
+            prj, selector_attribute=selector_attribute, selector_include=selector_include)
         _assert_samples(expected_sample_names, observed)
 
     def test_complete_intersection_with_inclusion(
@@ -238,13 +247,16 @@ class ProtocolInclusionTests:
             if s.protocol == "ATAC-Seq":
                 delattr(s, "protocol")
 
-        observed = fetch_samples(prj, selector_attribute=selector_attribute, selector_include=selector_include)
+        observed = fetch_samples(
+            prj, selector_attribute=selector_attribute, selector_include=selector_include)
         _assert_samples(expected_names, observed)
         
     @pytest.mark.parametrize(
-        argnames=["selector_attribute", "selector_include"], argvalues=[("protocol", "ATAC-Seq"), ("protocol", {"WGBS", "RRBS"})],
+        argnames=["selector_attribute", "selector_include"],
+        argvalues=[("protocol", "ATAC-Seq"), ("protocol", {"WGBS", "RRBS"})],
         ids=lambda protos: str(protos))
-    def test_equivalence_with_subproject(self, tmpdir, samples, selector_attribute, selector_include):
+    def test_equivalence_with_subproject(
+            self, tmpdir, samples, selector_attribute, selector_include):
         """ Selection for protocol(s) is like specific subproject. """
         sp_name = "atac"
         confpath = _write_project_files(
@@ -253,14 +265,15 @@ class ProtocolInclusionTests:
         try:
             full_project = Project(confpath)
         except Exception:
-            anns_file = os.path.join(tmpdir.strpath, "metadata", "anns.csv")
+            anns_file = os.path.join(tmpdir.strpath, METADATA_KEY, "anns.csv")
             print("Annotations file lines:")
             with open(anns_file, 'r') as f:
                 print(f.readlines())
             raise
         subproject = Project(confpath, subproject=sp_name)
         expected = {s.name for s in subproject.samples}
-        observed = fetch_samples(full_project, selector_attribute=selector_attribute, selector_include=selector_include)
+        observed = fetch_samples(full_project,
+            selector_attribute=selector_attribute, selector_include=selector_include)
         _assert_samples(expected, observed_samples=observed)
 
 
@@ -274,17 +287,20 @@ class ProtocolExclusionTests:
 
     @pytest.mark.parametrize(
         argnames=["selector_attribute", "selector_exclude"],
-        argvalues=[("protocol", "mystery_protocol"), ("protocol", ["wacky-protocol", "BrandNewProtocol"])])
+        argvalues=[("protocol", "mystery_protocol"),
+                   ("protocol", ["wacky-protocol", "BrandNewProtocol"])])
     def test_empty_intersection_with_exclusion(
             self, samples, selector_attribute, selector_exclude):
         """ Empty intersection with selector_exclude means all Samples remain. """
         prj = mock.MagicMock(samples=samples)
         expected = {s.name for s in samples}
-        observed = fetch_samples(prj, selector_attribute=selector_attribute, selector_exclude=selector_exclude)
+        observed = fetch_samples(prj,
+            selector_attribute=selector_attribute, selector_exclude=selector_exclude)
         _assert_samples(expected, observed)
 
     @pytest.mark.parametrize(
-        argnames=["selector_attribute", "selector_exclude"], argvalues=[("protocol", "ChIP-Seq"), ("protocol", {"RNA-seq", "RRBS"})])
+        argnames=["selector_attribute", "selector_exclude"],
+        argvalues=[("protocol", "ChIP-Seq"), ("protocol", {"RNA-seq", "RRBS"})])
     def test_partial_intersection_with_exclusion(
             self, samples, selector_attribute, selector_exclude, expected_sample_names):
         """ Sensitivity and specificity for negative protocol selection. """
@@ -293,7 +309,8 @@ class ProtocolExclusionTests:
         prj = mock.MagicMock(samples=samples)
 
         # Make the call and the relevant assertions.
-        observed = fetch_samples(prj, selector_attribute=selector_attribute, selector_exclude=selector_exclude)
+        observed = fetch_samples(prj,
+            selector_attribute=selector_attribute, selector_exclude=selector_exclude)
         print(expected_sample_names)
         print(observed)
         _assert_samples(expected_sample_names, observed)

@@ -10,9 +10,8 @@ import pandas as pd
 import pytest
 import yaml
 
-from peppy import Project, Sample, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from peppy.const import METADATA_KEY, NAME_TABLE_ATTR
+from peppy import Project, Sample
+from peppy.const import *
 from peppy.sample import PRJ_REF
 from tests.helpers import randomize_filename
 
@@ -40,7 +39,7 @@ DATA = list(zip(SAMPLE_NAMES, VALUES1, VALUES2, PROTOCOLS))
 DATA_FOR_SAMPLES = [
     {SAMPLE_NAME_COLNAME: SAMPLE_NAMES},
     {"val1": VALUES1}, {"val2": VALUES2}, {PROTOCOL_COLNAME: PROTOCOLS}]
-PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": NAME_ANNOTATIONS_FILE}}
+PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: NAME_ANNOTATIONS_FILE}}
 
 
 def pytest_generate_tests(metafunc):
@@ -243,12 +242,12 @@ def project(request, tmpdir, env_config_filepath):
         df.to_csv(anns_file, sep="\t", index=False)
 
     # Create the Project config data.
-    config_data = {"metadata": {SAMPLE_ANNOTATIONS_KEY: annotations_filename}}
+    config_data = {METADATA_KEY: {NAME_TABLE_ATTR: annotations_filename}}
     if request.getfixturevalue(request.cls.CONFIG_DATA_PATHS_HOOK):
         config_data["paths"] = {}
         paths_dest = config_data["paths"]
     else:
-        paths_dest = config_data["metadata"]
+        paths_dest = config_data[METADATA_KEY]
 
     # Add the paths data to the Project config.
     for path_name, path in PATH_BY_TYPE.items():
@@ -277,7 +276,7 @@ class SampleTextTests:
 
     _PRJ_DATA = {
         METADATA_KEY: {
-            SAMPLE_ANNOTATIONS_KEY: _ANNS_NAME,
+            NAME_TABLE_ATTR: _ANNS_NAME,
             "output_dir": os.path.join("$HOME", "hello_looper_results"),
             "pipeline_interfaces": "$HOME/pipelines/pipeline_interface.yaml"
         }

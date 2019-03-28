@@ -10,7 +10,8 @@ import pytest
 
 from attmap import AttMap
 from peppy import Project, Sample
-from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, \
+    SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
 from peppy.utils import \
     add_project_sample_constants, coll_like, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
@@ -21,12 +22,10 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-
 class _DummyProject(Project):
     """ Get just the methods and data-access portions of Project. """
     def __init__(self, data):
         self.add_entries(data)
-
 
 
 @pytest.fixture
@@ -38,8 +37,8 @@ def basic_project_data():
         value or collection of values.
     """
     return {
-        "metadata": {
-            "sample_annotation": "anns.csv",
+        METADATA_KEY: {
+            NAME_TABLE_ATTR: "anns.csv",
             "output_dir": "outdir",
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
@@ -48,7 +47,6 @@ def basic_project_data():
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }
-
 
 
 @pytest.fixture

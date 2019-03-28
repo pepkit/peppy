@@ -12,8 +12,8 @@ from yaml import SafeLoader
 
 from attmap import AttMap
 import peppy
-from peppy import Sample, \
-    DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
+from peppy import Sample
+from peppy.const import *
 from tests.helpers import named_param
 
 
@@ -198,7 +198,7 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
 def test_input_files(files, test_type, tmpdir):
     """ Test for access to Sample input files. """
     file_text = " ".join(files)
-    sample_data = {"sample_name": "test-sample",
+    sample_data = {SAMPLE_NAME_COLNAME: "test-sample",
                    DATA_SOURCE_COLNAME: file_text}
     s = Sample(sample_data)
     assert file_text == s.data_source
@@ -226,8 +226,8 @@ class SetFilePathsTests:
         else:
             data_src = DATA_SOURCE_COLNAME
         return {
-            "metadata": {
-                "sample_annotation": "anns.csv", "output_dir": "outdir",
+            METADATA_KEY: {
+                NAME_TABLE_ATTR: "anns.csv", "output_dir": "outdir",
                 "results_subdir": "results_pipeline",
                 "submission_subdir": "submission"},
             DATA_SOURCES_SECTION: self.DATA_SOURCES,
@@ -318,7 +318,7 @@ class LocateDataSourceTests:
     @pytest.fixture
     def prj_data(self):
         """ Provide basic Project data to test case. """
-        data = {"metadata": {"sample_annotation": "anns.csv"}}
+        data = {METADATA_KEY: {NAME_TABLE_ATTR: "anns.csv"}}
         data.update({DATA_SOURCES_SECTION: self.PATH_BY_KEY})
         return data
 

@@ -5,8 +5,8 @@ import os
 import pytest
 import yaml
 from peppy import Project
-from peppy import SAMPLE_ANNOTATIONS_KEY
-from peppy.const import METADATA_KEY
+from peppy import NAME_TABLE_ATTR
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR
 from tests.helpers import randomize_filename
 
 __author__ = "Vince Reuter"
@@ -33,12 +33,12 @@ def conf_data(tmpdir):
     child_sheet_file = touch(d, _CHILD_ANNS)
     return {
         METADATA_KEY: {
-            SAMPLE_ANNOTATIONS_KEY: parent_sheet_file,
+            NAME_TABLE_ATTR: parent_sheet_file,
             "output_dir": tmpdir.strpath,
             "pipeline_interfaces": tmpdir.strpath
         },
         "subprojects": {
-            _SP_NAME: {METADATA_KEY: {SAMPLE_ANNOTATIONS_KEY: child_sheet_file}}
+            _SP_NAME: {METADATA_KEY: {NAME_TABLE_ATTR: child_sheet_file}}
         }
     }
 
@@ -60,7 +60,7 @@ class SubprojectSampleAnnotationTests:
         """ Direct Project construction with subproject points to anns file. """
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
             p = Project(conf_file, subproject=_SP_NAME)
-        _, anns_file = os.path.split(p.metadata.sample_annotation)
+        _, anns_file = os.path.split(p[METADATA_KEY][NAME_TABLE_ATTR])
         assert _CHILD_ANNS == anns_file
 
     @staticmethod
@@ -69,5 +69,5 @@ class SubprojectSampleAnnotationTests:
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
             p = Project(conf_file)
             p.activate_subproject(_SP_NAME)
-        _, anns_file = os.path.split(p.metadata.sample_annotation)
+        _, anns_file = os.path.split(p[METADATA_KEY][NAME_TABLE_ATTR])
         assert _CHILD_ANNS == anns_file
