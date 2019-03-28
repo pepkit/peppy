@@ -18,7 +18,7 @@ p = peppy.Project(os.path.expandvars("$CODEBASE/example_peps/example2/project_co
 
 p.get_sample("frog_1").subsamples
 
-p.sheet
+p.sample_table
 p.subsample_table
 
 

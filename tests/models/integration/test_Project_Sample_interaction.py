@@ -12,7 +12,7 @@ import yaml
 
 from peppy import Project, Sample, \
     SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
-from peppy.const import METADATA_KEY
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR
 from peppy.sample import PRJ_REF
 from tests.helpers import randomize_filename
 
@@ -107,7 +107,7 @@ class SampleSheetAttrTests:
     """ Tests of properties of sample sheet attributes on a sample """
     def test_sheet_attr_order(self, proj):
         """ The sample's sheet attributes are ordered. """
-        s = Sample(proj.sheet.iloc[0])
+        s = Sample(getattr(proj, NAME_TABLE_ATTR).iloc[0])
         d = s.get_sheet_dict()
         assert SAMPLE_NAME_COLNAME == list(d)[0]
 

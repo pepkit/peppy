@@ -95,7 +95,6 @@ class ProjectConstructorTests:
         p = Project(path_config_file, defer_sample_construction=lazy)
         assert getattr(p, SAMPLE_SUBANNOTATIONS_KEY) is None
 
-
     def test_counting_samples_doesnt_create_samples(
             self, sample_annotation_lines,
             path_project_conf, path_sample_anns):
@@ -108,18 +107,14 @@ class ProjectConstructorTests:
         assert expected_sample_count == p.num_samples
         assert p._samples is None
 
-
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_creation_laziness(
             self, path_project_conf, path_sample_anns, lazy):
         """ Project offers control over whether to create base Sample(s). """
-
         p = Project(path_project_conf, defer_sample_construction=lazy)
-
         if lazy:
             # Samples should remain null during lazy Project construction.
             assert p._samples is None
-
         else:
             # Eager Project construction builds Sample objects.
             assert p._samples is not None
@@ -130,7 +125,6 @@ class ProjectConstructorTests:
             num_samples_expected = sum(1 for l in anns_file_lines[1:] if l)
             assert num_samples_expected == len(p._samples)
             assert all([Sample == type(s) for s in p._samples])
-
 
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_name_availability(
@@ -143,10 +137,8 @@ class ProjectConstructorTests:
         assert expected_sample_names == list(p.sample_names)
 
 
-
 class ProjectRequirementsTests:
     """ Tests for a Project's set of requirements. """
-
 
     def test_lacks_sample_annotation(
             self, project_config_data, env_config_filepath, tmpdir):
@@ -159,12 +151,10 @@ class ProjectRequirementsTests:
         prj = Project(conf_path)
         assert isinstance(prj, Project)
 
-
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
         Project(config_file=minimal_project_conf_path)
-
 
     def test_minimal_configuration_name_inference(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
@@ -172,7 +162,6 @@ class ProjectRequirementsTests:
         project = Project(minimal_project_conf_path)
         _, expected_name = os.path.split(tmpdir.strpath)
         assert expected_name == project.name
-
 
     def test_minimal_configuration_output_dir(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
