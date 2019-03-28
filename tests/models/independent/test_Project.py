@@ -11,7 +11,7 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import IMPLICATIONS_DECLARATION, METADATA_KEY, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY
+    NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY, \
     MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
@@ -34,7 +34,7 @@ def project_config_data():
     """ Provide some basic data for a Project configuration. """
     return {
         METADATA_KEY: {
-            SAMPLE_ANNOTATIONS_KEY: "samples.csv",
+            NAME_TABLE_ATTR: "samples.csv",
             "output_dir": "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
         "data_sources": {"arbitrary": "placeholder/data/{filename}"},
@@ -56,14 +56,11 @@ def pytest_generate_tests(metafunc):
 class ProjectConstructorTests:
     """ Tests of Project constructor, particularly behavioral details. """
 
-
     def test_no_samples(self, path_empty_project):
         """ Lack of Samples is unproblematic. """
         p = Project(path_empty_project)
         assert 0 == p.num_samples
         assert [] == list(p.samples)
-
-
 
     @pytest.mark.parametrize(
             argnames="spec_type", argvalues=["as_null", "missing"],
@@ -132,7 +129,7 @@ class ProjectConstructorTests:
         """ Sample names always available on Project. """
         with open(path_sample_anns, 'r') as anns_file:
             expected_sample_names = \
-                    [l.split(",")[0] for l in anns_file.readlines()[1:] if l]
+                [l.split(",")[0] for l in anns_file.readlines()[1:] if l]
         p = Project(path_project_conf, defer_sample_construction=lazy)
         assert expected_sample_names == list(p.sample_names)
 
@@ -144,7 +141,7 @@ class ProjectRequirementsTests:
             self, project_config_data, env_config_filepath, tmpdir):
         """ Project can be built without sample annotations. """
         # Remove sample annotations KV pair from config data for this test.
-        del project_config_data[METADATA_KEY][SAMPLE_ANNOTATIONS_KEY]
+        del project_config_data[METADATA_KEY][NAME_TABLE_ATTR]
         # Write the (sans-annotations) config and assert Project is created.
         conf_path = _write_project_config(
             project_config_data, dirpath=tmpdir.strpath)
@@ -742,24 +739,6 @@ class ProjectWarningTests:
         assert 0 == (len(recwarn) - num_yaml_warns)
 
 
-
-@pytest.mark.usefixtures("write_project_files")
-class SampleSubannotationTests:
-
-    @pytest.mark.parametrize("defer", [False, True])
-    def test_sample_subannotation_construction(self, defer,
-            subannotation_filepath,  path_project_conf, path_sample_anns):
-        """ Merge table is constructed iff samples are constructed. """
-        p = Project(path_project_conf, defer_sample_construction=defer)
-        def get_subsheet(prj):
-            return getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
-        if defer:
-            assert get_subsheet(p) is None
-        else:
-            assert get_subsheet(p) is not None
-
-
-
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     """
     Write the configuration file for a Project.
@@ -773,7 +752,6 @@ def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     with open(conf_file_path, 'w') as conf_file:
         yaml.safe_dump(config_data, conf_file)
     return conf_file_path
-
 
 
 def _env_paths_to_names(envs):
@@ -791,7 +769,6 @@ def _env_paths_to_names(envs):
     for env_name, env_data in envs.items():
         reduced[env_name] = _compute_paths_to_names(env_data)
     return reduced
-
 
 
 def _compute_paths_to_names(env):

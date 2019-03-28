@@ -21,7 +21,7 @@ import yaml
 
 from peppy import \
     setup_peppy_logger, Project, SAMPLE_NAME_COLNAME
-from peppy.const import METADATA_KEY, NAME_TABLE_ATTR
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
 
 
 _LOGGER = logging.getLogger("peppy")
@@ -34,7 +34,7 @@ PROJECT_CONFIG_LINES = """{md_key}:
   {tab_key}: samples.csv
   output_dir: test
   pipeline_interfaces: pipelines
-  subsample_table: merge.csv
+  {subtab_key}: merge.csv
 
 derived_attributes: [{{derived_attribute_names}}]
 
@@ -50,7 +50,8 @@ implied_attributes:
       phenome: hg72
     b:
       genome: hg38
-""".format(md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR).splitlines(True)
+""".format(md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR,
+           subtab_key=SAMPLE_SUBANNOTATIONS_KEY).splitlines(True)
 # Will populate the corresponding string format entry in project config lines.
 DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
                     "nonmerged_col", "nonmerged_col", "data_source"]
@@ -199,11 +200,14 @@ def conf_logs(request):
     _LOGGER = logging.getLogger("peppy.{}".format(__name__))
 
 
-
 @pytest.fixture(scope="function")
 def sample_annotation_lines():
-    return SAMPLE_ANNOTATION_LINES
+    """
+    Return fixed collection of lines for sample annotations sheet.
 
+    :return Iterable[str]: collection of lines for sample annotations sheet
+    """
+    return SAMPLE_ANNOTATION_LINES
 
 
 @pytest.fixture(scope="function")
@@ -232,7 +236,6 @@ def path_empty_project(request, tmpdir):
         yaml.dump(conf_data, conf_file)
 
     return conf_path
-
 
 
 def interactive(
@@ -287,7 +290,6 @@ def interactive(
     return prj
 
 
-
 class _DataSourceFormatMapping(dict):
     """
     Partially format text with braces. This helps since bracing is the
@@ -296,7 +298,6 @@ class _DataSourceFormatMapping(dict):
     """
     def __missing__(self, derived_attribute):
         return "{" + derived_attribute + "}"
-
 
 
 def _write_temp(lines, dirpath, fname):
@@ -337,12 +338,10 @@ def _write_temp(lines, dirpath, fname):
     return filepath
 
 
-
 @pytest.fixture(scope="function")
 def project_config_lines():
     """ Provide safer iteration over the lines for Project config file. """
     return PROJECT_CONFIG_LINES
-
 
 
 @pytest.fixture(scope="function")
@@ -359,7 +358,6 @@ def path_project_conf(tmpdir, project_config_lines):
         project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
 
 
-
 @pytest.fixture(scope="function")
 def proj_conf_data(path_project_conf):
     """
@@ -373,7 +371,6 @@ def proj_conf_data(path_project_conf):
         return yaml.safe_load(conf_file)
 
 
-
 @pytest.fixture(scope="function")
 def path_sample_anns(tmpdir, sample_annotation_lines):
     """
@@ -385,15 +382,18 @@ def path_sample_anns(tmpdir, sample_annotation_lines):
     :return str: path to the sample annotations file that was written
     """
     filepath = _write_temp(
-            sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
+        sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
     return filepath
-
 
 
 @pytest.fixture(scope="function")
 def p_conf_fname():
-    return P_CONFIG_FILENAME
+    """
+    Return fixed name of project config file.
 
+    :return str: name of project config file
+    """
+    return P_CONFIG_FILENAME
 
 
 @pytest.fixture(scope="class")

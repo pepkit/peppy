@@ -242,7 +242,7 @@ def project(request, tmpdir, env_config_filepath):
         df.to_csv(anns_file, sep="\t", index=False)
 
     # Create the Project config data.
-    config_data = {METADATA_KEY: {SAMPLE_ANNOTATIONS_KEY: annotations_filename}}
+    config_data = {METADATA_KEY: {NAME_TABLE_ATTR: annotations_filename}}
     if request.getfixturevalue(request.cls.CONFIG_DATA_PATHS_HOOK):
         config_data["paths"] = {}
         paths_dest = config_data["paths"]
@@ -276,7 +276,7 @@ class SampleTextTests:
 
     _PRJ_DATA = {
         METADATA_KEY: {
-            SAMPLE_ANNOTATIONS_KEY: _ANNS_NAME,
+            NAME_TABLE_ATTR: _ANNS_NAME,
             "output_dir": os.path.join("$HOME", "hello_looper_results"),
             "pipeline_interfaces": "$HOME/pipelines/pipeline_interface.yaml"
         }

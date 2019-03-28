@@ -65,13 +65,13 @@ from divvy import ComputingConfiguration
 from .const import \
     ASSAY_KEY, DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, \
     NAME_TABLE_ATTR, DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION, \
-    METADATA_KEY, SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY, \
+    METADATA_KEY, SAMPLE_SUBANNOTATIONS_KEY, \
     SAMPLE_NAME_COLNAME
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, copy, fetch_samples, is_url, non_null_value, \
-    warn_derived_cols, warn_implied_cols
+    add_project_sample_constants, copy, fetch_samples, infer_delimiter, is_url, \
+    non_null_value, warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -218,12 +218,12 @@ class Project(PathExAttMap):
         self_table_attr = "_" + NAME_TABLE_ATTR
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-            setattr(self, self_table_attr, self.parse_sample_sheet(path_anns_file))
+            self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
-            setattr(self, self_table_attr, None)
+            self[self_table_attr] = None
 
-        setattr(self, SAMPLE_SUBANNOTATIONS_KEY, None)
+        self[SAMPLE_SUBANNOTATIONS_KEY] = None
 
         # Basic sample maker will handle name uniqueness check.
         if defer_sample_construction or self._sample_table is None:
@@ -264,15 +264,6 @@ class Project(PathExAttMap):
         elif key == METADATA_KEY:
             value = _Metadata(value)
         super(Project, self).__setitem__(key, value)
-
-    @property
-    def subproject(self):
-        """
-        Return currently active subproject or None if none was activated
-
-        :return str: currently active subproject
-        """
-        return self._subproject
 
     @property
     def constants(self):
@@ -417,11 +408,20 @@ class Project(PathExAttMap):
 
     @property
     def sample_table(self):
+        """
+        Return (possibly first parsing/building) the table of samples.
+
+        :return pandas.core.frame.DataFrame: table of samples' metadata
+        """
         from copy import copy as cp
-        if self._sample_table is None:
-            self._sample_table = \
-                self.parse_sample_sheet(getattr(self.metadata, NAME_TABLE_ATTR))
-        return cp(self._sample_table)
+        key = NAME_TABLE_ATTR
+        attr = "_" + key
+        if self.get(attr) is None:
+            if key not in self[METADATA_KEY]:
+                return None
+            sheetfile = self[METADATA_KEY][NAME_TABLE_ATTR]
+            self[attr] = self.parse_sample_sheet(sheetfile)
+        return cp(self[attr])
 
     @property
     def sheet(self):
@@ -433,6 +433,33 @@ class Project(PathExAttMap):
         warnings.warn("sheet is deprecated; instead use {}".
                       format(NAME_TABLE_ATTR), DeprecationWarning)
         return getattr(self, NAME_TABLE_ATTR)
+
+    @property
+    def subproject(self):
+        """
+        Return currently active subproject or None if none was activated
+
+        :return str: name of currently active subproject
+        """
+        return self._subproject
+
+    @property
+    def subsample_table(self):
+        """
+        Return (possibly first parsing/building) the table of subsamples.
+
+        :return pandas.core.frame.DataFrame: table of subsamples' metadata
+        """
+        from copy import copy as cp
+        key = SAMPLE_SUBANNOTATIONS_KEY
+        attr = "_" + key
+        if self.get(attr) is None:
+            if key not in self[METADATA_KEY]:
+                return None
+            sheetfile = self[METADATA_KEY][key]
+            self[attr] = pd.read_csv(sheetfile, sep=infer_delimiter(sheetfile),
+                dtype=str, index_col=False, engine="python", keep_default_na=False)
+        return cp(self[attr])
 
     @property
     def templates_folder(self):
@@ -610,7 +637,7 @@ class Project(PathExAttMap):
             _LOGGER.debug("Got {} as pipelines path(s) ({})".
                           format(pipe_path, type(pipe_path)))
             pipe_path = []
-        setattr(self.metadata, NEW_PIPES_KEY, pipe_path)
+        self[METADATA_KEY][NEW_PIPES_KEY] = pipe_path
 
     def get_arg_string(self, pipeline_name):
         """
@@ -700,7 +727,7 @@ class Project(PathExAttMap):
                 _LOGGER.info("Reading subannotations: %s", sub_ann)
                 subann_table = pd.read_csv(
                     sub_ann, sep=None, engine="python", dtype=str)
-                setattr(self, SAMPLE_SUBANNOTATIONS_KEY, subann_table)
+                self[SAMPLE_SUBANNOTATIONS_KEY] = subann_table
                 _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
             else:
                 _LOGGER.debug("Alleged path to sample subannotations data is "
@@ -833,8 +860,7 @@ class Project(PathExAttMap):
         for var in self.required_metadata:
             if var not in self.metadata:
                 raise ValueError("Missing required metadata item: '{}'".format(var))
-            setattr(self.metadata, var,
-                    os.path.expandvars(getattr(self.metadata, var)))
+            self[METADATA_KEY][var] = os.path.expandvars(self.metadata.get(var))
 
         _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
                                                self.metadata))
@@ -850,14 +876,12 @@ class Project(PathExAttMap):
         }
 
         for key, value in config_vars.items():
-            if hasattr(self.metadata, key):
-                if not os.path.isabs(getattr(self.metadata, key)):
-                    v = os.path.join(
-                            self.output_dir, getattr(self.metadata, key))
-                    setattr(self.metadata, key, v)
+            if key in self.metadata:
+                if not os.path.isabs(self.metadata[key]):
+                    self.metadata[key] = \
+                        os.path.join(self.output_dir, self.metadata[key])
             else:
-                outpath = os.path.join(self.output_dir, value)
-                setattr(self.metadata, key, outpath)
+                self.metadata[key] = os.path.join(self.output_dir, value)
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
@@ -950,8 +974,7 @@ class Project(PathExAttMap):
         # See https://github.com/pepkit/peppy/issues/159 for the original issue
         # and https://github.com/pepkit/peppy/pull/160 for the pull request
         # that resolved it.
-        ext = os.path.splitext(sample_file)[1][1:].lower()
-        sep = {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
+        sep = infer_delimiter(sample_file)
         try:
             df = pd.read_csv(sample_file, sep=sep, dtype=dtype, index_col=False,
                              engine="python", keep_default_na=False)
@@ -979,10 +1002,15 @@ class Project(PathExAttMap):
     class MissingSampleSheetError(PeppyError):
         """ Represent case in which sample sheet is specified but nonexistent. """
         def __init__(self, sheetfile):
-            super(Project.MissingSampleSheetError, self).__init__(
-                "Missing sample annotation sheet ({}); a project need not use "
-                "a sample sheet, but if it does the file must exist."
-                .format(sheetfile))
+            parent_folder = os.path.dirname(sheetfile)
+            contents = os.listdir(parent_folder) \
+                if os.path.isdir(parent_folder) else []
+            msg = "Missing sample annotation sheet ({}); a project need not use " \
+                  "a sample sheet, but if it does the file must exist.".\
+                format(sheetfile)
+            if contents:
+                msg += " Contents of parent folder: {}".format(", ".join(contents))
+            super(Project.MissingSampleSheetError, self).__init__(msg)
 
     @staticmethod
     def _omit_from_repr(k, cls):
