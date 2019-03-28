@@ -33,7 +33,7 @@ PROJECT_CONFIG_LINES = """metadata:
   sample_annotation: samples.csv
   output_dir: test
   pipeline_interfaces: pipelines
-  sample_subannotation: merge.csv
+  subsample_table: merge.csv
 
 derived_attributes: [{derived_attribute_names}]
 

@@ -78,7 +78,7 @@ class ProjectConstructorTests:
         try:
             assert SAMPLE_SUBANNOTATIONS_KEY in metadata
         except AssertionError:
-            print("Project metadata section lacks 'sample_subannotation'")
+            print("Project metadata section lacks '{}'".format(SAMPLE_SUBANNOTATIONS_KEY))
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
@@ -93,7 +93,7 @@ class ProjectConstructorTests:
         with open(path_config_file, 'w') as conf_file:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
-        assert p.sample_subannotation is None
+        assert getattr(p, SAMPLE_SUBANNOTATIONS_KEY) is None
 
 
     def test_counting_samples_doesnt_create_samples(
@@ -549,7 +549,7 @@ class ProjectConstructorTest:
     @named_param(argnames="sample_index",
                  argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
-        """ Samples not in the `sample_subannotation` lack merged columns. """
+        """ Samples not in the `subsample_table` lack merged columns. """
         # Assert the negative to cover empty dict/AttMap/None/etc.
         assert not proj.samples[sample_index].merged_cols
 
@@ -762,10 +762,12 @@ class SampleSubannotationTests:
             subannotation_filepath,  path_project_conf, path_sample_anns):
         """ Merge table is constructed iff samples are constructed. """
         p = Project(path_project_conf, defer_sample_construction=defer)
+        def get_subsheet(prj):
+            return getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
         if defer:
-            assert p.sample_subannotation is None
+            assert get_subsheet(p) is None
         else:
-            assert p.sample_subannotation is not None
+            assert get_subsheet(p) is not None
 
 
 

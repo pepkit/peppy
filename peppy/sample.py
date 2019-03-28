@@ -784,7 +784,6 @@ class Sample(PathExAttMap):
                 _LOGGER.warning("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
-
     def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
         """
         Serializes itself in YAML format.
@@ -867,7 +866,6 @@ class Sample(PathExAttMap):
             else:
                 return obj
 
-
         _LOGGER.debug("Serializing %s: '%s'",
                       self.__class__.__name__, self.name)
         serial = obj2dict(self)
@@ -904,7 +902,6 @@ class Sample(PathExAttMap):
                 raise
             outfile.write(yaml_data)
 
-
     def update(self, newdata, **kwargs):
         """
         Update Sample object with attributes from a dict.
@@ -918,7 +915,6 @@ class Sample(PathExAttMap):
             setattr(self, k, v)
         for k, v in kwargs.items():
             setattr(self, k, v)
-
 
 
 def merge_sample(sample, sample_subann,

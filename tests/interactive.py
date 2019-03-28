@@ -19,7 +19,7 @@ p = peppy.Project(os.path.expandvars("$CODEBASE/example_peps/example2/project_co
 p.get_sample("frog_1").subsamples
 
 p.sheet
-p.sample_subannotation
+p.subsample_table
 
 
 p.get_sample("frog_2").subsamples
@@ -30,7 +30,7 @@ p.get_subsample(sample_name="frog_1", subsample_name="2")
 
 subsamples = []
 type(subsamples)
-for n, row in p.sample_subannotation.iterrows():
+for n, row in p.subsample_table.iterrows():
 	print n
 	print row
 	subsamples.append(peppy.SubSample(row))

@@ -221,7 +221,7 @@ class Project(PathExAttMap):
             _LOGGER.warning("No sample annotations sheet in config")
             self._sheet = None
 
-        self.sample_subannotation = None
+        setattr(self, SAMPLE_SUBANNOTATIONS_KEY, None)
 
         # Basic sample maker will handle name uniqueness check.
         if defer_sample_construction or self._sheet is None:
@@ -262,7 +262,6 @@ class Project(PathExAttMap):
         elif key == METADATA_KEY:
             value = _Metadata(value)
         super(Project, self).__setitem__(key, value)
-
 
     @property
     def subproject(self):
@@ -390,6 +389,18 @@ class Project(PathExAttMap):
             of this Project's samples
         """
         return self._samples
+
+    @property
+    def sample_subannotation(self):
+        """
+        Return the data table that stores metadata for subsamples/units.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of
+            subsamples/units metadata
+        """
+        warnings.warn("sample_subannotation is deprecated; use {}".
+                      format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
+        return getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
 
     @property
     def sheet(self):
@@ -661,16 +672,16 @@ class Project(PathExAttMap):
             except KeyError:
                 _LOGGER.debug("No sample subannotations")
             else:
-                _LOGGER.warning("'merge_table' attribute is deprecated. Please use "
-                    "'sample_subannotation' instead.")
+                warnings.warn("merge_table is deprecated; please instead use {}".
+                              format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
 
-        if self.sample_subannotation is None:
+        if getattr(self, SAMPLE_SUBANNOTATIONS_KEY) is None:
             if sub_ann and os.path.isfile(sub_ann):
                 _LOGGER.info("Reading subannotations: %s", sub_ann)
-                self.sample_subannotation = pd.read_csv(
-                        sub_ann, sep=None, engine="python", dtype=str)
-                _LOGGER.debug("Subannotations shape: {}".
-                              format(self.sample_subannotation.shape))
+                subann_table = pd.read_csv(
+                    sub_ann, sep=None, engine="python", dtype=str)
+                setattr(self, SAMPLE_SUBANNOTATIONS_KEY, subann_table)
+                _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
             else:
                 _LOGGER.debug("Alleged path to sample subannotations data is "
                               "not a file: '%s'", str(sub_ann))
@@ -702,7 +713,7 @@ class Project(PathExAttMap):
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, self.sample_subannotation,
+            merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
                          self.data_sources, self.derived_attributes)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
@@ -726,8 +737,8 @@ class Project(PathExAttMap):
 
         :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
         """
-        if self.sample_subannotation is not None:
-            sample_subann_names = self.sample_subannotation.sample_name.tolist()
+        if getattr(self, SAMPLE_SUBANNOTATIONS_KEY) is not None:
+            sample_subann_names = getattr(self, SAMPLE_SUBANNOTATIONS_KEY).sample_name.tolist()
             sample_names_list = list(self.sample_names)
             info = " matching sample name for subannotation '{}'"
             for n in sample_subann_names:
@@ -965,7 +976,7 @@ class Project(PathExAttMap):
             text representation
         """
         exclusions_by_class = {
-            "Project": ["_samples", "sample_subannotation",
+            "Project": ["_samples", SAMPLE_SUBANNOTATIONS_KEY,
                         "_sheet", "sheet", "interfaces_by_protocol"],
             "Subsample": ["sheet", "sample", "merged_cols"],
             "Sample": ["sheet", "prj", "merged_cols"]
