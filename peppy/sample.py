@@ -234,8 +234,8 @@ class Sample(PathExAttMap):
                             format(file_attribute, attval))
 
         if missing or empty:
-            reason_key = "Missing and/or empty attribute(s)"
-            reason_detail = "(missing) {}; (empty) {}".format(
+            reason_key = "Missing and/or empty attribute(s)."
+            reason_detail = "Missing: {}; Empty: {}".format(
                 ", ".join(missing), ", ".join(empty))
             return AttributeError, reason_key, reason_detail
 
@@ -257,7 +257,6 @@ class Sample(PathExAttMap):
             reason_key = "Missing file(s)"
             reason_detail = ", ".join(missing_files)
             return IOError, reason_key, reason_detail
-
 
     def generate_filename(self, delimiter="_"):
         """
