@@ -29,12 +29,15 @@ _LOGGER = logging.getLogger("peppy")
 
 P_CONFIG_FILENAME = "project_config.yaml"
 
+ANNOTATIONS_FILENAME = "samples.csv"
+SUBSAMPLES_FILENAME = "merge.csv"
+
 # {basedir} lines are formatted during file write; other braced entries remain.
 PROJECT_CONFIG_LINES = """{md_key}:
-  {tab_key}: samples.csv
+  {tab_key}: {main_table}
   output_dir: test
   pipeline_interfaces: pipelines
-  {subtab_key}: merge.csv
+  {subtab_key}: {subtable}
 
 derived_attributes: [{{derived_attribute_names}}]
 
@@ -50,15 +53,15 @@ implied_attributes:
       phenome: hg72
     b:
       genome: hg38
-""".format(md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR,
-           subtab_key=SAMPLE_SUBANNOTATIONS_KEY).splitlines(True)
+""".format(
+    md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR,
+    main_table=ANNOTATIONS_FILENAME, subtable=SUBSAMPLES_FILENAME,
+    subtab_key=SAMPLE_SUBANNOTATIONS_KEY).splitlines(True)
 # Will populate the corresponding string format entry in project config lines.
 DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
                     "nonmerged_col", "nonmerged_col", "data_source"]
 
 # Connected with project config lines & should match; separate for clarity.
-ANNOTATIONS_FILENAME = "samples.csv"
-MERGE_TABLE_FILENAME = "merge.csv"
 SRC1_TEMPLATE = "data/{sample_name}{col_modifier}.txt"
 SRC2_TEMPLATE = "data/{sample_name}-bamfile.bam"
 SRC3_TEMPLATE = "data/{sample_name}.txt"
@@ -276,7 +279,7 @@ def interactive(
         dirpath=dirpath, fname="pipeline_interface.yaml")
     path_sample_subannotation_file = _write_temp(
         sample_subannotation_lines,
-        dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+        dirpath=dirpath, fname=SUBSAMPLES_FILENAME
     )
     path_sample_annotation_file = _write_temp(
         annotation_lines,
@@ -354,6 +357,9 @@ def path_project_conf(tmpdir, project_config_lines):
         Project configuration file
     :return str: path to file with Project configuration data
     """
+    with open(os.path.join(tmpdir.strpath, SUBSAMPLES_FILENAME), 'w') as f:
+        for l in SAMPLE_SUBANNOTATION_LINES:
+            f.write(l)
     return _write_temp(
         project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
 
@@ -410,7 +416,7 @@ def write_project_files(request):
                                  dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_sample_subannotation_file = _write_temp(
             SAMPLE_SUBANNOTATION_LINES,
-            dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+            dirpath=dirpath, fname=SUBSAMPLES_FILENAME
     )
     path_sample_annotation_file = _write_temp(
             SAMPLE_ANNOTATION_LINES,
@@ -430,7 +436,7 @@ def write_project_files(request):
 def subannotation_filepath(tmpdir):
     """ Write sample subannotations (temp) file and return path to it. """
     return _write_temp(SAMPLE_SUBANNOTATION_LINES,
-                       dirpath=tmpdir.strpath, fname=MERGE_TABLE_FILENAME)
+                       dirpath=tmpdir.strpath, fname=SUBSAMPLES_FILENAME)
 
 
 

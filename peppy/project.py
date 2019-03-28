@@ -722,7 +722,7 @@ class Project(PathExAttMap):
                 warnings.warn("merge_table is deprecated; please instead use {}".
                               format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
 
-        if getattr(self, SAMPLE_SUBANNOTATIONS_KEY) is None:
+        if self.get(SAMPLE_SUBANNOTATIONS_KEY) is None:
             if sub_ann and os.path.isfile(sub_ann):
                 _LOGGER.info("Reading subannotations: %s", sub_ann)
                 subann_table = pd.read_csv(
