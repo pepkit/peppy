@@ -213,16 +213,15 @@ class Project(PathExAttMap):
 
         self.finalize_pipelines_directory()
 
+        self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
         path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
         self_table_attr = "_" + NAME_TABLE_ATTR
+        self[self_table_attr] = None
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
             self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
-            self[self_table_attr] = None
-
-        self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
 
         # Basic sample maker will handle name uniqueness check.
         if defer_sample_construction or self._sample_table is None:
@@ -416,15 +415,16 @@ class Project(PathExAttMap):
         """
         Return (possibly first parsing/building) the table of samples.
 
-        :return pandas.core.frame.DataFrame: table of samples' metadata
+        :return pandas.core.frame.DataFrame | NoneType: table of samples'
+            metadata, if one is defined
         """
         from copy import copy as cp
         key = NAME_TABLE_ATTR
         attr = "_" + key
         if self.get(attr) is None:
-            if key not in self[METADATA_KEY]:
+            sheetfile = self[METADATA_KEY].get(key)
+            if sheetfile is None:
                 return None
-            sheetfile = self[METADATA_KEY][NAME_TABLE_ATTR]
             self[attr] = self.parse_sample_sheet(sheetfile)
         return cp(self[attr])
 
