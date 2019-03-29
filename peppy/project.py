@@ -214,7 +214,7 @@ class Project(PathExAttMap):
 
         self.finalize_pipelines_directory()
 
-        path_anns_file = getattr(self.metadata, NAME_TABLE_ATTR)
+        path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
         self_table_attr = "_" + NAME_TABLE_ATTR
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
