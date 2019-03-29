@@ -222,7 +222,7 @@ class Project(PathExAttMap):
             _LOGGER.warning("No sample annotations sheet in config")
             self[self_table_attr] = None
 
-        self[SAMPLE_SUBANNOTATIONS_KEY] = None
+        self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
 
         # Basic sample maker will handle name uniqueness check.
         if defer_sample_construction or self._sample_table is None:
@@ -728,18 +728,15 @@ class Project(PathExAttMap):
                 warnings.warn("merge_table is deprecated; please instead use {}".
                               format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
 
-        if self.get(SAMPLE_SUBANNOTATIONS_KEY) is None:
-            if sub_ann and os.path.isfile(sub_ann):
-                _LOGGER.info("Reading subannotations: %s", sub_ann)
-                subann_table = pd.read_csv(
-                    sub_ann, sep=None, engine="python", dtype=str)
-                self[SAMPLE_SUBANNOTATIONS_KEY] = subann_table
-                _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
-            else:
-                _LOGGER.debug("Alleged path to sample subannotations data is "
-                              "not a file: '%s'", str(sub_ann))
+        if sub_ann and os.path.isfile(sub_ann):
+            _LOGGER.info("Reading subannotations: %s", sub_ann)
+            subann_table = pd.read_csv(
+                sub_ann, sep=None, engine="python", dtype=str)
+            self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
+            _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
         else:
-            _LOGGER.debug("Already parsed sample subannotations")
+            _LOGGER.debug("Alleged path to sample subannotations data is "
+                          "not a file: '%s'", str(sub_ann))
 
         # Set samples and handle non-unique names situation.
         self._check_subann_name_overlap()
@@ -1029,9 +1026,10 @@ class Project(PathExAttMap):
             text representation
         """
         exclusions_by_class = {
-            "Project": ["_samples", SAMPLE_SUBANNOTATIONS_KEY,
-                        "_" + NAME_TABLE_ATTR, NAME_TABLE_ATTR,
-                        "interfaces_by_protocol"],
+            "Project": [
+                "samples", "_samples", "interfaces_by_protocol",
+                "_" + SAMPLE_SUBANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY,
+                NAME_TABLE_ATTR, "_" + NAME_TABLE_ATTR],
             "Subsample": [NAME_TABLE_ATTR, "sample", "merged_cols"],
             "Sample": [NAME_TABLE_ATTR, "prj", "merged_cols"]
         }
