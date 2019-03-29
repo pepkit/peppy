@@ -123,7 +123,6 @@ class ProjectContext(object):
         pass
 
 
-
 @copy
 class Project(PathExAttMap):
     """
@@ -381,6 +380,12 @@ class Project(PathExAttMap):
         :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
+        if self._samples:
+            return self._samples
+        if self.sample_table is None:
+            _LOGGER.warning("No samples are defined")
+            return []
+        self._samples = self._prep_samples()
         return self._samples
 
     @property
@@ -448,15 +453,16 @@ class Project(PathExAttMap):
         """
         Return (possibly first parsing/building) the table of subsamples.
 
-        :return pandas.core.frame.DataFrame: table of subsamples' metadata
+        :return pandas.core.frame.DataFrame | NoneType: table of subsamples'
+            metadata, if the project defines such a table
         """
         from copy import copy as cp
         key = SAMPLE_SUBANNOTATIONS_KEY
         attr = "_" + key
         if self.get(attr) is None:
-            if key not in self[METADATA_KEY]:
+            sheetfile = self[METADATA_KEY].get(key)
+            if sheetfile is None:
                 return None
-            sheetfile = self[METADATA_KEY][key]
             self[attr] = pd.read_csv(sheetfile, sep=infer_delimiter(sheetfile),
                 dtype=str, index_col=False, engine="python", keep_default_na=False)
         return cp(self[attr])
