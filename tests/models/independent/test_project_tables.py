@@ -72,7 +72,7 @@ def prj(request, tmpdir):
     return Project(conf)
 
 
-def assert_absent_prj_var(p, var):
+def _assert_absent_prj_var(p, var):
     """
     Assert that a Project lacks a particular variable.
 
@@ -85,7 +85,7 @@ def assert_absent_prj_var(p, var):
         p[var]
 
 
-def assert_null_prj_var(p, var):
+def _assert_null_prj_var(p, var):
     """
     Assert that a Project is null in a particular variable.
 
@@ -113,8 +113,8 @@ def test_no_annotations_sheets(anns_file, subs_file, prj):
 @pytest.mark.parametrize(SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX, [None, ""])
 def test_annotations_without_subannotations(anns_data, anns_file, subs_file, prj):
     """ Test project config with main samples but no subsamples. """
-    check_table(prj, SAMPLE_ANNOTATIONS_KEY, len(SAMPLE_ANNOTATION_LINES) - 1)
-    assert_null_prj_var(prj, SAMPLE_SUBANNOTATIONS_KEY)
+    _check_table(prj, SAMPLE_ANNOTATIONS_KEY, len(SAMPLE_ANNOTATION_LINES) - 1)
+    _assert_null_prj_var(prj, SAMPLE_SUBANNOTATIONS_KEY)
 
 
 @pytest.mark.parametrize(
@@ -126,8 +126,8 @@ def test_annotations_without_subannotations(anns_data, anns_file, subs_file, prj
 @pytest.mark.parametrize(ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX, [None, ""])
 def test_subannotations_without_annotations(subs_data, subs_file, anns_file, prj):
     """ Test project config with subsamples but no main samples. """
-    check_table(prj, SAMPLE_SUBANNOTATIONS_KEY, len(SAMPLE_SUBANNOTATION_LINES) - 1)
-    assert_null_prj_var(prj, SAMPLE_ANNOTATIONS_KEY)
+    _check_table(prj, SAMPLE_SUBANNOTATIONS_KEY, len(SAMPLE_SUBANNOTATION_LINES) - 1)
+    _assert_null_prj_var(prj, SAMPLE_ANNOTATIONS_KEY)
 
 
 @pytest.mark.parametrize(
@@ -144,11 +144,35 @@ def test_subannotations_without_annotations(subs_data, subs_file, anns_file, prj
      ("subannC.txt", TAB_SUBANNS_DATA)])
 def test_both_annotations_sheets(anns_data, anns_file, subs_data, subs_file, prj):
     """ Test project config with both main samples and subsamples. """
-    check_table(prj, SAMPLE_ANNOTATIONS_KEY, len(SAMPLE_ANNOTATION_LINES) - 1)
-    check_table(prj, SAMPLE_SUBANNOTATIONS_KEY, len(SAMPLE_SUBANNOTATION_LINES) - 1)
+    _check_table(prj, SAMPLE_ANNOTATIONS_KEY, len(SAMPLE_ANNOTATION_LINES) - 1)
+    _check_table(prj, SAMPLE_SUBANNOTATIONS_KEY, len(SAMPLE_SUBANNOTATION_LINES) - 1)
 
 
-def check_table(p, k, exp_nrow):
+@pytest.mark.skip("Not implemented")
+def test_both_old_encodings():
+    """ Current and previous encoding of tables works, deprecated appropriately. """
+    pass
+
+
+@pytest.mark.skip("Not implemented")
+def test_mixed_old_new_encoding():
+    """ Current and previous encoding of tables works, deprecated appropriately. """
+    pass
+
+
+@pytest.mark.skip("Not implemented")
+def test_preservation_during_subproject_activation():
+    """ Tables are preserved when a subproject is activated iff it declares no tables. """
+    pass
+
+
+@pytest.mark.skip("Not implemented")
+def test_dynamism_during_subproject_activation():
+    """ Subproject's declared table(s) take precedence over existing ones."""
+    pass
+
+
+def _check_table(p, k, exp_nrow):
     """
     Validate expectations about a particular table attribute on Project.
 
