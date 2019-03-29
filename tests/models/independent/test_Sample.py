@@ -227,11 +227,11 @@ class SetFilePathsTests:
             data_src = DATA_SOURCE_COLNAME
         return {
             METADATA_KEY: {
-                NAME_TABLE_ATTR: "anns.csv", "output_dir": "outdir",
+                NAME_TABLE_ATTR: "anns.csv", OUTDIR_KEY: "outdir",
                 "results_subdir": "results_pipeline",
                 "submission_subdir": "submission"},
             DATA_SOURCES_SECTION: self.DATA_SOURCES,
-            "derived_attributes": [data_src]}
+            DERIVATIONS_DECLARATION: [data_src]}
 
     @named_param(
         argnames="data_src_attr",

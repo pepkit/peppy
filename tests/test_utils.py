@@ -10,8 +10,7 @@ import pytest
 
 from attmap import AttMap
 from peppy import Project, Sample
-from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, \
-    SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from peppy.const import *
 from peppy.utils import \
     add_project_sample_constants, coll_like, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
@@ -39,11 +38,11 @@ def basic_project_data():
     return {
         METADATA_KEY: {
             NAME_TABLE_ATTR: "anns.csv",
-            "output_dir": "outdir",
+            OUTDIR_KEY: "outdir",
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
-        "derived_attributes": ["data_source"],
-        "implied_attributes": {"organism": {"genomes": {
+        DERIVATIONS_DECLARATION: [DATA_SOURCE_COLNAME],
+        IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }

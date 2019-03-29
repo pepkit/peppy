@@ -22,7 +22,7 @@ __email__ = "vreuter@virginia.edu"
 # Arbitrary (but reasonable) path names/types to use to test
 # Project construction behavior with respect to config file format.
 PATH_BY_TYPE = {
-    "output_dir": "temporary/sequencing/results",
+    OUTDIR_KEY: "temporary/sequencing/results",
     "results_subdir": "results",
     "submission_subdir": "submission",
     "input_dir": "dummy/sequencing/data",
@@ -30,15 +30,14 @@ PATH_BY_TYPE = {
 
 NAME_ANNOTATIONS_FILE = "annotations.csv"
 SAMPLE_NAMES = ["WGBS_mm10", "ATAC_mm10", "WGBS_rn6", "ATAC_rn6"]
-PROTOCOL_COLNAME = "protocol"
-COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", PROTOCOL_COLNAME]
+COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", ASSAY_KEY]
 VALUES1 = [random.randint(-5, 5) for _ in range(len(SAMPLE_NAMES))]
 VALUES2 = [random.randint(-5, 5) for _ in range(len(SAMPLE_NAMES))]
 PROTOCOLS = ["WGBS", "ATAC", "WGBS", "ATAC"]
 DATA = list(zip(SAMPLE_NAMES, VALUES1, VALUES2, PROTOCOLS))
 DATA_FOR_SAMPLES = [
     {SAMPLE_NAME_COLNAME: SAMPLE_NAMES},
-    {"val1": VALUES1}, {"val2": VALUES2}, {PROTOCOL_COLNAME: PROTOCOLS}]
+    {"val1": VALUES1}, {"val2": VALUES2}, {ASSAY_KEY: PROTOCOLS}]
 PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: NAME_ANNOTATIONS_FILE}}
 
 
@@ -97,7 +96,7 @@ def samples_rawdata():
 def sample_sheet(samples_rawdata):
     """ Provide a test case with a DataFrame representing a sample sheet. """
     df = pd.DataFrame(samples_rawdata)
-    df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", PROTOCOL_COLNAME]
+    df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", ASSAY_KEY]
     return df
 
 
@@ -277,7 +276,7 @@ class SampleTextTests:
     _PRJ_DATA = {
         METADATA_KEY: {
             NAME_TABLE_ATTR: _ANNS_NAME,
-            "output_dir": os.path.join("$HOME", "hello_looper_results"),
+            OUTDIR_KEY: os.path.join("$HOME", "hello_looper_results"),
             "pipeline_interfaces": "$HOME/pipelines/pipeline_interface.yaml"
         }
     }

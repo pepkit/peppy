@@ -82,7 +82,7 @@ def project(request, sample_names, protocols, tmpdir):
 
     # Create config data.
     conf_data = {METADATA_KEY: {
-        NAME_TABLE_ATTR: anns.strpath, "output_dir": outdir.strpath}}
+        NAME_TABLE_ATTR: anns.strpath, OUTDIR_KEY: outdir.strpath}}
     # Provide a hook for a test case to add data.
     if "add_project_data" in request.fixturenames:
         conf_data.update(request.getfixturevalue("add_project_data"))

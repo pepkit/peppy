@@ -5,8 +5,7 @@ import os
 import pytest
 import yaml
 from peppy import Project
-from peppy import NAME_TABLE_ATTR
-from peppy.const import METADATA_KEY, NAME_TABLE_ATTR
+from peppy.const import *
 from tests.helpers import randomize_filename
 
 __author__ = "Vince Reuter"
@@ -34,7 +33,7 @@ def conf_data(tmpdir):
     return {
         METADATA_KEY: {
             NAME_TABLE_ATTR: parent_sheet_file,
-            "output_dir": tmpdir.strpath,
+            OUTDIR_KEY: tmpdir.strpath,
             "pipeline_interfaces": tmpdir.strpath
         },
         "subprojects": {

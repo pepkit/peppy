@@ -10,8 +10,7 @@ import pytest
 import yaml
 
 from peppy import Project, Sample
-from peppy.const import IMPLICATIONS_DECLARATION, METADATA_KEY, \
-    NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
+from peppy.const import *
 from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY, \
     MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
@@ -35,9 +34,9 @@ def project_config_data():
     return {
         METADATA_KEY: {
             NAME_TABLE_ATTR: "samples.csv",
-            "output_dir": "$HOME/sequencing/output",
+            OUTDIR_KEY: "$HOME/sequencing/output",
             "pipeline_interfaces": "${CODE}/pipelines"},
-        "data_sources": {"arbitrary": "placeholder/data/{filename}"},
+        DATA_SOURCES_SECTION: {"arbitrary": "placeholder/data/{filename}"},
     }
 
 
