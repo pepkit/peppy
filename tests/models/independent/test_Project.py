@@ -612,7 +612,7 @@ class SubprojectActivationDeactivationTest:
         sp = "sub"
         meta_key = METADATA_KEY
         conf_data = {meta_key: super_data,
-                     "subprojects": {sp: {meta_key: sub_data}}}
+                     SUBPROJECTS_SECTION: {sp: {meta_key: sub_data}}}
         conf_file = tmpdir.join("conf.yaml").strpath
         with open(conf_file, 'w') as f:
             yaml.dump(conf_data, f)
@@ -662,7 +662,7 @@ class SubprojectActivationDeactivationTest:
         conf_file_path = os.path.join(folder, "conf.yaml")
         conf_data = {METADATA_KEY: {}}
         if incl_subs:
-            conf_data.update(**{"subprojects": cls.SUBPROJ_SECTION})
+            conf_data.update(**{SUBPROJECTS_SECTION: cls.SUBPROJ_SECTION})
         with open(conf_file_path, 'w') as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)

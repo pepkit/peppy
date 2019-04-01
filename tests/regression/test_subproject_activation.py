@@ -37,7 +37,7 @@ def conf_data(tmpdir):
             OUTDIR_KEY: tmpdir.strpath,
             NEW_PIPES_KEY: tmpdir.strpath
         },
-        "subprojects": {
+        SUBPROJECTS_SECTION: {
             _SP_NAME: {METADATA_KEY: {NAME_TABLE_ATTR: child_sheet_file}}
         }
     }

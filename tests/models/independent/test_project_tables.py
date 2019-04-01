@@ -1,5 +1,7 @@
 """ Tests regarding Project data tables """
 
+from copy import deepcopy
+from functools import partial
 import os
 import pytest
 import yaml
@@ -37,14 +39,25 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.fixture(scope="function")
-def prj(request, tmpdir):
-    """ Provide a test case with a parameterized Project instance. """
+def prj_data(request, tmpdir):
+    """
+    Provide basic Project data, based on inspection of requesting test case.
+
+    :param pytest.fixture.FixtureRequest request: test case requesting this
+        fixture
+    :param py.path.LocalPath tmpdir: temporary directory for a test case
+    :return Mapping: basic data with which to create Project
+    """
     def proc(spec):
-        fp = request.getfixturevalue(spec + FILE_FIXTURE_SUFFIX)
+        fixname = spec + FILE_FIXTURE_SUFFIX
+        if fixname not in request.fixturenames:
+            return None
+        fp = request.getfixturevalue(fixname)
         data_fixture_name = spec + DATA_FIXTURE_SUFFIX
         lines = request.getfixturevalue(data_fixture_name) \
             if data_fixture_name in request.fixturenames else []
         return _proc_file_spec(fp, tmpdir.strpath, lines)
+
     anns = proc(ANNS_FIXTURE_PREFIX)
     subs = proc(SUBS_FIXTURE_PREFIX)
     data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
@@ -52,10 +65,61 @@ def prj(request, tmpdir):
         data[METADATA_KEY][SAMPLE_ANNOTATIONS_KEY] = anns
     if subs:
         data[METADATA_KEY][SAMPLE_SUBANNOTATIONS_KEY] = subs
+    if SUBPROJECTS_SECTION in request.fixturenames:
+        data[SUBPROJECTS_SECTION] = \
+            request.getfixturevalue(SUBPROJECTS_SECTION)
+    return deepcopy(data)
+
+
+@pytest.fixture(scope="function")
+def prj(prj_data, tmpdir):
+    """ Provide a test case with a parameterized Project instance. """
     conf = tmpdir.join("prjcfg.yaml").strpath
     with open(conf, 'w') as f:
-        yaml.dump(data, f)
+        yaml.dump(prj_data, f)
     return Project(conf)
+
+
+def _get_via_dep(p, k, f):
+    """
+    Fetch value for particular key from a Project, asserting deprecation.
+
+    :param peppy.Project p: project from which to retrieve value
+    :param str k: key for which to retrieve value
+    :param function f: function with which to do the retrieval
+    """
+    with pytest.warns(DeprecationWarning):
+        return f(p, k)
+
+
+def _getatt(p, n):
+    return getattr(p, n)
+
+
+def _getkey(p, k):
+    return p[k]
+
+
+# Get deprecated key's value.
+get_key_dep = partial(_get_via_dep, f=_getkey)
+
+# Get deprecated attribute's value.
+get_att_dep = partial(_get_via_dep, f=_getatt)
+
+
+@pytest.mark.parametrize("key", [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY])
+@pytest.mark.parametrize("fun", [get_att_dep, get_key_dep])
+def test_no_sheets_old_access(prj, key, fun):
+    """ When the Project uses neither metadata table slot, they're null. """
+    assert fun(prj, key) is None
+
+
+@pytest.mark.parametrize(
+    "key", [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY])
+@pytest.mark.parametrize("fun", [_getatt, _getkey])
+def test_no_sheets_new_access(prj, key, fun):
+    """ When the Project uses neither metadata table slot, they're null. """
+    assert fun(prj, key) is None
 
 
 @pytest.fixture(scope="function")
@@ -162,19 +226,103 @@ class SampleAnnotationConfigEncodingTests:
         assert all((subs1 == subs2).all())
 
 
-@pytest.mark.skip("Not implemented")
 class SubprojectActivationSampleMetadataAnnotationTableTests:
     """ Tests for behavior of tables in context of subproject activation. """
 
     @staticmethod
-    def test_preservation_during_subproject_activation(delimiter):
-        """ Tables are preserved when a subproject is activated iff it declares no tables. """
+    def newer_lines(orig):
+        """ Reverse a collection of lines to provide a trivial difference. """
+        newer = reversed(orig)
+        assert newer != orig
+        return newer
+
+    @pytest.fixture(scope="function")
+    def newer_anns_lines(self):
+        """ Reverse the main annotation lines to provide a diff. """
+        return self.newer_lines(SAMPLE_ANNOTATION_LINES)
+
+    @pytest.fixture(scope="function")
+    def newer_subs_lines(self):
+        """ Reverse the subannotation lines to provide a diff. """
+        return self.newer_lines(SAMPLE_SUBANNOTATION_LINES)
+
+    @staticmethod
+    def prj(request, tmpdir, prj_data):
+        """ Provide test case with a Project instance. """
+        # TODO: write newer sheets.
+        data = deepcopy(prj_data)
+        data[SUBPROJECTS_SECTION] = request.getfixturevalue(SUBPROJECTS_SECTION)
+        conf = tmpdir.join("prjcfg.yaml", 'w').strpath
+        with open(conf, 'w') as f:
+            yaml.dump(prj_data, f)
+        return Project(conf)
+
+    @staticmethod
+    @pytest.mark.skip("Not implemented")
+    @pytest.mark.parametrize("subprojects", [])
+    def test_subproject_uses_different_main_table(prj, subprojects):
+        """ Main table is updated while subannotations are unaffected. """
         pass
 
     @staticmethod
-    def test_dynamism_during_subproject_activation(delimiter):
-        """ Subproject's declared table(s) take precedence over existing ones."""
+    @pytest.mark.skip("Not implemented")
+    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [])
+    def test_subproject_uses_different_subsamples(prj, subprojects):
+        """ Subannotations are updated while the main table is unaltered. """
         pass
+
+    @staticmethod
+    @pytest.mark.skip("Not implemented")
+    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [])
+    def test_subproject_uses_different_main_and_subsample_table(prj, subprojects):
+        """ Both metadata annotation tables can be updated by subproject. """
+        pass
+
+    @staticmethod
+    @pytest.mark.skip("Not implemented")
+    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [])
+    def test_subproject_introduces_both_table_kinds(prj, subprojects):
+        """ Both metadata annotation tables can be introduced by subproject. """
+        pass
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        [ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         ANNS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("anns1.csv", COMMA_ANNS_DATA),
+         ("anns2.tsv", TAB_ANNS_DATA),
+         ("anns3.txt", TAB_ANNS_DATA)])
+    @pytest.mark.parametrize(
+        [SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         SUBS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("subannA.csv", COMMA_SUBANNS_DATA),
+         ("subannB.tsv", TAB_SUBANNS_DATA),
+         ("subannC.txt", TAB_SUBANNS_DATA)])
+    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [
+        {"random_sp_name": {
+            METADATA_KEY: {
+                SAMPLE_ANNOTATIONS_KEY: "newer_table.tsv",
+                SAMPLE_SUBANNOTATIONS_KEY: "newer_units.tsv"
+            }
+        }}
+    ])
+    @pytest.mark.parametrize("fun", [_getatt, _getkey])
+    def test_preservation_during_subproject_activation(
+            anns_file, anns_data, subs_file, subs_data, prj, fun, subprojects):
+        """ Tables are preserved when a subproject is activated if it declares no tables. """
+        subs = prj[SUBPROJECTS_SECTION]
+        for k in [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY,
+                  OLD_ANNS_META_KEY, OLD_SUBS_META_KEY]:
+            assert k not in subs, "Table key in subprojects section: {}".format(k)
+        anns1, subs1 = fun(prj, SAMPLE_ANNOTATIONS_KEY), \
+                       fun(prj, SAMPLE_SUBANNOTATIONS_KEY)
+        assert anns1 is not None
+        assert subs1 is not None
+        prj.activate_subproject("random_sp_name")
+        anns2 = fun(prj, SAMPLE_ANNOTATIONS_KEY)
+        subs2 = fun(prj, SAMPLE_SUBANNOTATIONS_KEY)
+        assert all((anns1 == anns2).all())
+        assert all((subs1 == subs2).all())
 
 
 def _assert_absent_prj_var(p, var):

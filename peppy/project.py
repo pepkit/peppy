@@ -404,8 +404,6 @@ class Project(PathExAttMap):
         warnings.warn("{} is deprecated; please instead use {}".
                       format(OLD_ANNS_META_KEY, NAME_TABLE_ATTR),
                       DeprecationWarning)
-        # DEBUG
-        #raise Exception("start traceback")
         return getattr(self, NAME_TABLE_ATTR)
 
     @property
@@ -842,13 +840,13 @@ class Project(PathExAttMap):
 
         # Overwrite any config entries with entries in the subproject.
         if subproject:
-            if non_null_value("subprojects", config):
+            if non_null_value(SUBPROJECTS_SECTION, config):
                 _LOGGER.debug("Adding entries for subproject '{}'".
                               format(subproject))
                 try:
-                    subproj_updates = config["subprojects"][subproject]
+                    subproj_updates = config[SUBPROJECTS_SECTION][subproject]
                 except KeyError:
-                    raise MissingSubprojectError(subproject, config["subprojects"])
+                    raise MissingSubprojectError(subproject, config[SUBPROJECTS_SECTION])
                 _LOGGER.debug("Updating with: {}".format(subproj_updates))
                 self.add_entries(subproj_updates)
                 self._subproject = subproject

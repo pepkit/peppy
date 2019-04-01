@@ -122,7 +122,7 @@ def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
         METADATA_KEY: {
             NAME_TABLE_ATTR: full_anns.strpath, OUTDIR_KEY: outdir.strpath,
             NEW_PIPES_KEY: pipe_path},
-        "subprojects": {sp_name: {
+        SUBPROJECTS_SECTION: {sp_name: {
             METADATA_KEY: {NAME_TABLE_ATTR: sp_anns.strpath}}}
     }
 
