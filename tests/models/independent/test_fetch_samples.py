@@ -9,6 +9,7 @@ import pytest
 import yaml
 
 from peppy import Project, Sample
+from peppy.project import NEW_PIPES_KEY
 from peppy.const import *
 from peppy.utils import fetch_samples
 
@@ -120,7 +121,7 @@ def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
     conf_data = {
         METADATA_KEY: {
             NAME_TABLE_ATTR: full_anns.strpath, OUTDIR_KEY: outdir.strpath,
-            "pipeline_interfaces": pipe_path},
+            NEW_PIPES_KEY: pipe_path},
         "subprojects": {sp_name: {
             METADATA_KEY: {NAME_TABLE_ATTR: sp_anns.strpath}}}
     }

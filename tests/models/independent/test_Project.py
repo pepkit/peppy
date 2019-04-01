@@ -11,7 +11,7 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import *
-from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY, \
+from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY, \
     MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
@@ -35,7 +35,7 @@ def project_config_data():
         METADATA_KEY: {
             NAME_TABLE_ATTR: "samples.csv",
             OUTDIR_KEY: "$HOME/sequencing/output",
-            "pipeline_interfaces": "${CODE}/pipelines"},
+            NEW_PIPES_KEY: "${CODE}/pipelines"},
         DATA_SOURCES_SECTION: {"arbitrary": "placeholder/data/{filename}"},
     }
 

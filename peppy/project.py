@@ -62,11 +62,7 @@ import yaml
 
 from attmap import PathExAttMap
 from divvy import ComputingConfiguration
-from .const import \
-    ASSAY_KEY, DATA_SOURCE_COLNAME, DEFAULT_COMPUTE_RESOURCES_NAME, \
-    NAME_TABLE_ATTR, DERIVATIONS_DECLARATION, IMPLICATIONS_DECLARATION, \
-    METADATA_KEY, SAMPLE_SUBANNOTATIONS_KEY, \
-    SAMPLE_NAME_COLNAME
+from .const import *
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
@@ -75,8 +71,11 @@ from .utils import \
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
-OLD_PIPES_KEY = "pipelines_dir"
 NEW_PIPES_KEY = "pipeline_interfaces"
+OLD_PIPES_KEY = "pipelines_dir"
+OLD_ANNS_META_KEY = "sample_annotation"
+OLD_SUBS_META_KEY = "sample_subannotation"
+
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
@@ -369,7 +368,15 @@ class Project(PathExAttMap):
     @property
     def sample_names(self):
         """ Names of samples of which this Project is aware. """
-        return iter(getattr(self, NAME_TABLE_ATTR)[SAMPLE_NAME_COLNAME])
+        dt = getattr(self, NAME_TABLE_ATTR)
+        try:
+            return iter(dt[SAMPLE_NAME_COLNAME])
+        except KeyError:
+            cols = list(dt.columns)
+            print("Table columns: {}".format(", ".join(cols)))
+            if 1 == len(cols):
+                print("Does delimiter used in the sample sheet match file extension?")
+            raise
 
     @property
     def samples(self):
@@ -394,8 +401,11 @@ class Project(PathExAttMap):
 
         :return str: path to the project's sample annotations sheet
         """
-        warnings.warn("sample_annotation is deprecated; please instead use {}".
-                      format(NAME_TABLE_ATTR), DeprecationWarning)
+        warnings.warn("{} is deprecated; please instead use {}".
+                      format(OLD_ANNS_META_KEY, NAME_TABLE_ATTR),
+                      DeprecationWarning)
+        # DEBUG
+        #raise Exception("start traceback")
         return getattr(self, NAME_TABLE_ATTR)
 
     @property
@@ -406,8 +416,9 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of
             subsamples/units metadata
         """
-        warnings.warn("sample_subannotation is deprecated; use {}".
-                      format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
+        warnings.warn("{} is deprecated; use {}".
+                      format(OLD_SUBS_META_KEY, SAMPLE_SUBANNOTATIONS_KEY),
+                      DeprecationWarning)
         return getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
 
     @property
@@ -787,8 +798,9 @@ class Project(PathExAttMap):
 
         :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
         """
-        if getattr(self, SAMPLE_SUBANNOTATIONS_KEY) is not None:
-            sample_subann_names = getattr(self, SAMPLE_SUBANNOTATIONS_KEY).sample_name.tolist()
+        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+        if subs is not None:
+            sample_subann_names = subs.sample_name.tolist()
             sample_names_list = list(self.sample_names)
             info = " matching sample name for subannotation '{}'"
             for n in sample_subann_names:
@@ -918,6 +930,18 @@ class Project(PathExAttMap):
 
         if self.dcc.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
+
+        old_table_keys = [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY]
+        new_table_keys = [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY]
+        metadata = self[METADATA_KEY]
+        for k_old, k_new in zip(old_table_keys, new_table_keys):
+            try:
+                v = metadata[k_old]
+            except KeyError:
+                continue
+            metadata[k_new] = v
+            del metadata[k_old]
+        self[METADATA_KEY] = metadata
 
         if NAME_TABLE_ATTR not in self[METADATA_KEY]:
             self[METADATA_KEY][NAME_TABLE_ATTR] = None

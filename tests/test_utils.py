@@ -11,6 +11,7 @@ import pytest
 from attmap import AttMap
 from peppy import Project, Sample
 from peppy.const import *
+from peppy.project import NEW_PIPES_KEY
 from peppy.utils import \
     add_project_sample_constants, coll_like, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
@@ -98,8 +99,7 @@ class GrabProjectDataTests:
     @named_param(
         argnames="extra_data",
         argvalues=nonempty_powerset(
-            [{"pipeline_interfaces": [{"b": 1}, {"c": 2}]},
-             {"pipeline_config": {}}]))
+            [{NEW_PIPES_KEY: [{"b": 1}, {"c": 2}]}, {"pipeline_config": {}}]))
     @named_param(
         argnames="data_type", argvalues=[AttMap, _DummyProject])
     def test_grabs_only_sample_independent_data(

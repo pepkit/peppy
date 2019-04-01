@@ -12,6 +12,7 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import *
+from peppy.project import NEW_PIPES_KEY
 from peppy.sample import PRJ_REF
 from tests.helpers import randomize_filename
 
@@ -277,7 +278,7 @@ class SampleTextTests:
         METADATA_KEY: {
             NAME_TABLE_ATTR: _ANNS_NAME,
             OUTDIR_KEY: os.path.join("$HOME", "hello_looper_results"),
-            "pipeline_interfaces": "$HOME/pipelines/pipeline_interface.yaml"
+            NEW_PIPES_KEY: "$HOME/pipelines/pipeline_interface.yaml"
         }
     }
 

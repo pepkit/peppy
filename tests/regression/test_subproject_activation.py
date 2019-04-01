@@ -6,6 +6,7 @@ import pytest
 import yaml
 from peppy import Project
 from peppy.const import *
+from peppy.project import NEW_PIPES_KEY
 from tests.helpers import randomize_filename
 
 __author__ = "Vince Reuter"
@@ -34,7 +35,7 @@ def conf_data(tmpdir):
         METADATA_KEY: {
             NAME_TABLE_ATTR: parent_sheet_file,
             OUTDIR_KEY: tmpdir.strpath,
-            "pipeline_interfaces": tmpdir.strpath
+            NEW_PIPES_KEY: tmpdir.strpath
         },
         "subprojects": {
             _SP_NAME: {METADATA_KEY: {NAME_TABLE_ATTR: child_sheet_file}}
