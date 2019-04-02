@@ -270,8 +270,20 @@ def get_sp_par(k, f, lines, fn=None):
         key from a Project instance, and third is a specification used by a
         fixture to write the subproject's file(s) and to add the subproject
         metadata to a project's general configuration metadata.
+    :raise ValueError: if
     """
-    fn = fn or randomize_filename(".tsv")
+    ext = os.path.splitext(fn)[1] if fn else None
+    if not ext:
+        commas = all(["," in l for l in lines])
+        tabs = all(["\t" in l for l in lines])
+        if commas and tabs or not (commas or tabs):
+            raise ValueError("Could not infer delimiter from input lines:\n{}".
+                             format("\n".join(lines)))
+        ext = ".csv" if commas else ".tsv"
+    if not fn:
+        fn = randomize_filename(ext=ext)
+    elif not os.path.splitext(fn)[1]:
+        fn = fn + ext
     return k, f, SubPrjDataSpec(k, fn, lines)
 
 
@@ -388,8 +400,6 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         prj.activate_subproject(sp)
         assert sp == prj.subproject
         newval = fun(prj, key)
-        # DEBUG
-        print("KEY: " + key)
         assert isinstance(newval, DataFrame)
         num_entries_exp = len(subprj_specs.lines) - 1
         num_entries_obs = len(newval.index)
