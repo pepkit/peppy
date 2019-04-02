@@ -16,7 +16,7 @@ import yaml
 from peppy import Project
 from peppy.const import *
 from peppy.utils import infer_delimiter
-from peppy.project import OLD_ANNS_META_KEY, OLD_SUBS_META_KEY
+from peppy.project import OLD_ANNS_META_KEY, OLD_SUBS_META_KEY, READ_CSV_KWARGS
 from tests.conftest import SAMPLE_ANNOTATION_LINES, SAMPLE_SUBANNOTATION_LINES
 from tests.helpers import randomize_filename
 
@@ -44,10 +44,44 @@ LINES_BY_DELIM = {"\t": (TAB_ANNS_DATA, TAB_SUBANNS_DATA),
                   ",": (COMMA_ANNS_DATA, COMMA_SUBANNS_DATA)}
 
 
+SubPrjDataSpec = namedtuple("SubPrjDataSpec", ["key", "filename", "lines"])
+
+
 def pytest_generate_tests(metafunc):
     """ Dynamic test case generation and parameterization for this module. """
     if "delimiter" in metafunc.fixturenames:
         metafunc.parametrize("delimiter", ["\t", ","])
+
+
+def _flip_table_data(lines):
+    return [lines[0]] + lines[1:][::-1]
+
+
+def _get_via_dep(p, k, f):
+    """
+    Fetch value for particular key from a Project, asserting deprecation.
+
+    :param peppy.Project p: project from which to retrieve value
+    :param str k: key for which to retrieve value
+    :param function f: function with which to do the retrieval
+    """
+    with pytest.warns(DeprecationWarning):
+        return f(p, k)
+
+
+def _getatt(p, n):
+    return getattr(p, n)
+
+
+def _getkey(p, k):
+    return p[k]
+
+
+# Get deprecated key's value.
+get_key_dep = partial(_get_via_dep, f=_getkey)
+
+# Get deprecated attribute's value.
+get_att_dep = partial(_get_via_dep, f=_getatt)
 
 
 @pytest.fixture(scope="function")
@@ -90,33 +124,6 @@ def prj(prj_data, tmpdir):
     with open(conf, 'w') as f:
         yaml.dump(prj_data, f)
     return Project(conf)
-
-
-def _get_via_dep(p, k, f):
-    """
-    Fetch value for particular key from a Project, asserting deprecation.
-
-    :param peppy.Project p: project from which to retrieve value
-    :param str k: key for which to retrieve value
-    :param function f: function with which to do the retrieval
-    """
-    with pytest.warns(DeprecationWarning):
-        return f(p, k)
-
-
-def _getatt(p, n):
-    return getattr(p, n)
-
-
-def _getkey(p, k):
-    return p[k]
-
-
-# Get deprecated key's value.
-get_key_dep = partial(_get_via_dep, f=_getkey)
-
-# Get deprecated attribute's value.
-get_att_dep = partial(_get_via_dep, f=_getatt)
 
 
 @pytest.mark.parametrize("key", [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY])
@@ -253,7 +260,13 @@ def _add_sp_section(md, subproj_section):
     return res
 
 
-SubPrjDataSpec = namedtuple("SubPrjDataSpec", ["key", "filename", "lines"])
+def _guess_delim(lines):
+    commas = all(["," in l for l in lines])
+    tabs = all(["\t" in l for l in lines])
+    if (commas and tabs) or not (commas or tabs):
+        raise ValueError("Could not infer delimiter from input lines:\n{}".
+                         format("\n".join(lines)))
+    return ".csv" if commas else ".tsv"
 
 
 def get_sp_par(k, f, lines, fn=None):
@@ -272,16 +285,12 @@ def get_sp_par(k, f, lines, fn=None):
         key from a Project instance, and third is a specification used by a
         fixture to write the subproject's file(s) and to add the subproject
         metadata to a project's general configuration metadata.
-    :raise ValueError: if
+    :raise ValueError: if filename is not provided or one is provided without
+        extension, and extension cannot be inferred from data lines
     """
     ext = os.path.splitext(fn)[1] if fn else None
     if not ext:
-        commas = all(["," in l for l in lines])
-        tabs = all(["\t" in l for l in lines])
-        if commas and tabs or not (commas or tabs):
-            raise ValueError("Could not infer delimiter from input lines:\n{}".
-                             format("\n".join(lines)))
-        ext = ".csv" if commas else ".tsv"
+        ext = _guess_delim(lines)
     if not fn:
         fn = randomize_filename(ext=ext)
     elif not os.path.splitext(fn)[1]:
@@ -345,23 +354,6 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         return Project(conf)
 
     @staticmethod
-    def newer_lines(orig):
-        """ Reverse a collection of lines to provide a trivial difference. """
-        newer = reversed(orig)
-        assert newer != orig
-        return newer
-
-    @pytest.fixture(scope="function")
-    def newer_anns_lines(self):
-        """ Reverse the main annotation lines to provide a diff. """
-        return self.newer_lines(SAMPLE_ANNOTATION_LINES)
-
-    @pytest.fixture(scope="function")
-    def newer_subs_lines(self):
-        """ Reverse the subannotation lines to provide a diff. """
-        return self.newer_lines(SAMPLE_SUBANNOTATION_LINES)
-
-    @staticmethod
     @pytest.mark.parametrize(
         [ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
          ANNS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
@@ -377,7 +369,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     @pytest.mark.parametrize(
         ["key", "fun", SP_SPECS_KEY],
         [get_sp_par(*args) for args in [
-            (k, f, [SAMPLE_ANNOTATION_LINES[0]] + SAMPLE_ANNOTATION_LINES[1:][::-1])
+            (k, f, _flip_table_data(SAMPLE_ANNOTATION_LINES))
             for k in [SAMPLE_ANNOTATIONS_KEY, OLD_ANNS_META_KEY] for f in _FETCHERS[k]]])
     def test_subproject_uses_different_main_table(prj, tmpdir,
             anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
@@ -396,8 +388,8 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         assert not all((orig_anns == new_anns_obs).all())
         new_anns_filepath = os.path.join(
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
-        new_anns_exp = pd.read_csv(new_anns_filepath, engine="python", dtype=str,
-            sep=infer_delimiter(new_anns_filepath), index_col=False, keep_default_na=False)
+        new_anns_exp = pd.read_csv(new_anns_filepath,
+            sep=infer_delimiter(new_anns_filepath), **READ_CSV_KWARGS)
         assert all((new_anns_exp == new_anns_obs).all())
 
 
@@ -417,7 +409,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     @pytest.mark.parametrize(
         ["key", "fun", SP_SPECS_KEY],
         [get_sp_par(*args) for args in [
-            (k, f, [SAMPLE_SUBANNOTATION_LINES[0]] + SAMPLE_SUBANNOTATION_LINES[1:][::-1])
+            (k, f, _flip_table_data(SAMPLE_SUBANNOTATION_LINES))
             for k in [SAMPLE_SUBANNOTATIONS_KEY, OLD_SUBS_META_KEY] for f in _FETCHERS[k]]])
     def test_subproject_uses_different_subsamples(prj, tmpdir,
             anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
@@ -436,16 +428,53 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         assert not all((orig_subs == new_subs_obs).all())
         new_subs_filepath = os.path.join(
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
-        new_subs_exp = pd.read_csv(new_subs_filepath, engine="python", dtype=str,
-            sep=infer_delimiter(new_subs_filepath), index_col=False, keep_default_na=False)
+        new_subs_exp = pd.read_csv(new_subs_filepath,
+            sep=infer_delimiter(new_subs_filepath), **READ_CSV_KWARGS)
         assert all((new_subs_exp == new_subs_obs).all())
 
     @staticmethod
-    @pytest.mark.skip("Not implemented")
-    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [])
-    def test_subproject_uses_different_main_and_subsample_table(prj, subprojects):
+    @pytest.mark.parametrize(
+        [ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         ANNS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("anns1.csv", COMMA_ANNS_DATA),
+         ("anns2.tsv", TAB_ANNS_DATA),
+         ("anns3.txt", TAB_ANNS_DATA)])
+    @pytest.mark.parametrize(
+        [SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         SUBS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("subannA.csv", COMMA_SUBANNS_DATA),
+         ("subannB.tsv", TAB_SUBANNS_DATA),
+         ("subannC.txt", TAB_SUBANNS_DATA)])
+    @pytest.mark.parametrize(
+        ["ann_key", "sub_key", "fun", SP_SPECS_KEY],
+        [(k1, k2, f, [SubPrjDataSpec(k, randomize_filename(ext=_guess_delim(ls)), ls) for k, ls in
+                      [(k1, _flip_table_data(SAMPLE_ANNOTATION_LINES)),
+                       (k2, _flip_table_data(SAMPLE_SUBANNOTATION_LINES))]])
+         for k1, k2 in [(SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY),
+                        (OLD_ANNS_META_KEY, OLD_SUBS_META_KEY)] for f in _FETCHERS[k1]])
+    def test_subproject_uses_different_main_and_subsample_table(prj, tmpdir,
+            anns_file, anns_data, subs_file, subs_data, ann_key, sub_key, fun,
+            subprj_specs):
         """ Both metadata annotation tables can be updated by subproject. """
-        pass
+        orig_anns, orig_subs = fun(prj, ann_key), fun(prj, sub_key)
+        assert SUBPROJECTS_SECTION in prj
+        sps = list(prj[SUBPROJECTS_SECTION].keys())
+        assert 1 == len(sps)
+        sp = sps[0]
+        # DEBUG
+        print("PROJECT:\n" + "\n".join("{}: {}".format(k, str(v)) for k, v in prj.items()))
+        prj.activate_subproject(sp)
+        assert sp == prj.subproject
+        new_anns, new_subs = fun(prj, ann_key), fun(prj, sub_key)
+        assert not all((orig_anns == new_anns).all())
+        assert not all((orig_subs == new_subs).all())
+        subs_sect = prj[SUBPROJECTS_SECTION][sp][METADATA_KEY]
+        ann_fp = os.path.join(tmpdir.strpath, subs_sect[ann_key])
+        sub_fp = os.path.join(tmpdir.strpath, subs_sect[sub_key])
+        exp_ann = pd.read_csv(ann_fp, **READ_CSV_KWARGS)
+        exp_sub = pd.read_csv(sub_fp, **READ_CSV_KWARGS)
+        assert all((exp_ann == new_anns).all())
+        assert all((exp_sub == new_subs).all())
 
     @staticmethod
     @pytest.mark.parametrize(
