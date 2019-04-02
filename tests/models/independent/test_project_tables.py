@@ -289,8 +289,8 @@ def get_sp_par(k, f, lines, fn=None):
 
 _FETCHERS = {SAMPLE_ANNOTATIONS_KEY: [_getatt, _getkey],
              SAMPLE_SUBANNOTATIONS_KEY: [_getatt, _getkey],
-             OLD_ANNS_META_KEY: [_getatt, _getkey],
-             OLD_SUBS_META_KEY: [_getatt, _getkey]}
+             OLD_ANNS_META_KEY: [get_att_dep, get_key_dep],
+             OLD_SUBS_META_KEY: [get_att_dep, get_key_dep]}
 
 
 class SubprojectActivationSampleMetadataAnnotationTableTests:
