@@ -9,11 +9,13 @@ if sys.version_info < (3, 3):
     from collections import Mapping
 else:
     from collections.abc import Mapping
+import pandas as pd
 from pandas import DataFrame
 import pytest
 import yaml
 from peppy import Project
 from peppy.const import *
+from peppy.utils import infer_delimiter
 from peppy.project import OLD_ANNS_META_KEY, OLD_SUBS_META_KEY
 from tests.conftest import SAMPLE_ANNOTATION_LINES, SAMPLE_SUBANNOTATION_LINES
 from tests.helpers import randomize_filename
@@ -360,18 +362,83 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         return self.newer_lines(SAMPLE_SUBANNOTATION_LINES)
 
     @staticmethod
-    @pytest.mark.skip("Not implemented")
-    @pytest.mark.parametrize("subprojects", [])
-    def test_subproject_uses_different_main_table(prj, subprojects):
+    @pytest.mark.parametrize(
+        [ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         ANNS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("anns1.csv", COMMA_ANNS_DATA),
+         ("anns2.tsv", TAB_ANNS_DATA),
+         ("anns3.txt", TAB_ANNS_DATA)])
+    @pytest.mark.parametrize(
+        [SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         SUBS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("subannA.csv", COMMA_SUBANNS_DATA),
+         ("subannB.tsv", TAB_SUBANNS_DATA),
+         ("subannC.txt", TAB_SUBANNS_DATA)])
+    @pytest.mark.parametrize(
+        ["key", "fun", SP_SPECS_KEY],
+        [get_sp_par(*args) for args in [
+            (k, f, [SAMPLE_ANNOTATION_LINES[0]] + SAMPLE_ANNOTATION_LINES[1:][::-1])
+            for k in [SAMPLE_ANNOTATIONS_KEY, OLD_ANNS_META_KEY] for f in _FETCHERS[k]]])
+    def test_subproject_uses_different_main_table(prj, tmpdir,
+            anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
         """ Main table is updated while subannotations are unaffected. """
-        pass
+        orig_anns = fun(prj, key)
+        orig_subs = prj[SAMPLE_SUBANNOTATIONS_KEY]
+        assert isinstance(orig_anns, DataFrame)
+        assert SUBPROJECTS_SECTION in prj
+        sps = list(prj[SUBPROJECTS_SECTION].keys())
+        assert 1 == len(sps)
+        sp = sps[0]
+        prj.activate_subproject(sp)
+        assert sp == prj.subproject
+        assert all((orig_subs == prj[SAMPLE_SUBANNOTATIONS_KEY]).all())
+        new_anns_obs = fun(prj, key)
+        assert not all((orig_anns == new_anns_obs).all())
+        new_anns_filepath = os.path.join(
+            tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
+        new_anns_exp = pd.read_csv(new_anns_filepath, engine="python", dtype=str,
+            sep=infer_delimiter(new_anns_filepath), index_col=False, keep_default_na=False)
+        assert all((new_anns_exp == new_anns_obs).all())
+
 
     @staticmethod
-    @pytest.mark.skip("Not implemented")
-    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [])
-    def test_subproject_uses_different_subsamples(prj, subprojects):
+    @pytest.mark.parametrize(
+        [ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         ANNS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("anns1.csv", COMMA_ANNS_DATA),
+         ("anns2.tsv", TAB_ANNS_DATA),
+         ("anns3.txt", TAB_ANNS_DATA)])
+    @pytest.mark.parametrize(
+        [SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX,
+         SUBS_FIXTURE_PREFIX + DATA_FIXTURE_SUFFIX],
+        [("subannA.csv", COMMA_SUBANNS_DATA),
+         ("subannB.tsv", TAB_SUBANNS_DATA),
+         ("subannC.txt", TAB_SUBANNS_DATA)])
+    @pytest.mark.parametrize(
+        ["key", "fun", SP_SPECS_KEY],
+        [get_sp_par(*args) for args in [
+            (k, f, [SAMPLE_SUBANNOTATION_LINES[0]] + SAMPLE_SUBANNOTATION_LINES[1:][::-1])
+            for k in [SAMPLE_SUBANNOTATIONS_KEY, OLD_SUBS_META_KEY] for f in _FETCHERS[k]]])
+    def test_subproject_uses_different_subsamples(prj, tmpdir,
+            anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
         """ Subannotations are updated while the main table is unaltered. """
-        pass
+        orig_anns = prj[SAMPLE_ANNOTATIONS_KEY]
+        orig_subs = fun(prj, key)
+        assert isinstance(orig_subs, DataFrame)
+        assert SUBPROJECTS_SECTION in prj
+        sps = list(prj[SUBPROJECTS_SECTION].keys())
+        assert 1 == len(sps)
+        sp = sps[0]
+        prj.activate_subproject(sp)
+        assert sp == prj.subproject
+        assert all((orig_anns == prj[SAMPLE_ANNOTATIONS_KEY]).all())
+        new_subs_obs = fun(prj, key)
+        assert not all((orig_subs == new_subs_obs).all())
+        new_subs_filepath = os.path.join(
+            tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
+        new_subs_exp = pd.read_csv(new_subs_filepath, engine="python", dtype=str,
+            sep=infer_delimiter(new_subs_filepath), index_col=False, keep_default_na=False)
+        assert all((new_subs_exp == new_subs_obs).all())
 
     @staticmethod
     @pytest.mark.skip("Not implemented")
