@@ -76,9 +76,13 @@ OLD_PIPES_KEY = "pipelines_dir"
 OLD_ANNS_META_KEY = "sample_annotation"
 OLD_SUBS_META_KEY = "sample_subannotation"
 
+READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
+                   "keep_default_na": False}
+
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -472,8 +476,8 @@ class Project(PathExAttMap):
             sheetfile = self[METADATA_KEY].get(key)
             if sheetfile is None:
                 return None
-            self[attr] = pd.read_csv(sheetfile, sep=infer_delimiter(sheetfile),
-                dtype=str, index_col=False, engine="python", keep_default_na=False)
+            self[attr] = pd.read_csv(sheetfile,
+                sep=infer_delimiter(sheetfile), **READ_CSV_KWARGS)
         return cp(self[attr])
 
     @property
@@ -565,7 +569,10 @@ class Project(PathExAttMap):
         conf_file = self.config_file
         self.__init__(conf_file, subproject)
         for k, v in previous:
+            if k.startswith("_"):
+                continue
             if k not in self or (self.is_null(k) and v is not None):
+                _LOGGER.debug("Restoring {}: {}".format(k, v))
                 self[k] = v
         self._subproject = subproject
         return self
@@ -739,8 +746,8 @@ class Project(PathExAttMap):
 
         if sub_ann and os.path.isfile(sub_ann):
             _LOGGER.info("Reading subannotations: %s", sub_ann)
-            subann_table = pd.read_csv(sub_ann, sep=infer_delimiter(sub_ann),
-                dtype=str, index_col=False, engine="python", keep_default_na=False)
+            subann_table = pd.read_csv(sub_ann,
+                sep=infer_delimiter(sub_ann), **READ_CSV_KWARGS)
             self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
             _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
         else:
@@ -1001,8 +1008,7 @@ class Project(PathExAttMap):
         # that resolved it.
         sep = infer_delimiter(sample_file)
         try:
-            df = pd.read_csv(sample_file, sep=sep, dtype=dtype, index_col=False,
-                             engine="python", keep_default_na=False)
+            df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
         else:
