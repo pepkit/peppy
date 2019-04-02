@@ -311,7 +311,8 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
                     for l in spec.lines:
                         f.write(l)
                 kvs[spec.key] = fn
-            data[SUBPROJECTS_SECTION] = {self.INJECTED_SP_NAME: kvs}
+            data[SUBPROJECTS_SECTION] = {
+                self.INJECTED_SP_NAME: {METADATA_KEY: kvs}}
             check = True
         elif SUBPROJECTS_SECTION in request.fixturenames:
             kvs = request.getfixturevalue(SUBPROJECTS_SECTION)
