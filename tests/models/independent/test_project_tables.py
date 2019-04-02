@@ -1,14 +1,23 @@
 """ Tests regarding Project data tables """
 
+from collections import namedtuple
 from copy import deepcopy
 from functools import partial
 import os
+import sys
+if sys.version_info < (3, 3):
+    from collections import Mapping
+else:
+    from collections.abc import Mapping
+from pandas import DataFrame
 import pytest
 import yaml
 from peppy import Project
 from peppy.const import *
 from peppy.project import OLD_ANNS_META_KEY, OLD_SUBS_META_KEY
 from tests.conftest import SAMPLE_ANNOTATION_LINES, SAMPLE_SUBANNOTATION_LINES
+from tests.helpers import randomize_filename
+
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -18,6 +27,7 @@ ANNS_FIXTURE_PREFIX = "anns"
 SUBS_FIXTURE_PREFIX = "subs"
 FILE_FIXTURE_SUFFIX = "_file"
 DATA_FIXTURE_SUFFIX = "_data"
+SP_SPECS_KEY = "subprj_specs"
 
 
 def _get_comma_tab(lines):
@@ -226,8 +236,98 @@ class SampleAnnotationConfigEncodingTests:
         assert all((subs1 == subs2).all())
 
 
+def _add_sp_section(md, subproj_section):
+    """
+    To an existing collection of Project metadata, add subprojects section.
+
+    :param MutableMapping md: collection of Project metadata to updated
+    :param Mapping subproj_section: subprojects section config data
+    :return Mapping: input data with subprojects data added
+    """
+    assert SUBPROJECTS_SECTION not in md, \
+        "Subprojects section ('{}') is already present".format(SUBPROJECTS_SECTION)
+    res = deepcopy(md)
+    res[SUBPROJECTS_SECTION] = subproj_section
+    return res
+
+
+SubPrjDataSpec = namedtuple("SubPrjDataSpec", ["key", "filename", "lines"])
+
+
+def get_sp_par(k, f, lines, fn=None):
+    """
+    Create a particular test case parameterization scheme.
+
+    :param str k: the key/attr name for a metadata annotations file
+    :param function f: function with which to retrieve key's value from
+        Project instance
+    :param Iterable[str] lines: collection of lines to write to the metadata
+        annotations file named here
+    :param str fn: name for metadata annotations file, which will be bound
+        as value to given key
+    :return str, function, namedtuple: 3-tuple in which first component is
+        key/attr name, second is function with which to retrieve value for that
+        key from a Project instance, and third is a specification used by a
+        fixture to write the subproject's file(s) and to add the subproject
+        metadata to a project's general configuration metadata.
+    """
+    fn = fn or randomize_filename(".tsv")
+    return k, f, SubPrjDataSpec(k, fn, lines)
+
+
+_FETCHERS = {SAMPLE_ANNOTATIONS_KEY: [_getatt, _getkey],
+             SAMPLE_SUBANNOTATIONS_KEY: [_getatt, _getkey],
+             OLD_ANNS_META_KEY: [_getatt, _getkey],
+             OLD_SUBS_META_KEY: [_getatt, _getkey]}
+
+
 class SubprojectActivationSampleMetadataAnnotationTableTests:
     """ Tests for behavior of tables in context of subproject activation. """
+
+    INJECTED_SP_NAME = "injected_subproject"
+
+    @pytest.fixture(scope="function")
+    def prj(self, request, tmpdir, prj_data):
+        """ Provide test case with a Project instance. """
+        # TODO: write newer sheets.
+        data = deepcopy(prj_data)
+        fixnames = request.fixturenames
+        check = False
+        if SUBPROJECTS_SECTION in fixnames and SP_SPECS_KEY in fixnames:
+            raise Exception("Conflicting test case subproject parameterizations: "
+                            "{} and {}".format(SUBPROJECTS_SECTION, SP_SPECS_KEY))
+        elif SP_SPECS_KEY in request.fixturenames:
+            kvs = {}
+            specs = request.getfixturevalue(SP_SPECS_KEY)
+            if isinstance(specs, SubPrjDataSpec):
+                specs = [specs]
+            elif not isinstance(specs, list):
+                raise TypeError(
+                    "Subproject specs value must be a single spec or a "
+                    "collection of them; got {}".format(type(specs)))
+            for spec in specs:
+                fn = spec.filename
+                with open(tmpdir.join(fn).strpath, 'w') as f:
+                    for l in spec.lines:
+                        f.write(l)
+                kvs[spec.key] = fn
+            data[SUBPROJECTS_SECTION] = {self.INJECTED_SP_NAME: kvs}
+            check = True
+        elif SUBPROJECTS_SECTION in request.fixturenames:
+            kvs = request.getfixturevalue(SUBPROJECTS_SECTION)
+            if not isinstance(kvs, Mapping):
+                raise TypeError(
+                    "Test case subproject parameterization ({}) isn't a mapping: {}".
+                        format(SUBPROJECTS_SECTION, type(kvs)))
+            data[SUBPROJECTS_SECTION] = kvs
+            check = True
+        if check:
+            assert SUBPROJECTS_SECTION in data, \
+                "Missing {} section".format(SUBPROJECTS_SECTION)
+        conf = tmpdir.join("prjcfg.yaml").strpath
+        with open(conf, 'w') as f:
+            yaml.dump(data, f)
+        return Project(conf)
 
     @staticmethod
     def newer_lines(orig):
@@ -245,17 +345,6 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     def newer_subs_lines(self):
         """ Reverse the subannotation lines to provide a diff. """
         return self.newer_lines(SAMPLE_SUBANNOTATION_LINES)
-
-    @staticmethod
-    def prj(request, tmpdir, prj_data):
-        """ Provide test case with a Project instance. """
-        # TODO: write newer sheets.
-        data = deepcopy(prj_data)
-        data[SUBPROJECTS_SECTION] = request.getfixturevalue(SUBPROJECTS_SECTION)
-        conf = tmpdir.join("prjcfg.yaml", 'w').strpath
-        with open(conf, 'w') as f:
-            yaml.dump(prj_data, f)
-        return Project(conf)
 
     @staticmethod
     @pytest.mark.skip("Not implemented")
@@ -279,11 +368,33 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         pass
 
     @staticmethod
-    @pytest.mark.skip("Not implemented")
-    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [])
-    def test_subproject_introduces_both_table_kinds(prj, subprojects):
+    @pytest.mark.parametrize(
+        ["key", "fun", SP_SPECS_KEY],
+        [get_sp_par(*args) for args in
+         [(k, f, lines) for k, lines in [
+             (SAMPLE_ANNOTATIONS_KEY, SAMPLE_ANNOTATION_LINES),
+             (SAMPLE_SUBANNOTATIONS_KEY, SAMPLE_SUBANNOTATION_LINES),
+             (OLD_ANNS_META_KEY, SAMPLE_ANNOTATION_LINES),
+             (OLD_SUBS_META_KEY, SAMPLE_SUBANNOTATION_LINES)]
+          for f in _FETCHERS[k]]])
+    def test_subproject_introduces_both_table_kinds(prj, fun, key, subprj_specs):
         """ Both metadata annotation tables can be introduced by subproject. """
-        pass
+        assert fun(prj, key) is None
+        assert SUBPROJECTS_SECTION in prj
+        sp_names = list(prj[SUBPROJECTS_SECTION].keys())
+        assert 1 == len(sp_names)
+        sp = sp_names[0]
+        prj.activate_subproject(sp)
+        assert sp == prj.subproject
+        newval = fun(prj, key)
+        # DEBUG
+        print("KEY: " + key)
+        assert isinstance(newval, DataFrame)
+        num_entries_exp = len(subprj_specs.lines) - 1
+        num_entries_obs = len(newval.index)
+        assert num_entries_exp == num_entries_obs, \
+            "Expected {} metadata annotation entries but found {}".\
+            format(num_entries_exp, num_entries_obs)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -298,17 +409,11 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         [("subannA.csv", COMMA_SUBANNS_DATA),
          ("subannB.tsv", TAB_SUBANNS_DATA),
          ("subannC.txt", TAB_SUBANNS_DATA)])
-    @pytest.mark.parametrize(SUBPROJECTS_SECTION, [
-        {"random_sp_name": {
-            METADATA_KEY: {
-                SAMPLE_ANNOTATIONS_KEY: "newer_table.tsv",
-                SAMPLE_SUBANNOTATIONS_KEY: "newer_units.tsv"
-            }
-        }}
-    ])
+    @pytest.mark.parametrize(SUBPROJECTS_SECTION,
+        [{"random_sp_name": {METADATA_KEY: {OUTDIR_KEY: "random_ouput_subdir"}}}])
     @pytest.mark.parametrize("fun", [_getatt, _getkey])
     def test_preservation_during_subproject_activation(
-            anns_file, anns_data, subs_file, subs_data, prj, fun, subprojects):
+            prj, fun, subprojects, anns_file, anns_data, subs_file, subs_data):
         """ Tables are preserved when a subproject is activated if it declares no tables. """
         subs = prj[SUBPROJECTS_SECTION]
         for k in [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY,

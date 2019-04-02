@@ -583,6 +583,7 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_deactivation_doesnt_change_project(self, tmpdir, sub):
+        """ Activation and deactivation of a subproject restores original. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         deactivated_subprj = updated_prj.deactivate_subproject()
@@ -590,12 +591,14 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_changes_subproject_attr(self, tmpdir, sub):
+        """ Subproject activation populates a project's subproject field. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         assert updated_prj.subproject is not None
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_deactivation_changes_subproject_attr_to_none(self, tmpdir, sub):
+        """ Subproject deactivation nullifies the subproject field. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         deactivated_subprj = updated_prj.deactivate_subproject()
