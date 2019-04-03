@@ -461,8 +461,6 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sps = list(prj[SUBPROJECTS_SECTION].keys())
         assert 1 == len(sps)
         sp = sps[0]
-        # DEBUG
-        print("PROJECT:\n" + "\n".join("{}: {}".format(k, str(v)) for k, v in prj.items()))
         prj.activate_subproject(sp)
         assert sp == prj.subproject
         new_anns, new_subs = fun(prj, ann_key), fun(prj, sub_key)

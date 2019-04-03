@@ -69,7 +69,6 @@ def sample_independent_data(request, basic_project_data):
     return {s: basic_project_data[s] for s in sections}
 
 
-
 class GrabProjectDataTests:
     """ Tests for grabbing Sample-independent Project configuration data. """
 
@@ -128,23 +127,19 @@ class GrabProjectDataTests:
             raise
 
 
-
 class AddProjectSampleConstantsTests:
     """ Utility function can add a Project's constant to Sample. """
-
 
     @pytest.fixture
     def basic_sample(self):
         """ Provide test cases with a simple Sample instance. """
         return Sample({SAMPLE_NAME_COLNAME: "arbitrarily_named_sample"})
 
-
     def test_no_constants(self, basic_sample):
         """ No constants declared means the Sample is unchanged. """
         mock_prj = mock.MagicMock(constants=dict())
         sample = add_project_sample_constants(basic_sample, mock_prj)
         assert basic_sample == sample
-
 
     @named_param(
         argnames="constants",
@@ -160,7 +155,6 @@ class AddProjectSampleConstantsTests:
             assert attr_value == basic_sample[attr_name]
             assert attr_value == getattr(basic_sample, attr_name)
 
-
     @named_param(argnames=["collision", "old_val", "new_val"],
                  argvalues=[("coll_attr_1", 1, 2), ("coll_attr_2", 3, 4)])
     def test_name_collision(self, basic_sample, collision, old_val, new_val):
@@ -170,7 +164,6 @@ class AddProjectSampleConstantsTests:
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]
-
 
 
 def _randcoll(pool, dt):
@@ -187,7 +180,6 @@ def _randcoll(pool, dt):
                         format(str(dt), ", ".join(str(t) for t in valid_types)))
     rs = [random.choice(pool) for _ in range(random.randint(1, 10))]
     return dict(enumerate(rs)) if dt == dict else rs
-
 
 
 @pytest.mark.parametrize(
