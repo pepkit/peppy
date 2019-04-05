@@ -15,11 +15,6 @@ nav:
     - Support: support.md
     - Contributing: contributing.md
     - Changelog: changelog.md
-  #  - Project: autodoc_build/project.md
-  #  - Sample: autodoc_build/sample.md
-  #  - Tools: autodoc_build/utils.md
-
-theme: databio
 
 theme: databio
 
