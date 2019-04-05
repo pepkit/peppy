@@ -13,7 +13,7 @@ from .exceptions import PeppyError
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 from .utils import fetch_samples, grab_project_data, CommandChecker
-from logmuse import setup_logger
+#from logmuse import setup_logger
 
 _EXPORT_FROM_UTILS = [fetch_samples.__name__, grab_project_data.__name__,
                       CommandChecker.__name__]
@@ -30,4 +30,4 @@ LOGGING_LEVEL = "INFO"
 #_LOGGER = logging.getLogger(__name__)
 #if not logging.getLogger().handlers:
 #    _LOGGER.addHandler(logging.NullHandler())
-_LOGGER = setup_logger(name="peppy", level=LOGGING_LEVEL)
+#_LOGGER = setup_logger(name="peppy", level=LOGGING_LEVEL)
