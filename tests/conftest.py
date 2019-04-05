@@ -19,8 +19,8 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from peppy import \
-    setup_peppy_logger, Project, SAMPLE_NAME_COLNAME
+from logmuse import setup_logger
+from peppy import Project, SAMPLE_NAME_COLNAME
 from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
 
 
@@ -195,8 +195,9 @@ def pytest_generate_tests(metafunc):
 def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
-    setup_peppy_logger(level=level, devmode=True)
-    logging.getLogger("peppy").info(
+    logname = "peppy"
+    setup_logger(name=logname, level=level, devmode=True)
+    logging.getLogger(logname).info(
         "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
     global _LOGGER
@@ -265,9 +266,9 @@ def interactive(
     """
 
     # Establish logging for interactive session.
-    pep_logger_kwargs = {"level": "DEBUG"}
+    pep_logger_kwargs = {"level": "DEBUG", "name": "peppy"}
     pep_logger_kwargs.update(logger_kwargs or {})
-    setup_peppy_logger(**pep_logger_kwargs)
+    setup_logger(**pep_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
