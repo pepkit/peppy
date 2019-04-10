@@ -482,8 +482,8 @@ class Sample(PathExAttMap):
                 _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
-            _LOGGER.error("Can't format data source correctly: %s", regex)
-            _LOGGER.error(str(type(e).__name__) + str(e))
+            _LOGGER.error("Cannot correctly format data source ({}): {} -- {}".
+                          format(str(type(e).__name__), str(e), regex))
             return regex
 
         return val
