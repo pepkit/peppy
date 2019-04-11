@@ -88,8 +88,8 @@ class Sample(PathExAttMap):
         if PRJ_REF in self and prj:
             _LOGGER.warn("Project provided both directly and indirectly; "
                          "using direct")
-
-        self[PRJ_REF] = prj or None
+        if prj or PRJ_REF not in self:
+            self[PRJ_REF] = prj or None
         self.merged_cols = {}
         self.derived_cols_done = []
 
