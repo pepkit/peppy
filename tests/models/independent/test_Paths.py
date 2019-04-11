@@ -7,7 +7,6 @@ from peppy.sample import Paths
 from tests.helpers import assert_entirely_equal
 
 
-
 class PathsTests:
     """ Tests for the `Paths` ADT. """
 

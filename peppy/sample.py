@@ -88,9 +88,8 @@ class Sample(PathExAttMap):
         if PRJ_REF in self and prj:
             _LOGGER.warn("Project provided both directly and indirectly; "
                          "using direct")
-        if prj:
-            self.prj = prj
 
+        self[PRJ_REF] = prj or None
         self.merged_cols = {}
         self.derived_cols_done = []
 
@@ -130,6 +129,11 @@ class Sample(PathExAttMap):
         self.paths = Paths()
 
     @staticmethod
+    def _omit_from_eq(k):
+        """ Exclude the Project reference from object comparison. """
+        return k == PRJ_REF
+
+    @staticmethod
     def _omit_from_repr(k, cls):
         """ Exclude the Project reference from representation. """
         # TODO: better solution for this cyclical dependency hack
@@ -141,12 +145,6 @@ class Sample(PathExAttMap):
             self.__dict__[key] = value
         else:
             super(Sample, self).__setitem__(key, value)
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not self == other
 
     def __str__(self):
         return "Sample '{}'".format(self.name)
@@ -1051,27 +1049,22 @@ def merge_sample(sample, sample_subann,
     return sample
 
 
-
 @copy
 class Paths(object):
     """ A class to hold paths as attributes. """
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self == other
+
     def __getitem__(self, key):
-        """
-        Provides dict-style access to attributes
-        """
         return getattr(self, key)
-
+    
     def __iter__(self):
-        """
-        Iteration is over the paths themselves.
-
-        Note that this implementation constrains the assignments to be
-        non-nested. That is, the value for any attribute attached to the
-        instance should be a path.
-
-        """
         return iter(self.__dict__.values())
-
+    
     def __repr__(self):
         return "Paths object."
+
