@@ -1,6 +1,6 @@
 attmap>=0.6
 pandas>=0.20.2
 pyyaml>=5
-divvy>=0.2.1rc0
-logmuse
+divvy>=0.2.1
+logmuse>=0.0.2
 
