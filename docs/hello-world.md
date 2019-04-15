@@ -14,8 +14,7 @@ Update `peppy` with `pip`:
 pip install --user --upgrade peppy
 ```
 
-Any release may be installed from the [releases page on GitHub](https://github.com/pepkit/peppy/releases).
-The `master` branch will typically represent the latest release:
+Releases and development versions may also be installed from the [GitHub releases](https://github.com/pepkit/peppy/releases):
 
 ```bash
 pip install --user https://github.com/pepkit/peppy/zipball/master
