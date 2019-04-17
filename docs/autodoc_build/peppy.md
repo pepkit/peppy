@@ -1,5 +1,28 @@
 # Package peppy Documentation
 
+## Class CommandChecker
+Validate PATH availability of executables referenced by a config file.
+
+**Parameters:**
+
+- `path_conf_file` -- `str`:  path to configuration file withsections detailing executable tools to validate
+- `sections_to_check` -- `Iterable[str]`:  names ofsections of the given configuration file that are relevant; optional, will default to all sections if not given, but some may be excluded via another optional parameter
+- `sections_to_skip` -- `Iterable[str]`:  analogous tothe check names parameter, but for specific sections to skip.
+
+
+### failed
+Determine whether *every* command succeeded for *every* config file section that was validated during instance construction.
+```python
+def failed(self)
+```
+
+**Returns:**
+
+`bool`:  conjunction of execution success test result values,obtained by testing each executable in every validated section
+
+
+
+
 ## Class Project
 A class to model a Project (collection of samples and metadata).
 
@@ -872,29 +895,6 @@ def update(self, newdata, **kwargs)
 
 ## Class PeppyError
 Base error type for peppy custom errors.
-
-
-## Class CommandChecker
-Validate PATH availability of executables referenced by a config file.
-
-**Parameters:**
-
-- `path_conf_file` -- `str`:  path to configuration file withsections detailing executable tools to validate
-- `sections_to_check` -- `Iterable[str]`:  names ofsections of the given configuration file that are relevant; optional, will default to all sections if not given, but some may be excluded via another optional parameter
-- `sections_to_skip` -- `Iterable[str]`:  analogous tothe check names parameter, but for specific sections to skip.
-
-
-### failed
-Determine whether *every* command succeeded for *every* config file section that was validated during instance construction.
-```python
-def failed(self)
-```
-
-**Returns:**
-
-`bool`:  conjunction of execution success test result values,obtained by testing each executable in every validated section
-
-
 
 
 ### grab\_project\_data

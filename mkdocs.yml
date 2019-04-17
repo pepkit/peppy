@@ -1,6 +1,7 @@
 site_name: Peppy
 site_url: http://code.databio.org/peppy/
 repo_url: http://github.com/databio/peppy
+pypi_name: peppy
 
 nav:
   - Getting started:
