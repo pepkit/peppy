@@ -75,7 +75,6 @@ class Sample(PathExAttMap):
 
         # Create data, handling library/protocol.
         data = OrderedDict(series)
-        _LOGGER.debug(data)
 
         try:
             protocol = data.pop("library")
