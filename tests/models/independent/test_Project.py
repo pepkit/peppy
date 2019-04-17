@@ -1,7 +1,6 @@
 """ Tests for the NGS Project model. """
 
 import copy
-import logging
 import os
 import warnings
 
@@ -10,37 +9,35 @@ from numpy import random as nprand
 import pytest
 import yaml
 
-from peppy import AttributeDict, Project, Sample
-from peppy.const import IMPLICATIONS_DECLARATION, SAMPLE_ANNOTATIONS_KEY
-from peppy.project import GENOMES_KEY, TRANSCRIPTOMES_KEY
+from peppy import Project, Sample
+from peppy.const import *
+from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY, \
+    MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
     MERGED_SAMPLE_INDICES, NUM_SAMPLES
-from tests.helpers import named_param, TempLogFileHandler
+from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-
 _GENOMES = {"human": "hg19", "mouse": "mm10"}
-_TRASCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
-
+_TRANSCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
 
 
 @pytest.fixture(scope="function")
 def project_config_data():
     """ Provide some basic data for a Project configuration. """
     return {
-        "metadata": {
-            SAMPLE_ANNOTATIONS_KEY: "samples.csv",
-            "output_dir": "$HOME/sequencing/output",
-            "pipeline_interfaces": "${CODE}/pipelines"},
-        "data_sources": {"arbitrary": "placeholder/data/{filename}"},
+        METADATA_KEY: {
+            NAME_TABLE_ATTR: "samples.csv",
+            OUTDIR_KEY: "$HOME/sequencing/output",
+            NEW_PIPES_KEY: "${CODE}/pipelines"},
+        DATA_SOURCES_SECTION: {"arbitrary": "placeholder/data/{filename}"},
     }
-
 
 
 def pytest_generate_tests(metafunc):
@@ -58,14 +55,11 @@ def pytest_generate_tests(metafunc):
 class ProjectConstructorTests:
     """ Tests of Project constructor, particularly behavioral details. """
 
-
     def test_no_samples(self, path_empty_project):
         """ Lack of Samples is unproblematic. """
         p = Project(path_empty_project)
         assert 0 == p.num_samples
         assert [] == list(p.samples)
-
-
 
     @pytest.mark.parametrize(
             argnames="spec_type", argvalues=["as_null", "missing"],
@@ -76,18 +70,18 @@ class ProjectConstructorTests:
     def test_no_sample_subannotation_in_config(
             self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
         """ Subannotation attribute remains null if config lacks subannotation. """
-        metadata = proj_conf_data["metadata"]
+        metadata = proj_conf_data[METADATA_KEY]
         try:
-            assert "sample_subannotation" in metadata
+            assert SAMPLE_SUBANNOTATIONS_KEY in metadata
         except AssertionError:
-            print("Project metadata section lacks 'sample_subannotation'")
+            print("Project metadata section lacks '{}'".format(SAMPLE_SUBANNOTATIONS_KEY))
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
         if spec_type == "as_null":
-            metadata["sample_subannotation"] = None
+            metadata[SAMPLE_SUBANNOTATIONS_KEY] = None
         elif spec_type == "missing":
-            del metadata["sample_subannotation"]
+            del metadata[SAMPLE_SUBANNOTATIONS_KEY]
         else:
             raise ValueError("Unknown way to specify no merge table: {}".
                              format(spec_type))
@@ -95,8 +89,7 @@ class ProjectConstructorTests:
         with open(path_config_file, 'w') as conf_file:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
-        assert p.sample_subannotation is None
-
+        assert getattr(p, SAMPLE_SUBANNOTATIONS_KEY) is None
 
     def test_counting_samples_doesnt_create_samples(
             self, sample_annotation_lines,
@@ -110,18 +103,14 @@ class ProjectConstructorTests:
         assert expected_sample_count == p.num_samples
         assert p._samples is None
 
-
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_creation_laziness(
             self, path_project_conf, path_sample_anns, lazy):
         """ Project offers control over whether to create base Sample(s). """
-
         p = Project(path_project_conf, defer_sample_construction=lazy)
-
         if lazy:
             # Samples should remain null during lazy Project construction.
             assert p._samples is None
-
         else:
             # Eager Project construction builds Sample objects.
             assert p._samples is not None
@@ -133,195 +122,48 @@ class ProjectConstructorTests:
             assert num_samples_expected == len(p._samples)
             assert all([Sample == type(s) for s in p._samples])
 
-
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_name_availability(
             self, path_project_conf, path_sample_anns, lazy):
         """ Sample names always available on Project. """
         with open(path_sample_anns, 'r') as anns_file:
             expected_sample_names = \
-                    [l.split(",")[0] for l in anns_file.readlines()[1:] if l]
+                [l.split(",")[0] for l in anns_file.readlines()[1:] if l]
         p = Project(path_project_conf, defer_sample_construction=lazy)
         assert expected_sample_names == list(p.sample_names)
-
 
 
 class ProjectRequirementsTests:
     """ Tests for a Project's set of requirements. """
 
-
     def test_lacks_sample_annotation(
             self, project_config_data, env_config_filepath, tmpdir):
         """ Project can be built without sample annotations. """
         # Remove sample annotations KV pair from config data for this test.
-        del project_config_data["metadata"][SAMPLE_ANNOTATIONS_KEY]
+        del project_config_data[METADATA_KEY][NAME_TABLE_ATTR]
         # Write the (sans-annotations) config and assert Project is created.
         conf_path = _write_project_config(
             project_config_data, dirpath=tmpdir.strpath)
-        prj = Project(conf_path, default_compute=env_config_filepath)
+        prj = Project(conf_path)
         assert isinstance(prj, Project)
-
 
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
-        Project(config_file=minimal_project_conf_path,
-                default_compute=env_config_filepath)
-
+        Project(config_file=minimal_project_conf_path)
 
     def test_minimal_configuration_name_inference(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
         """ Project infers name from where its configuration lives. """
-        project = Project(minimal_project_conf_path,
-                          default_compute=env_config_filepath)
+        project = Project(minimal_project_conf_path)
         _, expected_name = os.path.split(tmpdir.strpath)
         assert expected_name == project.name
-
 
     def test_minimal_configuration_output_dir(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):
         """ Project infers output path from its configuration location. """
-        project = Project(minimal_project_conf_path,
-                          default_compute=env_config_filepath)
+        project = Project(minimal_project_conf_path)
         assert tmpdir.strpath == project.output_dir
-
-
-
-class ProjectDefaultEnvironmentSettingsTests:
-    """ Project can use default environment settings but doesn't need them. """
-
-    # Base/default environment data to write to disk
-    ENVIRONMENT_CONFIG_DATA = {"compute": {
-        "default": {
-            "submission_template": "templates/slurm_template.sub",
-            "submission_command": "sbatch",
-            "partition": "serial"},
-        "local": {
-            "submission_template": "templates/localhost_template.sub",
-            "submission_command": "sh"}
-    }}
-
-
-    @pytest.mark.parametrize(
-            argnames="explicit_null", argvalues=[False, True],
-            ids=lambda explicit_null: "explicit_null={}".format(explicit_null))
-    @pytest.mark.parametrize(
-            argnames="compute_env_attname",
-            argvalues=["environment", "environment_file", "compute"],
-            ids=lambda attr: "attr={}".format(attr))
-    def test_no_default_env_settings_provided(
-            self, minimal_project_conf_path,
-            explicit_null, compute_env_attname):
-        """ Project doesn't require default environment settings. """
-
-        kwargs = {"default_compute": None} if explicit_null else {}
-        project = Project(minimal_project_conf_path, **kwargs)
-
-        observed_attribute = getattr(project, compute_env_attname)
-        expected_attribute = \
-                self.default_compute_settings(project)[compute_env_attname]
-
-        if compute_env_attname == "compute":
-            # 'compute' refers to a section in the default environment
-            # settings file and also to a Project attribute. A Project
-            # instance selects just one of the options in the 'compute'
-            # section of the file as the value for its 'compute' attribute.
-            expected_attribute = expected_attribute["default"]
-            observed_attribute = _compute_paths_to_names(observed_attribute)
-        elif compute_env_attname == "environment":
-            envs_with_reduced_filepaths = \
-                    _env_paths_to_names(observed_attribute["compute"])
-            observed_attribute = AttributeDict(
-                    {"compute": envs_with_reduced_filepaths})
-
-        assert expected_attribute == observed_attribute
-
-
-    @pytest.mark.parametrize(
-            argnames="envconf_filename",
-            argvalues=["arbitrary-envconf.yaml",
-                       "nonexistent_environment.yaml"])
-    def test_nonexistent_env_settings_file(
-            self, tmpdir, minimal_project_conf_path,
-            env_config_filepath, envconf_filename):
-        """ Project doesn't require default environment settings. """
-
-        # Create name to nonexistent file based on true default file.
-        envconf_dirpath, _ = os.path.split(env_config_filepath)
-        misnamed_envconf = os.path.join(envconf_dirpath, envconf_filename)
-
-        # Create and add log message handler for expected errors.
-        log = tmpdir.join("project-error-messages.log").strpath
-        logview = TempLogFileHandler(log, level=logging.ERROR)
-
-        with logview:
-            # Create Project, expecting to generate error messages.
-            project = Project(
-                minimal_project_conf_path, default_compute=misnamed_envconf)
-
-        # Ensure nulls for all relevant Project attributes.
-        self._assert_null_compute_environment(project)
-
-        # We should have two error messages, describing the exception caught
-        # during default environment parsing and that it couldn't be set.
-        exception_messages = logview.messages
-        assert 2 == len(exception_messages), \
-            "Exception messages: {}".format(exception_messages)
-
-
-    def test_project_environment_uses_default_environment_settings(
-            self, project, expected_environment):
-        """ Project updates environment settings if given extant file. """
-        assert expected_environment == project.environment
-
-
-    def test_project_compute_uses_default_environment_settings(
-            self, project, expected_environment):
-        """ Project parses out 'default' environment settings as 'compute'. """
-        assert project.compute == expected_environment["compute"]["default"]
-
-
-    @pytest.fixture(scope="function")
-    def project(self, tmpdir, minimal_project_conf_path):
-        """ Create a Project with base/default environment. """
-        # Write base/default environment data to disk.
-        env_config_filename = "env-conf.yaml"
-        env_config_filepath = tmpdir.join(env_config_filename).strpath
-        with open(env_config_filepath, 'w') as env_conf:
-            yaml.safe_dump(self.ENVIRONMENT_CONFIG_DATA, env_conf)
-        return Project(minimal_project_conf_path,
-                          default_compute=env_config_filepath)
-
-
-    @pytest.fixture(scope="function")
-    def expected_environment(self, tmpdir):
-        """ Derive Project's expected base/default environment. """
-        # Expand submission template paths in expected environment.
-        expected_environment = copy.deepcopy(self.ENVIRONMENT_CONFIG_DATA)
-        for envname, envdata in self.ENVIRONMENT_CONFIG_DATA[
-            "compute"].items():
-            base_submit_template = envdata["submission_template"]
-            expected_environment["compute"][envname]["submission_template"] = \
-                os.path.join(tmpdir.strpath, base_submit_template)
-        return expected_environment
-
-
-    @staticmethod
-    def _assert_null_compute_environment(project):
-        assert project.environment is None
-        assert project.environment_file is None
-        assert project.compute is None
-
-
-    @staticmethod
-    def default_compute_settings(project):
-        settings_filepath = project.default_compute_envfile
-        with open(settings_filepath, 'r') as settings_data_file:
-            settings = yaml.safe_load(settings_data_file)
-        return {"environment": copy.deepcopy(settings),
-                "environment_file": settings_filepath,
-                "compute": copy.deepcopy(settings)["compute"]}
-
 
 
 class DerivedAttributesTests:
@@ -332,7 +174,7 @@ class DerivedAttributesTests:
 
 
     def create_project(
-            self, project_config_data, default_env_path, case_type, dirpath):
+            self, project_config_data, case_type, dirpath):
         """
         For a test case, determine expectations and create Project instance.
         
@@ -372,7 +214,7 @@ class DerivedAttributesTests:
         conf_file_path = _write_project_config(
                 project_config_data, dirpath=dirpath)
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
-            project = Project(conf_file_path, default_compute=default_env_path)
+            project = Project(conf_file_path)
         return expected_derived_attributes, project
 
 
@@ -383,7 +225,6 @@ class DerivedAttributesTests:
 
         expected_derived_attributes, project = self.create_project(
                 project_config_data=project_config_data,
-                default_env_path=env_config_filepath,
                 case_type=case_type, dirpath=tmpdir.strpath)
 
         # Rough approximation of order-agnostic validation of
@@ -398,7 +239,6 @@ class DerivedAttributesTests:
         from collections import Counter
         _, project = self.create_project(
                 project_config_data=project_config_data,
-                default_env_path=env_config_filepath,
                 case_type=case_type, dirpath=tmpdir.strpath)
         num_occ_by_derived_attribute = Counter(project.derived_attributes)
         for default_derived_colname in Project.DERIVED_ATTRIBUTES_DEFAULT:
@@ -585,7 +425,7 @@ class ProjectPipelineArgstringTests:
 
         # Subvert requirement for sample annotations file.
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
-            project = Project(conf_file_path, default_compute=envpath)
+            project = Project(conf_file_path)
 
         argstring = project.get_arg_string(pipeline)
         return argstring.split(" ")
@@ -694,8 +534,8 @@ class ProjectConstructorTest:
     @named_param(argnames="sample_index",
                  argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
-        """ Samples not in the `sample_subannotation` lack merged columns. """
-        # Assert the negative to cover empty dict/AttributeDict/None/etc.
+        """ Samples not in the `subsample_table` lack merged columns. """
+        # Assert the negative to cover empty dict/AttMap/None/etc.
         assert not proj.samples[sample_index].merged_cols
 
 
@@ -710,15 +550,14 @@ class ProjectConstructorTest:
 
 
 
-class SubprojectActivationTest:
-    """ Test cases for the effect of activating a subproject. """
+class SubprojectActivationDeactivationTest:
+    """ Test cases for the effect of activating/deactivating a subproject. """
 
     MARK_NAME = "marker"
     SUBPROJ_SECTION = {
         "neurons": {MARK_NAME: "NeuN"}, "astrocytes": {MARK_NAME: "GFAP"},
         "oligodendrocytes": {MARK_NAME: "NG2"}, "microglia": {MARK_NAME: "Iba1"}
     }
-
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_returns_project(self, tmpdir, sub):
@@ -727,19 +566,66 @@ class SubprojectActivationTest:
         updated_prj = prj.activate_subproject(sub)
         assert updated_prj is prj
 
+    @pytest.mark.parametrize("sub", [None])
+    def test_subproj_activation_errors_on_none(self, tmpdir, sub):
+        """ Subproject deactivation returns raises TypeError when input is NoneType. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        with pytest.raises(TypeError):
+            prj.activate_subproject(sub)
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_deactivation_returns_project(self, tmpdir, sub):
+        """ Subproject deactivation returns the project instance. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        deactivated_subprj = updated_prj.deactivate_subproject()
+        assert deactivated_subprj is prj
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_deactivation_doesnt_change_project(self, tmpdir, sub):
+        """ Activation and deactivation of a subproject restores original. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        deactivated_subprj = updated_prj.deactivate_subproject()
+        assert deactivated_subprj == prj
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_activation_changes_subproject_attr(self, tmpdir, sub):
+        """ Subproject activation populates a project's subproject field. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        assert updated_prj.subproject is not None
+
+    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
+    def test_subproj_deactivation_changes_subproject_attr_to_none(self, tmpdir, sub):
+        """ Subproject deactivation nullifies the subproject field. """
+        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
+        updated_prj = prj.activate_subproject(sub)
+        deactivated_subprj = updated_prj.deactivate_subproject()
+        assert deactivated_subprj.subproject is None
 
     @pytest.mark.parametrize(
-        argnames="attr", argvalues=["permissive", "file_checks"])
-    @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
-    def test_sp_act_resets_all_attributes(self, tmpdir, attr, sub):
-        """ Subproject activation doesn't affect non-config attributes. """
-        prj = self.make_proj(tmpdir.strpath, incl_subs=True)
-        original = prj[attr]
-        prj[attr] = not original
-        assert prj[attr] is not original
-        prj.activate_subproject(sub)
-        assert prj[attr] is original
-
+        ["super_data", "sub_data", "preserved"],
+        [({"a": "1", "b": "2"}, {"c": "3"}, ["a", "b"]),
+         ({"a": "1", "b": "2"}, {"b": "1"}, ["a"])]
+    )
+    def test_sp_act_preserves_nonoverlapping_entries(
+            self, tmpdir, super_data, sub_data, preserved):
+        """ Existing entries not in subproject should be kept as-is. """
+        sp = "sub"
+        meta_key = METADATA_KEY
+        conf_data = {meta_key: super_data,
+                     SUBPROJECTS_SECTION: {sp: {meta_key: sub_data}}}
+        conf_file = tmpdir.join("conf.yaml").strpath
+        with open(conf_file, 'w') as f:
+            yaml.dump(conf_data, f)
+        p = Project(conf_file)
+        originals = [(k, p[meta_key][k]) for k in preserved]
+        print("INITIAL METADATA: {}".format(p.metadata))
+        p = p.activate_subproject(sp)
+        print("UPDATED METADATA: {}".format(p.metadata))
+        for k, v in originals:
+            assert v == p[meta_key][k]
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_adds_new_config_entries(self, tmpdir, sub):
@@ -749,7 +635,6 @@ class SubprojectActivationTest:
         prj.activate_subproject(sub)
         assert self.MARK_NAME in prj
         assert self.SUBPROJ_SECTION[sub][self.MARK_NAME] == prj[self.MARK_NAME]
-
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_sp_act_overwrites_existing_config_entries(self, tmpdir, sub):
@@ -761,40 +646,26 @@ class SubprojectActivationTest:
         expected = self.SUBPROJ_SECTION[sub][self.MARK_NAME]
         assert expected == prj[self.MARK_NAME]
 
-
     def test_activate_unknown_subproj(self, tmpdir):
         """ With subprojects, attempt to activate undefined one is an error. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         with pytest.raises(Exception):
             prj.activate_subproject("DNE-subproject")
 
-
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_when_none_exist(self, tmpdir, sub):
         """ Without subprojects, activation attempt produces warning. """
         prj = self.make_proj(tmpdir.strpath, incl_subs=False)
-        logfile = tmpdir.join("project-error-messages.log").strpath
-        logview = TempLogFileHandler(logfile, level=logging.WARN)
-        with logview:
-            # Call that should produce a warning message
+        with pytest.raises(MissingSubprojectError):
             prj.activate_subproject(sub)
-        # Check for warning message.
-        exception_messages = logview.messages
-        for msg in exception_messages:
-            if "no subprojects are defined" in msg:
-                break
-        else:
-            raise AssertionError("Did not find expected message among lines: "
-                                 "{}".format(exception_messages))
-
 
     @classmethod
     def make_proj(cls, folder, incl_subs):
         """ Write temp config and create Project with subproject option. """
         conf_file_path = os.path.join(folder, "conf.yaml")
-        conf_data = {"metadata": {}}
+        conf_data = {METADATA_KEY: {}}
         if incl_subs:
-            conf_data.update(**{"subprojects": cls.SUBPROJ_SECTION})
+            conf_data.update(**{SUBPROJECTS_SECTION: cls.SUBPROJ_SECTION})
         with open(conf_file_path, 'w') as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)
@@ -807,8 +678,8 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize(
         "ideally_implied_mappings",
-        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRASCRIPTOMES},
-         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRASCRIPTOMES}])
+        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES},
+         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES}])
     def test_suggests_implied_attributes(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, ideally_implied_mappings):
@@ -842,9 +713,9 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize("assembly_implications",
         [{"genome": {"organism": _GENOMES}},
-         {"transcriptome": {"organism": _TRASCRIPTOMES}},
+         {"transcriptome": {"organism": _TRANSCRIPTOMES}},
          {"genome": {"organism": _GENOMES},
-           "transcriptome": {"organism": _TRASCRIPTOMES}}])
+           "transcriptome": {"organism": _TRANSCRIPTOMES}}])
     def test_no_warning_if_assemblies_are_implied(
         self, recwarn, tmpdir, path_sample_anns,
         project_config_data, assembly_implications):
@@ -865,23 +736,9 @@ class ProjectWarningTests:
         assert 0 == len(recwarn)
         warnings.simplefilter('always')
         Project(conf_file)
-        assert 0 == len(recwarn)
-
-
-
-@pytest.mark.usefixtures("write_project_files")
-class SampleSubannotationTests:
-
-    @pytest.mark.parametrize("defer", [False, True])
-    def test_sample_subannotation_construction(self, defer,
-            subannotation_filepath,  path_project_conf, path_sample_anns):
-        """ Merge table is constructed iff samples are constructed. """
-        p = Project(path_project_conf, defer_sample_construction=defer)
-        if defer:
-            assert p.sample_subannotation is None
-        else:
-            assert p.sample_subannotation is not None
-
+        num_yaml_warns = sum(1 for w in recwarn if
+                             issubclass(w.category, yaml.YAMLLoadWarning))
+        assert 0 == (len(recwarn) - num_yaml_warns)
 
 
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
@@ -899,7 +756,6 @@ def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     return conf_file_path
 
 
-
 def _env_paths_to_names(envs):
     """
     Convert filepath(s) in each environment to filename for assertion.
@@ -915,7 +771,6 @@ def _env_paths_to_names(envs):
     for env_name, env_data in envs.items():
         reduced[env_name] = _compute_paths_to_names(env_data)
     return reduced
-
 
 
 def _compute_paths_to_names(env):

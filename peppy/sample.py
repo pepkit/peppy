@@ -15,21 +15,23 @@ import warnings
 from pandas import isnull, Series
 import yaml
 
-from . import SAMPLE_NAME_COLNAME
-from .attribute_dict import AttributeDict, ATTRDICT_METADATA, is_metadata
+from . import ASSAY_KEY, SAMPLE_NAME_COLNAME
+from attmap import AttMap, PathExAttMap
 from .const import \
     ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
-    REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, VALID_READ_TYPES
+    NAME_TABLE_ATTR, REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
+    SAMPLE_SUBANNOTATIONS_KEY, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
     grab_project_data, parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
+PRJ_REF = "prj"
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @copy
-class Subsample(AttributeDict):
+class Subsample(PathExAttMap):
     """
     Class to model Subsamples.
 
@@ -38,25 +40,21 @@ class Subsample(AttributeDict):
     PEP by a subannotation table. Each row in the subannotation (or unit) table
     corresponds to a Subsample object.
 
-    :param series: Subsample data
-    :type series: Mapping | pandas.core.series.Series
+    :param Mapping | pandas.core.series.Series series: Subsample data
     """
     def __init__(self, series, sample=None):
         data = OrderedDict(series)
-        _LOGGER.debug(data)
+        _LOGGER.debug("Subsample data:\n{}".format(data))
         super(Subsample, self).__init__(entries=data)
-
-        # lookback link
         self.sample = sample
 
 
 @copy
-class Sample(AttributeDict):
+class Sample(PathExAttMap):
     """
     Class to model Samples based on a pandas Series.
 
-    :param series: Sample's data.
-    :type series: Mapping | pandas.core.series.Series
+    :param Mapping | pandas.core.series.Series series: Sample's data.
 
     :Example:
 
@@ -77,16 +75,20 @@ class Sample(AttributeDict):
 
         # Create data, handling library/protocol.
         data = OrderedDict(series)
-        _LOGGER.debug(data)
+
         try:
             protocol = data.pop("library")
         except KeyError:
             pass
         else:
-            data["protocol"] = protocol
+            data[ASSAY_KEY] = protocol
         super(Sample, self).__init__(entries=data)
 
-        self.prj = prj
+        if PRJ_REF in self and prj:
+            _LOGGER.warn("Project provided both directly and indirectly; "
+                         "using direct")
+        if prj or PRJ_REF not in self:
+            self[PRJ_REF] = prj or None
         self.merged_cols = {}
         self.derived_cols_done = []
 
@@ -101,16 +103,6 @@ class Sample(AttributeDict):
         # appending new columns onto the original table)
         self.sheet_attributes = series.keys()
 
-        # Ensure Project reference is actual Project or AttributeDict.
-        # TODO: solve mutual import problem better than this hack.
-        try:
-            prj_type = self.prj.__class__
-        except AttributeError:
-            self.prj = AttributeDict(self.prj or dict())
-        else:
-            if "Project" != prj_type.__name__:
-                self.prj = AttributeDict(self.prj or dict())
-                
         # Check if required attributes exist and are not empty.
         missing_attributes_message = self.check_valid()
         if missing_attributes_message:
@@ -135,18 +127,26 @@ class Sample(AttributeDict):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
+    @staticmethod
+    def _omit_from_eq(k):
+        """ Exclude the Project reference from object comparison. """
+        return k == PRJ_REF
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    @staticmethod
+    def _omit_from_repr(k, cls):
+        """ Exclude the Project reference from representation. """
+        # TODO: better solution for this cyclical dependency hack
+        return k == PRJ_REF
 
-
-    def __ne__(self, other):
-        return not self == other
-
+    def __setitem__(self, key, value):
+        # TODO: better solution for this cyclical dependency hack
+        if value.__class__.__name__ == "Project":
+            self.__dict__[key] = value
+        else:
+            super(Sample, self).__setitem__(key, value)
 
     def __str__(self):
         return "Sample '{}'".format(self.name)
-
 
     @property
     def input_file_paths(self):
@@ -156,7 +156,6 @@ class Sample(AttributeDict):
         :return list[str]: paths to data sources / input file for this Sample.
         """
         return self.data_source.split(" ") if self.data_source else []
-
 
     def as_series(self):
         """
@@ -168,7 +167,6 @@ class Sample(AttributeDict):
         # Note that this preserves metadata, but it could be excluded
         # with self.items() rather than self.__dict__.
         return Series(self.__dict__)
-
 
     def check_valid(self, required=None):
         """
@@ -190,7 +188,6 @@ class Sample(AttributeDict):
             "Sample lacks attribute(s). missing={}; empty={}". \
                 format(missing, empty) if (missing or empty) else ""
         return missing_attributes_message
-
 
     def determine_missing_requirements(self):
         """
@@ -233,8 +230,8 @@ class Sample(AttributeDict):
                             format(file_attribute, attval))
 
         if missing or empty:
-            reason_key = "Missing and/or empty attribute(s)"
-            reason_detail = "(missing) {}; (empty) {}".format(
+            reason_key = "Missing and/or empty attribute(s)."
+            reason_detail = "Missing: {}; Empty: {}".format(
                 ", ".join(missing), ", ".join(empty))
             return AttributeError, reason_key, reason_detail
 
@@ -257,7 +254,6 @@ class Sample(AttributeDict):
             reason_detail = ", ".join(missing_files)
             return IOError, reason_key, reason_detail
 
-
     def generate_filename(self, delimiter="_"):
         """
         Create a name for file in which to represent this Sample.
@@ -275,13 +271,11 @@ class Sample(AttributeDict):
             "{}{}{}".format(self.name, delimiter, self.__class__.__name__)
         return "{}.yaml".format(base)
 
-
     def generate_name(self):
         """
         Generate name for the sample by joining some of its attribute strings.
         """
         raise NotImplementedError("Not implemented in new code base.")
-
 
     def get_attr_values(self, attrlist):
         """
@@ -304,7 +298,6 @@ class Sample(AttributeDict):
         # Strings contained here are appended later so shouldn't be null.
         return [getattr(self, attr, "") for attr in attribute_list]
 
-
     def get_sheet_dict(self):
         """
         Create a K-V pairs for items originally passed in via the sample sheet.
@@ -318,7 +311,6 @@ class Sample(AttributeDict):
         """
         return OrderedDict(
             [[k, getattr(self, k)] for k in self.sheet_attributes])
-
 
     def infer_attributes(self, implications):
         """
@@ -354,12 +346,11 @@ class Sample(AttributeDict):
                         implied_value_by_column.items():
                     _LOGGER.log(5, "Setting '%s'=%s",
                                 colname, implied_value)
-                    setattr(self, colname, implied_value)
+                    self.__setitem__(colname, implied_value)
             except KeyError:
                 _LOGGER.log(
                     5, "Unknown implied value for implier '%s' = '%s'",
                     implier_name, implier_value)
-
 
     def is_dormant(self):
         """
@@ -380,7 +371,6 @@ class Sample(AttributeDict):
         # If specified, the activation flag must be set to '1'.
         return flag != "1"
 
-
     @property
     def library(self):
         """
@@ -388,10 +378,8 @@ class Sample(AttributeDict):
 
         :return str: The protocol / NGS library name for this Sample.
         """
-        warnings.warn("Sample 'library' attribute is deprecated; instead, "
-                      "refer to 'protocol'", DeprecationWarning)
+        warnings.warn("Replace 'library' with 'protocol'", DeprecationWarning)
         return self.protocol
-
 
     def get_subsample(self, subsample_name):
         """
@@ -399,30 +387,25 @@ class Sample(AttributeDict):
 
         :param str subsample_name: The name of the desired subsample. Should 
             match the subsample_name column in the subannotation sheet.
-        :return Subsample: Requested Subsample object
+        :return peppy.Subsample: Requested Subsample object
         """
-        subsamples = self.get_subsamples(subsample_name)
-
+        subsamples = self.get_subsamples([subsample_name])
         if len(subsamples) > 1:
             _LOGGER.error("More than one subsample with that name.")
-
-        if len(subsamples) == 0:
-            raise ValueError(
-                "Sample {sample} has no subsamples named {subsample}.".format(
-                sample=self.name, subsample=subsample_name))
-
-        return subsamples[0]
-
+        try:
+            return subsamples[0]
+        except IndexError:
+            raise ValueError("Sample {} has no subsample named {}.".
+                             format(self.name, subsample_name))
 
     def get_subsamples(self, subsample_names):
         """
         Retrieve subsamples assigned to this sample
 
-        :param list subsample_names: List of names of subsamples to retrieve
-        :return list: List of subsamples
+        :param list[str] subsample_names: List of names of subsamples to retrieve
+        :return list[peppy.Subsample]: List of subsamples
         """
         return [s for s in self.subsamples if s.subsample_name in subsample_names]
-
 
     def locate_data_source(self, data_sources, column_name=DATA_SOURCE_COLNAME,
                            source_key=None, extra_vars=None):
@@ -490,18 +473,17 @@ class Sample(AttributeDict):
                 _LOGGER.debug("Pre-glob: %s", val)
                 val_globbed = sorted(glob.glob(val))
                 if not val_globbed:
-                    _LOGGER.warning("Unmatched regex-like: '%s'", val)
+                    _LOGGER.debug("No files match provided glob: '%s'", val)
                 else:
                     val = " ".join(val_globbed)
                 _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
-            _LOGGER.error("Can't format data source correctly: %s", regex)
-            _LOGGER.error(str(type(e).__name__) + str(e))
+            _LOGGER.error("Cannot correctly format data source ({}): {} -- {}".
+                          format(str(type(e).__name__), str(e), regex))
             return regex
 
         return val
-
 
     def make_sample_dirs(self):
         """
@@ -511,13 +493,12 @@ class Sample(AttributeDict):
             if not os.path.exists(path):
                 os.makedirs(path)
 
-
     def set_file_paths(self, project=None):
         """
         Sets the paths of all files for this sample.
 
-        :param AttributeDict project: object with pointers to data paths and
-            such, either full Project or AttributeDict with sufficient data
+        :param attmap.PathExAttMap project: object with pointers to data paths and
+            such, either full Project or PathExAttMap with sufficient data
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
@@ -689,13 +670,11 @@ class Sample(AttributeDict):
         For a sample with attr `ngs_inputs` set, this sets the 
         read type (single, paired) and read length of an input file.
 
-        :param rlen_sample_size: Number of reads to sample to infer read type,
+        :param int rlen_sample_size: Number of reads to sample to infer read type,
             default 10.
-        :type rlen_sample_size: int
-        :param permissive: whether to simply log a warning or error message 
+        :param bool permissive: whether to simply log a warning or error message
             rather than raising an exception if sample file is not found or 
             otherwise cannot be read, default True.
-        :type permissive: bool
         """
 
         # TODO: determine how return is being used and standardized (null vs. bool)
@@ -799,7 +778,6 @@ class Sample(AttributeDict):
                 _LOGGER.warning("Not all input files agree on '%s': '%s'",
                              feature, self.name)
 
-
     def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
         """
         Serializes itself in YAML format.
@@ -837,15 +815,9 @@ class Sample(AttributeDict):
                       self.__class__.__name__, path)
         self.yaml_file = path
 
-
-        def _is_project(obj, name=None):
-            """ Determine if item to prep for disk is Sample's project. """
-            return name == "prj"
-
-
         def obj2dict(obj, name=None, 
-                     to_skip=("sample_subannotation", "samples", 
-                              "sheet", "sheet_attributes")):
+                     to_skip=(SAMPLE_SUBANNOTATIONS_KEY, "samples",
+                              NAME_TABLE_ATTR, "sheet_attributes")):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
@@ -856,19 +828,17 @@ class Sample(AttributeDict):
             """
             if name:
                 _LOGGER.log(5, "Converting to dict: '{}'".format(name))
-            if _is_project(obj, name):
-                _LOGGER.debug("Attempting to store %s's project metadata",
+            if name == PRJ_REF:
+                _LOGGER.debug("Attempting to store %s's project data",
                               self.__class__.__name__)
                 prj_data = grab_project_data(obj)
                 _LOGGER.debug("Sample's project data: {}".format(prj_data))
                 return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
-            if isinstance(obj, AttributeDict):
+            if isinstance(obj, AttMap):
                 return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
-                        if k not in to_skip and
-                        (not is_metadata(k) or
-                         v != ATTRDICT_METADATA[k])}
+                        if k not in to_skip}
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v, name=k)
                         for k, v in obj.items() if k not in to_skip}
@@ -888,7 +858,6 @@ class Sample(AttributeDict):
                 return "NaN"
             else:
                 return obj
-
 
         _LOGGER.debug("Serializing %s: '%s'",
                       self.__class__.__name__, self.name)
@@ -926,7 +895,6 @@ class Sample(AttributeDict):
                 raise
             outfile.write(yaml_data)
 
-
     def update(self, newdata, **kwargs):
         """
         Update Sample object with attributes from a dict.
@@ -940,7 +908,6 @@ class Sample(AttributeDict):
             setattr(self, k, v)
         for k, v in kwargs.items():
             setattr(self, k, v)
-
 
 
 def merge_sample(sample, sample_subann,
@@ -1081,30 +1048,22 @@ def merge_sample(sample, sample_subann,
     return sample
 
 
-
 @copy
 class Paths(object):
     """ A class to hold paths as attributes. """
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self == other
 
     def __getitem__(self, key):
-        """
-        Provides dict-style access to attributes
-        """
         return getattr(self, key)
-
-
+    
     def __iter__(self):
-        """
-        Iteration is over the paths themselves.
-
-        Note that this implementation constrains the assignments to be
-        non-nested. That is, the value for any attribute attached to the
-        instance should be a path.
-
-        """
         return iter(self.__dict__.values())
-
-
+    
     def __repr__(self):
         return "Paths object."
+

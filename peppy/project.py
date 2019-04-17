@@ -35,7 +35,7 @@ Explore:
 
     prj.metadata.results  # results directory of project
     # export again the project's annotation
-    prj.sheet.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
+    prj.sample_table.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
 
     # project options are read from the config file
     # but can be changed on the fly:
@@ -60,44 +60,51 @@ import warnings
 import pandas as pd
 import yaml
 
-from .attribute_dict import AttributeDict
-from .const import \
-    COMPUTE_SETTINGS_VARNAME, DATA_SOURCE_COLNAME, \
-    DEFAULT_COMPUTE_RESOURCES_NAME, IMPLICATIONS_DECLARATION, \
-    SAMPLE_ANNOTATIONS_KEY, SAMPLE_NAME_COLNAME
+from attmap import PathExAttMap
+from divvy import ComputingConfiguration
+from .const import *
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, alpha_cased, copy, fetch_samples, is_url, \
+    add_project_sample_constants, copy, fetch_samples, infer_delimiter, is_url, \
     non_null_value, warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
+NEW_PIPES_KEY = "pipeline_interfaces"
+OLD_PIPES_KEY = "pipelines_dir"
+OLD_ANNS_META_KEY = "sample_annotation"
+OLD_SUBS_META_KEY = "sample_subannotation"
+
+READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
+                   "keep_default_na": False}
+
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
 
-_LOGGER = logging.getLogger(__name__)
 
+_LOGGER = logging.getLogger(__name__)
 
 
 class ProjectContext(object):
     """ Wrap a Project to provide protocol-specific Sample selection. """
 
-
-    def __init__(self, prj, include_protocols=None, exclude_protocols=None):
+    def __init__(self, prj, selector_attribute=ASSAY_KEY,
+                 selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
         self.prj = prj
-        self.include = include_protocols
-        self.exclude = exclude_protocols
-
+        self.include = selector_include
+        self.exclude = selector_exclude
+        self.attribute = selector_attribute
 
     def __getattr__(self, item):
         """ Samples are context-specific; other requests are handled
         locally or dispatched to Project. """
         if item == "samples":
             return fetch_samples(
-                self.prj, inclusion=self.include, exclusion=self.exclude)
+                self.prj, selector_attribute=self.attribute,
+                selector_include=self.include, selector_exclude=self.exclude)
         if item in ["prj", "include", "exclude"]:
             # Attributes requests that this context/wrapper handles
             return self.__dict__[item]
@@ -105,62 +112,45 @@ class ProjectContext(object):
             # Dispatch attribute request to Project.
             return getattr(self.prj, item)
 
-
     def __getitem__(self, item):
         """ Provide the Mapping-like item access to the instance's Project. """
         return self.prj[item]
-
 
     def __enter__(self):
         """ References pass through this instance as needed, so the context
          provided is the instance itself. """
         return self
 
-
     def __exit__(self, *args):
         """ Context teardown. """
         pass
 
 
-
 @copy
-class Project(AttributeDict):
+class Project(PathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
-    :param config_file: Project config file (YAML).
-    :type config_file: str
-    :param subproject: Subproject to use within configuration file, optional
-    :type subproject: str
-    :param default_compute: Configuration file (YAML) for
-        default compute settings.
-    :type default_compute: str
-    :param dry: If dry mode is activated, no directories
+    :param str config_file: Project config file (YAML).
+    :param str subproject: Subproject to use within configuration file, optional
+    :param bool dry: If dry mode is activated, no directories
         will be created upon project instantiation.
-    :type dry: bool
-    :param permissive: Whether a error should be thrown if
+    :param bool permissive: Whether a error should be thrown if
         a sample input file(s) do not exist or cannot be open.
-    :type permissive: bool
-    :param file_checks: Whether sample input files should be checked
+    :param bool file_checks: Whether sample input files should be checked
         for their  attributes (read type, read length)
         if this is not set in sample metadata.
-    :type file_checks: bool
-    :param compute_env_file: Environment configuration YAML file specifying
+    :param str compute_env_file: Environment configuration YAML file specifying
         compute settings.
-    :type compute_env_file: str
-    :param no_environment_exception: type of exception to raise if environment
+    :param type no_environment_exception: type of exception to raise if environment
         settings can't be established, optional; if null (the default),
         a warning message will be logged, and no exception will be raised.
-    :type no_environment_exception: type
-    :param no_compute_exception: type of exception to raise if compute
+    :param type no_compute_exception: type of exception to raise if compute
         settings can't be established, optional; if null (the default),
         a warning message will be logged, and no exception will be raised.
-    :type no_compute_exception: type
-    :param defer_sample_construction: whether to wait to build this Project's
+    :param bool defer_sample_construction: whether to wait to build this Project's
         Sample objects until they're needed, optional; by default, the basic
         Sample is created during Project construction
-    :type defer_sample_construction: bool
-
 
     :Example:
 
@@ -173,9 +163,7 @@ class Project(AttributeDict):
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
-
-    def __init__(self, config_file, subproject=None,
-                 default_compute=None, dry=False,
+    def __init__(self, config_file, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None,
                  defer_sample_construction=False):
@@ -184,60 +172,19 @@ class Project(AttributeDict):
                       self.__class__.__name__, config_file)
         super(Project, self).__init__()
 
-        # Initialize local, serial compute as default (no cluster submission)
-        # Start with default environment settings.
-        _LOGGER.debug("Establishing default environment settings")
-        self.environment, self.environment_file = None, None
-
-        try:
-            self.update_environment(
-                default_compute or self.default_compute_envfile)
-        except Exception as e:
-            _LOGGER.error("Can't load environment config file '%s'",
-                          str(default_compute))
-            _LOGGER.error(str(type(e).__name__) + str(e))
-
-        self._handle_missing_env_attrs(
-            default_compute, when_missing=no_environment_exception)
-
-        # Load settings from environment yaml for local compute infrastructure.
-        compute_env_file = compute_env_file or os.getenv(self.compute_env_var)
-        if compute_env_file:
-            if os.path.isfile(compute_env_file):
-                self.update_environment(compute_env_file)
-            else:
-                _LOGGER.warning("Compute env path isn't a file: {}".
-                             format(compute_env_file))
-        else:
-            _LOGGER.info("No compute env file was provided and {} is unset; "
-                         "using default".format(self.compute_env_var))
-
-        # Initialize default compute settings.
-        _LOGGER.debug("Establishing project compute settings")
-        self.compute = None
-        self.set_compute(DEFAULT_COMPUTE_RESOURCES_NAME)
-
-        # Either warn or raise exception if the compute is null.
-        if self.compute is None:
-            message = "Failed to establish project compute settings"
-            if no_compute_exception:
-                no_compute_exception(message)
-            else:
-                _LOGGER.warning(message)
-        else:
-            _LOGGER.debug("Compute: %s", str(self.compute))
-
-        # Optional behavioral parameters
+        self.dcc = ComputingConfiguration(
+            config_file=compute_env_file, no_env_error=no_environment_exception,
+            no_compute_exception=no_compute_exception)
         self.permissive = permissive
         self.file_checks = file_checks
+
+        self._subproject = None
 
         # Include the path to the config file.
         self.config_file = os.path.abspath(config_file)
 
         # Parse config file
         _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
-        if subproject:
-            _LOGGER.info("Using subproject: '{}'".format(subproject))
         self.parse_config_file(subproject)
 
         if self.non_null("data_sources"):
@@ -269,29 +216,21 @@ class Project(AttributeDict):
 
         self.finalize_pipelines_directory()
 
-        # SampleSheet creation populates project's samples, adds the
-        # sheet itself, and adds any derived columns.
-        _LOGGER.debug("Processing {} pipeline location(s): {}".
-                      format(len(self.metadata.pipelines_dir),
-                             self.metadata.pipelines_dir))
-
-        path_anns_file = self.metadata.sample_annotation
+        self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
+        path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
+        self_table_attr = "_" + NAME_TABLE_ATTR
+        self[self_table_attr] = None
         if path_anns_file:
             _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
-            _LOGGER.info("Setting sample sheet from file '%s'", path_anns_file)
-            self._sheet = self.parse_sample_sheet(path_anns_file)
+            self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
-            self._sheet = None
-
-        self.sample_subannotation = None
 
         # Basic sample maker will handle name uniqueness check.
-        if defer_sample_construction or self._sheet is None:
+        if defer_sample_construction or self._sample_table is None:
             self._samples = None
         else:
             self._set_basic_samples()
-
 
     def __repr__(self):
         """ Representation in interpreter. """
@@ -310,17 +249,22 @@ class Project(AttributeDict):
         meta_text = super(Project, self).__repr__()
         return "{} -- {}".format(samples_message, meta_text)
 
-
-    @property
-    def compute_env_var(self):
+    def __setitem__(self, key, value):
         """
-        Environment variable through which to access compute settings.
+        Override here to handle deprecated special-meaning keys.
 
-        :return str: name of the environment variable to pointing to
-            compute settings
+        :param str key: Key to map to given value
+        :param object value: Arbitrary value to bind to given key
         """
-        return COMPUTE_SETTINGS_VARNAME
-
+        if key == "derived_columns":
+            warn_derived_cols()
+            key = DERIVATIONS_DECLARATION
+        elif key == "implied_columns":
+            warn_implied_cols()
+            key = IMPLICATIONS_DECLARATION
+        elif key == METADATA_KEY:
+            value = _Metadata(value)
+        super(Project, self).__setitem__(key, value)
 
     @property
     def constants(self):
@@ -331,18 +275,6 @@ class Project(AttributeDict):
             of attribute name and attribute value
         """
         return self._constants
-
-
-    @property
-    def default_compute_envfile(self):
-        """
-        Path to default compute environment settings file.
-
-        :return str: Path to this project's default compute env config file.
-        """
-        return os.path.join(
-            self.templates_folder, "default_compute_settings.yaml")
-
 
     @property
     def derived_columns(self):
@@ -357,7 +289,6 @@ class Project(AttributeDict):
         except AttributeError:
             return []
 
-
     @property
     def implied_columns(self):
         """
@@ -369,8 +300,7 @@ class Project(AttributeDict):
         try:
             return self.implied_attributes
         except AttributeError:
-            return AttributeDict()
-
+            return PathExAttMap()
 
     @property
     def num_samples(self):
@@ -380,7 +310,6 @@ class Project(AttributeDict):
         :return int: number of samples available in this Project.
         """
         return sum(1 for _ in self.sample_names)
-
 
     @property
     def output_dir(self):
@@ -402,7 +331,6 @@ class Project(AttributeDict):
         except AttributeError:
             return os.path.dirname(self.config_file)
 
-
     @property
     def project_folders(self):
         """
@@ -411,7 +339,6 @@ class Project(AttributeDict):
         :return Iterable[str]: names of output-nested folders
         """
         return ["results_subdir", "submission_subdir"]
-
 
     @property
     def protocols(self):
@@ -428,7 +355,6 @@ class Project(AttributeDict):
                 _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
         return protos
 
-
     @property
     def required_metadata(self):
         """
@@ -443,12 +369,18 @@ class Project(AttributeDict):
         """
         return []
 
-
     @property
     def sample_names(self):
         """ Names of samples of which this Project is aware. """
-        return iter(self.sheet[SAMPLE_NAME_COLNAME])
-
+        dt = getattr(self, NAME_TABLE_ATTR)
+        try:
+            return iter(dt[SAMPLE_NAME_COLNAME])
+        except KeyError:
+            cols = list(dt.columns)
+            print("Table columns: {}".format(", ".join(cols)))
+            if 1 == len(cols):
+                print("Does delimiter used in the sample sheet match file extension?")
+            raise
 
     @property
     def samples(self):
@@ -458,8 +390,56 @@ class Project(AttributeDict):
         :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
+        if self._samples:
+            return self._samples
+        if self.sample_table is None:
+            _LOGGER.warning("No samples are defined")
+            return []
+        self._samples = self._prep_samples()
         return self._samples
 
+    @property
+    def sample_annotation(self):
+        """
+        Get the path to the project's sample annotations sheet.
+
+        :return str: path to the project's sample annotations sheet
+        """
+        warnings.warn("{} is deprecated; please instead use {}".
+                      format(OLD_ANNS_META_KEY, NAME_TABLE_ATTR),
+                      DeprecationWarning)
+        return getattr(self, NAME_TABLE_ATTR)
+
+    @property
+    def sample_subannotation(self):
+        """
+        Return the data table that stores metadata for subsamples/units.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of
+            subsamples/units metadata
+        """
+        warnings.warn("{} is deprecated; use {}".
+                      format(OLD_SUBS_META_KEY, SAMPLE_SUBANNOTATIONS_KEY),
+                      DeprecationWarning)
+        return getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+
+    @property
+    def sample_table(self):
+        """
+        Return (possibly first parsing/building) the table of samples.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of samples'
+            metadata, if one is defined
+        """
+        from copy import copy as cp
+        key = NAME_TABLE_ATTR
+        attr = "_" + key
+        if self.get(attr) is None:
+            sheetfile = self[METADATA_KEY].get(key)
+            if sheetfile is None:
+                return None
+            self[attr] = self.parse_sample_sheet(sheetfile)
+        return cp(self[attr])
 
     @property
     def sheet(self):
@@ -468,11 +448,37 @@ class Project(AttributeDict):
 
         :return pandas.core.frame.DataFrame: table of samples in this Project
         """
-        from copy import copy as cp
-        if self._sheet is None:
-            self._sheet = self.parse_sample_sheet(self.metadata.sample_annotation)
-        return cp(self._sheet)
+        warnings.warn("sheet is deprecated; instead use {}".
+                      format(NAME_TABLE_ATTR), DeprecationWarning)
+        return getattr(self, NAME_TABLE_ATTR)
 
+    @property
+    def subproject(self):
+        """
+        Return currently active subproject or None if none was activated
+
+        :return str: name of currently active subproject
+        """
+        return self._subproject
+
+    @property
+    def subsample_table(self):
+        """
+        Return (possibly first parsing/building) the table of subsamples.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of subsamples'
+            metadata, if the project defines such a table
+        """
+        from copy import copy as cp
+        key = SAMPLE_SUBANNOTATIONS_KEY
+        attr = "_" + key
+        if self.get(attr) is None:
+            sheetfile = self[METADATA_KEY].get(key)
+            if sheetfile is None:
+                return None
+            self[attr] = pd.read_csv(sheetfile,
+                sep=infer_delimiter(sheetfile), **READ_CSV_KWARGS)
+        return cp(self[attr])
 
     @property
     def templates_folder(self):
@@ -481,8 +487,7 @@ class Project(AttributeDict):
 
         :return str: path to folder with default submission templates
         """
-        return os.path.join(os.path.dirname(__file__), "submit_templates")
-
+        return self.dcc.templates_folder
 
     def infer_name(self):
         """
@@ -492,26 +497,27 @@ class Project(AttributeDict):
         unless that folder is named "metadata", in which case the project name
         is the parent of that folder.
         
-        :param str path_config_file: path to the project's config file.
         :return str: inferred name for project.
         """
         if hasattr(self, "name"):
-            return(self.name)
-        
+            return self.name
         config_folder = os.path.dirname(self.config_file)
         project_name = os.path.basename(config_folder)
-        
-        if project_name == "metadata":
+        if project_name == METADATA_KEY:
             project_name = os.path.basename(os.path.dirname(config_folder))
-
         return project_name
 
-
     def get_subsample(self, sample_name, subsample_name):
+        """
+        From indicated sample get particular subsample.
 
+        :param str sample_name: Name of Sample from which to get subsample
+        :param str subsample_name: Name of Subsample to get
+        :return peppy.Subsample: The Subsample of requested name from indicated
+            sample matching given name
+        """
         s = self.get_sample(sample_name)
         return s.get_subsample(subsample_name)
-
 
     def get_sample(self, sample_name):
         """
@@ -524,33 +530,52 @@ class Project(AttributeDict):
         :param str sample_name: The name of a sample to retrieve
         :return Sample: The requested Sample object
         """
-
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
             _LOGGER.warning("More than one sample was detected; returning the first")
+        try:
+            return samples[0]
+        except IndexError:
+            raise ValueError("Project has no sample named {}.".format(sample_name))
 
-        if len(samples) == 0:
-            raise ValueError("Project has no sample named {name}.".format(name=sample_name))
+    def deactivate_subproject(self):
+        """
+        Bring the original project settings back
 
-        return samples[0]
+        This method will bring the original project settings back after the subproject activation.
 
+        :return peppy.Project: Updated Project instance
+        """
+        if self.subproject is None:
+            _LOGGER.warning("No subproject has been activated.")
+        self.__init__(self.config_file)
+        return self
 
     def activate_subproject(self, subproject):
         """
-        Activate a subproject.
+        Update settings based on subproject-specific values.
 
         This method will update Project attributes, adding new values
         associated with the subproject indicated, and in case of collision with
         an existing key/attribute the subproject's value will be favored.
 
         :param str subproject: A string with a subproject name to be activated
-        :return Project: A Project with the selected subproject activated
+        :return peppy.Project: Updated Project instance
         """
+        if subproject is None:
+            raise TypeError("The subproject argument can not be NoneType."
+                            " To deactivate a subproject use the deactivate_subproject method.")
+        previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
         conf_file = self.config_file
-        self.clear()
         self.__init__(conf_file, subproject)
+        for k, v in previous:
+            if k.startswith("_"):
+                continue
+            if k not in self or (self.is_null(k) and v is not None):
+                _LOGGER.debug("Restoring {}: {}".format(k, v))
+                self[k] = v
+        self._subproject = subproject
         return self
-
 
     def get_samples(self, sample_names):
         """
@@ -561,31 +586,34 @@ class Project(AttributeDict):
         """
         return [s for s in self.samples if s.name in sample_names]
 
-
     def build_sheet(self, *protocols):
         """
-        Create all Sample object for this project for the given protocol(s).
+        Create table of subset of samples matching one of given protocols.
 
         :return pandas.core.frame.DataFrame: DataFrame with from base version
             of each of this Project's samples, for indicated protocol(s) if
             given, else all of this Project's samples
         """
         # Use all protocols if none are explicitly specified.
-        protocols = {alpha_cased(p) for p in (protocols or self.protocols)}
-        include_samples = []
+        known = set(protocols or self.protocols)
+        selector_include = []
+        skipped = []
         for s in self.samples:
             try:
-                proto = s.protocol
+                p = s.protocol
             except AttributeError:
-                include_samples.append(s)
-                continue
-            check_proto = alpha_cased(proto)
-            if check_proto in protocols:
-                include_samples.append(s)
+                selector_include.append(s)
             else:
-                _LOGGER.debug("Sample skipped due to protocol ('%s')", proto)
-        return pd.DataFrame(include_samples)
-
+                if p in known:
+                    selector_include.append(s)
+                else:
+                    skipped.append(s)
+        if skipped:
+            msg_data = "\n".join(["{} ({})".format(s, s.protocol)
+                                  for s in skipped])
+            _LOGGER.debug("Skipped %d sample(s) for protocol. Known: %s\n%s",
+                          len(skipped), ", ".join(known), msg_data)
+        return pd.DataFrame(selector_include)
 
     def _check_unique_samples(self):
         """ Handle scenario in which sample names are not unique. """
@@ -599,7 +627,6 @@ class Project(AttributeDict):
             hist_text = "\n".join(
                 "{}: {}".format(name, n) for name, n in repeats.items())
             _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
-
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
@@ -616,18 +643,12 @@ class Project(AttributeDict):
             can't be interpreted as a single path or as a flat collection
             of path(s)
         """
-
-        # TODO: check for local pipelines or those from environment.
-
         # Pass pipeline(s) dirpath(s) or use one already set.
         if not pipe_path:
             try:
-                # TODO: beware of AttributeDict with _attribute_identity = True
-                #  here, as that may return 'pipelines_dir' name itself.
-                pipe_path = self.metadata.pipelines_dir
-            except AttributeError:
+                pipe_path = self.metadata[NEW_PIPES_KEY]
+            except KeyError:
                 pipe_path = []
-
         # Ensure we're working with a flattened list.
         if isinstance(pipe_path, str):
             pipe_path = [pipe_path]
@@ -638,16 +659,13 @@ class Project(AttributeDict):
             _LOGGER.debug("Got {} as pipelines path(s) ({})".
                           format(pipe_path, type(pipe_path)))
             pipe_path = []
-
-        self.metadata.pipelines_dir = pipe_path
-
+        self[METADATA_KEY][NEW_PIPES_KEY] = pipe_path
 
     def get_arg_string(self, pipeline_name):
         """
         For this project, given a pipeline, return an argument string
         specified in the project config file.
         """
-
 
         def make_optarg_text(opt, arg):
             """ Transform flag/option into CLI-ready text version. """
@@ -660,7 +678,6 @@ class Project(AttributeDict):
                 return "{} {}".format(opt, arg)
             else:
                 return opt
-
 
         def create_argtext(name):
             """ Create command-line argstring text from config section. """
@@ -675,7 +692,6 @@ class Project(AttributeDict):
             _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
             # TODO: may need to fix some spacing issues here.
             return " ".join(optargs_texts)
-
 
         default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
         _LOGGER.debug("Creating additional argstring text for pipeline '%s'",
@@ -694,7 +710,6 @@ class Project(AttributeDict):
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
 
-
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -711,7 +726,6 @@ class Project(AttributeDict):
                     _LOGGER.warning("Could not create project folder: '%s'",
                                  str(e))
 
-
     def _set_basic_samples(self):
         """ Build the base Sample objects from the annotations sheet data. """
 
@@ -719,7 +733,7 @@ class Project(AttributeDict):
         # base Sample objects if they don't already exist.
         sub_ann = None
         try:
-            sub_ann = self.metadata["sample_subannotation"]
+            sub_ann = self.metadata[SAMPLE_SUBANNOTATIONS_KEY]
         except KeyError:
             try:
                 # Backwards compatibility
@@ -727,26 +741,23 @@ class Project(AttributeDict):
             except KeyError:
                 _LOGGER.debug("No sample subannotations")
             else:
-                _LOGGER.warning("'merge_table' attribute is deprecated. Please use "
-                    "'sample_subannotation' instead.")
+                warnings.warn("merge_table is deprecated; please instead use {}".
+                              format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
 
-        if self.sample_subannotation is None:
-            if sub_ann and os.path.isfile(sub_ann):
-                _LOGGER.info("Reading subannotations: %s", sub_ann)
-                self.sample_subannotation = pd.read_csv(
-                        sub_ann, sep=None, engine="python")
-                _LOGGER.debug("Subannotations shape: {}".
-                              format(self.sample_subannotation.shape))
-            else:
-                _LOGGER.debug("Alleged path to sample subannotations data is "
-                              "not a file: '%s'", str(sub_ann))
+        if sub_ann and os.path.isfile(sub_ann):
+            _LOGGER.info("Reading subannotations: %s", sub_ann)
+            subann_table = pd.read_csv(sub_ann,
+                sep=infer_delimiter(sub_ann), **READ_CSV_KWARGS)
+            self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
+            _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
         else:
-            _LOGGER.debug("Already parsed sample subannotations")
+            _LOGGER.debug("Alleged path to sample subannotations data is "
+                          "not a file: '%s'", str(sub_ann))
 
         # Set samples and handle non-unique names situation.
+        self._check_subann_name_overlap()
         self._samples = self._prep_samples()
         self._check_unique_samples()
-
 
     def _prep_samples(self):
         """
@@ -757,7 +768,7 @@ class Project(AttributeDict):
 
         samples = []
 
-        for _, row in self.sheet.iterrows():
+        for _, row in getattr(self, NAME_TABLE_ATTR).iterrows():
             sample = Sample(row.dropna(), prj=self)
 
             # Add values that are constant across this Project's samples.
@@ -768,7 +779,7 @@ class Project(AttributeDict):
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, self.sample_subannotation,
+            merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
                          self.data_sources, self.derived_attributes)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
@@ -786,6 +797,22 @@ class Project(AttributeDict):
 
         return samples
 
+    def _check_subann_name_overlap(self):
+        """
+        Check if all subannotations have a matching sample, and warn if not
+
+        :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
+        """
+        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+        if subs is not None:
+            sample_subann_names = subs.sample_name.tolist()
+            sample_names_list = list(self.sample_names)
+            info = " matching sample name for subannotation '{}'"
+            for n in sample_subann_names:
+                _LOGGER.warning(("Couldn't find" + info).format(n)) if n not in sample_names_list\
+                    else _LOGGER.debug(("Found" + info).format(n))
+        else:
+            _LOGGER.debug("No sample subannotations found for this Project.")
 
     def parse_config_file(self, subproject=None):
         """
@@ -800,6 +827,10 @@ class Project(AttributeDict):
         with open(self.config_file, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
+        assert isinstance(config, Mapping), \
+            "Config file parse did not yield a Mapping; got {} ({})".\
+            format(config, type(config))
+
         for msg in suggest_implied_attributes(config):
             warnings.warn(msg, DeprecationWarning)
 
@@ -809,26 +840,26 @@ class Project(AttributeDict):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes for {}: {}".format(
             self.__class__.__name__, config.keys()))
-        _LOGGER.debug("Config metadata: {}".format(config["metadata"]))
+        _LOGGER.debug("Config metadata: {}".format(config[METADATA_KEY]))
         self.add_entries(config)
         _LOGGER.debug("{} now has {} keys: {}".format(
             self.__class__.__name__, len(self.keys()), self.keys()))
 
         # Overwrite any config entries with entries in the subproject.
-        if non_null_value("subprojects", config) and subproject:
-            _LOGGER.debug("Adding entries for subproject '{}'".
-                          format(subproject))
-            try:
-                subproj_updates = config['subprojects'][subproject]
-            except KeyError:
-                raise Exception(
-                    "Unknown subproject ({}); defined subprojects: {}".format(
-                    subproject, ", ".join([sp for sp in config["subprojects"]])))
-            _LOGGER.debug("Updating with: {}".format(subproj_updates))
-            self.add_entries(subproj_updates)
-        elif subproject:
-            _LOGGER.warning("Subproject {} requested but no subprojects "
-                         "are defined".format(subproject))
+        if subproject:
+            if non_null_value(SUBPROJECTS_SECTION, config):
+                _LOGGER.debug("Adding entries for subproject '{}'".
+                              format(subproject))
+                try:
+                    subproj_updates = config[SUBPROJECTS_SECTION][subproject]
+                except KeyError:
+                    raise MissingSubprojectError(subproject, config[SUBPROJECTS_SECTION])
+                _LOGGER.debug("Updating with: {}".format(subproj_updates))
+                self.add_entries(subproj_updates)
+                self._subproject = subproject
+                _LOGGER.info("Using subproject: '{}'".format(subproject))
+            else:
+                raise MissingSubprojectError(subproject)
         else:
             _LOGGER.debug("No subproject requested")
 
@@ -843,36 +874,13 @@ class Project(AttributeDict):
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
 
-        # In looper 0.6, we added pipeline_interfaces to metadata
-        # For backwards compatibility, merge it with pipelines_dir
-
-        if "metadata" in config:
-            if "pipelines_dir" in self.metadata:
-                _LOGGER.warning("Looper v0.6 suggests "
-                                "switching from pipelines_dir to "
-                                "pipeline_interfaces. See docs for details: "
-                                "https://pepkit.github.io/docs/home/")
-            if "pipeline_interfaces" in self.metadata:
-                if "pipelines_dir" in self.metadata:
-                    raise AttributeError(
-                        "You defined both 'pipeline_interfaces' and "
-                        "'pipelines_dir'. Please remove your "
-                        "'pipelines_dir' definition.")
-                else:
-                    self.metadata.pipelines_dir = \
-                        self.metadata.pipeline_interfaces
-                _LOGGER.debug("Adding pipeline_interfaces to "
-                              "pipelines_dir. New value: {}".
-                              format(self.metadata.pipelines_dir))
-
         self._constants = config.get("constants", dict())
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
             if var not in self.metadata:
-                raise ValueError("Missing required metadata item: '%s'")
-            setattr(self.metadata, var,
-                    os.path.expandvars(getattr(self.metadata, var)))
+                raise ValueError("Missing required metadata item: '{}'".format(var))
+            self[METADATA_KEY][var] = os.path.expandvars(self.metadata.get(var))
 
         _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
                                                self.metadata))
@@ -888,18 +896,16 @@ class Project(AttributeDict):
         }
 
         for key, value in config_vars.items():
-            if hasattr(self.metadata, key):
-                if not os.path.isabs(getattr(self.metadata, key)):
-                    setattr(self.metadata, key,
-                            os.path.join(self.output_dir,
-                                          getattr(self.metadata, key)))
+            if key in self.metadata:
+                if not os.path.isabs(self.metadata[key]):
+                    self.metadata[key] = \
+                        os.path.join(self.output_dir, self.metadata[key])
             else:
-                outpath = os.path.join(self.output_dir, value)
-                setattr(self.metadata, key, outpath)
+                self.metadata[key] = os.path.join(self.output_dir, value)
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
-        relative_sections = ["metadata", "pipeline_config"]
+        relative_sections = [METADATA_KEY, "pipeline_config"]
 
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
@@ -927,60 +933,23 @@ class Project(AttributeDict):
                 _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
                 setattr(relative_vars, var, absolute)
 
-        # Project config may have made compute.submission_template relative.
-        # Make sure it's absolute.
-        if self.compute is None:
+        if self.dcc.compute is None:
             _LOGGER.log(5, "No compute, no submission template")
-        elif not os.path.isabs(self.compute.submission_template):
-            # Relative to environment config file.
-            self.compute.submission_template = os.path.join(
-                os.path.dirname(self.environment_file),
-                self.compute.submission_template)
 
-        # Required variables check
-        if not hasattr(self.metadata, SAMPLE_ANNOTATIONS_KEY):
-            self.metadata.sample_annotation = None
+        old_table_keys = [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY]
+        new_table_keys = [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY]
+        metadata = self[METADATA_KEY]
+        for k_old, k_new in zip(old_table_keys, new_table_keys):
+            try:
+                v = metadata[k_old]
+            except KeyError:
+                continue
+            metadata[k_new] = v
+            del metadata[k_old]
+        self[METADATA_KEY] = metadata
 
-
-    def set_compute(self, setting):
-        """
-        Set the compute attributes according to the
-        specified settings in the environment file.
-
-        :param str setting:	name for non-resource compute bundle, the name of
-            a subsection in an environment configuration file
-        :return bool: success flag for attempt to establish compute settings
-        """
-
-        # Hope that environment & environment compute are present.
-        if setting and self.environment and "compute" in self.environment:
-            # Augment compute, creating it if needed.
-            if self.compute is None:
-                _LOGGER.debug("Creating Project compute")
-                self.compute = AttributeDict()
-                _LOGGER.debug("Adding entries for setting '%s'", setting)
-            self.compute.add_entries(self.environment.compute[setting])
-
-            # Ensure submission template is absolute.
-            if not os.path.isabs(self.compute.submission_template):
-                try:
-                    self.compute.submission_template = os.path.join(
-                        os.path.dirname(self.environment_file),
-                        self.compute.submission_template)
-                except AttributeError as e:
-                    # Environment and environment compute should at least have been
-                    # set as null-valued attributes, so execution here is an error.
-                    _LOGGER.error(str(e))
-                    # Compute settings have been established.
-                else:
-                    return True
-        else:
-            # Scenario in which environment and environment compute are
-            # both present--but don't evaluate to True--is fairly harmless.
-            _LOGGER.debug("Environment = {}".format(self.environment))
-
-        return False
-
+        if NAME_TABLE_ATTR not in self[METADATA_KEY]:
+            self[METADATA_KEY][NAME_TABLE_ATTR] = None
 
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """
@@ -991,45 +960,13 @@ class Project(AttributeDict):
             # ("cannot change folder's mode: %s" % d)
             pass
 
-
-    def update_environment(self, env_settings_file):
-        """
-        Parse data from environment configuration file.
-
-        :param str env_settings_file: path to file with
-            new environment configuration data
-        """
-
-        with open(env_settings_file, 'r') as f:
-            _LOGGER.info("Loading %s: %s",
-                         self.compute_env_var, env_settings_file)
-            env_settings = yaml.load(f)
-            _LOGGER.debug("Parsed environment settings: %s",
-                          str(env_settings))
-
-            # Any compute.submission_template variables should be made
-            # absolute, relative to current environment settings file.
-            y = env_settings["compute"]
-            for key, value in y.items():
-                if type(y[key]) is dict:
-                    for key2, value2 in y[key].items():
-                        if key2 == "submission_template":
-                            if not os.path.isabs(y[key][key2]):
-                                y[key][key2] = os.path.join(
-                                    os.path.dirname(env_settings_file),
-                                    y[key][key2])
-
-            env_settings["compute"] = y
-            if self.environment is None:
-                self.environment = AttributeDict(env_settings)
-            else:
-                self.environment.add_entries(env_settings)
-
-        self.environment_file = env_settings_file
-
-
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
+
+        if not isinstance(maybe_relpath, str):
+            raise TypeError(
+                "Attempting to ensure non-text value is absolute path: {} ({})".
+                format(maybe_relpath, type(maybe_relpath)))
         _LOGGER.log(5, "Ensuring absolute: '%s'", maybe_relpath)
         if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
             _LOGGER.log(5, "Already absolute")
@@ -1049,22 +986,6 @@ class Project(AttributeDict):
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
 
-
-    def _handle_missing_env_attrs(self, env_settings_file, when_missing):
-        """ Default environment settings aren't required; warn, though. """
-        missing_env_attrs = \
-            [attr for attr in ["environment", "environment_file"]
-             if not hasattr(self, attr) or getattr(self, attr) is None]
-        if not missing_env_attrs:
-            return
-        message = "'{}' lacks environment attributes: {}". \
-            format(env_settings_file, missing_env_attrs)
-        if when_missing is None:
-            _LOGGER.warning(message)
-        else:
-            when_missing(message)
-
-
     @staticmethod
     def parse_sample_sheet(sample_file, dtype=str):
         """
@@ -1072,6 +993,8 @@ class Project(AttributeDict):
 
         :param str sample_file: path to sample annotations file.
         :param type dtype: data type for CSV read.
+        :return pandas.core.frame.DataFrame: table populated by the project's
+            sample annotations data
         :raises IOError: if given annotations file can't be read.
         :raises ValueError: if required column(s) is/are missing.
         """
@@ -1083,9 +1006,9 @@ class Project(AttributeDict):
         # See https://github.com/pepkit/peppy/issues/159 for the original issue
         # and https://github.com/pepkit/peppy/pull/160 for the pull request
         # that resolved it.
+        sep = infer_delimiter(sample_file)
         try:
-            df = pd.read_csv(sample_file, sep=None, dtype=dtype, index_col=False,
-                             engine="python", keep_default_na=False)
+            df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
         else:
@@ -1098,7 +1021,6 @@ class Project(AttributeDict):
                                         ", ".join(list(df.columns))))
         return df
 
-
     class MissingMetadataException(PeppyError):
         """ Project needs certain metadata. """
         def __init__(self, missing_section, path_config_file=None):
@@ -1108,15 +1030,39 @@ class Project(AttributeDict):
                 reason += "; used config file '{}'".format(path_config_file)
             super(Project.MissingMetadataException, self).__init__(reason)
 
-
     class MissingSampleSheetError(PeppyError):
         """ Represent case in which sample sheet is specified but nonexistent. """
         def __init__(self, sheetfile):
-            super(Project.MissingSampleSheetError, self).__init__(
-                "Missing sample annotation sheet ({}); a project need not use "
-                "a sample sheet, but if it does the file must exist."
-                .format(sheetfile))
+            parent_folder = os.path.dirname(sheetfile)
+            contents = os.listdir(parent_folder) \
+                if os.path.isdir(parent_folder) else []
+            msg = "Missing sample annotation sheet ({}); a project need not use " \
+                  "a sample sheet, but if it does the file must exist.".\
+                format(sheetfile)
+            if contents:
+                msg += " Contents of parent folder: {}".format(", ".join(contents))
+            super(Project.MissingSampleSheetError, self).__init__(msg)
 
+    @staticmethod
+    def _omit_from_repr(k, cls):
+        """
+        Hook for exclusion of particular value from a representation
+
+        :param hashable k: key to consider for omission
+        :param type cls: data type on which to base the exclusion
+        :return bool: whether the given key k should be omitted from
+            text representation
+        """
+        exclusions_by_class = {
+            "Project": [
+                "samples", "_samples", "interfaces_by_protocol",
+                "_" + SAMPLE_SUBANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY,
+                NAME_TABLE_ATTR, "_" + NAME_TABLE_ATTR],
+            "Subsample": [NAME_TABLE_ATTR, "sample", "merged_cols"],
+            "Sample": [NAME_TABLE_ATTR, "prj", "merged_cols"]
+        }
+        return k in exclusions_by_class.get(
+            cls.__name__ if isinstance(cls, type) else cls, [])
 
 
 def suggest_implied_attributes(prj):
@@ -1132,3 +1078,45 @@ def suggest_implied_attributes(prj):
         return "To declare {}, consider using {}".format(
             key, IMPLICATIONS_DECLARATION)
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
+
+
+class MissingSubprojectError(PeppyError):
+    """ Error when project config lacks a requested subproject. """
+
+    def __init__(self, sp, defined=None):
+        """
+        Create exception with missing subproj request.
+
+        :param str sp: the requested (and missing) subproject
+        :param Iterable[str] defined: collection of names of defined subprojects
+        """
+        msg = "Subproject '{}' not found".format(sp)
+        if isinstance(defined, Iterable):
+            ctx = "defined subproject(s): {}".format(", ".join(map(str, defined)))
+            msg = "{}; {}".format(msg, ctx)
+        super(MissingSubprojectError, self).__init__(msg)
+
+
+class _Metadata(PathExAttMap):
+    """ Project section with important information """
+
+    def __getattr__(self, item, default=None):
+        """ Reference the new attribute and warn about deprecation. """
+        if item == OLD_PIPES_KEY:
+            _warn_pipes_deprecation()
+            item = NEW_PIPES_KEY
+        return super(_Metadata, self).__getattr__(item, default=None)
+
+    def __setitem__(self, key, value):
+        """ Store the new key and warn about deprecation. """
+        if key == OLD_PIPES_KEY:
+            _warn_pipes_deprecation()
+            key = NEW_PIPES_KEY
+        return super(_Metadata, self).__setitem__(key, value)
+
+
+def _warn_pipes_deprecation():
+    """ Handle messaging regarding pipelines pointer deprecation. """
+    msg = "Use of {} is deprecated; favor {}".\
+        format(OLD_PIPES_KEY, NEW_PIPES_KEY)
+    warnings.warn(msg, DeprecationWarning)

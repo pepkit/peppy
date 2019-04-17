@@ -8,17 +8,17 @@ import numpy as np
 from pandas import Series
 import pytest
 import yaml
+from yaml import SafeLoader
 
+from attmap import AttMap
 import peppy
-from peppy import \
-    AttributeDict, Sample, DATA_SOURCE_COLNAME, \
-    DATA_SOURCES_SECTION, SAMPLE_NAME_COLNAME
+from peppy import Sample
+from peppy.const import *
 from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
-
 
 
 class ParseSampleImplicationsTests:
@@ -31,7 +31,6 @@ class ParseSampleImplicationsTests:
     IMPLICATIONS = {"a": SAMPLE_A_IMPLICATIONS, "b": SAMPLE_B_IMPLICATIONS}
     IMPLICATIONS_MAP = {IMPLIER_NAME: IMPLICATIONS}
 
-
     @pytest.mark.parametrize(argnames="implications", argvalues=[None, {}, []])
     def test_project_no_implications(self, sample, implications):
         """ With no implications mapping, sample is unmodified. """
@@ -40,13 +39,11 @@ class ParseSampleImplicationsTests:
         after_inference = sample.__dict__
         assert before_inference == after_inference
 
-
     def test_null_intersection_between_sample_and_implications(self, sample):
         """ Sample with none of implications' fields --> no change. """
         before_inference = sample.__dict__
         sample.infer_attributes(self.IMPLICATIONS_MAP)
         assert before_inference == sample.__dict__
-
 
     @pytest.mark.parametrize(
         argnames=["implier_value", "implications"],
@@ -67,7 +64,6 @@ class ParseSampleImplicationsTests:
         for implied_name, implied_value in implications.items():
             assert implied_value == getattr(sample, implied_name)
 
-
     @pytest.mark.parametrize(
         argnames="unmapped_implier_value",
         argvalues=["totally-wacky-value", 62, None, np.nan])
@@ -84,7 +80,6 @@ class ParseSampleImplicationsTests:
         setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
         sample.infer_attributes(self.IMPLICATIONS_MAP)
         no_implied_values()
-
 
     @pytest.fixture(scope="function")
     def sample(self, request):
@@ -114,7 +109,6 @@ class ParseSampleImplicationsTests:
         return mocked_sample
 
 
-
 class SampleRequirementsTests:
     """ Test what a Sample requires. """
 
@@ -137,7 +131,6 @@ class SampleRequirementsTests:
                 Sample(data_type(data))
 
 
-
 @pytest.mark.parametrize(
     argnames="accessor", argvalues=["attr", "item"],
     ids=lambda access_mode: "accessor={}".format(access_mode))
@@ -156,7 +149,6 @@ def test_exception_type_matches_access_mode(data_type, accessor):
         # Personal safeguard against unexpected behavior
         pytest.fail("Unknown access mode for exception type test: {}".
                     format(accessor))
-
 
 
 @pytest.mark.parametrize(
@@ -196,7 +188,6 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
     assert all([os.path.exists(p) for p in s.paths])
 
 
-
 @pytest.mark.parametrize(
     argnames="files",
     argvalues=[[],
@@ -207,7 +198,7 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
 def test_input_files(files, test_type, tmpdir):
     """ Test for access to Sample input files. """
     file_text = " ".join(files)
-    sample_data = {"sample_name": "test-sample",
+    sample_data = {SAMPLE_NAME_COLNAME: "test-sample",
                    DATA_SOURCE_COLNAME: file_text}
     s = Sample(sample_data)
     assert file_text == s.data_source
@@ -216,19 +207,16 @@ def test_input_files(files, test_type, tmpdir):
         path_sample_file = tmpdir.join("test-sample.yaml").strpath
         s.to_yaml(path_sample_file)
         with open(path_sample_file) as sf:
-            reloaded_sample_data = yaml.load(sf)
+            reloaded_sample_data = yaml.load(sf, SafeLoader)
         s_reloaded = Sample(reloaded_sample_data)
         assert files == s_reloaded.input_file_paths
-
 
 
 class SetFilePathsTests:
     """ Tests for setting Sample file paths. """
 
-
     SOURCE_KEYS = ["src1", "src2"]
     DATA_SOURCES = {"src1": "pathA", "src2": "pathB"}
-
 
     @pytest.fixture
     def prj_data(self, request):
@@ -238,13 +226,12 @@ class SetFilePathsTests:
         else:
             data_src = DATA_SOURCE_COLNAME
         return {
-            "metadata": {
-                "sample_annotation": "anns.csv", "output_dir": "outdir",
+            METADATA_KEY: {
+                NAME_TABLE_ATTR: "anns.csv", OUTDIR_KEY: "outdir",
                 "results_subdir": "results_pipeline",
                 "submission_subdir": "submission"},
             DATA_SOURCES_SECTION: self.DATA_SOURCES,
-            "derived_attributes": [data_src]}
-
+            DERIVATIONS_DECLARATION: [data_src]}
 
     @named_param(
         argnames="data_src_attr",
@@ -255,8 +242,8 @@ class SetFilePathsTests:
             self, prj_data, data_src_attr, src_key, explicit):
         """ Passing Sample's project is equivalent to its inference. """
         
-        # Explicitly-passed object needs to at least be an AttributeDict.
-        sample_data = AttributeDict(
+        # Explicitly-passed object needs to at least be an AttMap.
+        sample_data = AttMap(
                 {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
                  data_src_attr: src_key, "derived_attributes": [data_src_attr]})
         
@@ -272,21 +259,19 @@ class SetFilePathsTests:
         observed = getattr(s, data_src_attr)
         assert expected == observed
 
-
     def test_prefers_explicit_project_context(self, prj_data):
         """ Explicit project data overrides any pre-stored project data. """
-        prj_data_modified = AttributeDict(copy.deepcopy(prj_data))
+        prj_data_modified = AttMap(copy.deepcopy(prj_data))
         new_src = "src3"
         new_src_val = "newpath"
         assert new_src not in prj_data[DATA_SOURCES_SECTION]
         prj_data_modified[DATA_SOURCES_SECTION][new_src] = new_src_val
-        sample_data = AttributeDict(
+        sample_data = AttMap(
             {SAMPLE_NAME_COLNAME: "random-sample",
              "prj": prj_data, DATA_SOURCE_COLNAME: new_src})
         s = Sample(sample_data)
         s.set_file_paths(prj_data_modified)
         assert new_src_val == getattr(s, DATA_SOURCE_COLNAME)
-
 
     @named_param(argnames="exclude_derived_attributes", argvalues=[False, True])
     def test_no_derived_attributes(self, prj_data, exclude_derived_attributes):
@@ -296,13 +281,13 @@ class SetFilePathsTests:
         # so make it constant.
         src_key = self.SOURCE_KEYS[0]
 
-        # Explicitly-passed object needs to at least be an AttributeDict.
+        # Explicitly-passed object needs to at least be an AttMap.
         if exclude_derived_attributes:
             prj_data.pop("derived_attributes")
         sample_data = {
                 SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
                 DATA_SOURCE_COLNAME: src_key}
-        sample_data = AttributeDict(sample_data)
+        sample_data = AttMap(sample_data)
         s = Sample(sample_data)
 
         assert not hasattr(s, src_key)
@@ -324,27 +309,24 @@ class SetFilePathsTests:
             assert putative_new_attr == s[DATA_SOURCE_COLNAME]
 
 
-
 class LocateDataSourceTests:
     """ Tests for determining data source filepath. """
 
     SOURCE_KEYS = ["src1", "src2"]
     PATH_BY_KEY = {"src1": "pathA", "src2": "pathB"}
 
-
     @pytest.fixture
     def prj_data(self):
         """ Provide basic Project data to test case. """
-        data = {"metadata": {"sample_annotation": "anns.csv"}}
+        data = {METADATA_KEY: {NAME_TABLE_ATTR: "anns.csv"}}
         data.update({DATA_SOURCES_SECTION: self.PATH_BY_KEY})
         return data
-
 
     @named_param(
         argnames="colname",
         argvalues=[DATA_SOURCE_COLNAME, "data", "src", "input", "filepath"])
     @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
-    @named_param(argnames="data_type", argvalues=[dict, AttributeDict])
+    @named_param(argnames="data_type", argvalues=[dict, AttMap])
     @named_param(argnames="include_data_sources", argvalues=[False, True])
     def test_accuracy_and_allows_empty_data_sources(
             self, colname, src_key, prj_data, data_type, include_data_sources):

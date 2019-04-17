@@ -1,0 +1,27 @@
+site_name: Peppy
+site_url: http://code.databio.org/peppy/
+repo_url: http://github.com/databio/peppy
+
+nav:
+  - Getting started:
+    - Introduction: README.md
+    - Installing and Hello World: hello-world.md
+  - How-to Guides:
+    - How to use peppy: tutorial.md
+    - How to use sample subannotation: subannotation.md
+    - Subprojects tutorial: subprojects.md
+    - How to use project models: models.md
+  - Reference:
+    - API: autodoc_build/peppy.md
+    - Support: support.md
+    - Contributing: contributing.md
+    - Changelog: changelog.md
+
+theme: databio
+
+plugins:
+  - databio:
+      autodoc_build: "docs/autodoc_build"
+      autodoc_package: "peppy"
+      no_top_level: true
+  - search

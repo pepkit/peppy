@@ -2,6 +2,8 @@
 
 from functools import partial
 import itertools
+import random
+import string
 import numpy as np
 import pytest
 import peppy
@@ -9,7 +11,6 @@ import peppy
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
-
 
 
 def assert_entirely_equal(observed, expected):
@@ -20,7 +21,6 @@ def assert_entirely_equal(observed, expected):
         assert np.isnan(observed) and np.isnan(expected)
     except ValueError:
         assert (observed == expected).all()
-
 
 
 def named_param(argnames, argvalues):
@@ -36,7 +36,6 @@ def named_param(argnames, argvalues):
     """
     return partial(pytest.mark.parametrize(argnames, argvalues,
                    ids=lambda arg: "{}={}".format(argnames, arg)))
-
 
 
 def powerset(items, min_items=0, include_full_pop=True):
@@ -60,9 +59,27 @@ def powerset(items, min_items=0, include_full_pop=True):
             for k in range(min_items, max_items)))
 
 
+def randomize_filename(ext=None, n_char=25):
+    """
+    Randomly generate a filename
+
+    :param str ext: Extension, optional
+    :param n_char: Number of characters (excluding extension)
+    :return str: Randomized filename
+    """
+    if not isinstance(n_char, int):
+        raise TypeError("Character count is not an integer: {}".format(n_char))
+    if n_char < 0:
+        raise ValueError("Negative char count: {}".format(n_char))
+    fn = "".join(random.choice(string.ascii_letters) for _ in range(n_char))
+    if not ext:
+        return fn
+    if not ext.startswith("."):
+        ext = "." + ext
+    return fn + ext
+
 
 nonempty_powerset = partial(powerset, min_items=1)
-
 
 
 class TempLogFileHandler(object):

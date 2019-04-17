@@ -24,6 +24,25 @@ from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 _LOGGER = logging.getLogger(__name__)
 
 
+__all__ = [
+    "CommandChecker", "add_project_sample_constants", "check_bam", "check_fastq",
+    "get_file_size", "fetch_samples", "grab_project_data", "has_null_value",
+    "is_command_callable"
+]
+
+
+def alpha_cased(text, lower=False):
+    """
+    Filter text to just letters and homogenize case.
+    
+    :param str text: what to filter and homogenize.
+    :param bool lower: whether to convert to lowercase; default uppercase.
+    :return str: input filtered to just letters, with homogenized case.
+    """
+    text = "".join(filter(
+            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
+    return text.lower() if lower else text.upper()
+
 
 def add_project_sample_constants(sample, project):
     """
@@ -38,21 +57,6 @@ def add_project_sample_constants(sample, project):
     """
     sample.update(project.constants)
     return sample
-
-
-
-def alpha_cased(text, lower=False):
-    """
-    Filter text to just letters and homogenize case.
-
-    :param str text: what to filter and homogenize.
-    :param bool lower: whether to convert to lowercase; default uppercase.
-    :return str: input filtered to just letters, with homogenized case.
-    """
-    text = "".join(filter(
-            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
-    return text.lower() if lower else text.upper()
-
 
 
 def check_bam(bam, o):
@@ -87,31 +91,9 @@ def check_bam(bam, o):
     return read_lengths, paired
 
 
-
 def check_fastq(fastq, o):
     raise NotImplementedError("Detection of read type/length for "
                               "fastq input is not yet implemented.")
-
-
-
-def check_sample_sheet_row_count(sheet, filepath):
-    """
-    Quick-and-dirt proxy for Sample count validation.
-
-    Check that that the number of rows in a DataFrame (representing the
-    Sample annotations sheet) seems correct given the number of lines in
-    the file from which it was parsed/built.
-
-    :param pandas.core.frame.DataFrame sheet: the sample annotations sheet
-    :param str filepath: the path from which the sheet was built
-    :return bool: flag indicating whether Sample (row) count seems correct
-    """
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
-    # Always deduct 1 line for header; accommodate final whitespace line.
-    deduction = 2 if "" == lines[-1].strip() else 1
-    return len(sheet) == len(lines) - deduction
-
 
 
 def coll_like(c):
@@ -122,7 +104,6 @@ def coll_like(c):
     :return bool: Whether the argument is a (non-string) collection
     """
     return isinstance(c, Iterable) and not isinstance(c, str)
-
 
 
 def copy(obj):
@@ -137,7 +118,6 @@ def copy(obj):
     return obj
 
 
-
 def expandpath(path):
     """
     Expand a filesystem path that may or may not contain user/env vars.
@@ -146,7 +126,6 @@ def expandpath(path):
     :return str: expanded version of input path
     """
     return os.path.expandvars(os.path.expanduser(path)).replace("//", "/")
-
 
 
 def get_file_size(filename):
@@ -171,62 +150,65 @@ def get_file_size(filename):
         return float(total_bytes) / (1024 ** 3)
 
 
-
-def fetch_samples(proj, inclusion=None, exclusion=None):
+def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
     """
     Collect samples of particular protocol(s).
 
     Protocols can't be both positively selected for and negatively
     selected against. That is, it makes no sense and is not allowed to
-    specify both inclusion and exclusion protocols. On the other hand, if
+    specify both selector_include and selector_exclude protocols. On the other hand, if
     neither is provided, all of the Project's Samples are returned.
-    If inclusion is specified, Samples without a protocol will be excluded,
-    but if exclusion is specified, protocol-less Samples will be included.
+    If selector_include is specified, Samples without a protocol will be excluded,
+    but if selector_exclude is specified, protocol-less Samples will be included.
 
     :param Project proj: the Project with Samples to fetch
-    :param Iterable[str] | str inclusion: protocol(s) of interest;
+    :param Project str: the sample selector_attribute to select for
+    :param Iterable[str] | str selector_include: protocol(s) of interest;
         if specified, a Sample must
-    :param Iterable[str] | str exclusion: protocol(s) to include
+    :param Iterable[str] | str selector_exclude: protocol(s) to include
     :return list[Sample]: Collection of this Project's samples with
-        protocol that either matches one of those in inclusion, or either
-        lacks a protocol or does not match one of those in exclusion
-    :raise TypeError: if both inclusion and exclusion protocols are
+        protocol that either matches one of those in selector_include, or either
+        lacks a protocol or does not match one of those in selector_exclude
+    :raise TypeError: if both selector_include and selector_exclude protocols are
         specified; TypeError since it's basically providing two arguments
         when only one is accepted, so remain consistent with vanilla Python2
     """
-
-    # Intersection between inclusion and exclusion is nonsense user error.
-    if inclusion and exclusion:
-        raise TypeError("Specify only inclusion or exclusion protocols, "
-                         "not both.")
-
-    if not inclusion and not exclusion:
+    if selector_attribute is None or (not selector_include and not selector_exclude):
         # Simple; keep all samples.  In this case, this function simply
         # offers a list rather than an iterator.
         return list(proj.samples)
+
+    # At least one of the samples has to have the specified attribute
+    if proj.samples and not any([hasattr(i, selector_attribute) for i in proj.samples]):
+        raise AttributeError("The Project samples do not have the attribute '{attr}'"
+                             .format(attr=selector_attribute))
+
+    # Intersection between selector_include and selector_exclude is nonsense user error.
+    if selector_include and selector_exclude:
+        raise TypeError("Specify only selector_include or selector_exclude parameter, "
+                         "not both.")
 
     # Ensure that we're working with sets.
     def make_set(items):
         if isinstance(items, str):
             items = [items]
-        return {alpha_cased(i) for i in items}
+        return items
 
     # Use the attr check here rather than exception block in case the
-    # hypothetical AttributeError would occur in alpha_cased; we want such
+    # hypothetical AttributeError would occur; we want such
     # an exception to arise, not to catch it as if the Sample lacks "protocol"
-    if not inclusion:
-        # Loose; keep all samples not in the exclusion.
+    if not selector_include:
+        # Loose; keep all samples not in the selector_exclude.
         def keep(s):
-            return not hasattr(s, "protocol") or \
-                   alpha_cased(s.protocol) not in make_set(exclusion)
+            return not hasattr(s, selector_attribute) or \
+                   getattr(s, selector_attribute) not in make_set(selector_exclude)
     else:
-        # Strict; keep only samples in the inclusion.
+        # Strict; keep only samples in the selector_include.
         def keep(s):
-            return hasattr(s, "protocol") and \
-                   alpha_cased(s.protocol) in make_set(inclusion)
+            return hasattr(s, selector_attribute) and \
+                   getattr(s, selector_attribute) in make_set(selector_include)
 
     return list(filter(keep, proj.samples))
-
 
 
 def grab_project_data(prj):
@@ -243,19 +225,15 @@ def grab_project_data(prj):
     :param Project prj: Project from which to grab data
     :return Mapping: Sample-independent data sections from given Project
     """
-
     if not prj:
         return {}
-
     data = {}
     for section in SAMPLE_INDEPENDENT_PROJECT_SECTIONS:
         try:
-            data[section] = prj[section]
-        except KeyError:
+            data[section] = getattr(prj, section)
+        except AttributeError:
             _LOGGER.debug("Project lacks section '%s', skipping", section)
-
     return data
-
 
 
 def has_null_value(k, m):
@@ -266,8 +244,7 @@ def has_null_value(k, m):
     :param Mapping m: Mapping to test for null value for given key
     :return bool: Whether given mapping contains given key with null value
     """
-    return k in m and _is_null(m[k])
-
+    return k in m and is_null_like(m[k])
 
 
 def import_from_source(module_filepath):
@@ -308,6 +285,27 @@ def import_from_source(module_filepath):
     return mod
 
 
+def infer_delimiter(filepath):
+    """
+    From extension infer delimiter used in a separated values file.
+
+    :param str filepath: path to file about which to make inference
+    :return str | NoneType: extension if inference succeeded; else null
+    """
+    ext = os.path.splitext(filepath)[1][1:].lower()
+    return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
+
+
+def is_null_like(x):
+    """
+    Determine whether an object is effectively null.
+
+    :param object x: Object for which null likeness is to be determined.
+    :return bool: Whether given object is effectively "null."
+    """
+    return x in [None, ""] or \
+        (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
+
 
 def is_url(maybe_url):
     """
@@ -319,7 +317,6 @@ def is_url(maybe_url):
     return urlparse(maybe_url).scheme != ""
 
 
-
 def non_null_value(k, m):
     """
     Determine whether a mapping has a non-null value for a given key.
@@ -328,8 +325,7 @@ def non_null_value(k, m):
     :param Mapping m: Mapping to test for non-null value for given key
     :return bool: Whether given mapping contains given key with non-null value
     """
-    return k in m and not _is_null(m[k])
-
+    return k in m and not is_null_like(m[k])
 
 
 def parse_ftype(input_file):
@@ -350,7 +346,6 @@ def parse_ftype(input_file):
     else:
         raise TypeError("Type of input file ends in neither '.bam' "
                         "nor '.fastq' [file: '" + input_file + "']")
-
 
 
 def parse_text_data(lines_or_path, delimiter=os.linesep):
@@ -381,19 +376,17 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
                          format(lines_or_path, type(lines_or_path)))
 
 
-
 def sample_folder(prj, sample):
     """
     Get the path to this Project's root folder for the given Sample.
 
-    :param AttributeDict | Project prj: project with which sample is associated
+    :param attmap.PathExAttMap | Project prj: project with which sample is associated
     :param Mapping sample: Sample or sample data for which to get root output
         folder path.
     :return str: this Project's root folder for the given Sample
     """
     return os.path.join(prj.metadata.results_subdir,
                         sample["sample_name"])
-
 
 
 @contextlib.contextmanager
@@ -416,7 +409,6 @@ def standard_stream_redirector(stream):
         sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
 
 
-
 def warn_derived_cols():
     """ Produce deprecation warning about derived columns. """
     _warn_cols_to_attrs("derived")
@@ -427,36 +419,26 @@ def warn_implied_cols():
     _warn_cols_to_attrs("implied")
 
 
-def _is_null(x):
-    """ Whether an object is effectively null """
-    return x in [None, ""] or (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
-
-
 def _warn_cols_to_attrs(prefix):
     """ Produce deprecation warning about 'columns' rather than 'attributes' """
     warnings.warn("{pfx}_columns should be encoded and referenced "
                   "as {pfx}_attributes".format(pfx=prefix), DeprecationWarning)
 
 
-
 class CommandChecker(object):
     """
     Validate PATH availability of executables referenced by a config file.
 
-    :param path_conf_file: path to configuration file with
+    :param str path_conf_file: path to configuration file with
         sections detailing executable tools to validate
-    :type path_conf_file: str
-    :param sections_to_check: names of
+    :param Iterable[str] sections_to_check: names of
         sections of the given configuration file that are relevant;
         optional, will default to all sections if not given, but some
         may be excluded via another optional parameter
-    :type sections_to_check: Iterable[str]
-    :param sections_to_skip: analogous to
+    :param Iterable[str] sections_to_skip: analogous to
         the check names parameter, but for specific sections to skip.
-    :type sections_to_skip: Iterable[str]
 
     """
-
 
     def __init__(self, path_conf_file,
                  sections_to_check=None, sections_to_skip=None):
@@ -523,7 +505,6 @@ class CommandChecker(object):
                     self._logger.debug("Command '%s': %s", command,
                                        "SUCCESS" if success else "FAILURE")
 
-
     def _store_status(self, section, command, name):
         """
         Based on new command execution attempt, update instance's
@@ -538,7 +519,6 @@ class CommandChecker(object):
             self.failures_by_section[section].append(command)
             self.failures.add(command)
         return succeeded
-
 
     @property
     def failed(self):
@@ -555,7 +535,6 @@ class CommandChecker(object):
         if not self.section_to_status_by_command:
             raise ValueError("No commands validated")
         return 0 == len(self.failures)
-
 
 
 def is_command_callable(command, name=""):

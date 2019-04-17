@@ -4,16 +4,14 @@ import copy
 import random
 import string
 import sys
-if sys.version_info < (3, 3):
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
 
 import mock
 import pytest
 
-from peppy import AttributeDict, Project, Sample
-from peppy.const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS, SAMPLE_NAME_COLNAME
+from attmap import AttMap
+from peppy import Project, Sample
+from peppy.const import *
+from peppy.project import NEW_PIPES_KEY
 from peppy.utils import \
     add_project_sample_constants, coll_like, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
@@ -24,12 +22,10 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-
 class _DummyProject(Project):
     """ Get just the methods and data-access portions of Project. """
     def __init__(self, data):
         self.add_entries(data)
-
 
 
 @pytest.fixture
@@ -41,17 +37,16 @@ def basic_project_data():
         value or collection of values.
     """
     return {
-        "metadata": {
-            "sample_annotation": "anns.csv",
-            "output_dir": "outdir",
+        METADATA_KEY: {
+            NAME_TABLE_ATTR: "anns.csv",
+            OUTDIR_KEY: "outdir",
             "results_subdir": "results_pipeline",
             "submission_subdir": "submission"},
-        "derived_attributes": ["data_source"],
-        "implied_attributes": {"organism": {"genomes": {
+        DERIVATIONS_DECLARATION: [DATA_SOURCE_COLNAME],
+        IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
         "trackhubs": []
     }
-
 
 
 @pytest.fixture
@@ -74,7 +69,6 @@ def sample_independent_data(request, basic_project_data):
     return {s: basic_project_data[s] for s in sections}
 
 
-
 class GrabProjectDataTests:
     """ Tests for grabbing Sample-independent Project configuration data. """
 
@@ -89,7 +83,7 @@ class GrabProjectDataTests:
         argnames="sections",
         argvalues=nonempty_powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS))
     @named_param(argnames="data_type",
-                 argvalues=[dict, AttributeDict, _DummyProject])
+                 argvalues=[AttMap, _DummyProject])
     def test_does_not_need_all_sample_independent_data(
             self, sections, data_type,
             basic_project_data, sample_independent_data):
@@ -104,10 +98,9 @@ class GrabProjectDataTests:
     @named_param(
         argnames="extra_data",
         argvalues=nonempty_powerset(
-            [{"pipeline_interfaces": [{"b": 1}, {"c": 2}]},
-             {"pipeline_config": {}}]))
+            [{NEW_PIPES_KEY: [{"b": 1}, {"c": 2}]}, {"pipeline_config": {}}]))
     @named_param(
-        argnames="data_type", argvalues=[dict, AttributeDict, _DummyProject])
+        argnames="data_type", argvalues=[AttMap, _DummyProject])
     def test_grabs_only_sample_independent_data(
             self, sample_independent_data, extra_data, data_type):
         """ Only Project data defined as Sample-independent is retrieved. """
@@ -134,23 +127,19 @@ class GrabProjectDataTests:
             raise
 
 
-
 class AddProjectSampleConstantsTests:
     """ Utility function can add a Project's constant to Sample. """
-
 
     @pytest.fixture
     def basic_sample(self):
         """ Provide test cases with a simple Sample instance. """
         return Sample({SAMPLE_NAME_COLNAME: "arbitrarily_named_sample"})
 
-
     def test_no_constants(self, basic_sample):
         """ No constants declared means the Sample is unchanged. """
         mock_prj = mock.MagicMock(constants=dict())
         sample = add_project_sample_constants(basic_sample, mock_prj)
         assert basic_sample == sample
-
 
     @named_param(
         argnames="constants",
@@ -166,7 +155,6 @@ class AddProjectSampleConstantsTests:
             assert attr_value == basic_sample[attr_name]
             assert attr_value == getattr(basic_sample, attr_name)
 
-
     @named_param(argnames=["collision", "old_val", "new_val"],
                  argvalues=[("coll_attr_1", 1, 2), ("coll_attr_2", 3, 4)])
     def test_name_collision(self, basic_sample, collision, old_val, new_val):
@@ -176,7 +164,6 @@ class AddProjectSampleConstantsTests:
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]
-
 
 
 def _randcoll(pool, dt):
@@ -193,7 +180,6 @@ def _randcoll(pool, dt):
                         format(str(dt), ", ".join(str(t) for t in valid_types)))
     rs = [random.choice(pool) for _ in range(random.randint(1, 10))]
     return dict(enumerate(rs)) if dt == dict else rs
-
 
 
 @pytest.mark.parametrize(
@@ -213,7 +199,7 @@ def test_coll_like(arg, exp):
 
 
 def _get_empty_attrdict(data):
-    ad = AttributeDict()
+    ad = AttMap()
     ad.add_entries(data)
     return ad
 
@@ -226,9 +212,9 @@ class NullValueHelperTests:
     @pytest.mark.skip("Not implemented")
     @pytest.fixture(
         params=[lambda d: dict(d),
-                lambda d: AttributeDict().add_entries(d),
+                lambda d: AttMap().add_entries(d),
                 lambda d: _DummyProject(d)],
-        ids=["dict", AttributeDict.__name__, _DummyProject.__name__])
+        ids=["dict", AttMap.__name__, _DummyProject.__name__])
     def kvs(self, request):
         """ For test cases provide KV pair map of parameterized type."""
         return request.param(self._DATA)

@@ -19,8 +19,9 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from peppy import \
-    setup_peppy_logger, Project, SAMPLE_NAME_COLNAME
+from logmuse import setup_logger
+from peppy import Project, SAMPLE_NAME_COLNAME
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
 
 
 _LOGGER = logging.getLogger("peppy")
@@ -28,19 +29,22 @@ _LOGGER = logging.getLogger("peppy")
 
 P_CONFIG_FILENAME = "project_config.yaml"
 
+ANNOTATIONS_FILENAME = "samples.csv"
+SUBSAMPLES_FILENAME = "merge.csv"
+
 # {basedir} lines are formatted during file write; other braced entries remain.
-PROJECT_CONFIG_LINES = """metadata:
-  sample_annotation: samples.csv
+PROJECT_CONFIG_LINES = """{md_key}:
+  {tab_key}: {main_table}
   output_dir: test
   pipeline_interfaces: pipelines
-  sample_subannotation: merge.csv
+  {subtab_key}: {subtable}
 
-derived_attributes: [{derived_attribute_names}]
+derived_attributes: [{{derived_attribute_names}}]
 
 data_sources:
-  src1: "{basedir}/data/{sample_name}{col_modifier}.txt"
-  src3: "{basedir}/data/{sample_name}.txt"
-  src2: "{basedir}/data/{sample_name}-bamfile.bam"
+  src1: "{{basedir}}/data/{{sample_name}}{{col_modifier}}.txt"
+  src3: "{{basedir}}/data/{{sample_name}}.txt"
+  src2: "{{basedir}}/data/{{sample_name}}-bamfile.bam"
 
 implied_attributes:
   sample_name:
@@ -49,14 +53,15 @@ implied_attributes:
       phenome: hg72
     b:
       genome: hg38
-""".splitlines(True)
+""".format(
+    md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR,
+    main_table=ANNOTATIONS_FILENAME, subtable=SUBSAMPLES_FILENAME,
+    subtab_key=SAMPLE_SUBANNOTATIONS_KEY).splitlines(True)
 # Will populate the corresponding string format entry in project config lines.
 DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
                     "nonmerged_col", "nonmerged_col", "data_source"]
 
 # Connected with project config lines & should match; separate for clarity.
-ANNOTATIONS_FILENAME = "samples.csv"
-MERGE_TABLE_FILENAME = "merge.csv"
 SRC1_TEMPLATE = "data/{sample_name}{col_modifier}.txt"
 SRC2_TEMPLATE = "data/{sample_name}-bamfile.bam"
 SRC3_TEMPLATE = "data/{sample_name}.txt"
@@ -151,38 +156,21 @@ MERGED_SAMPLE_INDICES = {1}
 # src1 --> "data/{sample_name}{col_modifier}.txt"
 EXPECTED_MERGED_SAMPLE_FILES = ["b1.txt", "b2.txt", "b3.txt"]
 
-
 # Discover name of attribute pointing to location of test config file based
 # on the type of model instance being requested in a test fixture.
 _ATTR_BY_TYPE = {Project: "project_config_file"}
 
-
-# TODO: split models conftest stuff into its own subdirectory.
-# Provide some basic atomic-type data for models tests.
-_BASE_KEYS = ("epigenomics", "H3K", "ac", "EWS", "FLI1")
-_BASE_VALUES = \
-    ("topic", "residue", "acetylation", "RNA binding protein", "FLI1")
-_SEASON_HIERARCHY = {
-    "spring": {"February": 28, "March": 31, "April": 30, "May": 31},
-    "summer": {"June": 30, "July": 31, "August": 31},
-    "fall": {"September": 30, "October": 31, "November": 30},
-    "winter": {"December": 31, "January": 31}
-}
-COMPARISON_FUNCTIONS = ["__eq__", "__ne__", "__len__",
-                        "keys", "values", "items"]
 COLUMNS = [SAMPLE_NAME_COLNAME, "val1", "val2", "protocol"]
-PROJECT_CONFIG_DATA = {"metadata": {"sample_annotation": "annotations.csv"}}
-
+PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: "annotations.csv"}}
 
 
 def update_project_conf_data(extension):
     """ Updated Project configuration data mapping based on file extension """
     updated = copy.deepcopy(PROJECT_CONFIG_DATA)
-    filename = updated["metadata"]["sample_annotation"]
+    filename = updated[METADATA_KEY][NAME_TABLE_ATTR]
     base, _ = os.path.splitext(filename)
-    updated["metadata"]["sample_annotation"] = "{}.{}".format(base, extension)
+    updated[METADATA_KEY][NAME_TABLE_ATTR] = "{}.{}".format(base, extension)
     return updated
-
 
 
 def pytest_addoption(parser):
@@ -190,7 +178,6 @@ def pytest_addoption(parser):
     parser.addoption("--logging-level",
                      default="WARN",
                      help="Project root logger level to use for tests")
-
 
 
 def pytest_generate_tests(metafunc):
@@ -204,24 +191,27 @@ def pytest_generate_tests(metafunc):
                 ids=[ctype.__name__ for ctype in collection_types])
 
 
-
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
-    setup_peppy_logger(level=level, devmode=True)
-    logging.getLogger("peppy").info(
+    logname = "peppy"
+    setup_logger(name=logname, level=level, devmode=True)
+    logging.getLogger(logname).info(
         "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
     global _LOGGER
     _LOGGER = logging.getLogger("peppy.{}".format(__name__))
 
 
-
 @pytest.fixture(scope="function")
 def sample_annotation_lines():
-    return SAMPLE_ANNOTATION_LINES
+    """
+    Return fixed collection of lines for sample annotations sheet.
 
+    :return Iterable[str]: collection of lines for sample annotations sheet
+    """
+    return SAMPLE_ANNOTATION_LINES
 
 
 @pytest.fixture(scope="function")
@@ -241,7 +231,7 @@ def path_empty_project(request, tmpdir):
 
     # Write the needed files.
     anns_path = os.path.join(
-            tmpdir.strpath, conf_data["metadata"]["sample_annotation"])
+            tmpdir.strpath, conf_data[METADATA_KEY][NAME_TABLE_ATTR])
 
     with open(anns_path, 'w') as anns_file:
         anns_file.write(delimiter.join(COLUMNS))
@@ -250,7 +240,6 @@ def path_empty_project(request, tmpdir):
         yaml.dump(conf_data, conf_file)
 
     return conf_path
-
 
 
 def interactive(
@@ -277,9 +266,9 @@ def interactive(
     """
 
     # Establish logging for interactive session.
-    pep_logger_kwargs = {"level": "DEBUG"}
+    pep_logger_kwargs = {"level": "DEBUG", "name": "peppy"}
     pep_logger_kwargs.update(logger_kwargs or {})
-    setup_peppy_logger(**pep_logger_kwargs)
+    setup_logger(**pep_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
@@ -291,7 +280,7 @@ def interactive(
         dirpath=dirpath, fname="pipeline_interface.yaml")
     path_sample_subannotation_file = _write_temp(
         sample_subannotation_lines,
-        dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+        dirpath=dirpath, fname=SUBSAMPLES_FILENAME
     )
     path_sample_annotation_file = _write_temp(
         annotation_lines,
@@ -305,7 +294,6 @@ def interactive(
     return prj
 
 
-
 class _DataSourceFormatMapping(dict):
     """
     Partially format text with braces. This helps since bracing is the
@@ -314,7 +302,6 @@ class _DataSourceFormatMapping(dict):
     """
     def __missing__(self, derived_attribute):
         return "{" + derived_attribute + "}"
-
 
 
 def _write_temp(lines, dirpath, fname):
@@ -355,12 +342,10 @@ def _write_temp(lines, dirpath, fname):
     return filepath
 
 
-
 @pytest.fixture(scope="function")
 def project_config_lines():
     """ Provide safer iteration over the lines for Project config file. """
     return PROJECT_CONFIG_LINES
-
 
 
 @pytest.fixture(scope="function")
@@ -373,9 +358,11 @@ def path_project_conf(tmpdir, project_config_lines):
         Project configuration file
     :return str: path to file with Project configuration data
     """
+    with open(os.path.join(tmpdir.strpath, SUBSAMPLES_FILENAME), 'w') as f:
+        for l in SAMPLE_SUBANNOTATION_LINES:
+            f.write(l)
     return _write_temp(
         project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
-
 
 
 @pytest.fixture(scope="function")
@@ -391,7 +378,6 @@ def proj_conf_data(path_project_conf):
         return yaml.safe_load(conf_file)
 
 
-
 @pytest.fixture(scope="function")
 def path_sample_anns(tmpdir, sample_annotation_lines):
     """
@@ -403,15 +389,18 @@ def path_sample_anns(tmpdir, sample_annotation_lines):
     :return str: path to the sample annotations file that was written
     """
     filepath = _write_temp(
-            sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
+        sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
     return filepath
-
 
 
 @pytest.fixture(scope="function")
 def p_conf_fname():
-    return P_CONFIG_FILENAME
+    """
+    Return fixed name of project config file.
 
+    :return str: name of project config file
+    """
+    return P_CONFIG_FILENAME
 
 
 @pytest.fixture(scope="class")
@@ -428,7 +417,7 @@ def write_project_files(request):
                                  dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_sample_subannotation_file = _write_temp(
             SAMPLE_SUBANNOTATION_LINES,
-            dirpath=dirpath, fname=MERGE_TABLE_FILENAME
+            dirpath=dirpath, fname=SUBSAMPLES_FILENAME
     )
     path_sample_annotation_file = _write_temp(
             SAMPLE_ANNOTATION_LINES,
@@ -448,7 +437,7 @@ def write_project_files(request):
 def subannotation_filepath(tmpdir):
     """ Write sample subannotations (temp) file and return path to it. """
     return _write_temp(SAMPLE_SUBANNOTATION_LINES,
-                       dirpath=tmpdir.strpath, fname=MERGE_TABLE_FILENAME)
+                       dirpath=tmpdir.strpath, fname=SUBSAMPLES_FILENAME)
 
 
 
@@ -481,11 +470,9 @@ def _write_test_data_files(tempdir):
             testfile.write(data)
 
 
-
 def request_class_attribute(req, attr):
     """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
-
 
 
 def _create(request, data_type, **kwargs):
@@ -508,7 +495,6 @@ def _create(request, data_type, **kwargs):
         raise
 
 
-
 @pytest.fixture(scope="function")
 def proj(request):
     """
@@ -526,17 +512,3 @@ def proj(request):
     p = _create(request, Project)
     p.finalize_pipelines_directory()
     return p
-
-
-
-def basic_entries():
-    """ AttributeDict data that lack nested strcuture. """
-    for k, v in zip(_BASE_KEYS, _BASE_VALUES):
-        yield k, v
-
-
-
-def nested_entries():
-    """ AttributeDict data with some nesting going on. """
-    for k, v in _SEASON_HIERARCHY.items():
-        yield k, v

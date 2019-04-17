@@ -1,0 +1,6 @@
+metadata:
+  sample_annotation: sample_annotation.csv
+
+bioconductor:
+  readFunName: readBedFilesExceptions
+  readFunPath: readBedFilesExceptions.R
