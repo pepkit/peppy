@@ -1,6 +1,6 @@
 # Changelog
 
-## *v0.20* (2019-04-03):
+## *v0.20* (2019-04-17):
 ### Added
 - `subsample_table` on a `Project` gives the table of sample subannotation / "units" if applicable.
 ### Changed
