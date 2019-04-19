@@ -127,16 +127,14 @@ class Sample(PathExAttMap):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
-    @staticmethod
-    def _omit_from_eq(k):
+    def _omit_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
-        return k == PRJ_REF
+        return super(Sample, self)._omit_from_eq(k) or k == PRJ_REF
 
-    @staticmethod
-    def _omit_from_repr(k, cls):
+    def _omit_from_repr(self, k, cls):
         """ Exclude the Project reference from representation. """
         # TODO: better solution for this cyclical dependency hack
-        return k == PRJ_REF
+        return super(Sample, self)._omit_from_repr(k, cls) or k == PRJ_REF
 
     def __setitem__(self, key, value):
         # TODO: better solution for this cyclical dependency hack
