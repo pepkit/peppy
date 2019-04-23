@@ -227,11 +227,16 @@ class Sample(PathExAttMap):
                 _LOGGER.log(5, "'{}' is valid: '{}'".
                             format(file_attribute, attval))
 
-        if missing or empty:
-            reason_key = "Missing and/or empty attribute(s)."
-            reason_detail = "Missing: {}; Empty: {}".format(
-                ", ".join(missing), ", ".join(empty))
+        if missing:
+            reason_key = "Missing attribute"
+            reason_detail = "Missing: {}".format(", ".join(missing))
             return AttributeError, reason_key, reason_detail
+
+        if empty:
+            reason_key = "Empty attribute"
+            reason_detail = "Empty: {}".format(",".join(empty))
+            return AttributeError, reason_key, reason_detail
+
 
         # Second, files
         missing_files = []
