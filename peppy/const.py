@@ -4,10 +4,7 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-# Compute-related
-DEFAULT_COMPUTE_RESOURCES_NAME = "default"
 SAMPLE_NAME_COLNAME = "sample_name"
-COMPUTE_CONSTANTS = ["DEFAULT_COMPUTE_RESOURCES_NAME", "SAMPLE_NAME_COLNAME"]
 
 # Project-related
 NAME_TABLE_ATTR = "sample_table"
@@ -44,5 +41,5 @@ GENERIC_PROTOCOL_KEY = "*"
 OTHER_CONSTANTS = ["FLAGS", "GENERIC_PROTOCOL_KEY"]
 
 
-__all__ = COMPUTE_CONSTANTS + PROJECT_CONSTANTS + \
+__all__ = ["SAMPLE_NAME_COLNAME"] + PROJECT_CONSTANTS + \
           SAMPLE_CONSTANTS + OTHER_CONSTANTS

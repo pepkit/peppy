@@ -61,7 +61,7 @@ import pandas as pd
 import yaml
 
 from attmap import PathExAttMap
-from divvy import ComputingConfiguration
+from divvy import DEFAULT_COMPUTE_RESOURCES_NAME, ComputingConfiguration
 from .const import *
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
