@@ -1,4 +1,4 @@
-mkdocs
+mkdocs>1.0
 markdown-include
 pydoc-markdown
 https://github.com/databio/mkdocs-databio/archive/master.zip
