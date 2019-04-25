@@ -661,10 +661,14 @@ class Project(PathExAttMap):
             pipe_path = []
         self[METADATA_KEY][NEW_PIPES_KEY] = pipe_path
 
-    def get_arg_string(self, pipeline_name):
+    def get_arg_string(self, pipeline_name, yield_precedence=None):
         """
-        For this project, given a pipeline, return an argument string
-        specified in the project config file.
+        Build argstring from opts/args in project config file for given pipeline.
+
+        :param str pipeline_name: identifier for the relevant pipeline
+        :param Iterable[str] yield_precedence: collection of opts/args to
+            yield to, i.e. to omit from the argstring (e.g., CLI-specified
+            extra arguments that take priority over those in project config)
         """
 
         def make_optarg_text(opt, arg):
@@ -688,7 +692,7 @@ class Project(PathExAttMap):
             # NS using __dict__ will add in the metadata from AttrDict (doh!)
             _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
             optargs_texts = [make_optarg_text(opt, arg)
-                             for opt, arg in optargs.items()]
+                             for opt, arg in optargs.items() if opt not in (yield_precedence or set())]
             _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
             # TODO: may need to fix some spacing issues here.
             return " ".join(optargs_texts)
