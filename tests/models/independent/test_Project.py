@@ -290,7 +290,7 @@ class ProjectPipelineArgstringTests:
     @pytest.mark.parametrize(
             argnames="pipeline", argvalues=["not-mapped-1", "unmapped_2"])
     @pytest.mark.parametrize(
-            argnames="pipeline_args",
+            argnames=PIPE_ARGS_SECTION,
             argvalues=[PIPELINE_ARGS_FLAGS_ONLY,
                        PIPELINE_ARGS_OPTIONS_ONLY, PIPELINE_ARGS_MIXED],
             ids=lambda pipe_args: "pipeline_args: {}".format(pipe_args))
@@ -299,7 +299,7 @@ class ProjectPipelineArgstringTests:
             env_config_filepath, project_config_data):
         """ Project-level argstring is empty for unmapped pipeline name. """
         # Project-level argstring is empty if pipeline_args section is absent.
-        project_config_data["pipeline_args"] = pipeline_args
+        project_config_data[PIPE_ARGS_SECTION] = pipeline_args
         observed_argstring_elements = self.observed_argstring_elements(
                 project_config_data, pipeline, 
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
@@ -315,7 +315,7 @@ class ProjectPipelineArgstringTests:
         """ Project does flags-only, options-only, or mixed pipeline_args. """
 
         # Allow parameterization to determine pipeline_args section content.
-        project_config_data["pipeline_args"] = self.DATA_BY_CASE_TYPE[optargs]
+        project_config_data[PIPE_ARGS_SECTION] = self.DATA_BY_CASE_TYPE[optargs]
 
         # Expectation arises from section content and requested pipeline.
         expected_argstring_components = \
@@ -344,7 +344,7 @@ class ProjectPipelineArgstringTests:
             self, default, pipeline, tmpdir, 
             project_config_data, env_config_filepath):
         """ Project always adds any default pipeline arguments. """
-        project_config_data["pipeline_args"] = {"default": default}
+        project_config_data[PIPE_ARGS_SECTION] = {"default": default}
         expected_components = {opt if arg is None else (opt, arg)
                                for opt, arg in default.items()}
         observed_argstring_elements = self.observed_argstring_elements(
@@ -367,7 +367,7 @@ class ProjectPipelineArgstringTests:
         case_type = "mixed"
         pipeline_args = copy.deepcopy(self.DATA_BY_CASE_TYPE[case_type])
         pipeline_args["default"] = default
-        project_config_data["pipeline_args"] = pipeline_args
+        project_config_data[PIPE_ARGS_SECTION] = pipeline_args
         observed_components = self.observed_argstring_elements(
                 project_config_data, pipeline,
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
@@ -389,7 +389,7 @@ class ProjectPipelineArgstringTests:
         genomes_substitution = os.path.expandvars("$HOME")
         pipeline_args = {pipeline: {
                 "--positions": "$HOME/{}".format(genomes_extension)}}
-        project_config_data["pipeline_args"] = pipeline_args
+        project_config_data[PIPE_ARGS_SECTION] = pipeline_args
         expected = "--positions {}/{}".format(genomes_substitution, 
                                               genomes_extension)
         observed = self.observed_argstring_elements(
