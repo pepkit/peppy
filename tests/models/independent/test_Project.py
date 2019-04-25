@@ -51,7 +51,6 @@ def pytest_generate_tests(metafunc):
                 ids=lambda case_type: "case_type={}".format(case_type))
 
 
-
 class ProjectConstructorTests:
     """ Tests of Project constructor, particularly behavioral details. """
 
@@ -172,7 +171,6 @@ class DerivedAttributesTests:
     ADDITIONAL_DERIVED_ATTRIBUTES = ["arbitrary1", "filler2", "placeholder3"]
     DERIVED_ATTRIBUTES_CASE_TYPES = ["implicit", "disjoint", "intersection"]
 
-
     def create_project(
             self, project_config_data, case_type, dirpath):
         """
@@ -217,8 +215,6 @@ class DerivedAttributesTests:
             project = Project(conf_file_path)
         return expected_derived_attributes, project
 
-
-
     def test_default_derived_attributes_always_present(self,
             env_config_filepath, project_config_data, case_type, tmpdir):
         """ Explicit or implicit, default derived attributes are always there. """
@@ -232,7 +228,6 @@ class DerivedAttributesTests:
         assert len(expected_derived_attributes) == len(project.derived_attributes)
         assert set(expected_derived_attributes) == set(project.derived_attributes)
 
-
     def test_default_derived_attributes_not_duplicated(self,
             env_config_filepath, project_config_data, case_type, tmpdir):
         """ Default derived attributes are not added if already present. """
@@ -243,7 +238,6 @@ class DerivedAttributesTests:
         num_occ_by_derived_attribute = Counter(project.derived_attributes)
         for default_derived_colname in Project.DERIVED_ATTRIBUTES_DEFAULT:
             assert 1 == num_occ_by_derived_attribute[default_derived_colname]
-
 
 
 class ProjectPipelineArgstringTests:
@@ -283,7 +277,6 @@ class ProjectPipelineArgstringTests:
                          for opt, arg in mixed_encoding.items()}
                   for pipe, mixed_encoding in PIPELINE_ARGS_MIXED.items()}}
 
-
     @pytest.mark.parametrize(argnames="pipeline",
                              argvalues=["arb-pipe-1", "dummy_pipeline_2"])
     def test_no_pipeline_args(self, tmpdir, pipeline,
@@ -293,7 +286,6 @@ class ProjectPipelineArgstringTests:
         assert [""] == self.observed_argstring_elements(
                 project_config_data, pipeline, 
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
-
 
     @pytest.mark.parametrize(
             argnames="pipeline", argvalues=["not-mapped-1", "unmapped_2"])
@@ -312,7 +304,6 @@ class ProjectPipelineArgstringTests:
                 project_config_data, pipeline, 
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
         assert [""] == observed_argstring_elements
-
 
     @pytest.mark.parametrize(
             argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
@@ -341,7 +332,6 @@ class ProjectPipelineArgstringTests:
 
         assert expected_argstring_components == observed_argstring_elements
 
-
     @pytest.mark.parametrize(
             argnames="default", 
             argvalues=[{"-D": None},
@@ -363,7 +353,6 @@ class ProjectPipelineArgstringTests:
         observed_argstring_elements = \
                 self._parse_flags_and_options(observed_argstring_elements)
         assert expected_components == observed_argstring_elements
-
 
     @pytest.mark.parametrize(
             argnames="default", 
@@ -392,7 +381,6 @@ class ProjectPipelineArgstringTests:
         expected_components = expected_from_default | expected_from_pipeline
         assert expected_components == observed_components
 
-
     def test_path_expansion(
             self, tmpdir, project_config_data, env_config_filepath):
         """ Path values in pipeline_args expand environment variables. """
@@ -408,7 +396,6 @@ class ProjectPipelineArgstringTests:
                 project_config_data, pipeline, 
                 confpath=tmpdir.strpath, envpath=env_config_filepath)
         assert expected.split(" ") == observed
-
 
     def observed_argstring_elements(
             self, confdata, pipeline, confpath, envpath):
@@ -429,7 +416,6 @@ class ProjectPipelineArgstringTests:
 
         argstring = project.get_arg_string(pipeline)
         return argstring.split(" ")
-    
     
     @staticmethod
     def _parse_flags_and_options(command_elements):
@@ -480,10 +466,8 @@ class ProjectPipelineArgstringTests:
         return parsed_command_elements
 
 
-
 @pytest.mark.usefixtures("write_project_files")
 class ProjectConstructorTest:
-
 
     @pytest.mark.parametrize(argnames="attr_name",
                              argvalues=["required_inputs", "all_input_attr"])
@@ -492,20 +476,17 @@ class ProjectConstructorTest:
         with pytest.raises(AttributeError):
             getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
 
-
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=MERGED_SAMPLE_INDICES)
     def test_merge_samples_positive(self, proj, sample_index):
         """ Samples annotation lines say only sample 'b' should be merged. """
         assert proj.samples[sample_index].merged
 
-
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=set(range(NUM_SAMPLES)) -
                                        MERGED_SAMPLE_INDICES)
     def test_merge_samples_negative(self, proj, sample_index):
         assert not proj.samples[sample_index].merged
-
 
     @pytest.mark.parametrize(argnames="sample_index",
                              argvalues=MERGED_SAMPLE_INDICES)
@@ -519,7 +500,6 @@ class ProjectConstructorTest:
         # Observed may include additional things (like auto-added subsample_name)
         assert required == (required & observed)
 
-
     @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
     def test_derived_attributes_sample_subannotation_sample(
             self, proj, sample_index):
@@ -530,14 +510,12 @@ class ProjectConstructorTest:
         assert EXPECTED_MERGED_SAMPLE_FILES == \
                observed_merged_sample_filepaths
 
-
     @named_param(argnames="sample_index",
                  argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
         """ Samples not in the `subsample_table` lack merged columns. """
         # Assert the negative to cover empty dict/AttMap/None/etc.
         assert not proj.samples[sample_index].merged_cols
-
 
     def test_duplicate_derived_attributes_still_derived(self, proj):
         """ Duplicated derived attributes can still be derived. """
@@ -547,7 +525,6 @@ class ProjectConstructorTest:
         assert "c.txt" == observed_nonmerged_col_basename
         assert "" == proj.samples[sample_index].locate_data_source(
                 proj.data_sources, 'file')
-
 
 
 class SubprojectActivationDeactivationTest:
@@ -669,7 +646,6 @@ class SubprojectActivationDeactivationTest:
         with open(conf_file_path, 'w') as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)
-
 
 
 @pytest.mark.usefixtures("write_project_files")
