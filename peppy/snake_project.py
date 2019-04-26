@@ -1,0 +1,75 @@
+""" Adapting Project for interop with Snakemake """
+
+from .const import *
+from .project import Project, sample_table, subsample_table
+from .utils import count_repeats
+
+__author__ = "Vince Reuter"
+__email__ = "vreuter@virginia.edu"
+
+
+SNAKEMAKE_SAMPLE_COL = "sample"
+
+
+class SnakeProject(Project):
+    """ Extending Project for interop with Snakemake """
+
+    # TODO: sample_name <--> sample
+    # TODO: subsample_name <--> unit
+    # TODO: sample name uniqueness?
+    # TODO: column indexing (name and unit)
+
+    @property
+    def sample_table(self):
+        """
+        Get (possibly building) Project's table of samples, naming for Snakemake.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of samples'
+            metadata, if one is defined
+        :raise Exception: if multiple sample identifier columns are present, or
+            if any sample identifier is repeated
+        """
+        t = sample_table(self)
+        if SAMPLE_NAME_COLNAME in t.columns and SNAKEMAKE_SAMPLE_COL in t.columns:
+            raise Exception(
+                "Multiple sample identifier columns present: {}".format(
+                    ", ".join([SNAKEMAKE_SAMPLE_COL, SAMPLE_NAME_COLNAME])))
+        t = _rename_columns(t)
+        reps = count_repeats(t[SNAKEMAKE_SAMPLE_COL])
+        if reps:
+            raise Exception("Repeated sample identifiers (and counts): {}".
+                            format(reps))
+        return t.set_index(SAMPLE_NAME_COLNAME, drop=False)
+
+    def subsample_table(self):
+        """
+        Get (possibly building) Project's table of samples, naming for Snakemake.
+
+        :return pandas.core.frame.DataFrame | NoneType: table of samples'
+            metadata, if one is defined
+        """
+
+        t = _rename_columns(subsample_table(self))
+        sm_col = "unit"
+
+        if sm_col in t.columns:
+            return t
+
+        def count_names(names):
+            def go(rem, n, curr, acc):
+                if not rem:
+                    return acc + [n]
+                h, tail = rem[0], rem[1:]
+                return go(tail, n + 1, curr, acc) \
+                    if h == curr else go(tail, 1, h, acc + [n])
+            return go(names[1:], 1, names[0], []) if names else []
+
+        units = [i for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
+                 for i in range(1, n + 1)]
+        t.insert(1, sm_col, units)
+        return t.set_index([SNAKEMAKE_SAMPLE_COL, sm_col], drop=False)
+
+
+def _rename_columns(t):
+    """ Update table column names to map peppy to Snakemake. """
+    return t.rename({SAMPLE_NAME_COLNAME: SNAKEMAKE_SAMPLE_COL}, axis=1)

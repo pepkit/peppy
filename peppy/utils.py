@@ -1,6 +1,6 @@
 """ Helpers without an obvious logical home. """
 
-from collections import defaultdict, Iterable
+from collections import Counter, defaultdict, Iterable
 import contextlib
 import logging
 import os
@@ -26,8 +26,8 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "CommandChecker", "add_project_sample_constants", "check_bam", "check_fastq",
-    "get_file_size", "fetch_samples", "grab_project_data", "has_null_value",
-    "is_command_callable"
+    "count_repeats", "get_file_size", "fetch_samples", "grab_project_data",
+    "has_null_value", "is_command_callable"
 ]
 
 
@@ -116,6 +116,18 @@ def copy(obj):
         return deepcopy(self)
     obj.copy = copy
     return obj
+
+
+def count_repeats(objs):
+    """
+    Find (and count) repeated objects
+
+    :param Iterable[object] objs: collection of objects in which to seek
+        repeated elements
+    :return list[(object, int)]: collection of pairs in which first component
+        of each is a repeated object, and the second is duplication count
+    """
+    return [(o, n) for o, n in Counter(objs).items() if n > 1]
 
 
 def expandpath(path):

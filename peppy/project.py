@@ -47,7 +47,7 @@ Explore:
 
 """
 
-from collections import Counter
+from collections import Counter, namedtuple
 import logging
 import os
 import sys
@@ -431,15 +431,7 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of samples'
             metadata, if one is defined
         """
-        from copy import copy as cp
-        key = NAME_TABLE_ATTR
-        attr = "_" + key
-        if self.get(attr) is None:
-            sheetfile = self[METADATA_KEY].get(key)
-            if sheetfile is None:
-                return None
-            self[attr] = self.parse_sample_sheet(sheetfile)
-        return cp(self[attr])
+        return sample_table(self)
 
     @property
     def sheet(self):
@@ -469,15 +461,27 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of subsamples'
             metadata, if the project defines such a table
         """
+        return subsample_table(self)
+
+    def _meta_from_file_set_if_needed(self, spec, attr=lambda k: "_" + k):
         from copy import copy as cp
-        key = SAMPLE_SUBANNOTATIONS_KEY
-        attr = "_" + key
+        if not isinstance(spec, _MakeTableSpec):
+            raise TypeError("Invalid specification type: {}".format(type(spec)))
+        if hasattr(attr, "__call__"):
+            attr = attr(spec.key)
+        elif not isinstance(attr, str):
+            raise TypeError("Attr name must be string or function to call on "
+                            "key to make attr name; got {}".format(type(attr)))
         if self.get(attr) is None:
-            sheetfile = self[METADATA_KEY].get(key)
-            if sheetfile is None:
+            filepath = self[METADATA_KEY].get(spec.key)
+            if filepath is None:
                 return None
-            self[attr] = pd.read_csv(sheetfile,
-                sep=infer_delimiter(sheetfile), **READ_CSV_KWARGS)
+            if spec.make_extra_kwargs:
+                kwds = cp(spec.kwargs)
+                kwds.update(spec.make_extra_kwargs(filepath))
+            else:
+                kwds = spec.kwargs
+            self[attr] = spec.get_parse_fun(self)(filepath, **kwds)
         return cp(self[attr])
 
     @property
@@ -1126,3 +1130,36 @@ def _warn_pipes_deprecation():
     msg = "Use of {} is deprecated; favor {}".\
         format(OLD_PIPES_KEY, NEW_PIPES_KEY)
     warnings.warn(msg, DeprecationWarning)
+
+
+def sample_table(p):
+    """
+    Provide (building as needed) a Project's main samples (metadata) table.
+
+    :param peppy.Project p: Project instance from which to get table
+    :return pandas.core.frame.DataFrame: the Project's sample table
+    """
+    if not isinstance(p, Project):
+        raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
+    return p._meta_from_file_set_if_needed(_MAIN_TABLE_SPEC)
+
+
+def subsample_table(p):
+    """
+    Provide (building as needed) a Project's subsample (metadata) table.
+
+    :param peppy.Project p: Project instance from which to get subsample table
+    :return pandas.core.frame.DataFrame: the Project's subsample table
+    """
+    if not isinstance(p, Project):
+        raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
+    return p._meta_from_file_set_if_needed(_SUBS_TABLE_SPEC)
+
+
+_MakeTableSpec = namedtuple(
+    "_MakeTableSpec", ["key", "get_parse_fun", "make_extra_kwargs", "kwargs"])
+_MAIN_TABLE_SPEC = _MakeTableSpec(
+    NAME_TABLE_ATTR, lambda p: p.parse_sample_sheet, None, {})
+_SUBS_TABLE_SPEC = _MakeTableSpec(
+    SAMPLE_SUBANNOTATIONS_KEY, lambda _: pd.read_csv,
+    lambda f: {"sep": infer_delimiter(f)}, READ_CSV_KWARGS)
