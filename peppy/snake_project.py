@@ -2,7 +2,9 @@
 
 from .const import *
 from .project import Project, sample_table, subsample_table
-from .utils import count_repeats
+from .sample import NAME_ATTR
+from .utils import count_repeats, type_check_strict
+from pandas import DataFrame
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -20,6 +22,8 @@ class SnakeProject(Project):
     # TODO: subsample_name <--> unit
     # TODO: sample name uniqueness?
     # TODO: column indexing (name and unit)
+
+    SAMPLE_NAME_IDENTIFIER = NAME_ATTR
 
     @property
     def sample_table(self):
@@ -41,8 +45,9 @@ class SnakeProject(Project):
         if reps:
             raise Exception("Repeated sample identifiers (and counts): {}".
                             format(reps))
-        return t.set_index(SAMPLE_NAME_COLNAME, drop=False)
+        return t.set_index(SNAKEMAKE_SAMPLE_COL, drop=False)
 
+    @property
     def subsample_table(self):
         """
         Get (possibly building) Project's table of samples, naming for Snakemake.
@@ -70,6 +75,12 @@ class SnakeProject(Project):
                  for i in range(1, n + 1)]
         t.insert(1, sm_col, units)
         return t.set_index([SNAKEMAKE_SAMPLE_COL, sm_col], drop=False)
+
+    @staticmethod
+    def _get_sample_ids(df):
+        """ Return the sample identifiers in the given table. """
+        type_check_strict(df, DataFrame)
+        return df[SNAKEMAKE_SAMPLE_COL]
 
 
 def _rename_columns(t):

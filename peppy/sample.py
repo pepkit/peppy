@@ -22,10 +22,15 @@ from .const import \
     NAME_TABLE_ATTR, REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
     SAMPLE_SUBANNOTATIONS_KEY, VALID_READ_TYPES
 from .utils import check_bam, check_fastq, copy, get_file_size, \
-    grab_project_data, parse_ftype, sample_folder
+    get_name_depr_msg, grab_project_data, parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
+NAME_ATTR = "name"
+
+
+__all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,8 +113,13 @@ class Sample(PathExAttMap):
         if missing_attributes_message:
             raise ValueError(missing_attributes_message)
 
-        # Short hand for getting sample_name
+        # TODO: update based on changes
         self.name = self.sample_name
+        """
+        if SAMPLE_NAME_COLNAME in self:
+            self[NAME_ATTR] = self[SAMPLE_NAME_COLNAME]
+            del self[SAMPLE_NAME_COLNAME]
+        """
 
         # Default to no required paths and no YAML file.
         self.required_paths = None
@@ -137,6 +147,15 @@ class Sample(PathExAttMap):
         return super(Sample, self)._omit_from_repr(k, cls) or k == PRJ_REF
 
     def __setitem__(self, key, value):
+        """
+        if key == SAMPLE_NAME_COLNAME:
+            key = NAME_ATTR
+            #_LOGGER.warning(get_name_depr_msg(
+            #    SAMPLE_NAME_COLNAME, key, self.__class__))
+            if not isinstance(value, str):
+                raise TypeError("Name for sample isn't string: {} ({})".
+                                format(value, type(value)))
+        """
         # TODO: better solution for this cyclical dependency hack
         if value.__class__.__name__ == "Project":
             self.__dict__[key] = value
@@ -913,8 +932,8 @@ class Sample(PathExAttMap):
             setattr(self, k, v)
 
 
-def merge_sample(sample, sample_subann,
-                 data_sources=None, derived_attributes=None):
+def merge_sample(sample, sample_subann, data_sources=None,
+                 derived_attributes=None, sample_colname=SAMPLE_NAME_COLNAME):
     """
     Use merge table (subannotation) data to augment/modify Sample.
 
@@ -924,7 +943,8 @@ def merge_sample(sample, sample_subann,
         optional
     :param Iterable[str] derived_attributes: names of attributes for which
         corresponding Sample attribute's value is data-derived, optional
-    :return Set[str]: names of columns/attributes that were merged
+    :param str sample_colname: name of the designated sample name column
+    :return peppy.Sample: updated Sample instance
     """
 
     merged_attrs = {}
@@ -933,10 +953,10 @@ def merge_sample(sample, sample_subann,
         _LOGGER.log(5, "No data for sample merge, skipping")
         return merged_attrs
 
-    if SAMPLE_NAME_COLNAME not in sample_subann.columns:
+    if sample_colname not in sample_subann.columns:
         raise KeyError(
             "Merge table requires a column named '{}'.".
-                format(SAMPLE_NAME_COLNAME))
+                format(sample_colname))
 
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
@@ -946,8 +966,12 @@ def merge_sample(sample, sample_subann,
     _LOGGER.debug("Merging Sample with derived attributes: {}".
                   format(derived_attributes))
 
-    sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
-    sample_indexer = sample_subann[SAMPLE_NAME_COLNAME] == sample_name
+    sample_name = getattr(sample, sample_colname)
+
+    # DEBUG
+    print("sample_name in merged: {}".format(sample_name))
+
+    sample_indexer = sample_subann[sample_colname] == sample_name
     this_sample_rows = sample_subann[sample_indexer]
     if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
@@ -978,8 +1002,8 @@ def merge_sample(sample, sample_subann,
         # Iterate over column names to avoid Python3 RuntimeError for
         # during-iteration change of dictionary size.
         for attr_name in this_sample_rows.columns:
-            if attr_name == SAMPLE_NAME_COLNAME or \
-                            attr_name not in derived_attributes:
+            if attr_name == sample_colname or \
+                    attr_name not in derived_attributes:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
 
@@ -1025,7 +1049,7 @@ def merge_sample(sample, sample_subann,
         # format--it's what's most amenable to use in building up an argument
         # string for a pipeline command.
         for attname, attval in rowdata.items():
-            if attname == SAMPLE_NAME_COLNAME or not attval:
+            if attname == sample_colname or not attval:
                 _LOGGER.log(5, "Skipping KV: {}={}".format(attname, attval))
                 continue
             _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
@@ -1040,7 +1064,7 @@ def merge_sample(sample, sample_subann,
                         new_attval, attname)
 
     # If present, remove sample name from the data with which to update sample.
-    merged_attrs.pop(SAMPLE_NAME_COLNAME, None)
+    merged_attrs.pop(sample_colname, None)
 
     _LOGGER.log(5, "Updating Sample {}: {}".format(sample.name, merged_attrs))
     sample.update(merged_attrs)  # 3)
@@ -1069,4 +1093,3 @@ class Paths(object):
     
     def __repr__(self):
         return "Paths object."
-

@@ -18,7 +18,7 @@ else:
     from collections.abc import Sized
 import warnings
 import yaml
-from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,21 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 __all__ = [
     "CommandChecker", "add_project_sample_constants", "check_bam", "check_fastq",
     "count_repeats", "get_file_size", "fetch_samples", "grab_project_data",
-    "has_null_value", "is_command_callable"
+    "has_null_value", "is_command_callable", "type_check_strict"
 ]
-
-
-def alpha_cased(text, lower=False):
-    """
-    Filter text to just letters and homogenize case.
-    
-    :param str text: what to filter and homogenize.
-    :param bool lower: whether to convert to lowercase; default uppercase.
-    :return str: input filtered to just letters, with homogenized case.
-    """
-    text = "".join(filter(
-            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
-    return text.lower() if lower else text.upper()
 
 
 def add_project_sample_constants(sample, project):
@@ -397,8 +384,27 @@ def sample_folder(prj, sample):
         folder path.
     :return str: this Project's root folder for the given Sample
     """
-    return os.path.join(prj.metadata.results_subdir,
-                        sample["sample_name"])
+    return os.path.join(prj.metadata.results_subdir, sample.name)
+
+
+def type_check_strict(obj, ts):
+    """
+    Perform a type check for given object.[
+
+    :param object obj: object to type check
+    :param Iterable[type] | type ts: collection of types (or just one),
+        one of which the given object must be an instance of
+    :raise TypeError: if the given object is an instance of none of the given
+        types
+    :raise Exception: if alleged collection of types is not a non-string
+        collection-like type
+    """
+    if isinstance(ts, type):
+        ts = [ts]
+    elif not coll_like(ts):
+        raise Exception("Not a collection of types: {}".format(ts))
+    if not isinstance(obj, tuple(ts)):
+        raise TypeError("{} ({}) is none of {}".format(obj, type(obj), ts))
 
 
 @contextlib.contextmanager
@@ -429,6 +435,18 @@ def warn_derived_cols():
 def warn_implied_cols():
     """ Produce deprecation warning about implied columns. """
     _warn_cols_to_attrs("implied")
+
+
+def get_name_depr_msg(old, new, cls=None):
+    """
+    Warn of an attribute name deprecation.
+
+    :param str old: name of the old attribute
+    :param str new: name of the new attribute
+    :param type cls: type on which the reference is deprecated
+    """
+    msg = "use of {} is deprecated in favor of {}".format(old, new)
+    return msg if cls is None else "On {} ".format(cls.__name__) + msg
 
 
 def _warn_cols_to_attrs(prefix):

@@ -3,12 +3,10 @@
 from collections import OrderedDict
 import copy
 import os
-
 import pandas as pd
 import pytest
 import yaml
-
-from peppy.const import SAMPLE_NAME_COLNAME
+from peppy import SAMPLE_NAME_COLNAME
 
 
 __author__ = "Vince Reuter"
@@ -85,8 +83,8 @@ def instance_raw_data(request, basic_data_raw):
 def minimal_project_conf_path(tmpdir):
     """ Write minimal sample annotations and project configuration. """
     anns_file = tmpdir.join(ANNOTATIONS_FILENAME).strpath
-    df = pd.DataFrame(OrderedDict([("sample_name", SAMPLE_NAMES),
-                                   ("data", DATA_VALUES)]))
+    df = pd.DataFrame(OrderedDict([
+        (SAMPLE_NAME_COLNAME, SAMPLE_NAMES), ("data", DATA_VALUES)]))
     with open(anns_file, 'w') as annotations:
         df.to_csv(annotations, sep=",", index=False)
     conf_file = tmpdir.join(CONFIG_FILENAME)

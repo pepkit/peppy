@@ -467,7 +467,7 @@ class ProjectPipelineArgstringTests:
 
 
 @pytest.mark.usefixtures("write_project_files")
-class ProjectConstructorTest:
+class ProjCtorTest:
 
     @pytest.mark.parametrize(argnames="attr_name",
                              argvalues=["required_inputs", "all_input_attr"])
@@ -522,6 +522,10 @@ class ProjectConstructorTest:
         sample_index = 2
         observed_nonmerged_col_basename = \
             os.path.basename(proj.samples[sample_index].nonmerged_col)
+
+        # DEBUG
+        print("TABLE:\n{}".format(proj.sample_table))
+
         assert "c.txt" == observed_nonmerged_col_basename
         assert "" == proj.samples[sample_index].locate_data_source(
                 proj.data_sources, 'file')

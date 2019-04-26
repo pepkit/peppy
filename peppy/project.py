@@ -67,7 +67,7 @@ from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, infer_delimiter, is_url, \
-    non_null_value, warn_derived_cols, warn_implied_cols
+    non_null_value, type_check_strict, warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -162,6 +162,7 @@ class Project(PathExAttMap):
     """
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
+    SAMPLE_NAME_IDENTIFIER = SAMPLE_NAME_COLNAME
 
     def __init__(self, config_file, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
@@ -352,7 +353,7 @@ class Project(PathExAttMap):
             try:
                 protos.add(s.protocol)
             except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
+                _LOGGER.debug("Sample '%s' lacks protocol", s.name)
         return protos
 
     @property
@@ -374,7 +375,7 @@ class Project(PathExAttMap):
         """ Names of samples of which this Project is aware. """
         dt = getattr(self, NAME_TABLE_ATTR)
         try:
-            return iter(dt[SAMPLE_NAME_COLNAME])
+            return iter(self._get_sample_ids(dt))
         except KeyError:
             cols = list(dt.columns)
             print("Table columns: {}".format(", ".join(cols)))
@@ -788,7 +789,8 @@ class Project(PathExAttMap):
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
             merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
-                         self.data_sources, self.derived_attributes)
+                         self.data_sources, self.derived_attributes,
+                         self.SAMPLE_NAME_IDENTIFIER)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility
@@ -798,7 +800,7 @@ class Project(PathExAttMap):
                 sample.data_path = sample.data_source
             except AttributeError:
                 _LOGGER.log(5, "Sample '%s' lacks data source; skipping "
-                               "data path assignment", sample.sample_name)
+                               "data path assignment", sample.name)
             else:
                 _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
@@ -807,13 +809,10 @@ class Project(PathExAttMap):
 
     def _check_subann_name_overlap(self):
         """
-        Check if all subannotations have a matching sample, and warn if not
-
-        :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
-        """
-        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY, None)
+        Check if all subannotations have a matching sample, and warn if not. """
+        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
         if subs is not None:
-            sample_subann_names = subs.sample_name.tolist()
+            sample_subann_names = self._get_sample_ids(subs).tolist()
             sample_names_list = list(self.sample_names)
             info = " matching sample name for subannotation '{}'"
             for n in sample_subann_names:
@@ -823,6 +822,12 @@ class Project(PathExAttMap):
                     _LOGGER.debug(("Found" + info).format(n))
         else:
             _LOGGER.debug("No sample subannotations found for this Project.")
+
+    @staticmethod
+    def _get_sample_ids(df):
+        """ Return the sample identifiers in the given table. """
+        type_check_strict(df, pd.DataFrame)
+        return df[SAMPLE_NAME_COLNAME]
 
     def parse_config_file(self, subproject=None):
         """
@@ -999,8 +1004,7 @@ class Project(PathExAttMap):
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
 
-    @staticmethod
-    def parse_sample_sheet(sample_file):
+    def parse_sample_sheet(self, sample_file):
         """
         Check if csv file exists and has all required columns.
 
@@ -1025,7 +1029,7 @@ class Project(PathExAttMap):
             raise Project.MissingSampleSheetError(sample_file)
         else:
             _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            missing = {SAMPLE_NAME_COLNAME} - set(df.columns)
+            missing = {self.SAMPLE_NAME_IDENTIFIER} - set(df.columns)
             if len(missing) != 0:
                 _LOGGER.warning(
                     "Annotation sheet ('{}') is missing column(s):\n{}\n"
