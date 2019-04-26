@@ -39,7 +39,6 @@ ENV_CONF_LINES = """compute:
 BASIC_PROTOMAP = {"ATAC": "ATACSeq.py"}
 
 
-
 @pytest.fixture(scope="function")
 def basic_data_raw():
     """ Provide minimal collection of data for a constructor, by type. """
@@ -47,7 +46,6 @@ def basic_data_raw():
             "AttMap": {},
             "ProtocolMapper": BASIC_PROTOMAP,
             "Sample": {SAMPLE_NAME_COLNAME: "arbitrary-sample"}})
-
 
 
 @pytest.fixture(scope="function")
@@ -68,7 +66,6 @@ def basic_instance_data(request, instance_raw_data):
     return transformation_by_class[which_class](instance_raw_data)
 
 
-
 @pytest.fixture(scope="function")
 def env_config_filepath(tmpdir):
     """ Write default project/compute environment file for Project ctor. """
@@ -77,13 +74,11 @@ def env_config_filepath(tmpdir):
     return conf_file.strpath
 
 
-
 @pytest.fixture(scope="function")
 def instance_raw_data(request, basic_data_raw):
     """ Supply the raw data for a basic model instance as a fixture. """
     which_class = request.getfixturevalue("class_name")
     return copy.deepcopy(basic_data_raw[which_class])
-
 
 
 @pytest.fixture(scope="function")
@@ -101,7 +96,6 @@ def minimal_project_conf_path(tmpdir):
     return conf_file.strpath
 
 
-
 @pytest.fixture(scope="function")
 def path_proj_conf_file(tmpdir, proj_conf):
     """ Write basic project configuration data and provide filepath. """
@@ -109,7 +103,6 @@ def path_proj_conf_file(tmpdir, proj_conf):
     with open(conf_path, 'w') as conf:
         yaml.safe_dump(proj_conf, conf)
     return conf_path
-
 
 
 @pytest.fixture(scope="function")
