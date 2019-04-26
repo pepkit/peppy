@@ -7,6 +7,8 @@ from .utils import count_repeats
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
+__all__ = ["SnakeProject"]
+
 
 SNAKEMAKE_SAMPLE_COL = "sample"
 
