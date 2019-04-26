@@ -811,14 +811,16 @@ class Project(PathExAttMap):
 
         :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
         """
-        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY, None)
         if subs is not None:
             sample_subann_names = subs.sample_name.tolist()
             sample_names_list = list(self.sample_names)
             info = " matching sample name for subannotation '{}'"
             for n in sample_subann_names:
-                _LOGGER.warning(("Couldn't find" + info).format(n)) if n not in sample_names_list\
-                    else _LOGGER.debug(("Found" + info).format(n))
+                if n not in sample_names_list:
+                    _LOGGER.warning(("Couldn't find" + info).format(n))
+                else:
+                    _LOGGER.debug(("Found" + info).format(n))
         else:
             _LOGGER.debug("No sample subannotations found for this Project.")
 
