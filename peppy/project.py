@@ -994,12 +994,11 @@ class Project(PathExAttMap):
         return abs_path
 
     @staticmethod
-    def parse_sample_sheet(sample_file, dtype=str):
+    def parse_sample_sheet(sample_file):
         """
         Check if csv file exists and has all required columns.
 
         :param str sample_file: path to sample annotations file.
-        :param type dtype: data type for CSV read.
         :return pandas.core.frame.DataFrame: table populated by the project's
             sample annotations data
         :raises IOError: if given annotations file can't be read.
