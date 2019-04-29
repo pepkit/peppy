@@ -161,8 +161,11 @@ class Project(PathExAttMap):
 
     """
 
-    DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
+    # Hook for Project's declaration of how it identifies samples.
+    # Used for validation and for merge_sample (derived cols and such)
     SAMPLE_NAME_IDENTIFIER = SAMPLE_NAME_COLNAME
+
+    DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
     def __init__(self, config_file, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,

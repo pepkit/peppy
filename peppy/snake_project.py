@@ -15,11 +15,8 @@ __all__ = ["SnakeProject"]
 class SnakeProject(Project):
     """ Extending Project for interop with Snakemake """
 
-    # TODO: sample_name <--> sample
-    # TODO: subsample_name <--> unit
-    # TODO: sample name uniqueness?
-    # TODO: column indexing (name and unit)
-
+    # Hook for Project's declaration of how it identifies samples.
+    # Used for validation and for merge_sample (derived cols and such)
     SAMPLE_NAME_IDENTIFIER = SNAKEMAKE_SAMPLE_COL
 
     @property

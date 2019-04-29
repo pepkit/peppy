@@ -402,7 +402,7 @@ def sample_folder(prj, sample):
 
 def type_check_strict(obj, ts):
     """
-    Perform a type check for given object.[
+    Perform a type check for given object.
 
     :param object obj: object to type check
     :param Iterable[type] | type ts: collection of types (or just one),
