@@ -26,8 +26,9 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "CommandChecker", "add_project_sample_constants", "check_bam", "check_fastq",
-    "count_repeats", "get_file_size", "fetch_samples", "grab_project_data",
-    "has_null_value", "is_command_callable", "type_check_strict"
+    "count_repeats", "get_file_size", "get_logger", "fetch_samples",
+    "grab_project_data", "has_null_value", "is_command_callable",
+    "type_check_strict"
 ]
 
 
@@ -127,28 +128,6 @@ def expandpath(path):
     return os.path.expandvars(os.path.expanduser(path)).replace("//", "/")
 
 
-def get_file_size(filename):
-    """
-    Get size of all files in gigabytes (Gb).
-
-    :param str | collections.Iterable[str] filename: A space-separated
-        string or list of space-separated strings of absolute file paths.
-    :return float: size of file(s), in gigabytes.
-    """
-    if filename is None:
-        return float(0)
-    if type(filename) is list:
-        return float(sum([get_file_size(x) for x in filename]))
-    try:
-        total_bytes = sum([float(os.stat(f).st_size)
-                           for f in filename.split(" ") if f is not ''])
-    except OSError:
-        # File not found
-        return 0.0
-    else:
-        return float(total_bytes) / (1024 ** 3)
-
-
 def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
     """
     Collect samples of particular protocol(s).
@@ -208,6 +187,40 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
                    getattr(s, selector_attribute) in make_set(selector_include)
 
     return list(filter(keep, proj.samples))
+
+
+def get_file_size(filename):
+    """
+    Get size of all files in gigabytes (Gb).
+
+    :param str | collections.Iterable[str] filename: A space-separated
+        string or list of space-separated strings of absolute file paths.
+    :return float: size of file(s), in gigabytes.
+    """
+    if filename is None:
+        return float(0)
+    if type(filename) is list:
+        return float(sum([get_file_size(x) for x in filename]))
+    try:
+        total_bytes = sum([float(os.stat(f).st_size)
+                           for f in filename.split(" ") if f is not ''])
+    except OSError:
+        # File not found
+        return 0.0
+    else:
+        return float(total_bytes) / (1024 ** 3)
+
+
+def get_logger(name):
+    """
+    Returm a logger with given name, equipped with custom method.
+
+    :param str name: name for the logger to get/create.
+    :return logging.Logger: named, custom logger instance.
+    """
+    l = logging.getLogger(name)
+    l.whisper = lambda msg, *args, **kwargs: l.log(5, msg, *args, **kwargs)
+    return l
 
 
 def grab_project_data(prj):
