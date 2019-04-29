@@ -265,7 +265,7 @@ class SampleTextTests:
     """ Tests for representation of sample as text """
 
     _SAMPLE_LINES = [
-        "sample_name,library,file",
+        "sample_name,protocol,file",
         "frog_1,anySampleType,frog1_data.txt",
         "frog_2,anySampleType,frog2_data.txt",
         "frog_3,anySampleType,frog3_data.txt",
