@@ -790,7 +790,7 @@ class Project(PathExAttMap):
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
             merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
                          self.data_sources, self.derived_attributes,
-                         self.SAMPLE_NAME_IDENTIFIER)
+                         sample_colname=self.SAMPLE_NAME_IDENTIFIER)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility

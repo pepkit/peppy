@@ -965,7 +965,8 @@ def merge_sample(sample, sample_subann, data_sources=None,
     Use merge table (subannotation) data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
-    :param sample_subann: data with which to alter Sample
+    :param pandas.core.frame.DataFrame sample_subann: data informing how to
+        update given sample
     :param Mapping data_sources: collection of named paths to data locations,
         optional
     :param Iterable[str] derived_attributes: names of attributes for which
@@ -981,9 +982,7 @@ def merge_sample(sample, sample_subann, data_sources=None,
         return merged_attrs
 
     if sample_colname not in sample_subann.columns:
-        raise KeyError(
-            "Merge table requires a column named '{}'.".
-                format(sample_colname))
+        raise KeyError("Subannotation requires column '{}'.".format(sample_colname))
 
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
@@ -993,12 +992,7 @@ def merge_sample(sample, sample_subann, data_sources=None,
     _LOGGER.debug("Merging Sample with derived attributes: {}".
                   format(derived_attributes))
 
-    sample_name = getattr(sample, sample_colname)
-
-    # DEBUG
-    print("sample_name in merged: {}".format(sample_name))
-
-    sample_indexer = sample_subann[sample_colname] == sample_name
+    sample_indexer = sample_subann[sample_colname] == sample.name
     this_sample_rows = sample_subann[sample_indexer]
     if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
