@@ -27,6 +27,7 @@ from .utils import check_bam, check_fastq, copy, get_file_size, \
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
 NAME_ATTR = "name"
+_OLD_PROTOCOL_REF = "library"
 
 
 __all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
@@ -82,10 +83,12 @@ class Sample(PathExAttMap):
         data = OrderedDict(series)
 
         try:
-            protocol = data.pop("library")
+            protocol = data.pop(_OLD_PROTOCOL_REF)
         except KeyError:
             pass
         else:
+            msg = get_name_depr_msg(_OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__)
+            warnings.warn(msg, DeprecationWarning)
             data[ASSAY_KEY] = protocol
         super(Sample, self).__init__(entries=data)
 
@@ -400,7 +403,8 @@ class Sample(PathExAttMap):
 
         :return str: The protocol / NGS library name for this Sample.
         """
-        warnings.warn("Replace 'library' with 'protocol'", DeprecationWarning)
+        warnings.warn(get_name_depr_msg(
+            _OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__), DeprecationWarning)
         return self.protocol
 
     def get_subsample(self, subsample_name):
