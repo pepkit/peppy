@@ -68,7 +68,7 @@ class SnakeProject(Project):
                     if h == curr else go(tail, 1, h, acc + [n])
             return go(names[1:], 1, names[0], []) if names else []
 
-        units = [i for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
+        units = [str(i) for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
                  for i in range(1, n + 1)]
         t.insert(1, sm_col, units)
         return t.set_index([SNAKEMAKE_SAMPLE_COL, sm_col], drop=False)
