@@ -241,8 +241,8 @@ class SampleAnnotationConfigEncodingTests:
         with pytest.warns(DeprecationWarning):
             subs2 = prj[subs_key]
         # Validation that we didn't just get back garbage value(s)
-        assert all((anns1 == anns2).all())
-        assert all((subs1 == subs2).all())
+        assert anns1.equals(anns2)
+        assert subs1.equals(subs2)
 
 
 def _add_sp_section(md, subproj_section):
@@ -383,14 +383,14 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sp = sps[0]
         prj.activate_subproject(sp)
         assert sp == prj.subproject
-        assert all((orig_subs == prj[SAMPLE_SUBANNOTATIONS_KEY]).all())
+        assert orig_subs.equals(prj[SAMPLE_SUBANNOTATIONS_KEY])
         new_anns_obs = fun(prj, key)
-        assert not all((orig_anns == new_anns_obs).all())
+        assert not orig_anns.equals(new_anns_obs)
         new_anns_filepath = os.path.join(
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
         new_anns_exp = pd.read_csv(new_anns_filepath,
             sep=infer_delimiter(new_anns_filepath), **READ_CSV_KWARGS)
-        assert all((new_anns_exp == new_anns_obs).all())
+        assert new_anns_exp.equals(new_anns_obs)
 
 
     @staticmethod
@@ -423,14 +423,14 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sp = sps[0]
         prj.activate_subproject(sp)
         assert sp == prj.subproject
-        assert all((orig_anns == prj[SAMPLE_ANNOTATIONS_KEY]).all())
+        assert orig_anns.equals(prj[SAMPLE_ANNOTATIONS_KEY])
         new_subs_obs = fun(prj, key)
-        assert not all((orig_subs == new_subs_obs).all())
+        assert not orig_subs.equals(new_subs_obs)
         new_subs_filepath = os.path.join(
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
         new_subs_exp = pd.read_csv(new_subs_filepath,
             sep=infer_delimiter(new_subs_filepath), **READ_CSV_KWARGS)
-        assert all((new_subs_exp == new_subs_obs).all())
+        assert new_subs_exp.equals(new_subs_obs)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -464,15 +464,15 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         prj.activate_subproject(sp)
         assert sp == prj.subproject
         new_anns, new_subs = fun(prj, ann_key), fun(prj, sub_key)
-        assert not all((orig_anns == new_anns).all())
-        assert not all((orig_subs == new_subs).all())
+        assert not orig_subs.equals(new_anns)
+        assert not orig_subs.equals(new_subs)
         subs_sect = prj[SUBPROJECTS_SECTION][sp][METADATA_KEY]
         ann_fp = os.path.join(tmpdir.strpath, subs_sect[ann_key])
         sub_fp = os.path.join(tmpdir.strpath, subs_sect[sub_key])
         exp_ann = pd.read_csv(ann_fp, **READ_CSV_KWARGS)
         exp_sub = pd.read_csv(sub_fp, **READ_CSV_KWARGS)
-        assert all((exp_ann == new_anns).all())
-        assert all((exp_sub == new_subs).all())
+        assert exp_ann.equals(new_anns)
+        assert exp_sub.equals(new_subs)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -531,8 +531,8 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         prj.activate_subproject("random_sp_name")
         anns2 = fun(prj, SAMPLE_ANNOTATIONS_KEY)
         subs2 = fun(prj, SAMPLE_SUBANNOTATIONS_KEY)
-        assert all((anns1 == anns2).all())
-        assert all((subs1 == subs2).all())
+        assert anns1.equals(anns2)
+        assert subs1.equals(subs2)
 
 
 def _assert_absent_prj_var(p, var):
@@ -569,7 +569,7 @@ def _check_table(p, k, exp_nrow):
     """
     dt_att = getattr(p, k)
     dt_key = p[k]
-    assert all((dt_att == dt_key).all())
+    assert dt_att.equals(dt_key)
     obs_nrow = len(dt_att.index)
     assert exp_nrow == obs_nrow, "Rows: exp={}, obs={}".format(exp_nrow, obs_nrow)
 
