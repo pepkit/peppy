@@ -77,7 +77,7 @@ OLD_ANNS_META_KEY = "sample_annotation"
 OLD_SUBS_META_KEY = "sample_subannotation"
 
 READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
-                   "keep_default_na": False}
+                   "keep_default_na": False, "na_values": [""]}
 
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
@@ -378,9 +378,11 @@ class Project(PathExAttMap):
             return iter(self._get_sample_ids(dt))
         except KeyError:
             cols = list(dt.columns)
-            print("Table columns: {}".format(", ".join(cols)))
+            _LOGGER.error("(For context) Table columns: {}".
+                          format(", ".join(cols)))
             if 1 == len(cols):
-                print("Does delimiter used in the sample sheet match file extension?")
+                _LOGGER.error("Does delimiter used in the sample sheet match "
+                              "file extension?")
             raise
 
     @property
@@ -477,13 +479,15 @@ class Project(PathExAttMap):
             filepath = self[METADATA_KEY].get(spec.key)
             if filepath is None:
                 return None
-            if spec.make_extra_kwargs:
-                kwds = cp(spec.kwargs)
-                kwds.update(spec.make_extra_kwargs(filepath))
-            else:
-                kwds = spec.kwargs
-            self[attr] = spec.get_parse_fun(self)(filepath, **kwds)
+            self[attr] = self._apply_parse_strat(filepath, spec)
         return cp(self[attr])
+
+    def _apply_parse_strat(self, filepath, spec):
+        from copy import copy as cp
+        kwds = cp(spec.kwargs)
+        if spec.make_extra_kwargs:
+            kwds.update(spec.make_extra_kwargs(filepath))
+        return spec.get_parse_fun(self)(filepath, **kwds)
 
     @property
     def templates_folder(self):
@@ -755,8 +759,7 @@ class Project(PathExAttMap):
 
         if sub_ann and os.path.isfile(sub_ann):
             _LOGGER.info("Reading subannotations: %s", sub_ann)
-            subann_table = pd.read_csv(sub_ann,
-                sep=infer_delimiter(sub_ann), **READ_CSV_KWARGS)
+            subann_table = self._apply_parse_strat(sub_ann, _SUBS_TABLE_SPEC)
             self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
             _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
         else:
