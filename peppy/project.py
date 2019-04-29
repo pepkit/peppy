@@ -1032,9 +1032,10 @@ class Project(PathExAttMap):
             missing = {self.SAMPLE_NAME_IDENTIFIER} - set(df.columns)
             if len(missing) != 0:
                 _LOGGER.warning(
-                    "Annotation sheet ('{}') is missing column(s):\n{}\n"
-                    "It has: {}".format(sample_file, "\n".join(missing),
-                                        ", ".join(list(df.columns))))
+                    "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
+                    "It has: {has}".format(
+                        f=sample_file, n=len(missing), miss=", ".join(missing),
+                        has=", ".join(list(df.columns))))
         return df
 
     class MissingMetadataException(PeppyError):
