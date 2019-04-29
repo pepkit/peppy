@@ -9,9 +9,6 @@ tests/test/*
 # ignore eggs
 .eggs/
 
-# ignore built docs
-doc/build/*
-
 # generic ignore list:
 *.lst
 
@@ -72,7 +69,6 @@ open_pipelines/
 *RESERVE*
 
 # Build-related stuff
-build/
 dist/
 peppy.egg-info/
 
