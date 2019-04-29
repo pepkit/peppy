@@ -1,8 +1,8 @@
 """ Adapting Project for interop with Snakemake """
 
 from .const import *
+from .const import SNAKEMAKE_SAMPLE_COL
 from .project import Project, sample_table, subsample_table
-from .sample import NAME_ATTR
 from .utils import count_repeats, type_check_strict
 from pandas import DataFrame
 
@@ -10,9 +10,6 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 __all__ = ["SnakeProject"]
-
-
-SNAKEMAKE_SAMPLE_COL = "sample"
 
 
 class SnakeProject(Project):
@@ -23,7 +20,7 @@ class SnakeProject(Project):
     # TODO: sample name uniqueness?
     # TODO: column indexing (name and unit)
 
-    SAMPLE_NAME_IDENTIFIER = NAME_ATTR
+    SAMPLE_NAME_IDENTIFIER = SNAKEMAKE_SAMPLE_COL
 
     @property
     def sample_table(self):

@@ -2,7 +2,6 @@
 
 from collections import OrderedDict
 import glob
-import logging
 from operator import itemgetter
 import os
 import sys
@@ -15,14 +14,11 @@ import warnings
 from pandas import isnull, Series
 import yaml
 
-from . import ASSAY_KEY, SAMPLE_NAME_COLNAME
 from attmap import AttMap, PathExAttMap
-from .const import \
-    ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
-    NAME_TABLE_ATTR, REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
-    SAMPLE_SUBANNOTATIONS_KEY, VALID_READ_TYPES
+from .const import *
+from .const import SNAKEMAKE_SAMPLE_COL
 from .utils import check_bam, check_fastq, copy, get_file_size, \
-    get_name_depr_msg, grab_project_data, parse_ftype, sample_folder
+    get_logger, get_name_depr_msg, grab_project_data, parse_ftype, sample_folder
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
@@ -33,7 +29,7 @@ _OLD_PROTOCOL_REF = "library"
 __all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = get_logger(__name__)
 
 
 @copy
@@ -82,6 +78,7 @@ class Sample(PathExAttMap):
         # Create data, handling library/protocol.
         data = OrderedDict(series)
 
+        # Handle assay representation (protocol vs. library).
         try:
             protocol = data.pop(_OLD_PROTOCOL_REF)
         except KeyError:
@@ -90,6 +87,32 @@ class Sample(PathExAttMap):
             msg = get_name_depr_msg(_OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__)
             warnings.warn(msg, DeprecationWarning)
             data[ASSAY_KEY] = protocol
+
+        # Handle Snakemake vs. native peppy naming convention.
+        try:
+            name_sm = data.pop(SNAKEMAKE_SAMPLE_COL)
+        except:
+            pass    # No Snakemake sample identifier key.
+        else:
+            try:
+                name_pep = data[SAMPLE_NAME_COLNAME]
+            except KeyError:
+                _LOGGER.whisper("Renaming {} to {}".format(
+                    SNAKEMAKE_SAMPLE_COL, SAMPLE_NAME_COLNAME))
+                data = OrderedDict(
+                    [(SAMPLE_NAME_COLNAME, name_sm)] + list(data.items()))
+            else:
+                if name_pep == name_sm:
+                    _LOGGER.whisper(
+                        "Used two sample identifiers ({} and {})".format(
+                            SAMPLE_NAME_COLNAME, SNAKEMAKE_SAMPLE_COL))
+                else:
+                    raise Exception(
+                        "Attempted to build sample with discordant identifier "
+                        "keys ({smk}={smv} and {pk}={pv})".format(
+                            smk=SNAKEMAKE_SAMPLE_COL, smv=name_sm,
+                            pk=SAMPLE_NAME_COLNAME, pv=name_pep))
+
         super(Sample, self).__init__(entries=data)
 
         if PRJ_REF in self and prj:
@@ -116,7 +139,7 @@ class Sample(PathExAttMap):
         if missing_attributes_message:
             raise ValueError(missing_attributes_message)
 
-        # TODO: update based on changes
+        # TODO: update based on changes; consider name as property, grabbind sample_name.
         self.name = self.sample_name
         """
         if SAMPLE_NAME_COLNAME in self:
