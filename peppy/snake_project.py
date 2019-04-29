@@ -53,12 +53,6 @@ class SnakeProject(Project):
             metadata, if one is defined
         """
 
-        t = _rename_columns(subsample_table(self))
-        sm_col = "unit"
-
-        if sm_col in t.columns:
-            return t
-
         def count_names(names):
             def go(rem, n, curr, acc):
                 if not rem:
@@ -68,10 +62,14 @@ class SnakeProject(Project):
                     if h == curr else go(tail, 1, h, acc + [n])
             return go(names[1:], 1, names[0], []) if names else []
 
-        units = [str(i) for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
-                 for i in range(1, n + 1)]
-        t.insert(1, sm_col, units)
-        return t.set_index([SNAKEMAKE_SAMPLE_COL, sm_col], drop=False)
+        t = _rename_columns(subsample_table(self))
+        unit_col = "unit"
+        if unit_col not in t.columns:
+            units = [str(i) for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
+                     for i in range(1, n + 1)]
+            t.insert(1, unit_col, units)
+
+        return t.set_index([SNAKEMAKE_SAMPLE_COL, unit_col], drop=False)
 
     @staticmethod
     def _get_sample_ids(df):
