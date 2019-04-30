@@ -80,8 +80,8 @@ def check_bam(bam, o):
 
 
 def check_fastq(fastq, o):
-    raise NotImplementedError("Detection of read type/length for "
-                              "fastq input is not yet implemented.")
+    raise NotImplementedError(
+        "Detection of read type/length for fastq input is not yet implemented.")
 
 
 def coll_like(c):
