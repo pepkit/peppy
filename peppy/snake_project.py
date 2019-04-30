@@ -66,7 +66,9 @@ class SnakeProject(Project):
                      for i in range(1, n + 1)]
             t.insert(1, unit_col, units)
 
-        return t.set_index([SNAKEMAKE_SAMPLE_COL, unit_col], drop=False)
+        t.set_index([SNAKEMAKE_SAMPLE_COL, unit_col], drop=False, inplace=True)
+        t.index.set_levels([i.astype(str) for i in t.index.levels])
+        return t
 
     @staticmethod
     def _get_sample_ids(df):
