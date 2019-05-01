@@ -774,19 +774,13 @@ class Sample(PathExAttMap):
             except NotImplementedError as e:
                 if not permissive:
                     raise
-                _LOGGER.warning(e.message)
+                _LOGGER.warning(str(e))
                 return
             except IOError:
                 if not permissive:
                     raise
                 _LOGGER.error("Input file does not exist or "
                               "cannot be read: %s", str(input_file))
-                for feat_name in self._FEATURE_ATTR_NAMES:
-                    if not hasattr(self, feat_name):
-                        setattr(self, feat_name, None)
-                return
-            except OSError as e:
-                _LOGGER.error(str(e) + " [file: {}]".format(input_file))
                 for feat_name in self._FEATURE_ATTR_NAMES:
                     if not hasattr(self, feat_name):
                         setattr(self, feat_name, None)
