@@ -17,8 +17,9 @@ import yaml
 from attmap import AttMap, PathExAttMap
 from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
-from .utils import check_bam, check_fastq, copy, get_file_size, \
-    get_logger, get_name_depr_msg, grab_project_data, parse_ftype, sample_folder
+from .utils import copy, get_file_size, get_logger, get_name_depr_msg, \
+    grab_project_data, parse_ftype, sample_folder
+from ubiquerg.ngs import check_bam
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
@@ -757,7 +758,7 @@ class Sample(PathExAttMap):
 
         # For samples with multiple original BAM files, check all.
         files = list()
-        check_by_ftype = {"bam": check_bam, "fastq": check_fastq}
+        check_by_ftype = {"bam": check_bam, "fastq": _check_fastq}
         for input_file in existing_files:
             try:
                 file_type = parse_ftype(input_file)
@@ -1114,3 +1115,8 @@ class Paths(object):
     
     def __repr__(self):
         return "Paths object."
+
+
+def _check_fastq(fastq, o):
+    raise NotImplementedError(
+        "Detection of read type/length for fastq input is not yet implemented.")

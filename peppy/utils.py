@@ -6,7 +6,6 @@ import logging
 import os
 import random
 import string
-import subprocess as sp
 import sys
 if sys.version_info < (3, 0):
     from urlparse import urlparse
@@ -25,10 +24,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 __all__ = [
-    "CommandChecker", "add_project_sample_constants", "check_bam", "check_fastq",
-    "count_repeats", "get_file_size", "get_logger", "fetch_samples",
-    "grab_project_data", "has_null_value", "is_command_callable",
-    "type_check_strict"
+    "CommandChecker", "add_project_sample_constants", "count_repeats",
+    "get_file_size", "get_logger", "fetch_samples", "grab_project_data",
+    "has_null_value", "is_command_callable", "type_check_strict"
 ]
 
 
@@ -45,43 +43,6 @@ def add_project_sample_constants(sample, project):
     """
     sample.update(project.constants)
     return sample
-
-
-def check_bam(bam, o):
-    """
-    Check reads in BAM file for read type and lengths.
-
-    :param str bam: BAM file path.
-    :param int o: Number of reads to look at for estimation.
-    """
-    try:
-        p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
-        # Count paired alignments
-        paired = 0
-        read_lengths = defaultdict(int)
-        while o > 0:  # Count down number of lines
-            line = p.stdout.readline().decode().split("\t")
-            flag = int(line[1])
-            read_lengths[len(line[9])] += 1
-            if 1 & flag:  # check decimal flag contains 1 (paired)
-                paired += 1
-            o -= 1
-        p.kill()
-    except OSError:
-        reason = "Note (samtools not in path): For NGS inputs, " \
-                 "pep needs samtools to auto-populate " \
-                 "'read_length' and 'read_type' attributes; " \
-                 "these attributes were not populated."
-        raise OSError(reason)
-
-    _LOGGER.debug("Read lengths: {}".format(read_lengths))
-    _LOGGER.debug("paired: {}".format(paired))
-    return read_lengths, paired
-
-
-def check_fastq(fastq, o):
-    raise NotImplementedError(
-        "Detection of read type/length for fastq input is not yet implemented.")
 
 
 def coll_like(c):
