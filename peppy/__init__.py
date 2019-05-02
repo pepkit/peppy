@@ -12,13 +12,14 @@ from .const import *
 from .exceptions import PeppyError
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
+from .snake_project import *
 from .utils import fetch_samples, grab_project_data, CommandChecker
 #from logmuse import setup_logger
 
 _EXPORT_FROM_UTILS = [fetch_samples.__name__, grab_project_data.__name__,
                       CommandChecker.__name__]
 
-__classes__ = ["Project", "Sample"]
+__classes__ = ["Project", "Sample", "SnakeProject"]
 __all__ = __classes__ + ["PeppyError"] + _EXPORT_FROM_UTILS
 
 # TODO: remove

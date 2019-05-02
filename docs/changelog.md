@@ -1,6 +1,20 @@
 # Changelog
 
-## *v0.20* (2019-04-17):
+## [0.21.0] -- (2019-05-02)
+
+### Added
+- Support for Snakemake projects (particularly `SnakeProject`)
+- Hook for `get_arg_string` on `Project` to omit some pipeline options/arguments from the returned argument string
+- `sample_table` and `subsample_table` functions, providing a functional syntax for requesting the respective attribute values from a `Project`
+- Hook on `merge_sample` for specifying name of subannotation column that stores name for each sample
+
+### Changed
+- Improved messaging: ["Unmatched regex-like"](https://github.com/pepkit/peppy/issues/223), ["Missing and/or empty attribute(s)"](https://github.com/pepkit/peppy/issues/282)
+- On `Project`, `sheet` is deprecated in favor of `sample_table`.
+- On `Project`, `sample_subannotation` is deprecated in favor of `subsample_table`.
+- On `Sample`, reference to `sample_name` is deprecated in favor of simly `name`.
+
+## [0.20.0] -- (2019-04-17)
 ### Added
 - `subsample_table` on a `Project` gives the table of sample subannotation / "units" if applicable.
 ### Changed
@@ -10,7 +24,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Use `attmap` for implementation of attribute-style access into a key-value collection.
 - Deprecate `sample_annotation` and `sample_subannotation` in favor of `sample_table` and `subsample_table`, respectively.
 
-## *v0.19* (2019-01-16)
+## [0.19.0] -- (2019-01-16)
 ### New  
 - Added ``activate_subproject`` method to ``Project``.
 ### Changed
@@ -18,11 +32,11 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
 - ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.  
 
-## *v0.18.2* (2018-07-23)
+## [0.18.2] -- (2018-07-23)
 ### Fixed
 - Made requirements more lenient to allow for newer versions of required packages.
 
-## *v0.18.1* (2018-06-29)
+## [0.18.1] -- (2018-06-29)
 ### Fixed
 - Fixed a bug that would cause sample attributes to lose order.
 - Fixed a bug that caused an install error with newer ``numexpr`` versions.
@@ -32,16 +46,16 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Add ``get_subsamples``and ``get_subsample`` functions to both ``Project`` and ``Sample`` objects.
 - Subsamples are now objects that can be retrieved individually by name, with the ``subsample_name`` as the index column header.
 
-## *v0.17.2* (2018-04-03)
+## [0.17.2] -- (2018-04-03)
 ## Fixed
 - Ensure data source path relativity is with respect to project config file's folder.
 
-## *v0.17.1* (2017-12-21)
+## [0.17.1] -- (2017-12-21)
 ### Changed
 - Version bump for first pypi release
 - Fixed bug with packaging for pypi release
 
-## *v0.9* (2017-12-21)
+## [0.9.0] -- (2017-12-21)
 ### New
 - Separation completed, ``peppy`` package is now standalone
 - ``looper`` can now rely on ``peppy``
@@ -49,20 +63,20 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - ``merge_table`` renamed to ``sample_subannotation``
 - setup changed for compatibility with PyPI
 
-## *v0.8.1* (2017-11-16)
+## [0.8.1] -- (2017-11-16)
 ### New
 - Separated from looper into its own python package (originally called `pep`)
 
-## *v0.7.2* (2017-11-16)
+## [0.7.2] -- (2017-11-16)
 ### Fixed
 - Correctly count successful command submissions when not using `--dry-run`.
 
-## *v0.7.1* (2017-11-15)
+## [0.7.1] -- (2017-11-15)
 ### Fixed
 - No longer falsely display that there's a submission failure.
 - Allow non-string values to be unquoted in the ``pipeline_args`` section.
 
-## *v0.7* (2017-11-15)
+## [0.7.0] -- (2017-11-15)
 ### New
 - Add ``--lump`` and ``--lumpn`` options
 - Catch submission errors from cluster resource managers
@@ -77,7 +91,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Improve user messages
 - Simplifies command-line help display
 
-## *v0.6* (2017-07-21)
+## [0.6.0] -- (2017-07-21)
 ### New
 - Add support for implied_column section of the project config file
 - Add support for Python 3
@@ -94,7 +108,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Require `setuptools` for installation, and `pandas 0.20.2`. If `numexpr` is installed, version `2.6.2` is required.
 - Allows tilde in ``pipeline_interfaces``
 
-## *v0.5* (2017-03-01):
+## [0.5.0] -- (2017-03-01)
 ### New
 - Add new looper version tracking, with `--version` and `-V` options and printing version at runtime
 - Add support for asterisks in file paths
@@ -107,7 +121,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Small bug fixes related to `all_input_files` and `required_input_files` attributes
 - More robust installation and more explicit requirement of Python 2.7
 
-## *v0.4* (2017-01-12)
+## [0.4.0] -- (2017-01-12)
 ### New
 - New command-line interface (CLI) based on sub-commands
 - New subcommand (``looper summarize``) replacing the ``summarizePipelineStats.R`` script

@@ -18,7 +18,7 @@ RRBS_NAME = "rrbs_mm"
 ADD_PROJECT_DATA = {
     DATA_SOURCES_SECTION: {"src": "{sample}-{flowcell}.bam"},
     DERIVATIONS_DECLARATION: ["data_source"],
-    "pipeline_args": {"--epilog": None},
+    PIPE_ARGS_SECTION: {"--epilog": None},
     IMPLICATIONS_DECLARATION: {"organism": "assembly"},
     "user": "test-user",
     "email": "tester@domain.org",

@@ -9,9 +9,6 @@ tests/test/*
 # ignore eggs
 .eggs/
 
-# ignore built docs
-doc/build/*
-
 # generic ignore list:
 *.lst
 

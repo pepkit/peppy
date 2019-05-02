@@ -14,6 +14,7 @@ from attmap import AttMap
 import peppy
 from peppy import Sample
 from peppy.const import *
+from peppy.sample import NAME_ATTR
 from tests.helpers import named_param
 
 
@@ -24,7 +25,7 @@ __email__ = "vreuter@virginia.edu"
 class ParseSampleImplicationsTests:
     """ Tests for appending columns/fields to a Sample based on a mapping. """
 
-    IMPLIER_NAME = SAMPLE_NAME_COLNAME
+    IMPLIER_NAME = NAME_ATTR
     IMPLIER_VALUES = ["a", "b"]
     SAMPLE_A_IMPLICATIONS = {"genome": "hg38", "phenome": "hg72"}
     SAMPLE_B_IMPLICATIONS = {"genome": "hg38"}
@@ -77,6 +78,10 @@ class ParseSampleImplicationsTests:
                         for implied_field_name in self.IMPLICATIONS.keys()])
 
         no_implied_values()
+        # DEBUG
+        print("SAMPLE: {}".format(sample))
+        print("IMPLIER NAME: {}".format(self.IMPLIER_NAME))
+        print("implier value: {}".format(unmapped_implier_value))
         setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
         sample.infer_attributes(self.IMPLICATIONS_MAP)
         no_implied_values()
@@ -105,7 +110,7 @@ class ParseSampleImplicationsTests:
         rubber_stamper = mock.MagicMock(return_value=[])
         with mock.patch(
                 "peppy.sample.Sample.check_valid", new=rubber_stamper):
-            mocked_sample = peppy.Sample(data)
+            mocked_sample = peppy.sample.Sample(data)
         return mocked_sample
 
 
