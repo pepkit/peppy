@@ -9,9 +9,7 @@
 - Hook on `merge_sample` for specifying name of subannotation column that stores name for each sample
 
 ### Changed
-- Improved messaging
-  - ["Unmatched regex-like"](https://github.com/pepkit/peppy/issues/223)
-  - ["Missing and/or empty attribute(s)"](https://github.com/pepkit/peppy/issues/282)
+- Improved messaging: ["Unmatched regex-like"](https://github.com/pepkit/peppy/issues/223), ["Missing and/or empty attribute(s)"](https://github.com/pepkit/peppy/issues/282)
 - On `Project`, `sheet` is deprecated in favor of `sample_table`.
 - On `Project`, `sample_subannotation` is deprecated in favor of `subsample_table`.
 - On `Sample`, reference to `sample_name` is deprecated in favor of simly `name`.
