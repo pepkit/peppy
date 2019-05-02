@@ -2,13 +2,13 @@
 
 ## [0.21.0] -- (2019-05-02)
 
-### Changed
-- Improved messaging
-
 ### Added
 - Support for SnakeMake projects
 
-## [0.20.0] -- (2019-04-17):
+### Changed
+- Improved messaging
+
+## [0.20.0] -- (2019-04-17)
 ### Added
 - `subsample_table` on a `Project` gives the table of sample subannotation / "units" if applicable.
 ### Changed
@@ -102,7 +102,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Require `setuptools` for installation, and `pandas 0.20.2`. If `numexpr` is installed, version `2.6.2` is required.
 - Allows tilde in ``pipeline_interfaces``
 
-## [0.5.0] -- (2017-03-01):
+## [0.5.0] -- (2017-03-01)
 ### New
 - Add new looper version tracking, with `--version` and `-V` options and printing version at runtime
 - Add support for asterisks in file paths
