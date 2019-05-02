@@ -19,7 +19,7 @@ from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
 from .utils import copy, get_file_size, get_logger, get_name_depr_msg, \
     grab_project_data, parse_ftype, sample_folder
-from ubiquerg.ngs import check_bam
+from ubiquerg.ngs import peek_read_lengths_and_paired_counts_from_bam
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
@@ -758,7 +758,8 @@ class Sample(PathExAttMap):
 
         # For samples with multiple original BAM files, check all.
         files = list()
-        check_by_ftype = {"bam": check_bam, "fastq": _check_fastq}
+        check_by_ftype = {"bam": peek_read_lengths_and_paired_counts_from_bam,
+                          "fastq": _check_fastq}
         for input_file in existing_files:
             try:
                 file_type = parse_ftype(input_file)

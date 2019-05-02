@@ -18,6 +18,7 @@ else:
 import warnings
 import yaml
 from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from ubiquerg import is_collection_like
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,16 +44,6 @@ def add_project_sample_constants(sample, project):
     """
     sample.update(project.constants)
     return sample
-
-
-def coll_like(c):
-    """
-    Determine whether an object is collection-like.
-
-    :param object c: Object to test as collection
-    :return bool: Whether the argument is a (non-string) collection
-    """
-    return isinstance(c, Iterable) and not isinstance(c, str)
 
 
 def copy(obj):
@@ -277,7 +268,7 @@ def is_null_like(x):
     :return bool: Whether given object is effectively "null."
     """
     return x in [None, ""] or \
-        (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
+        (is_collection_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
 def is_url(maybe_url):
@@ -375,7 +366,7 @@ def type_check_strict(obj, ts):
     """
     if isinstance(ts, type):
         ts = [ts]
-    elif not coll_like(ts):
+    elif not is_collection_like(ts):
         raise Exception("Not a collection of types: {}".format(ts))
     if not isinstance(obj, tuple(ts)):
         raise TypeError("{} ({}) is none of {}".format(obj, type(obj), ts))
