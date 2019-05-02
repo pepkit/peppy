@@ -93,6 +93,10 @@ class ProjectContext(object):
     def __init__(self, prj, selector_attribute=ASSAY_KEY,
                  selector_include=None, selector_exclude=None):
         """ Project and what to include/exclude defines the context. """
+        if not isinstance(selector_attribute, str):
+            raise TypeError(
+                "Name of attribute for sample selection isn't a string: {} "
+                "({})".format(selector_attribute, type(selector_attribute)))
         self.prj = prj
         self.include = selector_include
         self.exclude = selector_exclude
