@@ -92,7 +92,7 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
     but if selector_exclude is specified, protocol-less Samples will be included.
 
     :param Project proj: the Project with Samples to fetch
-    :param Project str: the sample selector_attribute to select for
+    :param str selector_attribute: name of attribute on which to base the fetch
     :param Iterable[str] | str selector_include: protocol(s) of interest;
         if specified, a Sample must
     :param Iterable[str] | str selector_exclude: protocol(s) to include
@@ -101,12 +101,18 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
         lacks a protocol or does not match one of those in selector_exclude
     :raise TypeError: if both selector_include and selector_exclude protocols are
         specified; TypeError since it's basically providing two arguments
-        when only one is accepted, so remain consistent with vanilla Python2
+        when only one is accepted, so remain consistent with vanilla Python2;
+        also possible if name of attribute for selection isn't a string
     """
     if selector_attribute is None or (not selector_include and not selector_exclude):
         # Simple; keep all samples.  In this case, this function simply
         # offers a list rather than an iterator.
         return list(proj.samples)
+
+    if not isinstance(selector_attribute, str):
+        raise TypeError(
+            "Name for attribute on which to base selection isn't string: {} "
+            "({})".format(selector_attribute, type(selector_attribute)))
 
     # At least one of the samples has to have the specified attribute
     if proj.samples and not any([hasattr(i, selector_attribute) for i in proj.samples]):
