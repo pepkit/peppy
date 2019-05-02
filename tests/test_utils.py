@@ -12,7 +12,8 @@ from peppy.project import NEW_PIPES_KEY
 from peppy.utils import \
     add_project_sample_constants, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
-from tests.helpers import named_param, nonempty_powerset
+from tests.helpers import named_param
+from ubiquerg import powerset
 
 
 __author__ = "Vince Reuter"
@@ -69,16 +70,14 @@ def sample_independent_data(request, basic_project_data):
 class GrabProjectDataTests:
     """ Tests for grabbing Sample-independent Project configuration data. """
 
-
     @named_param(argnames="data", argvalues=[None, [], {}])
     def test_no_data(self, data):
         """ Parsing empty Project/data yields empty data subset. """
         assert {} == grab_project_data(data)
 
-
     @named_param(
         argnames="sections",
-        argvalues=nonempty_powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS))
+        argvalues=powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS, nonempty=True))
     @named_param(argnames="data_type",
                  argvalues=[AttMap, _DummyProject])
     def test_does_not_need_all_sample_independent_data(
@@ -91,11 +90,11 @@ class GrabProjectDataTests:
         observed = grab_project_data(p)
         assert expected == observed
 
-
     @named_param(
         argnames="extra_data",
-        argvalues=nonempty_powerset(
-            [{NEW_PIPES_KEY: [{"b": 1}, {"c": 2}]}, {"pipeline_config": {}}]))
+        argvalues=powerset(
+            [{NEW_PIPES_KEY: [{"b": 1}, {"c": 2}]}, {"pipeline_config": {}}],
+            nonempty=True))
     @named_param(
         argnames="data_type", argvalues=[AttMap, _DummyProject])
     def test_grabs_only_sample_independent_data(
@@ -194,7 +193,7 @@ class NullValueHelperTests:
         assert has_null_value(ck, kvs)
         assert not non_null_value(ck, kvs)
 
-    def test_None_is_null(self, kvs):
+    def test_none_is_null(self, kvs):
         """ A key with None as value is null. """
         bad_key = "nv"
         assert bad_key not in kvs
@@ -217,3 +216,9 @@ def test_copy():
     new_obj = pepcopy(obj)
     assert obj is new_obj
     assert obj == new_obj
+
+
+@pytest.mark.skip("not implemented")
+def test_fetch_samples():
+    """ Test selection of subset of samples from a Project. """
+    pass
