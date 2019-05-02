@@ -3,7 +3,7 @@
 ## [0.21.0] -- (2019-05-02)
 
 ### Added
-- Support for SnakeMake projects
+- Support for Snakemake projects
 
 ### Changed
 - Improved messaging
