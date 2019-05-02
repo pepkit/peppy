@@ -19,7 +19,7 @@ from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
 from .utils import copy, get_file_size, get_logger, get_name_depr_msg, \
     grab_project_data, parse_ftype, sample_folder
-from ubiquerg.ngs import peek_read_lengths_and_paired_counts_from_bam
+from ngstk import peek_read_lengths_and_paired_counts_from_bam
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
