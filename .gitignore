@@ -69,6 +69,7 @@ open_pipelines/
 *RESERVE*
 
 # Build-related stuff
+build/
 dist/
 peppy.egg-info/
 
