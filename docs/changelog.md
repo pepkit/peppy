@@ -3,10 +3,18 @@
 ## [0.21.0] -- (2019-05-02)
 
 ### Added
-- Support for Snakemake projects
+- Support for Snakemake projects (particularly `SnakeProject`)
+- Hook for `get_arg_string` on `Project` to omit some pipeline options/arguments from the returned argument string
+- `sample_table` and `subsample_table` functions, providing a functional syntax for requesting the respective attribute values from a `Project`
+- Hook on `merge_sample` for specifying name of subannotation column that stores name for each sample
 
 ### Changed
 - Improved messaging
+  - ["Unmatched regex-like"](https://github.com/pepkit/peppy/issues/223)
+  - ["Missing and/or empty attribute(s)"](https://github.com/pepkit/peppy/issues/282)
+- On `Project`, `sheet` is deprecated in favor of `sample_table`.
+- On `Project`, `sample_subannotation` is deprecated in favor of `subsample_table`.
+- On `Sample`, reference to `sample_name` is deprecated in favor of simly `name`.
 
 ## [0.20.0] -- (2019-04-17)
 ### Added
