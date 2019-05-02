@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## [0.21.0] -- (2019-05-02)
 
-## *v0.20* (2019-04-17):
+### Changed
+- Improved messaging
+
+### Added
+- Support for SnakeMake projects
+
+## [0.20.0] -- (2019-04-17):
 ### Added
 - `subsample_table` on a `Project` gives the table of sample subannotation / "units" if applicable.
 ### Changed
@@ -12,7 +18,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Use `attmap` for implementation of attribute-style access into a key-value collection.
 - Deprecate `sample_annotation` and `sample_subannotation` in favor of `sample_table` and `subsample_table`, respectively.
 
-## *v0.19* (2019-01-16)
+## [0.19.0] -- (2019-01-16)
 ### New  
 - Added ``activate_subproject`` method to ``Project``.
 ### Changed
@@ -20,11 +26,11 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Specification of assembly/ies in project config outside of ``implied_attributes``  is deprecated.
 - ``implied_columns`` and ``derived_columns`` are deprecated in favor of ``implied_attributes`` and ``derived_attributes``.  
 
-## *v0.18.2* (2018-07-23)
+## [0.18.2] -- (2018-07-23)
 ### Fixed
 - Made requirements more lenient to allow for newer versions of required packages.
 
-## *v0.18.1* (2018-06-29)
+## [0.18.1] -- (2018-06-29)
 ### Fixed
 - Fixed a bug that would cause sample attributes to lose order.
 - Fixed a bug that caused an install error with newer ``numexpr`` versions.
