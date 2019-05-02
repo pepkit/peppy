@@ -47,7 +47,7 @@ Explore:
 
 """
 
-from collections import Counter
+from collections import Counter, namedtuple
 import logging
 import os
 import sys
@@ -67,7 +67,7 @@ from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, infer_delimiter, is_url, \
-    non_null_value, warn_derived_cols, warn_implied_cols
+    non_null_value, type_check_strict, warn_derived_cols, warn_implied_cols
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -77,7 +77,7 @@ OLD_ANNS_META_KEY = "sample_annotation"
 OLD_SUBS_META_KEY = "sample_subannotation"
 
 READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
-                   "keep_default_na": False}
+                   "keep_default_na": False, "na_values": [""]}
 
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
@@ -160,6 +160,10 @@ class Project(PathExAttMap):
         prj = Project("config.yaml")
 
     """
+
+    # Hook for Project's declaration of how it identifies samples.
+    # Used for validation and for merge_sample (derived cols and such)
+    SAMPLE_NAME_IDENTIFIER = SAMPLE_NAME_COLNAME
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
@@ -352,7 +356,7 @@ class Project(PathExAttMap):
             try:
                 protos.add(s.protocol)
             except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks protocol", s.sample_name)
+                _LOGGER.debug("Sample '%s' lacks protocol", s.name)
         return protos
 
     @property
@@ -374,12 +378,14 @@ class Project(PathExAttMap):
         """ Names of samples of which this Project is aware. """
         dt = getattr(self, NAME_TABLE_ATTR)
         try:
-            return iter(dt[SAMPLE_NAME_COLNAME])
+            return iter(self._get_sample_ids(dt))
         except KeyError:
             cols = list(dt.columns)
-            print("Table columns: {}".format(", ".join(cols)))
+            _LOGGER.error("(For context) Table columns: {}".
+                          format(", ".join(cols)))
             if 1 == len(cols):
-                print("Does delimiter used in the sample sheet match file extension?")
+                _LOGGER.error("Does delimiter used in the sample sheet match "
+                              "file extension?")
             raise
 
     @property
@@ -431,15 +437,7 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of samples'
             metadata, if one is defined
         """
-        from copy import copy as cp
-        key = NAME_TABLE_ATTR
-        attr = "_" + key
-        if self.get(attr) is None:
-            sheetfile = self[METADATA_KEY].get(key)
-            if sheetfile is None:
-                return None
-            self[attr] = self.parse_sample_sheet(sheetfile)
-        return cp(self[attr])
+        return sample_table(self)
 
     @property
     def sheet(self):
@@ -469,16 +467,30 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of subsamples'
             metadata, if the project defines such a table
         """
+        return subsample_table(self)
+
+    def _meta_from_file_set_if_needed(self, spec, attr=lambda k: "_" + k):
         from copy import copy as cp
-        key = SAMPLE_SUBANNOTATIONS_KEY
-        attr = "_" + key
+        if not isinstance(spec, _MakeTableSpec):
+            raise TypeError("Invalid specification type: {}".format(type(spec)))
+        if hasattr(attr, "__call__"):
+            attr = attr(spec.key)
+        elif not isinstance(attr, str):
+            raise TypeError("Attr name must be string or function to call on "
+                            "key to make attr name; got {}".format(type(attr)))
         if self.get(attr) is None:
-            sheetfile = self[METADATA_KEY].get(key)
-            if sheetfile is None:
+            filepath = self[METADATA_KEY].get(spec.key)
+            if filepath is None:
                 return None
-            self[attr] = pd.read_csv(sheetfile,
-                sep=infer_delimiter(sheetfile), **READ_CSV_KWARGS)
+            self[attr] = self._apply_parse_strat(filepath, spec)
         return cp(self[attr])
+
+    def _apply_parse_strat(self, filepath, spec):
+        from copy import copy as cp
+        kwds = cp(spec.kwargs)
+        if spec.make_extra_kwargs:
+            kwds.update(spec.make_extra_kwargs(filepath))
+        return spec.get_parse_fun(self)(filepath, **kwds)
 
     @property
     def templates_folder(self):
@@ -750,8 +762,7 @@ class Project(PathExAttMap):
 
         if sub_ann and os.path.isfile(sub_ann):
             _LOGGER.info("Reading subannotations: %s", sub_ann)
-            subann_table = pd.read_csv(sub_ann,
-                sep=infer_delimiter(sub_ann), **READ_CSV_KWARGS)
+            subann_table = self._apply_parse_strat(sub_ann, _SUBS_TABLE_SPEC)
             self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
             _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
         else:
@@ -784,7 +795,8 @@ class Project(PathExAttMap):
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
             merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
-                         self.data_sources, self.derived_attributes)
+                         self.data_sources, self.derived_attributes,
+                         sample_colname=self.SAMPLE_NAME_IDENTIFIER)
             _LOGGER.debug("Setting sample file paths")
             sample.set_file_paths(self)
             # Hack for backwards-compatibility
@@ -794,7 +806,7 @@ class Project(PathExAttMap):
                 sample.data_path = sample.data_source
             except AttributeError:
                 _LOGGER.log(5, "Sample '%s' lacks data source; skipping "
-                               "data path assignment", sample.sample_name)
+                               "data path assignment", sample.name)
             else:
                 _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
@@ -803,20 +815,25 @@ class Project(PathExAttMap):
 
     def _check_subann_name_overlap(self):
         """
-        Check if all subannotations have a matching sample, and warn if not
-
-        :raises warning: if any fo the subannotations sample_names does not have a corresponding Project.sample_name
-        """
+        Check if all subannotations have a matching sample, and warn if not. """
         subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
         if subs is not None:
-            sample_subann_names = subs.sample_name.tolist()
+            sample_subann_names = self._get_sample_ids(subs).tolist()
             sample_names_list = list(self.sample_names)
             info = " matching sample name for subannotation '{}'"
             for n in sample_subann_names:
-                _LOGGER.warning(("Couldn't find" + info).format(n)) if n not in sample_names_list\
-                    else _LOGGER.debug(("Found" + info).format(n))
+                if n not in sample_names_list:
+                    _LOGGER.warning(("Couldn't find" + info).format(n))
+                else:
+                    _LOGGER.debug(("Found" + info).format(n))
         else:
             _LOGGER.debug("No sample subannotations found for this Project.")
+
+    @staticmethod
+    def _get_sample_ids(df):
+        """ Return the sample identifiers in the given table. """
+        type_check_strict(df, pd.DataFrame)
+        return df[SAMPLE_NAME_COLNAME]
 
     def parse_config_file(self, subproject=None):
         """
@@ -993,13 +1010,11 @@ class Project(PathExAttMap):
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
 
-    @staticmethod
-    def parse_sample_sheet(sample_file, dtype=str):
+    def parse_sample_sheet(self, sample_file):
         """
         Check if csv file exists and has all required columns.
 
         :param str sample_file: path to sample annotations file.
-        :param type dtype: data type for CSV read.
         :return pandas.core.frame.DataFrame: table populated by the project's
             sample annotations data
         :raises IOError: if given annotations file can't be read.
@@ -1020,12 +1035,13 @@ class Project(PathExAttMap):
             raise Project.MissingSampleSheetError(sample_file)
         else:
             _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            missing = {SAMPLE_NAME_COLNAME} - set(df.columns)
+            missing = {self.SAMPLE_NAME_IDENTIFIER} - set(df.columns)
             if len(missing) != 0:
                 _LOGGER.warning(
-                    "Annotation sheet ('{}') is missing column(s):\n{}\n"
-                    "It has: {}".format(sample_file, "\n".join(missing),
-                                        ", ".join(list(df.columns))))
+                    "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
+                    "It has: {has}".format(
+                        f=sample_file, n=len(missing), miss=", ".join(missing),
+                        has=", ".join(list(df.columns))))
         return df
 
     class MissingMetadataException(PeppyError):
@@ -1127,3 +1143,36 @@ def _warn_pipes_deprecation():
     msg = "Use of {} is deprecated; favor {}".\
         format(OLD_PIPES_KEY, NEW_PIPES_KEY)
     warnings.warn(msg, DeprecationWarning)
+
+
+def sample_table(p):
+    """
+    Provide (building as needed) a Project's main samples (metadata) table.
+
+    :param peppy.Project p: Project instance from which to get table
+    :return pandas.core.frame.DataFrame: the Project's sample table
+    """
+    if not isinstance(p, Project):
+        raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
+    return p._meta_from_file_set_if_needed(_MAIN_TABLE_SPEC)
+
+
+def subsample_table(p):
+    """
+    Provide (building as needed) a Project's subsample (metadata) table.
+
+    :param peppy.Project p: Project instance from which to get subsample table
+    :return pandas.core.frame.DataFrame: the Project's subsample table
+    """
+    if not isinstance(p, Project):
+        raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
+    return p._meta_from_file_set_if_needed(_SUBS_TABLE_SPEC)
+
+
+_MakeTableSpec = namedtuple(
+    "_MakeTableSpec", ["key", "get_parse_fun", "make_extra_kwargs", "kwargs"])
+_MAIN_TABLE_SPEC = _MakeTableSpec(
+    NAME_TABLE_ATTR, lambda p: p.parse_sample_sheet, None, {})
+_SUBS_TABLE_SPEC = _MakeTableSpec(
+    SAMPLE_SUBANNOTATIONS_KEY, lambda _: pd.read_csv,
+    lambda f: {"sep": infer_delimiter(f)}, READ_CSV_KWARGS)

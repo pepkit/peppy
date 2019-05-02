@@ -1,12 +1,11 @@
 """ Helpers without an obvious logical home. """
 
-from collections import defaultdict, Iterable
+from collections import Counter, defaultdict, Iterable
 import contextlib
 import logging
 import os
 import random
 import string
-import subprocess as sp
 import sys
 if sys.version_info < (3, 0):
     from urlparse import urlparse
@@ -18,30 +17,18 @@ else:
     from collections.abc import Sized
 import warnings
 import yaml
-from .const import GENERIC_PROTOCOL_KEY, SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
+from ubiquerg import is_collection_like
 
 
 _LOGGER = logging.getLogger(__name__)
 
 
 __all__ = [
-    "CommandChecker", "add_project_sample_constants", "check_bam", "check_fastq",
-    "get_file_size", "fetch_samples", "grab_project_data", "has_null_value",
-    "is_command_callable"
+    "CommandChecker", "add_project_sample_constants", "count_repeats",
+    "get_file_size", "get_logger", "fetch_samples", "grab_project_data",
+    "has_null_value", "is_command_callable", "type_check_strict"
 ]
-
-
-def alpha_cased(text, lower=False):
-    """
-    Filter text to just letters and homogenize case.
-    
-    :param str text: what to filter and homogenize.
-    :param bool lower: whether to convert to lowercase; default uppercase.
-    :return str: input filtered to just letters, with homogenized case.
-    """
-    text = "".join(filter(
-            lambda c: c.isalpha() or c == GENERIC_PROTOCOL_KEY, text))
-    return text.lower() if lower else text.upper()
 
 
 def add_project_sample_constants(sample, project):
@@ -59,53 +46,6 @@ def add_project_sample_constants(sample, project):
     return sample
 
 
-def check_bam(bam, o):
-    """
-    Check reads in BAM file for read type and lengths.
-
-    :param str bam: BAM file path.
-    :param int o: Number of reads to look at for estimation.
-    """
-    try:
-        p = sp.Popen(['samtools', 'view', bam], stdout=sp.PIPE)
-        # Count paired alignments
-        paired = 0
-        read_lengths = defaultdict(int)
-        while o > 0:  # Count down number of lines
-            line = p.stdout.readline().decode().split("\t")
-            flag = int(line[1])
-            read_lengths[len(line[9])] += 1
-            if 1 & flag:  # check decimal flag contains 1 (paired)
-                paired += 1
-            o -= 1
-        p.kill()
-    except OSError:
-        reason = "Note (samtools not in path): For NGS inputs, " \
-                 "pep needs samtools to auto-populate " \
-                 "'read_length' and 'read_type' attributes; " \
-                 "these attributes were not populated."
-        raise OSError(reason)
-
-    _LOGGER.debug("Read lengths: {}".format(read_lengths))
-    _LOGGER.debug("paired: {}".format(paired))
-    return read_lengths, paired
-
-
-def check_fastq(fastq, o):
-    raise NotImplementedError("Detection of read type/length for "
-                              "fastq input is not yet implemented.")
-
-
-def coll_like(c):
-    """
-    Determine whether an object is collection-like.
-
-    :param object c: Object to test as collection
-    :return bool: Whether the argument is a (non-string) collection
-    """
-    return isinstance(c, Iterable) and not isinstance(c, str)
-
-
 def copy(obj):
     def copy(self):
         """
@@ -118,6 +58,18 @@ def copy(obj):
     return obj
 
 
+def count_repeats(objs):
+    """
+    Find (and count) repeated objects
+
+    :param Iterable[object] objs: collection of objects in which to seek
+        repeated elements
+    :return list[(object, int)]: collection of pairs in which first component
+        of each is a repeated object, and the second is duplication count
+    """
+    return [(o, n) for o, n in Counter(objs).items() if n > 1]
+
+
 def expandpath(path):
     """
     Expand a filesystem path that may or may not contain user/env vars.
@@ -126,28 +78,6 @@ def expandpath(path):
     :return str: expanded version of input path
     """
     return os.path.expandvars(os.path.expanduser(path)).replace("//", "/")
-
-
-def get_file_size(filename):
-    """
-    Get size of all files in gigabytes (Gb).
-
-    :param str | collections.Iterable[str] filename: A space-separated
-        string or list of space-separated strings of absolute file paths.
-    :return float: size of file(s), in gigabytes.
-    """
-    if filename is None:
-        return float(0)
-    if type(filename) is list:
-        return float(sum([get_file_size(x) for x in filename]))
-    try:
-        total_bytes = sum([float(os.stat(f).st_size)
-                           for f in filename.split(" ") if f is not ''])
-    except OSError:
-        # File not found
-        return 0.0
-    else:
-        return float(total_bytes) / (1024 ** 3)
 
 
 def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
@@ -209,6 +139,40 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
                    getattr(s, selector_attribute) in make_set(selector_include)
 
     return list(filter(keep, proj.samples))
+
+
+def get_file_size(filename):
+    """
+    Get size of all files in gigabytes (Gb).
+
+    :param str | collections.Iterable[str] filename: A space-separated
+        string or list of space-separated strings of absolute file paths.
+    :return float: size of file(s), in gigabytes.
+    """
+    if filename is None:
+        return float(0)
+    if type(filename) is list:
+        return float(sum([get_file_size(x) for x in filename]))
+    try:
+        total_bytes = sum([float(os.stat(f).st_size)
+                           for f in filename.split(" ") if f is not ''])
+    except OSError:
+        # File not found
+        return 0.0
+    else:
+        return float(total_bytes) / (1024 ** 3)
+
+
+def get_logger(name):
+    """
+    Returm a logger with given name, equipped with custom method.
+
+    :param str name: name for the logger to get/create.
+    :return logging.Logger: named, custom logger instance.
+    """
+    l = logging.getLogger(name)
+    l.whisper = lambda msg, *args, **kwargs: l.log(5, msg, *args, **kwargs)
+    return l
 
 
 def grab_project_data(prj):
@@ -304,7 +268,7 @@ def is_null_like(x):
     :return bool: Whether given object is effectively "null."
     """
     return x in [None, ""] or \
-        (coll_like(x) and isinstance(x, Sized) and 0 == len(x))
+        (is_collection_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
 def is_url(maybe_url):
@@ -385,8 +349,27 @@ def sample_folder(prj, sample):
         folder path.
     :return str: this Project's root folder for the given Sample
     """
-    return os.path.join(prj.metadata.results_subdir,
-                        sample["sample_name"])
+    return os.path.join(prj.metadata.results_subdir, sample.name)
+
+
+def type_check_strict(obj, ts):
+    """
+    Perform a type check for given object.
+
+    :param object obj: object to type check
+    :param Iterable[type] | type ts: collection of types (or just one),
+        one of which the given object must be an instance of
+    :raise TypeError: if the given object is an instance of none of the given
+        types
+    :raise Exception: if alleged collection of types is not a non-string
+        collection-like type
+    """
+    if isinstance(ts, type):
+        ts = [ts]
+    elif not is_collection_like(ts):
+        raise Exception("Not a collection of types: {}".format(ts))
+    if not isinstance(obj, tuple(ts)):
+        raise TypeError("{} ({}) is none of {}".format(obj, type(obj), ts))
 
 
 @contextlib.contextmanager
@@ -417,6 +400,18 @@ def warn_derived_cols():
 def warn_implied_cols():
     """ Produce deprecation warning about implied columns. """
     _warn_cols_to_attrs("implied")
+
+
+def get_name_depr_msg(old, new, cls=None):
+    """
+    Warn of an attribute name deprecation.
+
+    :param str old: name of the old attribute
+    :param str new: name of the new attribute
+    :param type cls: type on which the reference is deprecated
+    """
+    msg = "use of {} is deprecated in favor of {}".format(old, new)
+    return msg if cls is None else "On {} ".format(cls.__name__) + msg
 
 
 def _warn_cols_to_attrs(prefix):

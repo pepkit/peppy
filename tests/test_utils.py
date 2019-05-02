@@ -1,9 +1,6 @@
 """ Tests for utility functions """
 
 import copy
-import random
-import string
-import sys
 
 import mock
 import pytest
@@ -13,7 +10,7 @@ from peppy import Project, Sample
 from peppy.const import *
 from peppy.project import NEW_PIPES_KEY
 from peppy.utils import \
-    add_project_sample_constants, coll_like, copy as pepcopy, \
+    add_project_sample_constants, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
 from tests.helpers import named_param, nonempty_powerset
 
@@ -166,44 +163,6 @@ class AddProjectSampleConstantsTests:
         assert new_val == basic_sample[collision]
 
 
-def _randcoll(pool, dt):
-    """
-    Generate random collection of 1-10 elements.
-    
-    :param Iterable pool: elements from which to choose
-    :param type dt: type of collection to create
-    :return Iterable[object]: collection of randomly generated elements
-    """
-    valid_types = [tuple, list, set, dict]
-    if dt not in valid_types:
-        raise TypeError("{} is an invalid type; choose from {}".
-                        format(str(dt), ", ".join(str(t) for t in valid_types)))
-    rs = [random.choice(pool) for _ in range(random.randint(1, 10))]
-    return dict(enumerate(rs)) if dt == dict else rs
-
-
-@pytest.mark.parametrize(
-    ["arg", "exp"],
-    [(random.randint(-sys.maxsize - 1, sys.maxsize), False),
-     (random.random(), False),
-     (random.choice(string.ascii_letters), False),
-     ([], True), (set(), True), (dict(), True), (tuple(), True),
-     (_randcoll(string.ascii_letters, list), True),
-     (_randcoll(string.ascii_letters, dict), True),
-     (_randcoll([int(d) for d in string.digits], tuple), True),
-     (_randcoll([int(d) for d in string.digits], set), True)]
-)
-def test_coll_like(arg, exp):
-    """ Test arbiter of whether an object is collection-like. """
-    assert exp == coll_like(arg)
-
-
-def _get_empty_attrdict(data):
-    ad = AttMap()
-    ad.add_entries(data)
-    return ad
-
-
 class NullValueHelperTests:
     """ Tests of accuracy of null value arbiter. """
 
@@ -248,7 +207,6 @@ class NullValueHelperTests:
         """ Keys with non-None atomic or nonempty collection are non-null. """
         assert k in kvs
         assert non_null_value(k, kvs)
-
 
 
 def test_copy():

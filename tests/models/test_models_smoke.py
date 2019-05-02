@@ -44,7 +44,8 @@ class ModelRepresentationSmokeTests:
 
     @pytest.mark.parametrize(
             argnames="class_name",
-            argvalues=[cn for cn in peppy.__classes__ if cn != "Project"])
+            argvalues=[cn for cn in peppy.__classes__
+                       if cn not in ["Project", "SnakeProject"]])
     def test_repr_smoke(
             self, tmpdir, class_name, basic_instance_data, funcname):
         """ Object representation method successfully returns string. """

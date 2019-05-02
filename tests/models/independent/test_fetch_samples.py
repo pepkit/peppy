@@ -98,7 +98,7 @@ def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
 
     # Parse name and protocol from actual Sample objects.
     def sample_data(samples):
-        return [(s.sample_name, getattr(s, "protocol", "")) for s in samples]
+        return [(s.name, getattr(s, "protocol", "")) for s in samples]
 
     def write_anns(fh, samples):
         fh.write("\n".join(map(

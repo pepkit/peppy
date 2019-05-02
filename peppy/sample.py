@@ -2,7 +2,6 @@
 
 from collections import OrderedDict
 import glob
-import logging
 from operator import itemgetter
 import os
 import sys
@@ -15,19 +14,23 @@ import warnings
 from pandas import isnull, Series
 import yaml
 
-from . import ASSAY_KEY, SAMPLE_NAME_COLNAME
 from attmap import AttMap, PathExAttMap
-from .const import \
-    ALL_INPUTS_ATTR_NAME, DATA_SOURCE_COLNAME, DATA_SOURCES_SECTION, \
-    NAME_TABLE_ATTR, REQUIRED_INPUTS_ATTR_NAME, SAMPLE_EXECUTION_TOGGLE, \
-    SAMPLE_SUBANNOTATIONS_KEY, VALID_READ_TYPES
-from .utils import check_bam, check_fastq, copy, get_file_size, \
+from .const import *
+from .const import SNAKEMAKE_SAMPLE_COL
+from .utils import copy, get_file_size, get_logger, get_name_depr_msg, \
     grab_project_data, parse_ftype, sample_folder
+from ubiquerg.ngs import peek_read_lengths_and_paired_counts_from_bam
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
+NAME_ATTR = "name"
+_OLD_PROTOCOL_REF = "library"
 
-_LOGGER = logging.getLogger(__name__)
+
+__all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
+
+
+_LOGGER = get_logger(__name__)
 
 
 @copy
@@ -76,12 +79,41 @@ class Sample(PathExAttMap):
         # Create data, handling library/protocol.
         data = OrderedDict(series)
 
+        # Handle assay representation (protocol vs. library).
         try:
-            protocol = data.pop("library")
+            protocol = data.pop(_OLD_PROTOCOL_REF)
         except KeyError:
             pass
         else:
+            msg = get_name_depr_msg(_OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__)
+            warnings.warn(msg, DeprecationWarning)
             data[ASSAY_KEY] = protocol
+
+        # Handle Snakemake vs. native peppy naming convention.
+        try:
+            name_sm = data.pop(SNAKEMAKE_SAMPLE_COL)
+        except:
+            pass    # No Snakemake sample identifier key.
+        else:
+            try:
+                name_pep = data[SAMPLE_NAME_COLNAME]
+            except KeyError:
+                _LOGGER.whisper("Renaming {} to {}".format(
+                    SNAKEMAKE_SAMPLE_COL, SAMPLE_NAME_COLNAME))
+                data = OrderedDict(
+                    [(SAMPLE_NAME_COLNAME, name_sm)] + list(data.items()))
+            else:
+                if name_pep == name_sm:
+                    _LOGGER.whisper(
+                        "Used two sample identifiers ({} and {})".format(
+                            SAMPLE_NAME_COLNAME, SNAKEMAKE_SAMPLE_COL))
+                else:
+                    raise Exception(
+                        "Attempted to build sample with discordant identifier "
+                        "keys ({smk}={smv} and {pk}={pv})".format(
+                            smk=SNAKEMAKE_SAMPLE_COL, smv=name_sm,
+                            pk=SAMPLE_NAME_COLNAME, pv=name_pep))
+
         super(Sample, self).__init__(entries=data)
 
         if PRJ_REF in self and prj:
@@ -108,8 +140,13 @@ class Sample(PathExAttMap):
         if missing_attributes_message:
             raise ValueError(missing_attributes_message)
 
-        # Short hand for getting sample_name
+        # TODO: update based on changes; consider name as property, grabbind sample_name.
         self.name = self.sample_name
+        """
+        if SAMPLE_NAME_COLNAME in self:
+            self[NAME_ATTR] = self[SAMPLE_NAME_COLNAME]
+            del self[SAMPLE_NAME_COLNAME]
+        """
 
         # Default to no required paths and no YAML file.
         self.required_paths = None
@@ -137,6 +174,15 @@ class Sample(PathExAttMap):
         return super(Sample, self)._omit_from_repr(k, cls) or k == PRJ_REF
 
     def __setitem__(self, key, value):
+        """
+        if key == SAMPLE_NAME_COLNAME:
+            key = NAME_ATTR
+            #_LOGGER.warning(get_name_depr_msg(
+            #    SAMPLE_NAME_COLNAME, key, self.__class__))
+            if not isinstance(value, str):
+                raise TypeError("Name for sample isn't string: {} ({})".
+                                format(value, type(value)))
+        """
         # TODO: better solution for this cyclical dependency hack
         if value.__class__.__name__ == "Project":
             self.__dict__[key] = value
@@ -381,7 +427,8 @@ class Sample(PathExAttMap):
 
         :return str: The protocol / NGS library name for this Sample.
         """
-        warnings.warn("Replace 'library' with 'protocol'", DeprecationWarning)
+        warnings.warn(get_name_depr_msg(
+            _OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__), DeprecationWarning)
         return self.protocol
 
     def get_subsample(self, subsample_name):
@@ -711,7 +758,8 @@ class Sample(PathExAttMap):
 
         # For samples with multiple original BAM files, check all.
         files = list()
-        check_by_ftype = {"bam": check_bam, "fastq": check_fastq}
+        check_by_ftype = {"bam": peek_read_lengths_and_paired_counts_from_bam,
+                          "fastq": _check_fastq}
         for input_file in existing_files:
             try:
                 file_type = parse_ftype(input_file)
@@ -727,19 +775,13 @@ class Sample(PathExAttMap):
             except NotImplementedError as e:
                 if not permissive:
                     raise
-                _LOGGER.warning(e.message)
+                _LOGGER.warning(str(e))
                 return
             except IOError:
                 if not permissive:
                     raise
                 _LOGGER.error("Input file does not exist or "
                               "cannot be read: %s", str(input_file))
-                for feat_name in self._FEATURE_ATTR_NAMES:
-                    if not hasattr(self, feat_name):
-                        setattr(self, feat_name, None)
-                return
-            except OSError as e:
-                _LOGGER.error(str(e) + " [file: {}]".format(input_file))
                 for feat_name in self._FEATURE_ATTR_NAMES:
                     if not hasattr(self, feat_name):
                         setattr(self, feat_name, None)
@@ -913,18 +955,20 @@ class Sample(PathExAttMap):
             setattr(self, k, v)
 
 
-def merge_sample(sample, sample_subann,
-                 data_sources=None, derived_attributes=None):
+def merge_sample(sample, sample_subann, data_sources=None,
+                 derived_attributes=None, sample_colname=SAMPLE_NAME_COLNAME):
     """
     Use merge table (subannotation) data to augment/modify Sample.
 
     :param Sample sample: sample to modify via merge table data
-    :param sample_subann: data with which to alter Sample
+    :param pandas.core.frame.DataFrame sample_subann: data informing how to
+        update given sample
     :param Mapping data_sources: collection of named paths to data locations,
         optional
     :param Iterable[str] derived_attributes: names of attributes for which
         corresponding Sample attribute's value is data-derived, optional
-    :return Set[str]: names of columns/attributes that were merged
+    :param str sample_colname: name of the designated sample name column
+    :return peppy.Sample: updated Sample instance
     """
 
     merged_attrs = {}
@@ -933,10 +977,8 @@ def merge_sample(sample, sample_subann,
         _LOGGER.log(5, "No data for sample merge, skipping")
         return merged_attrs
 
-    if SAMPLE_NAME_COLNAME not in sample_subann.columns:
-        raise KeyError(
-            "Merge table requires a column named '{}'.".
-                format(SAMPLE_NAME_COLNAME))
+    if sample_colname not in sample_subann.columns:
+        raise KeyError("Subannotation requires column '{}'.".format(sample_colname))
 
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
@@ -946,8 +988,7 @@ def merge_sample(sample, sample_subann,
     _LOGGER.debug("Merging Sample with derived attributes: {}".
                   format(derived_attributes))
 
-    sample_name = getattr(sample, SAMPLE_NAME_COLNAME)
-    sample_indexer = sample_subann[SAMPLE_NAME_COLNAME] == sample_name
+    sample_indexer = sample_subann[sample_colname] == sample.name
     this_sample_rows = sample_subann[sample_indexer]
     if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
@@ -978,8 +1019,8 @@ def merge_sample(sample, sample_subann,
         # Iterate over column names to avoid Python3 RuntimeError for
         # during-iteration change of dictionary size.
         for attr_name in this_sample_rows.columns:
-            if attr_name == SAMPLE_NAME_COLNAME or \
-                            attr_name not in derived_attributes:
+            if attr_name == sample_colname or \
+                    attr_name not in derived_attributes:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
 
@@ -1025,7 +1066,7 @@ def merge_sample(sample, sample_subann,
         # format--it's what's most amenable to use in building up an argument
         # string for a pipeline command.
         for attname, attval in rowdata.items():
-            if attname == SAMPLE_NAME_COLNAME or not attval:
+            if attname == sample_colname or not attval:
                 _LOGGER.log(5, "Skipping KV: {}={}".format(attname, attval))
                 continue
             _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
@@ -1040,7 +1081,7 @@ def merge_sample(sample, sample_subann,
                         new_attval, attname)
 
     # If present, remove sample name from the data with which to update sample.
-    merged_attrs.pop(SAMPLE_NAME_COLNAME, None)
+    merged_attrs.pop(sample_colname, None)
 
     _LOGGER.log(5, "Updating Sample {}: {}".format(sample.name, merged_attrs))
     sample.update(merged_attrs)  # 3)
@@ -1070,3 +1111,7 @@ class Paths(object):
     def __repr__(self):
         return "Paths object."
 
+
+def _check_fastq(fastq, o):
+    raise NotImplementedError(
+        "Detection of read type/length for fastq input is not yet implemented.")
