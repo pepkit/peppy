@@ -8,6 +8,6 @@
 
 Links to complete documentation:
 
-* Complete documentation and API for the `peppy` python package is at [code.databio.org/peppy](http://code.databio.org/peppy/).
+* Complete documentation and API for the `peppy` python package is at [peppy.databio.org](http://peppy.databio.org).
 * Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
 * Example PEPs for testing `peppy` are in the [example_peps repository](https://github.com/pepkit/example_peps).
