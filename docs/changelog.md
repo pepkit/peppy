@@ -3,6 +3,8 @@
 ## [Unreleased]
 ### Changed
 - Deprecate `Project` "constants" in favor of "constant_attributes."
+### Fixed
+- Properly use `constant_attributes` if present from subproject. [Issue 292](https://github.com/pepkit/peppy/issues/292)
 
 ## [0.21.0] -- (2019-05-02)
 
