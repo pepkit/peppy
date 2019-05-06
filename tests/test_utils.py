@@ -138,16 +138,16 @@ class AddProjectSampleConstantsTests:
         assert basic_sample == sample
 
     @named_param(
-        argnames="constants",
+        argnames="const",
         argvalues=[{"new_attr": 45}, {"a1": 0, "b2": "filepath"}])
-    def test_add_project_sample_constants(self, basic_sample, constants):
+    def test_add_project_sample_constants(self, basic_sample, const):
         """ New attribute is added by the update. """
-        mock_prj = mock.MagicMock(constants=constants)
-        for attr in constants:
+        mock_prj = mock.MagicMock(constant_attributes=const)
+        for attr in const:
             assert attr not in basic_sample
             assert not hasattr(basic_sample, attr)
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
-        for attr_name, attr_value in constants.items():
+        for attr_name, attr_value in const.items():
             assert attr_value == basic_sample[attr_name]
             assert attr_value == getattr(basic_sample, attr_name)
 
@@ -156,7 +156,7 @@ class AddProjectSampleConstantsTests:
     def test_name_collision(self, basic_sample, collision, old_val, new_val):
         """ New value overwrites old value (no guarantee for null, though.) """
         basic_sample[collision] = old_val
-        mock_prj = mock.MagicMock(constants={collision: new_val})
+        mock_prj = mock.MagicMock(constant_attributes={collision: new_val})
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]

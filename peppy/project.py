@@ -288,7 +288,11 @@ class Project(PathExAttMap):
         :return Mapping: collection of KV pairs, each representing a pairing
             of attribute name and attribute value
         """
-        return self._constants
+        from copy import deepcopy
+        warnings.warn(get_name_depr_msg(
+            "constants", CONSTANTS_DECLARATION, self.__class__),
+            DeprecationWarning)
+        return deepcopy(self[CONSTANTS_DECLARATION])
 
     @property
     def derived_columns(self):
@@ -901,6 +905,8 @@ class Project(PathExAttMap):
         else:
             _LOGGER.debug("No subproject requested")
 
+        self.setdefault(CONSTANTS_DECLARATION, {})
+
         # In looper 0.4, for simplicity the paths section was eliminated.
         # For backwards compatibility, mirror the paths section into metadata.
         if "paths" in config:
@@ -911,8 +917,6 @@ class Project(PathExAttMap):
             self.metadata.add_entries(self.paths)
             _LOGGER.debug("Metadata: %s", str(self.metadata))
             delattr(self, "paths")
-
-        self._constants = config.get("constants", dict())
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
