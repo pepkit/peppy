@@ -12,6 +12,9 @@ __email__ = "vreuter@virginia.edu"
 __all__ = ["SnakeProject"]
 
 
+UNITS_COLUMN = "unit"
+
+
 class SnakeProject(Project):
     """ Extending Project for interop with Snakemake """
 
@@ -60,13 +63,12 @@ class SnakeProject(Project):
             return go(names[1:], 1, names[0], []) if names else []
 
         t = _rename_columns(subsample_table(self))
-        unit_col = "unit"
-        if unit_col not in t.columns:
+        if UNITS_COLUMN not in t.columns:
             units = [str(i) for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
                      for i in range(1, n + 1)]
-            t.insert(1, unit_col, units)
+            t.insert(1, UNITS_COLUMN, units)
 
-        t.set_index([SNAKEMAKE_SAMPLE_COL, unit_col], drop=False, inplace=True)
+        t.set_index([SNAKEMAKE_SAMPLE_COL, UNITS_COLUMN], drop=False, inplace=True)
         t.index.set_levels([i.astype(str) for i in t.index.levels])
         return t
 
