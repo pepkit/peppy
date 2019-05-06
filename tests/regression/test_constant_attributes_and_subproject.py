@@ -21,7 +21,7 @@ SUBP_MAP = {"with_const": {CONSTANTS_DECLARATION: SUBS1},
 def test_subproject_introduces_constants(prj, subp, expected, main_const):
     """ A subproject can add constant to a Project that lacked them. """
     assert not prj[CONSTANTS_DECLARATION]
-    prj = prj.activate_subproject(subp)
+    prj.activate_subproject(subp)
     assert expected == prj[CONSTANTS_DECLARATION]
 
 
@@ -35,18 +35,37 @@ def test_constants_survive_activation_of_subproject_without_constants(prj, main_
 
 
 @pytest.mark.parametrize(
-    "main_const", [{"fixed_main_const": "arbval"}, {"RK": "random"}])
+    "main_const", [{"const1": "should-be-replaced", "unreplaced": "preserved"}])
 def test_constants_are_overwritten_by_subproject(prj, main_const):
     """ A subproject's constants take precedence over existing. """
     assert main_const == prj[CONSTANTS_DECLARATION]
     prj.activate_subproject("with_const")
-    assert SUBS1 == prj[CONSTANTS_DECLARATION]
+    obs = prj[CONSTANTS_DECLARATION]
+    assert obs != main_const
+    assert {"const1", "unreplaced"} == set(obs.keys())
+    assert "preserved" == obs["unreplaced"]
+    assert obs["const1"] != "should-be-replaced"
+    assert SUBS1["const1"] == obs["const1"]
 
 
-@pytest.mark.skip("Not implemented")
-def test_constants_are_restored_after_subproject_deactivation(main_const):
+@pytest.mark.parametrize(
+    "main_const", [{"const1": "should-be-restored", "unchanged": "arbitrary"}])
+def test_constants_are_restored_after_subproject_deactivation(prj, main_const):
     """ After subproject deactivation, project's original constants return. """
-    pass
+    assert main_const == prj[CONSTANTS_DECLARATION]
+    prj.activate_subproject("with_const")
+    assert main_const != prj[CONSTANTS_DECLARATION]
+    prj.deactivate_subproject()
+    assert main_const == prj[CONSTANTS_DECLARATION]
+
+
+@pytest.mark.parametrize(
+    "main_const", [{}, {"unreplaced": "random", "extra": "arbval"}])
+def test_empty_subprojects_dont_squash_existing(prj, main_const):
+    """ Subproject with empty constants leaves initial constants unchanged. """
+    assert main_const == prj[CONSTANTS_DECLARATION]
+    prj.activate_subproject("without_const")
+    assert main_const == prj[CONSTANTS_DECLARATION]
 
 
 @pytest.fixture
