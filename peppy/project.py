@@ -66,8 +66,8 @@ from .const import *
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, copy, fetch_samples, infer_delimiter, is_url, \
-    non_null_value, type_check_strict, warn_derived_cols, warn_implied_cols
+    add_project_sample_constants, copy, fetch_samples, get_name_depr_msg, \
+    infer_delimiter, is_url, non_null_value, type_check_strict
 
 
 MAX_PROJECT_SAMPLES_REPR = 12
@@ -82,6 +82,8 @@ READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
+_OLD_DERIVATIONS_KEY = "derived_columns"
+_OLD_IMPLICATIONS_KEY = "implied_columns"
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -264,11 +266,15 @@ class Project(PathExAttMap):
         :param str key: Key to map to given value
         :param object value: Arbitrary value to bind to given key
         """
-        if key == "derived_columns":
-            warn_derived_cols()
+        if key == _OLD_DERIVATIONS_KEY:
+            warnings.warn(get_name_depr_msg(
+                _OLD_DERIVATIONS_KEY, "derived_attributes", self.__class__),
+                DeprecationWarning)
             key = DERIVATIONS_DECLARATION
-        elif key == "implied_columns":
-            warn_implied_cols()
+        elif key == _OLD_IMPLICATIONS_KEY:
+            warnings.warn(get_name_depr_msg(
+                _OLD_IMPLICATIONS_KEY, "implied_attributes", self.__class__),
+                DeprecationWarning)
             key = IMPLICATIONS_DECLARATION
         elif key == METADATA_KEY:
             value = _Metadata(value)
@@ -291,7 +297,9 @@ class Project(PathExAttMap):
 
         :return list[str]: sample attribute names for which value is derived
         """
-        warn_derived_cols()
+        msg = get_name_depr_msg(
+            _OLD_DERIVATIONS_KEY, "derived_attributes", self.__class__)
+        warnings.warn(msg, DeprecationWarning)
         try:
             return self.derived_attributes
         except AttributeError:
@@ -304,7 +312,9 @@ class Project(PathExAttMap):
 
         :return list[str]: sample attribute names for which value is implied by other(s)
         """
-        warn_implied_cols()
+        msg = get_name_depr_msg(
+            _OLD_IMPLICATIONS_KEY, "implied_attributes", self.__class__)
+        warnings.warn(msg, DeprecationWarning)
         try:
             return self.implied_attributes
         except AttributeError:

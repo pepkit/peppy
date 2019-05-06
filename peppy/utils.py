@@ -15,7 +15,6 @@ if sys.version_info < (3, 3):
     from collections import Sized
 else:
     from collections.abc import Sized
-import warnings
 import yaml
 from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 from ubiquerg import is_collection_like
@@ -398,16 +397,6 @@ def standard_stream_redirector(stream):
         sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
 
 
-def warn_derived_cols():
-    """ Produce deprecation warning about derived columns. """
-    _warn_cols_to_attrs("derived")
-
-
-def warn_implied_cols():
-    """ Produce deprecation warning about implied columns. """
-    _warn_cols_to_attrs("implied")
-
-
 def get_name_depr_msg(old, new, cls=None):
     """
     Warn of an attribute name deprecation.
@@ -418,12 +407,6 @@ def get_name_depr_msg(old, new, cls=None):
     """
     msg = "use of {} is deprecated in favor of {}".format(old, new)
     return msg if cls is None else "On {} ".format(cls.__name__) + msg
-
-
-def _warn_cols_to_attrs(prefix):
-    """ Produce deprecation warning about 'columns' rather than 'attributes' """
-    warnings.warn("{pfx}_columns should be encoded and referenced "
-                  "as {pfx}_attributes".format(pfx=prefix), DeprecationWarning)
 
 
 class CommandChecker(object):
