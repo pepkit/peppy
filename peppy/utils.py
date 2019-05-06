@@ -41,7 +41,7 @@ def add_project_sample_constants(sample, project):
     :return Sample: Updates Sample instance, according to any and all
         constants declared by the Project.
     """
-    sample.update(project.constants)
+    sample.update(project.constant_attributes)
     return sample
 
 

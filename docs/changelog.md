@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+### Changed
+- Deprecate `Project` "constants" in favor of "constant_attributes."
+
 ## [0.21.0] -- (2019-05-02)
 
 ### Added
