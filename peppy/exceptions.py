@@ -2,6 +2,11 @@
 
 from abc import ABCMeta
 
+__author__ = "Vince Reuter"
+__email__ = "vreuter@virginia.edu"
+
+__all__ = ["PeppyError"]
+
 
 class PeppyError(Exception):
     """ Base error type for peppy custom errors. """

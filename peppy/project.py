@@ -48,7 +48,6 @@ Explore:
 """
 
 from collections import Counter, namedtuple
-import logging
 import os
 import sys
 if sys.version_info < (3, 3):
@@ -66,11 +65,11 @@ from .const import *
 from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
-    add_project_sample_constants, copy, fetch_samples, get_name_depr_msg, \
-    infer_delimiter, is_url, non_null_value, type_check_strict
+    add_project_sample_constants, copy, fetch_samples, get_logger, \
+    get_name_depr_msg, infer_delimiter, is_url, non_null_value, type_check_strict
 
 
-MAX_PROJECT_SAMPLES_REPR = 12
+MAX_PROJECT_SAMPLES_REPR = 20
 NEW_PIPES_KEY = "pipeline_interfaces"
 OLD_PIPES_KEY = "pipelines_dir"
 OLD_ANNS_META_KEY = "sample_annotation"
@@ -82,11 +81,17 @@ READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
 GENOMES_KEY = "genomes"
 TRANSCRIPTOMES_KEY = "transcriptomes"
 IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
+
+_OLD_CONSTANTS_KEY = "constants"
 _OLD_DERIVATIONS_KEY = "derived_columns"
 _OLD_IMPLICATIONS_KEY = "implied_columns"
 
+DEPRECATIONS = {_OLD_CONSTANTS_KEY: CONSTANTS_DECLARATION,
+                _OLD_DERIVATIONS_KEY: DERIVATIONS_DECLARATION,
+                _OLD_IMPLICATIONS_KEY: IMPLICATIONS_DECLARATION}
 
-_LOGGER = logging.getLogger(__name__)
+
+_LOGGER = get_logger(__name__)
 
 
 class ProjectContext(object):
@@ -137,7 +142,8 @@ class Project(PathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
-    :param str config_file: Project config file (YAML).
+    :param str | Mapping cfg: Project config file (YAML), or appropriate
+        key-value mapping of data to constitute project
     :param str subproject: Subproject to use within configuration file, optional
     :param bool dry: If dry mode is activated, no directories
         will be created upon project instantiation.
@@ -173,13 +179,14 @@ class Project(PathExAttMap):
 
     DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
 
-    def __init__(self, config_file, subproject=None, dry=False,
+    def __init__(self, cfg, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None,
                  defer_sample_construction=False):
 
-        _LOGGER.debug("Creating %s from file: '%s'",
-                      self.__class__.__name__, config_file)
+        _LOGGER.debug("Creating {}{}".format(
+            self.__class__.__name__,
+            " from file {}".format(cfg) if cfg else ""))
         super(Project, self).__init__()
 
         self.dcc = ComputingConfiguration(
@@ -190,19 +197,26 @@ class Project(PathExAttMap):
 
         self._subproject = None
 
-        # Include the path to the config file.
-        self.config_file = os.path.abspath(config_file)
-
-        # Parse config file
-        _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
-        self.parse_config_file(subproject)
+        if cfg:
+            self.config_file = os.path.abspath(cfg)
+            _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
+            sections = self.parse_config_file(subproject)
+        else:
+            self.config_file = None
+            sections = cfg.keys()
+        self._sections = set(DEPRECATIONS.get(n, n) for n in sections)
 
         if self.non_null("data_sources"):
+            if self.config_file:
+                cfgdir = os.path.dirname(self.config_file)
+                getabs = lambda p: os.path.join(cfgdir, p)
+            else:
+                getabs = lambda p: p
             # Expand paths now, so that it's not done for every sample.
             for src_key, src_val in self.data_sources.items():
                 src_val = os.path.expandvars(src_val)
                 if not (os.path.isabs(src_val) or is_url(src_val)):
-                    src_val = os.path.join(os.path.dirname(self.config_file), src_val)
+                    src_val = getabs(src_val)
                 self.data_sources[src_key] = src_val
         else:
             # Ensure data_sources is at least set if it wasn't parsed.
@@ -246,18 +260,25 @@ class Project(PathExAttMap):
         """ Representation in interpreter. """
         if len(self) == 0:
             return "{}"
-        samples_message = "{} (from '{}')". \
-            format(self.__class__.__name__, self.config_file)
+        msg = "Project ({})".format(self.config_file) \
+            if self.config_file else "Project:"
         try:
             num_samples = len(self._samples)
         except (AttributeError, TypeError):
-            pass
-        else:
-            samples_message += " with {} sample(s)".format(num_samples)
-            if num_samples <= MAX_PROJECT_SAMPLES_REPR:
-                samples_message += ": {}".format(repr(self._samples))
-        meta_text = super(Project, self).__repr__()
-        return "{} -- {}".format(samples_message, meta_text)
+            _LOGGER.debug("No samples established on project")
+            num_samples = 0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            msg = "{}\nSections: {}".format(msg, ", ".join(self._sections))
+        if num_samples > 0:
+            msg = "{}\n{} samples".format(msg, num_samples)
+            names = list(self.sample_names)[:MAX_PROJECT_SAMPLES_REPR]
+            context = " (showing first {})".format(len(names)) \
+                if len(names) < num_samples else ""
+            msg = "{}{}: {}".format(msg, context, ", ".join(names))
+        subs = self.get(SUBPROJECTS_SECTION)
+        return "{}\nSubprojects: {}".\
+            format(msg, ", ".join(subs.keys())) if subs else msg
 
     def __setitem__(self, key, value):
         """
@@ -290,7 +311,7 @@ class Project(PathExAttMap):
         """
         from copy import deepcopy
         warnings.warn(get_name_depr_msg(
-            "constants", CONSTANTS_DECLARATION, self.__class__),
+            _OLD_CONSTANTS_KEY, CONSTANTS_DECLARATION, self.__class__),
             DeprecationWarning)
         return deepcopy(self[CONSTANTS_DECLARATION])
 
@@ -347,10 +368,16 @@ class Project(PathExAttMap):
         :return str: path to the project's output directory, either as
             specified in the configuration file or the folder that contains
             the project's configuration file.
+        :raise Exception: if this property is requested on a project that
+            was not created from a config file and lacks output folder
+            declaration in its metadata section
         """
         try:
-            return self.metadata.output_dir
-        except AttributeError:
+            return self.metadata[OUTDIR_KEY]
+        except KeyError:
+            if not self.config_file:
+                raise Exception("Project lacks both a config file and an "
+                                "output folder in metadata; using ")
             return os.path.dirname(self.config_file)
 
     @property
@@ -528,9 +555,14 @@ class Project(PathExAttMap):
         is the parent of that folder.
         
         :return str: inferred name for project.
+        :raise NotImplementedError: if the project lacks both a name and a
+            configuration file (no basis, then, for inference)
         """
         if hasattr(self, "name"):
             return self.name
+        if not self.config_file:
+            raise NotImplementedError("Project name inference isn't supported "
+                                      "on a project that lacks a config file.")
         config_folder = os.path.dirname(self.config_file)
         project_name = os.path.basename(config_folder)
         if project_name == METADATA_KEY:
@@ -575,9 +607,15 @@ class Project(PathExAttMap):
         This method will bring the original project settings back after the subproject activation.
 
         :return peppy.Project: Updated Project instance
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
         """
         if self.subproject is None:
             _LOGGER.warning("No subproject has been activated.")
+        if not self.config_file:
+            raise NotImplementedError(
+                "Subproject deactivation isn't yet supported on a project that "
+                "lacks a config file.")
         self.__init__(self.config_file)
         return self
 
@@ -591,10 +629,18 @@ class Project(PathExAttMap):
 
         :param str subproject: A string with a subproject name to be activated
         :return peppy.Project: Updated Project instance
+        :raise TypeError: if argument to subroject parameter is null
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
         """
         if subproject is None:
-            raise TypeError("The subproject argument can not be NoneType."
-                            " To deactivate a subproject use the deactivate_subproject method.")
+            raise TypeError(
+                "The subproject argument can not be null. To deactivate a "
+                "subproject use the deactivate_subproject method.")
+        if not self.config_file:
+            raise NotImplementedError(
+                "Subproject activation isn't supported on a project not "
+                "created from a config file")
         previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
         conf_file = self.config_file
         self.__init__(conf_file, subproject)
@@ -823,10 +869,10 @@ class Project(PathExAttMap):
             try:
                 sample.data_path = sample.data_source
             except AttributeError:
-                _LOGGER.log(5, "Sample '%s' lacks data source; skipping "
-                               "data path assignment", sample.name)
+                _LOGGER.whisper("Sample '%s' lacks data source; skipping data "
+                                "path assignment", sample.name)
             else:
-                _LOGGER.log(5, "Path to sample data: '%s'", sample.data_source)
+                _LOGGER.whisper("Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
 
         return samples
@@ -873,19 +919,15 @@ class Project(PathExAttMap):
         for msg in suggest_implied_attributes(config):
             warnings.warn(msg, DeprecationWarning)
 
-        _LOGGER.debug("{} config data: {}".format(
-            self.__class__.__name__, config))
+        _LOGGER.debug("Raw config data: {}".format(config))
 
         # Parse yaml into the project's attributes.
-        _LOGGER.debug("Adding attributes for {}: {}".format(
-            self.__class__.__name__, config.keys()))
+        _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
         try:
             _LOGGER.debug("Config metadata: {}".format(config[METADATA_KEY]))
         except KeyError:
             _LOGGER.warning("No metadata ('{}')".format(METADATA_KEY))
         self.add_entries(config)
-        _LOGGER.debug("{} now has {} keys: {}".format(
-            self.__class__.__name__, len(self.keys()), self.keys()))
 
         # Overwrite any config entries with entries in the subproject.
         if subproject:
@@ -924,8 +966,7 @@ class Project(PathExAttMap):
                 raise ValueError("Missing required metadata item: '{}'".format(var))
             self[METADATA_KEY][var] = os.path.expandvars(self.metadata.get(var))
 
-        _LOGGER.debug("{} metadata: {}".format(self.__class__.__name__,
-                                               self.metadata))
+        _LOGGER.debug("Project metadata: {}".format(self.metadata))
 
         # Some metadata attributes are considered relative to the output_dir
         # Here we make these absolute, so they won't be incorrectly made
@@ -952,12 +993,11 @@ class Project(PathExAttMap):
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
             if not hasattr(self, sect):
-                _LOGGER.log(5, "%s lacks relative section '%s', skipping",
-                            self.__class__.__name__, sect)
+                _LOGGER.whisper("Project lacks relative section '%s', skipping", sect)
                 continue
             relative_vars = getattr(self, sect)
             if not relative_vars:
-                _LOGGER.log(5, "No relative variables, continuing")
+                _LOGGER.whisper("No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
                 if not hasattr(relative_vars, var) or \
@@ -976,7 +1016,7 @@ class Project(PathExAttMap):
                 setattr(relative_vars, var, absolute)
 
         if self.dcc.compute is None:
-            _LOGGER.log(5, "No compute, no submission template")
+            _LOGGER.whisper("No compute, so no submission template")
 
         old_table_keys = [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY]
         new_table_keys = [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY]
@@ -992,6 +1032,8 @@ class Project(PathExAttMap):
 
         if NAME_TABLE_ATTR not in self[METADATA_KEY]:
             self[METADATA_KEY][NAME_TABLE_ATTR] = None
+
+        return set(config.keys())
 
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """
@@ -1009,22 +1051,21 @@ class Project(PathExAttMap):
             raise TypeError(
                 "Attempting to ensure non-text value is absolute path: {} ({})".
                 format(maybe_relpath, type(maybe_relpath)))
-        _LOGGER.log(5, "Ensuring absolute: '%s'", maybe_relpath)
+        _LOGGER.whisper("Ensuring absolute: '%s'", maybe_relpath)
         if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.log(5, "Already absolute")
+            _LOGGER.whisper("Already absolute")
             return maybe_relpath
         # Maybe we have env vars that make the path absolute?
         expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
-        _LOGGER.log(5, "Expanded: '%s'", expanded)
+        _LOGGER.whisper("Expanded: '%s'", expanded)
         if os.path.isabs(expanded):
-            _LOGGER.log(5, "Expanded is absolute")
+            _LOGGER.whisper("Expanded is absolute")
             return expanded
-        _LOGGER.log(5, "Making non-absolute path '%s' be absolute",
-                    maybe_relpath)
+        _LOGGER.whisper("Making non-absolute path '%s' be absolute", maybe_relpath)
         
         # Set path to an absolute path, relative to project config.
         config_dirpath = os.path.dirname(self.config_file)
-        _LOGGER.log(5, "config_dirpath: %s", config_dirpath)
+        _LOGGER.whisper("config_dirpath: %s", config_dirpath)
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
 
