@@ -514,29 +514,6 @@ class Project(PathExAttMap):
         """
         return subsample_table(self)
 
-    def _meta_from_file_set_if_needed(self, spec, attr=lambda k: "_" + k):
-        from copy import copy as cp
-        if not isinstance(spec, _MakeTableSpec):
-            raise TypeError("Invalid specification type: {}".format(type(spec)))
-        if hasattr(attr, "__call__"):
-            attr = attr(spec.key)
-        elif not isinstance(attr, str):
-            raise TypeError("Attr name must be string or function to call on "
-                            "key to make attr name; got {}".format(type(attr)))
-        if self.get(attr) is None:
-            filepath = self[METADATA_KEY].get(spec.key)
-            if filepath is None:
-                return None
-            self[attr] = self._apply_parse_strat(filepath, spec)
-        return cp(self[attr])
-
-    def _apply_parse_strat(self, filepath, spec):
-        from copy import copy as cp
-        kwds = cp(spec.kwargs)
-        if spec.make_extra_kwargs:
-            kwds.update(spec.make_extra_kwargs(filepath))
-        return spec.get_parse_fun(self)(filepath, **kwds)
-
     @property
     def templates_folder(self):
         """
@@ -545,79 +522,6 @@ class Project(PathExAttMap):
         :return str: path to folder with default submission templates
         """
         return self.dcc.templates_folder
-
-    def infer_name(self):
-        """
-        Infer project name from config file path.
-        
-        First assume the name is the folder in which the config file resides,
-        unless that folder is named "metadata", in which case the project name
-        is the parent of that folder.
-        
-        :return str: inferred name for project.
-        :raise NotImplementedError: if the project lacks both a name and a
-            configuration file (no basis, then, for inference)
-        """
-        if hasattr(self, "name"):
-            return self.name
-        if not self.config_file:
-            raise NotImplementedError("Project name inference isn't supported "
-                                      "on a project that lacks a config file.")
-        config_folder = os.path.dirname(self.config_file)
-        project_name = os.path.basename(config_folder)
-        if project_name == METADATA_KEY:
-            project_name = os.path.basename(os.path.dirname(config_folder))
-        return project_name
-
-    def get_subsample(self, sample_name, subsample_name):
-        """
-        From indicated sample get particular subsample.
-
-        :param str sample_name: Name of Sample from which to get subsample
-        :param str subsample_name: Name of Subsample to get
-        :return peppy.Subsample: The Subsample of requested name from indicated
-            sample matching given name
-        """
-        s = self.get_sample(sample_name)
-        return s.get_subsample(subsample_name)
-
-    def get_sample(self, sample_name):
-        """
-        Get an individual sample object from the project.
-
-        Will raise a ValueError if the sample is not found. In the case of multiple
-        samples with the same name (which is not typically allowed), a warning is
-        raised and the first sample is returned.
-        
-        :param str sample_name: The name of a sample to retrieve
-        :return Sample: The requested Sample object
-        """
-        samples = self.get_samples([sample_name])
-        if len(samples) > 1:
-            _LOGGER.warning("More than one sample was detected; returning the first")
-        try:
-            return samples[0]
-        except IndexError:
-            raise ValueError("Project has no sample named {}.".format(sample_name))
-
-    def deactivate_subproject(self):
-        """
-        Bring the original project settings back
-
-        This method will bring the original project settings back after the subproject activation.
-
-        :return peppy.Project: Updated Project instance
-        :raise NotImplementedError: if this call is made on a project not
-            created from a config file
-        """
-        if self.subproject is None:
-            _LOGGER.warning("No subproject has been activated.")
-        if not self.config_file:
-            raise NotImplementedError(
-                "Subproject deactivation isn't yet supported on a project that "
-                "lacks a config file.")
-        self.__init__(self.config_file)
-        return self
 
     def activate_subproject(self, subproject):
         """
@@ -653,15 +557,6 @@ class Project(PathExAttMap):
         self._subproject = subproject
         return self
 
-    def get_samples(self, sample_names):
-        """
-        Returns a list of sample objects given a list of sample names
-
-        :param list sample_names: A list of sample names to retrieve
-        :return list[Sample]: A list of Sample objects
-        """
-        return [s for s in self.samples if s.name in sample_names]
-
     def build_sheet(self, *protocols):
         """
         Create table of subset of samples matching one of given protocols.
@@ -691,18 +586,24 @@ class Project(PathExAttMap):
                           len(skipped), ", ".join(known), msg_data)
         return pd.DataFrame(selector_include)
 
-    def _check_unique_samples(self):
-        """ Handle scenario in which sample names are not unique. """
-        # Defining this here but then calling out to the repeats counter has
-        # a couple of advantages. We get an unbound, isolated method (the
-        # Project-external repeat sample name counter), but we can still
-        # do this check from the sample builder, yet have it be override-able.
-        repeats = {name: n for name, n in Counter(
-            s.name for s in self._samples).items() if n > 1}
-        if repeats:
-            hist_text = "\n".join(
-                "{}: {}".format(name, n) for name, n in repeats.items())
-            _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
+    def deactivate_subproject(self):
+        """
+        Bring the original project settings back
+
+        This method will bring the original project settings back after the subproject activation.
+
+        :return peppy.Project: Updated Project instance
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
+        """
+        if self.subproject is None:
+            _LOGGER.warning("No subproject has been activated.")
+        if not self.config_file:
+            raise NotImplementedError(
+                "Subproject deactivation isn't yet supported on a project that "
+                "lacks a config file.")
+        self.__init__(self.config_file)
+        return self
 
     def finalize_pipelines_directory(self, pipe_path=""):
         """
@@ -790,6 +691,69 @@ class Project(PathExAttMap):
             # No default argtext, but non-empty pipeline-specific argtext
             return pipeline_argtext
 
+    def get_sample(self, sample_name):
+        """
+        Get an individual sample object from the project.
+
+        Will raise a ValueError if the sample is not found. In the case of multiple
+        samples with the same name (which is not typically allowed), a warning is
+        raised and the first sample is returned.
+
+        :param str sample_name: The name of a sample to retrieve
+        :return Sample: The requested Sample object
+        """
+        samples = self.get_samples([sample_name])
+        if len(samples) > 1:
+            _LOGGER.warning("More than one sample was detected; returning the first")
+        try:
+            return samples[0]
+        except IndexError:
+            raise ValueError("Project has no sample named {}.".format(sample_name))
+
+    def get_samples(self, sample_names):
+        """
+        Returns a list of sample objects given a list of sample names
+
+        :param list sample_names: A list of sample names to retrieve
+        :return list[Sample]: A list of Sample objects
+        """
+        return [s for s in self.samples if s.name in sample_names]
+
+    def get_subsample(self, sample_name, subsample_name):
+        """
+        From indicated sample get particular subsample.
+
+        :param str sample_name: Name of Sample from which to get subsample
+        :param str subsample_name: Name of Subsample to get
+        :return peppy.Subsample: The Subsample of requested name from indicated
+            sample matching given name
+        """
+        s = self.get_sample(sample_name)
+        return s.get_subsample(subsample_name)
+
+    def infer_name(self):
+        """
+        Infer project name from config file path.
+
+        First assume the name is the folder in which the config file resides,
+        unless that folder is named "metadata", in which case the project name
+        is the parent of that folder.
+
+        :return str: inferred name for project.
+        :raise NotImplementedError: if the project lacks both a name and a
+            configuration file (no basis, then, for inference)
+        """
+        if hasattr(self, "name"):
+            return self.name
+        if not self.config_file:
+            raise NotImplementedError("Project name inference isn't supported "
+                                      "on a project that lacks a config file.")
+        config_folder = os.path.dirname(self.config_file)
+        project_name = os.path.basename(config_folder)
+        if project_name == METADATA_KEY:
+            project_name = os.path.basename(os.path.dirname(config_folder))
+        return project_name
+
     def make_project_dirs(self):
         """
         Creates project directory structure if it doesn't exist.
@@ -805,99 +769,6 @@ class Project(PathExAttMap):
                 except OSError as e:
                     _LOGGER.warning("Could not create project folder: '%s'",
                                  str(e))
-
-    def _set_basic_samples(self):
-        """ Build the base Sample objects from the annotations sheet data. """
-
-        # This should be executed just once, establishing the Project's
-        # base Sample objects if they don't already exist.
-        sub_ann = None
-        try:
-            sub_ann = self.metadata[SAMPLE_SUBANNOTATIONS_KEY]
-        except KeyError:
-            try:
-                # Backwards compatibility
-                sub_ann = self.metadata["merge_table"]
-            except KeyError:
-                _LOGGER.debug("No sample subannotations")
-            else:
-                warnings.warn("merge_table is deprecated; please instead use {}".
-                              format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
-
-        if sub_ann and os.path.isfile(sub_ann):
-            _LOGGER.info("Reading subannotations: %s", sub_ann)
-            subann_table = self._apply_parse_strat(sub_ann, _SUBS_TABLE_SPEC)
-            self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
-            _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
-        else:
-            _LOGGER.debug("Alleged path to sample subannotations data is "
-                          "not a file: '%s'", str(sub_ann))
-
-        # Set samples and handle non-unique names situation.
-        self._check_subann_name_overlap()
-        self._samples = self._prep_samples()
-        self._check_unique_samples()
-
-    def _prep_samples(self):
-        """
-        Merge this Project's Sample object and set file paths.
-
-        :return list[Sample]: collection of this Project's Sample objects
-        """
-
-        samples = []
-
-        for _, row in getattr(self, NAME_TABLE_ATTR).iterrows():
-            sample = Sample(row.dropna(), prj=self)
-
-            # Add values that are constant across this Project's samples.
-            sample = add_project_sample_constants(sample, self)
-
-            sample.set_genome(self.get("genomes"))
-            sample.set_transcriptome(self.get("transcriptomes"))
-
-            _LOGGER.debug("Merging sample '%s'", sample.name)
-            sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
-                         self.data_sources, self.derived_attributes,
-                         sample_colname=self.SAMPLE_NAME_IDENTIFIER)
-            _LOGGER.debug("Setting sample file paths")
-            sample.set_file_paths(self)
-            # Hack for backwards-compatibility
-            # Pipelines should now use `data_source`)
-            _LOGGER.debug("Setting sample data path")
-            try:
-                sample.data_path = sample.data_source
-            except AttributeError:
-                _LOGGER.whisper("Sample '%s' lacks data source; skipping data "
-                                "path assignment", sample.name)
-            else:
-                _LOGGER.whisper("Path to sample data: '%s'", sample.data_source)
-            samples.append(sample)
-
-        return samples
-
-    def _check_subann_name_overlap(self):
-        """
-        Check if all subannotations have a matching sample, and warn if not. """
-        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
-        if subs is not None:
-            sample_subann_names = self._get_sample_ids(subs).tolist()
-            sample_names_list = list(self.sample_names)
-            info = " matching sample name for subannotation '{}'"
-            for n in sample_subann_names:
-                if n not in sample_names_list:
-                    _LOGGER.warning(("Couldn't find" + info).format(n))
-                else:
-                    _LOGGER.debug(("Found" + info).format(n))
-        else:
-            _LOGGER.debug("No sample subannotations found for this Project.")
-
-    @staticmethod
-    def _get_sample_ids(df):
-        """ Return the sample identifiers in the given table. """
-        type_check_strict(df, pd.DataFrame)
-        return df[SAMPLE_NAME_COLNAME]
 
     def parse_config_file(self, subproject=None):
         """
@@ -1035,40 +906,6 @@ class Project(PathExAttMap):
 
         return set(config.keys())
 
-    def set_project_permissions(self):
-        """ Make the project's public_html folder executable. """
-        try:
-            os.chmod(self.trackhubs.trackhub_dir, 0o0755)
-        except OSError:
-            # This currently does not fail now
-            # ("cannot change folder's mode: %s" % d)
-            pass
-
-    def _ensure_absolute(self, maybe_relpath):
-        """ Ensure that a possibly relative path is absolute. """
-
-        if not isinstance(maybe_relpath, str):
-            raise TypeError(
-                "Attempting to ensure non-text value is absolute path: {} ({})".
-                format(maybe_relpath, type(maybe_relpath)))
-        _LOGGER.whisper("Ensuring absolute: '%s'", maybe_relpath)
-        if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.whisper("Already absolute")
-            return maybe_relpath
-        # Maybe we have env vars that make the path absolute?
-        expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
-        _LOGGER.whisper("Expanded: '%s'", expanded)
-        if os.path.isabs(expanded):
-            _LOGGER.whisper("Expanded is absolute")
-            return expanded
-        _LOGGER.whisper("Making non-absolute path '%s' be absolute", maybe_relpath)
-        
-        # Set path to an absolute path, relative to project config.
-        config_dirpath = os.path.dirname(self.config_file)
-        _LOGGER.whisper("config_dirpath: %s", config_dirpath)
-        abs_path = os.path.join(config_dirpath, maybe_relpath)
-        return abs_path
-
     def parse_sample_sheet(self, sample_file):
         """
         Check if csv file exists and has all required columns.
@@ -1102,6 +939,170 @@ class Project(PathExAttMap):
                         f=sample_file, n=len(missing), miss=", ".join(missing),
                         has=", ".join(list(df.columns))))
         return df
+
+    def _apply_parse_strat(self, filepath, spec):
+        from copy import copy as cp
+        kwds = cp(spec.kwargs)
+        if spec.make_extra_kwargs:
+            kwds.update(spec.make_extra_kwargs(filepath))
+        return spec.get_parse_fun(self)(filepath, **kwds)
+
+    def _check_subann_name_overlap(self):
+        """
+        Check if all subannotations have a matching sample, and warn if not. """
+        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+        if subs is not None:
+            sample_subann_names = self._get_sample_ids(subs).tolist()
+            sample_names_list = list(self.sample_names)
+            info = " matching sample name for subannotation '{}'"
+            for n in sample_subann_names:
+                if n not in sample_names_list:
+                    _LOGGER.warning(("Couldn't find" + info).format(n))
+                else:
+                    _LOGGER.debug(("Found" + info).format(n))
+        else:
+            _LOGGER.debug("No sample subannotations found for this Project.")
+
+    def _check_unique_samples(self):
+        """ Handle scenario in which sample names are not unique. """
+        # Defining this here but then calling out to the repeats counter has
+        # a couple of advantages. We get an unbound, isolated method (the
+        # Project-external repeat sample name counter), but we can still
+        # do this check from the sample builder, yet have it be override-able.
+        repeats = {name: n for name, n in Counter(
+            s.name for s in self._samples).items() if n > 1}
+        if repeats:
+            hist_text = "\n".join(
+                "{}: {}".format(name, n) for name, n in repeats.items())
+            _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
+
+    @staticmethod
+    def _get_sample_ids(df):
+        """ Return the sample identifiers in the given table. """
+        type_check_strict(df, pd.DataFrame)
+        return df[SAMPLE_NAME_COLNAME]
+
+    def _meta_from_file_set_if_needed(self, spec, attr=lambda k: "_" + k):
+        """ Build attribute value if needed and return it. """
+        from copy import copy as cp
+        if not isinstance(spec, _MakeTableSpec):
+            raise TypeError("Invalid specification type: {}".format(type(spec)))
+        if hasattr(attr, "__call__"):
+            attr = attr(spec.key)
+        elif not isinstance(attr, str):
+            raise TypeError("Attr name must be string or function to call on "
+                            "key to make attr name; got {}".format(type(attr)))
+        if self.get(attr) is None:
+            filepath = self[METADATA_KEY].get(spec.key)
+            if filepath is None:
+                return None
+            self[attr] = self._apply_parse_strat(filepath, spec)
+        return cp(self[attr])
+
+    def _prep_samples(self):
+        """
+        Merge this Project's Sample object and set file paths.
+
+        :return list[Sample]: collection of this Project's Sample objects
+        """
+
+        samples = []
+
+        for _, row in getattr(self, NAME_TABLE_ATTR).iterrows():
+            sample = Sample(row.dropna(), prj=self)
+
+            # Add values that are constant across this Project's samples.
+            sample = add_project_sample_constants(sample, self)
+
+            sample.set_genome(self.get("genomes"))
+            sample.set_transcriptome(self.get("transcriptomes"))
+
+            _LOGGER.debug("Merging sample '%s'", sample.name)
+            sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
+            merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
+                         self.data_sources, self.derived_attributes,
+                         sample_colname=self.SAMPLE_NAME_IDENTIFIER)
+            _LOGGER.debug("Setting sample file paths")
+            sample.set_file_paths(self)
+            # Hack for backwards-compatibility
+            # Pipelines should now use `data_source`)
+            _LOGGER.debug("Setting sample data path")
+            try:
+                sample.data_path = sample.data_source
+            except AttributeError:
+                _LOGGER.whisper("Sample '%s' lacks data source; skipping data "
+                                "path assignment", sample.name)
+            else:
+                _LOGGER.whisper("Path to sample data: '%s'", sample.data_source)
+            samples.append(sample)
+
+        return samples
+
+    def _set_basic_samples(self):
+        """ Build the base Sample objects from the annotations sheet data. """
+
+        # This should be executed just once, establishing the Project's
+        # base Sample objects if they don't already exist.
+        sub_ann = None
+        try:
+            sub_ann = self.metadata[SAMPLE_SUBANNOTATIONS_KEY]
+        except KeyError:
+            try:
+                # Backwards compatibility
+                sub_ann = self.metadata["merge_table"]
+            except KeyError:
+                _LOGGER.debug("No sample subannotations")
+            else:
+                warnings.warn("merge_table is deprecated; please instead use {}".
+                              format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
+
+        if sub_ann and os.path.isfile(sub_ann):
+            _LOGGER.info("Reading subannotations: %s", sub_ann)
+            subann_table = self._apply_parse_strat(sub_ann, _SUBS_TABLE_SPEC)
+            self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
+            _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
+        else:
+            _LOGGER.debug("Alleged path to sample subannotations data is "
+                          "not a file: '%s'", str(sub_ann))
+
+        # Set samples and handle non-unique names situation.
+        self._check_subann_name_overlap()
+        self._samples = self._prep_samples()
+        self._check_unique_samples()
+
+    def set_project_permissions(self):
+        """ Make the project's public_html folder executable. """
+        try:
+            os.chmod(self.trackhubs.trackhub_dir, 0o0755)
+        except OSError:
+            # This currently does not fail now
+            # ("cannot change folder's mode: %s" % d)
+            pass
+
+    def _ensure_absolute(self, maybe_relpath):
+        """ Ensure that a possibly relative path is absolute. """
+
+        if not isinstance(maybe_relpath, str):
+            raise TypeError(
+                "Attempting to ensure non-text value is absolute path: {} ({})".
+                format(maybe_relpath, type(maybe_relpath)))
+        _LOGGER.whisper("Ensuring absolute: '%s'", maybe_relpath)
+        if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+            _LOGGER.whisper("Already absolute")
+            return maybe_relpath
+        # Maybe we have env vars that make the path absolute?
+        expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
+        _LOGGER.whisper("Expanded: '%s'", expanded)
+        if os.path.isabs(expanded):
+            _LOGGER.whisper("Expanded is absolute")
+            return expanded
+        _LOGGER.whisper("Making non-absolute path '%s' be absolute", maybe_relpath)
+        
+        # Set path to an absolute path, relative to project config.
+        config_dirpath = os.path.dirname(self.config_file)
+        _LOGGER.whisper("config_dirpath: %s", config_dirpath)
+        abs_path = os.path.join(config_dirpath, maybe_relpath)
+        return abs_path
 
     class MissingMetadataException(PeppyError):
         """ Project needs certain metadata. """

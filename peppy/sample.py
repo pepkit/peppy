@@ -16,8 +16,8 @@ import yaml
 from attmap import AttMap, PathExAttMap
 from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
-from .utils import copy, get_logger, get_name_depr_msg, \
-    grab_project_data, sample_folder
+from .utils import copy, get_logger, get_name_depr_msg, grab_project_data, \
+    sample_folder
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
@@ -138,13 +138,7 @@ class Sample(PathExAttMap):
         if missing_attributes_message:
             raise ValueError(missing_attributes_message)
 
-        # TODO: update based on changes; consider name as property, grabbind sample_name.
         self.name = self.sample_name
-        """
-        if SAMPLE_NAME_COLNAME in self:
-            self[NAME_ATTR] = self[SAMPLE_NAME_COLNAME]
-            del self[SAMPLE_NAME_COLNAME]
-        """
 
         # Default to no required paths and no YAML file.
         self.required_paths = None
@@ -164,23 +158,14 @@ class Sample(PathExAttMap):
 
     def _excl_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
-        return super(Sample, self)._excl_from_eq(k) or k == PRJ_REF
+        return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)
 
     def _excl_from_repr(self, k, cls):
         """ Exclude the Project reference from representation. """
         # TODO: better solution for this cyclical dependency hack
-        return super(Sample, self)._excl_from_repr(k, cls) or k == PRJ_REF
+        return k == PRJ_REF or super(Sample, self)._excl_from_repr(k, cls)
 
     def __setitem__(self, key, value):
-        """
-        if key == SAMPLE_NAME_COLNAME:
-            key = NAME_ATTR
-            #_LOGGER.warning(get_name_depr_msg(
-            #    SAMPLE_NAME_COLNAME, key, self.__class__))
-            if not isinstance(value, str):
-                raise TypeError("Name for sample isn't string: {} ({})".
-                                format(value, type(value)))
-        """
         # TODO: better solution for this cyclical dependency hack
         if value.__class__.__name__ == "Project":
             self.__dict__[key] = value
