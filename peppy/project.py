@@ -1125,7 +1125,7 @@ class Project(PathExAttMap):
                 msg += " Contents of parent folder: {}".format(", ".join(contents))
             super(Project.MissingSampleSheetError, self).__init__(msg)
 
-    def _omit_from_repr(self, k, cls):
+    def _excl_from_repr(self, k, cls):
         """
         Hook for exclusion of particular value from a representation
 
@@ -1142,7 +1142,7 @@ class Project(PathExAttMap):
             "Subsample": [NAME_TABLE_ATTR, "sample", "merged_cols"],
             "Sample": [NAME_TABLE_ATTR, "prj", "merged_cols"]
         }
-        return super(Project, self)._omit_from_repr(k, cls) or \
+        return super(Project, self)._excl_from_repr(k, cls) or \
             k in exclusions_by_class.get(
                 cls.__name__ if isinstance(cls, type) else cls, [])
 

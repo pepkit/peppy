@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "CommandChecker", "add_project_sample_constants", "count_repeats",
-    "get_file_size", "get_logger", "fetch_samples", "grab_project_data",
+    "get_logger", "fetch_samples", "grab_project_data",
     "has_null_value", "is_command_callable", "type_check_strict"
 ]
 
@@ -67,16 +67,6 @@ def count_repeats(objs):
         of each is a repeated object, and the second is duplication count
     """
     return [(o, n) for o, n in Counter(objs).items() if n > 1]
-
-
-def expandpath(path):
-    """
-    Expand a filesystem path that may or may not contain user/env vars.
-
-    :param str path: path to expand
-    :return str: expanded version of input path
-    """
-    return os.path.expandvars(os.path.expanduser(path)).replace("//", "/")
 
 
 def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
@@ -144,28 +134,6 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
                    getattr(s, selector_attribute) in make_set(selector_include)
 
     return list(filter(keep, proj.samples))
-
-
-def get_file_size(filename):
-    """
-    Get size of all files in gigabytes (Gb).
-
-    :param str | collections.Iterable[str] filename: A space-separated
-        string or list of space-separated strings of absolute file paths.
-    :return float: size of file(s), in gigabytes.
-    """
-    if filename is None:
-        return float(0)
-    if type(filename) is list:
-        return float(sum([get_file_size(x) for x in filename]))
-    try:
-        total_bytes = sum([float(os.stat(f).st_size)
-                           for f in filename.split(" ") if f is not ''])
-    except OSError:
-        # File not found
-        return 0.0
-    else:
-        return float(total_bytes) / (1024 ** 3)
 
 
 def get_logger(name):
@@ -295,26 +263,6 @@ def non_null_value(k, m):
     :return bool: Whether given mapping contains given key with non-null value
     """
     return k in m and not is_null_like(m[k])
-
-
-def parse_ftype(input_file):
-    """
-    Checks determine filetype from extension.
-
-    :param str input_file: String to check.
-    :return str: filetype (extension without dot prefix)
-    :raises TypeError: if file does not appear of a supported type
-    """
-    if input_file.endswith(".bam"):
-        return "bam"
-    elif input_file.endswith(".fastq") or \
-            input_file.endswith(".fq") or \
-            input_file.endswith(".fq.gz") or \
-            input_file.endswith(".fastq.gz"):
-        return "fastq"
-    else:
-        raise TypeError("Type of input file ends in neither '.bam' "
-                        "nor '.fastq' [file: '" + input_file + "']")
 
 
 def parse_text_data(lines_or_path, delimiter=os.linesep):
