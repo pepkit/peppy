@@ -59,7 +59,7 @@ import warnings
 import pandas as pd
 import yaml
 
-from attmap import PathExAttMap
+from attmap import OrdPathExAttMap
 from divvy import DEFAULT_COMPUTE_RESOURCES_NAME, ComputingConfiguration
 from .const import *
 from .exceptions import PeppyError
@@ -138,7 +138,7 @@ class ProjectContext(object):
 
 
 @copy
-class Project(PathExAttMap):
+class Project(OrdPathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
@@ -343,7 +343,7 @@ class Project(PathExAttMap):
         try:
             return self.implied_attributes
         except AttributeError:
-            return PathExAttMap()
+            return OrdPathExAttMap()
 
     @property
     def num_samples(self):
@@ -1180,7 +1180,7 @@ class MissingSubprojectError(PeppyError):
         super(MissingSubprojectError, self).__init__(msg)
 
 
-class _Metadata(PathExAttMap):
+class _Metadata(OrdPathExAttMap):
     """ Project section with important information """
 
     def __getattr__(self, item, default=None):
