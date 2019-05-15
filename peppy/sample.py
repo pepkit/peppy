@@ -13,7 +13,7 @@ import warnings
 from pandas import isnull, Series
 import yaml
 
-from attmap import AttMap, OrdPathExAttMap
+from attmap import AttMap, PathExAttMap
 from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
 from .utils import copy, get_logger, get_name_depr_msg, grab_project_data, \
@@ -32,7 +32,7 @@ _LOGGER = get_logger(__name__)
 
 
 @copy
-class Subsample(OrdPathExAttMap):
+class Subsample(PathExAttMap):
     """
     Class to model Subsamples.
 
@@ -51,7 +51,7 @@ class Subsample(OrdPathExAttMap):
 
 
 @copy
-class Sample(OrdPathExAttMap):
+class Sample(PathExAttMap):
     """
     Class to model Samples based on a pandas Series.
 
@@ -460,8 +460,8 @@ class Sample(OrdPathExAttMap):
         """
         Sets the paths of all files for this sample.
 
-        :param attmap.OrdPathExAttMap project: object with pointers to data
-            paths and such, either full Project or OrdPathExAttMap with
+        :param attmap.PathExAttMap project: object with pointers to data
+            paths and such, either full Project or PathExAttMap with
             sufficient data
         """
         # Any columns specified as "derived" will be constructed

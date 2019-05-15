@@ -59,7 +59,7 @@ import warnings
 import pandas as pd
 import yaml
 
-from attmap import OrdPathExAttMap
+from attmap import PathExAttMap
 from divvy import DEFAULT_COMPUTE_RESOURCES_NAME, ComputingConfiguration
 from .const import *
 from .exceptions import PeppyError
@@ -138,7 +138,7 @@ class ProjectContext(object):
 
 
 @copy
-class Project(OrdPathExAttMap):
+class Project(PathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
@@ -343,7 +343,7 @@ class Project(OrdPathExAttMap):
         try:
             return self.implied_attributes
         except AttributeError:
-            return OrdPathExAttMap()
+            return PathExAttMap()
 
     @property
     def num_samples(self):
@@ -863,19 +863,18 @@ class Project(OrdPathExAttMap):
 
         _LOGGER.debug("Parsing relative sections")
         for sect in relative_sections:
-            if not hasattr(self, sect):
+            try:
+                relative_vars = self[sect]
+            except KeyError:
                 _LOGGER.whisper("Project lacks relative section '%s', skipping", sect)
                 continue
-            relative_vars = getattr(self, sect)
             if not relative_vars:
                 _LOGGER.whisper("No relative variables, continuing")
                 continue
             for var in relative_vars.keys():
-                if not hasattr(relative_vars, var) or \
-                                getattr(relative_vars, var) is None:
+                relpath = relative_vars[var]
+                if relpath is None:
                     continue
-
-                relpath = getattr(relative_vars, var)
                 _LOGGER.debug("Ensuring absolute path(s) for '%s'", var)
                 # Parsed from YAML, so small space of possible datatypes.
                 if isinstance(relpath, list):
@@ -884,7 +883,7 @@ class Project(OrdPathExAttMap):
                 else:
                     absolute = self._ensure_absolute(relpath)
                 _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
-                setattr(relative_vars, var, absolute)
+                relative_vars[var] = absolute
 
         if self.dcc.compute is None:
             _LOGGER.whisper("No compute, so no submission template")
@@ -1180,7 +1179,7 @@ class MissingSubprojectError(PeppyError):
         super(MissingSubprojectError, self).__init__(msg)
 
 
-class _Metadata(OrdPathExAttMap):
+class _Metadata(PathExAttMap):
     """ Project section with important information """
 
     def __getattr__(self, item, default=None):

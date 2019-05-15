@@ -222,3 +222,8 @@ def test_copy():
 def test_fetch_samples():
     """ Test selection of subset of samples from a Project. """
     pass
+
+
+def _cmp_maps(m1, m2):
+    m1, m2 = [m.to_map() if isinstance(m, AttMap) else m for m in [m1, m2]]
+    assert m1 == m2
