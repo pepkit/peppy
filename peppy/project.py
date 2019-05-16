@@ -66,7 +66,8 @@ from .exceptions import PeppyError
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, get_logger, \
-    get_name_depr_msg, infer_delimiter, is_url, non_null_value, type_check_strict
+    get_name_depr_msg, infer_delimiter, non_null_value, type_check_strict
+from ubiquerg import is_url
 
 
 MAX_PROJECT_SAMPLES_REPR = 20

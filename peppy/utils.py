@@ -7,10 +7,6 @@ import os
 import random
 import string
 import sys
-if sys.version_info < (3, 0):
-    from urlparse import urlparse
-else:
-    from urllib.parse import urlparse
 if sys.version_info < (3, 3):
     from collections import Sized
 else:
@@ -242,16 +238,6 @@ def is_null_like(x):
     """
     return x in [None, ""] or \
         (is_collection_like(x) and isinstance(x, Sized) and 0 == len(x))
-
-
-def is_url(maybe_url):
-    """
-    Determine whether a path is a URL.
-
-    :param str maybe_url: path to investigate as URL
-    :return bool: whether path appears to be a URL
-    """
-    return urlparse(maybe_url).scheme != ""
 
 
 def non_null_value(k, m):
