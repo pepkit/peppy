@@ -88,7 +88,7 @@ class GrabProjectDataTests:
         expected = {s: data for s, data in basic_project_data.items()
                     if s in sections}
         observed = grab_project_data(p)
-        assert expected == observed
+        _compare_mappings(expected, observed)
 
     @named_param(
         argnames="extra_data",
@@ -114,13 +114,7 @@ class GrabProjectDataTests:
         # Make the equivalence assertion.
         expected = sample_independent_data
         observed = grab_project_data(p)
-        try:
-            assert expected == observed
-        except AssertionError:
-            # If the test fails, make the diff easier to read.
-            print("EXPECTED: {}".format(expected))
-            print("OBSERVED: {}".format(observed))
-            raise
+        _compare_mappings(expected, observed)
 
 
 class AddProjectSampleConstantsTests:
@@ -227,3 +221,13 @@ def test_fetch_samples():
 def _cmp_maps(m1, m2):
     m1, m2 = [m.to_map() if isinstance(m, AttMap) else m for m in [m1, m2]]
     assert m1 == m2
+
+
+def _compare_mappings(expected, observed):
+    """ Account for possibility that observed value is AttMap. """
+    print("EXPECTED: {}".format(expected))
+    print("OBSERVED: {}".format(observed))
+    assert set(expected.keys()) == set(observed.keys())
+    for k, v_exp in expected.items():
+        v_obs = observed[k]
+        assert v_exp == (v_obs.to_dict() if isinstance(v_obs, AttMap) else v_obs)
