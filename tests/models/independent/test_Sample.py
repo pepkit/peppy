@@ -14,7 +14,6 @@ from attmap import AttMap
 import peppy
 from peppy import Sample
 from peppy.const import *
-from peppy.sample import NAME_ATTR
 from tests.helpers import named_param
 
 
@@ -25,7 +24,7 @@ __email__ = "vreuter@virginia.edu"
 class ParseSampleImplicationsTests:
     """ Tests for appending columns/fields to a Sample based on a mapping. """
 
-    IMPLIER_NAME = NAME_ATTR
+    IMPLIER_NAME = SAMPLE_NAME_COLNAME
     IMPLIER_VALUES = ["a", "b"]
     SAMPLE_A_IMPLICATIONS = {"genome": "hg38", "phenome": "hg72"}
     SAMPLE_B_IMPLICATIONS = {"genome": "hg38"}
@@ -78,10 +77,6 @@ class ParseSampleImplicationsTests:
                         for implied_field_name in self.IMPLICATIONS.keys()])
 
         no_implied_values()
-        # DEBUG
-        print("SAMPLE: {}".format(sample))
-        print("IMPLIER NAME: {}".format(self.IMPLIER_NAME))
-        print("implier value: {}".format(unmapped_implier_value))
         setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
         sample.infer_attributes(self.IMPLICATIONS_MAP)
         no_implied_values()
@@ -211,9 +206,16 @@ def test_input_files(files, test_type, tmpdir):
     if test_type == "to_disk":
         path_sample_file = tmpdir.join("test-sample.yaml").strpath
         s.to_yaml(path_sample_file)
+        print("Sample items: {}".format(s.items()))
         with open(path_sample_file) as sf:
             reloaded_sample_data = yaml.load(sf, SafeLoader)
-        s_reloaded = Sample(reloaded_sample_data)
+        print("reloaded keys: {}".format(list(reloaded_sample_data.keys())))
+        try:
+            s_reloaded = Sample(reloaded_sample_data)
+        except Exception:
+            with open(path_sample_file) as sf:
+                print("LINES (below):\n{}".format("".join(sf.readlines())))
+            raise
         assert files == s_reloaded.input_file_paths
 
 
@@ -340,6 +342,7 @@ class LocateDataSourceTests:
             {SAMPLE_NAME_COLNAME: "random-sample",
              "prj": prj_data, colname: src_key})
         s = Sample(sample_data)
+        assert isinstance(s.prj, AttMap)
         data_sources = s.prj.data_sources if include_data_sources else None
         path = s.locate_data_source(
                 data_sources, column_name=colname, source_key=src_key)
