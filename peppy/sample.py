@@ -21,7 +21,6 @@ from .utils import copy, get_logger, get_name_depr_msg, grab_project_data, \
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
-NAME_ATTR = "name"
 _OLD_PROTOCOL_REF = "library"
 
 
@@ -74,6 +73,8 @@ class Sample(PathExAttMap):
     # made me go back and implement it as a top-level object
     def __init__(self, series, prj=None):
 
+        super(Sample, self).__init__()
+
         # Create data, handling library/protocol.
         data = OrderedDict(series)
 
@@ -112,13 +113,18 @@ class Sample(PathExAttMap):
                             smk=SNAKEMAKE_SAMPLE_COL, smv=name_sm,
                             pk=SAMPLE_NAME_COLNAME, pv=name_pep))
 
-        super(Sample, self).__init__(entries=data)
+        _LOGGER.whisper("Sample data: {}".format(data))
+        self.add_entries(data)
 
         if PRJ_REF in self and prj:
             _LOGGER.warn("Project provided both directly and indirectly; "
                          "using direct")
         if prj or PRJ_REF not in self:
             self[PRJ_REF] = prj or None
+
+        assert self[PRJ_REF] is None or isinstance(self[PRJ_REF], AttMap), \
+            "Project reference must be null or {}; got {}".format(AttMap.__name__, type(self[PRJ_REF]))
+
         self.merged_cols = {}
         self.derived_cols_done = []
 
@@ -131,7 +137,7 @@ class Sample(PathExAttMap):
         # so we can create a minimal, ordered representation of the original.
         # This allows summarization of the sample (i.e.,
         # appending new columns onto the original table)
-        self.sheet_attributes = series.keys()
+        self.sheet_attributes = list(series.keys())
 
         # Check if required attributes exist and are not empty.
         missing_attributes_message = self.check_valid()
@@ -207,7 +213,7 @@ class Sample(PathExAttMap):
         """
         missing, empty = [], []
         for attr in (required or [SAMPLE_NAME_COLNAME]):
-            if not hasattr(self, attr):
+            if attr not in self:
                 missing.append(attr)
             if attr == "nan":
                 empty.append(attr)
@@ -522,7 +528,6 @@ class Sample(PathExAttMap):
             _LOGGER.debug("No trackhub/URL")
             pass
 
-
     def set_genome(self, genomes):
         """
         Set the genome for this Sample.
@@ -530,7 +535,6 @@ class Sample(PathExAttMap):
         :param Mapping[str, str] genomes: genome assembly by organism name
         """
         self._set_assembly("genome", genomes)
-
 
     def set_transcriptome(self, transcriptomes):
         """
@@ -617,15 +621,14 @@ class Sample(PathExAttMap):
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttMap):
-                return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
+                return {k: obj2dict(v, name=k) for k, v in obj.items()
                         if k not in to_skip}
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v, name=k)
                         for k, v in obj.items() if k not in to_skip}
-            elif isinstance(obj, (Paths, Sample)):
+            elif isinstance(obj, Paths):
                 return {k: obj2dict(v, name=k)
-                        for k, v in obj.__dict__.items() if
-                        k not in to_skip}
+                        for k, v in obj.__dict__.items() if k not in to_skip}
             elif isinstance(obj, Series):
                 _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
