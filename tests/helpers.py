@@ -6,7 +6,7 @@ import string
 import numpy as np
 import pytest
 import peppy
-from ubiquerg import powerset
+from attmap import AttMap
 
 
 __author__ = "Vince Reuter"
@@ -21,6 +21,16 @@ def assert_entirely_equal(observed, expected):
         assert np.isnan(observed) and np.isnan(expected)
     except ValueError:
         assert (observed == expected).all()
+
+
+def compare_mappings(expected, observed):
+    """ Account for possibility that observed value is AttMap. """
+    print("EXPECTED: {}".format(expected))
+    print("OBSERVED: {}".format(observed))
+    assert set(expected.keys()) == set(observed.keys())
+    for k, v_exp in expected.items():
+        v_obs = observed[k]
+        assert v_exp == (v_obs.to_dict() if isinstance(v_obs, AttMap) else v_obs)
 
 
 def named_param(argnames, argvalues):
