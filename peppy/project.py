@@ -198,7 +198,7 @@ class Project(PathExAttMap):
 
         self._subproject = None
 
-        if cfg:
+        if isinstance(cfg, str):
             self.config_file = os.path.abspath(cfg)
             _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
             sections = self.parse_config_file(subproject)
