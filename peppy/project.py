@@ -830,7 +830,7 @@ class Project(PathExAttMap):
                 "This option will be removed in future versions.")
             self.metadata.add_entries(self.paths)
             _LOGGER.debug("Metadata: %s", str(self.metadata))
-            delattr(self, "paths")
+            del self["paths"]
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:

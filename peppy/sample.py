@@ -435,7 +435,6 @@ class Sample(PathExAttMap):
             # This is necessary for derived_attributes in the merge table.
             # Here the copy() prevents the actual sample from being
             # updated by update().
-            #temp_dict = self.__dict__.copy()
             temp_dict = dict(self.items())
             temp_dict.update(extra_vars or dict())
             val = regex.format(**temp_dict)

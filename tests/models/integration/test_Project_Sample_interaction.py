@@ -313,5 +313,5 @@ class SampleTextTests:
         """ Text representation of a Sample does not include its Project ref. """
         assert len(prj.samples) > 0, "No samples"    # precondition
         for s in prj.samples:
-            assert PRJ_REF in s
+            assert isinstance(getattr(s, PRJ_REF), Project)
             assert PRJ_REF not in func(s)
