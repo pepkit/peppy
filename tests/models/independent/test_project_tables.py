@@ -77,10 +77,8 @@ def _getkey(p, k):
     return p[k]
 
 
-# Get deprecated key's value.
+# Get deprecated value.
 get_key_dep = partial(_get_via_dep, f=_getkey)
-
-# Get deprecated attribute's value.
 get_att_dep = partial(_get_via_dep, f=_getatt)
 
 
@@ -127,18 +125,16 @@ def prj(prj_data, tmpdir):
 
 
 @pytest.mark.parametrize("key", [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY])
-@pytest.mark.parametrize("fun", [get_att_dep, get_key_dep])
-def test_no_sheets_old_access(prj, key, fun):
+def test_no_sheets_old_access(prj, key):
     """ When the Project uses neither metadata table slot, they're null. """
-    assert fun(prj, key) is None
+    assert getattr(prj, key) is None
 
 
 @pytest.mark.parametrize(
     "key", [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY])
-@pytest.mark.parametrize("fun", [_getatt, _getkey])
-def test_no_sheets_new_access(prj, key, fun):
+def test_no_sheets_new_access(prj, key):
     """ When the Project uses neither metadata table slot, they're null. """
-    assert fun(prj, key) is None
+    assert getattr(prj, key) is None
 
 
 @pytest.fixture(scope="function")
@@ -235,11 +231,11 @@ class SampleAnnotationConfigEncodingTests:
         with pytest.warns(DeprecationWarning):
             anns1 = getattr(prj, anns_key)
         with pytest.warns(DeprecationWarning):
-            anns2 = prj[anns_key]
+            anns2 = getattr(prj, anns_key)
         with pytest.warns(DeprecationWarning):
             subs1 = getattr(prj, subs_key)
         with pytest.warns(DeprecationWarning):
-            subs2 = prj[subs_key]
+            subs2 = getattr(prj, subs_key)
         # Validation that we didn't just get back garbage value(s)
         assert anns1.equals(anns2)
         assert subs1.equals(subs2)
@@ -298,10 +294,10 @@ def get_sp_par(k, f, lines, fn=None):
     return k, f, SubPrjDataSpec(k, fn, lines)
 
 
-_FETCHERS = {SAMPLE_ANNOTATIONS_KEY: [_getatt, _getkey],
-             SAMPLE_SUBANNOTATIONS_KEY: [_getatt, _getkey],
-             OLD_ANNS_META_KEY: [get_att_dep, get_key_dep],
-             OLD_SUBS_META_KEY: [get_att_dep, get_key_dep]}
+_FETCHERS = {SAMPLE_ANNOTATIONS_KEY: [_getatt],
+             SAMPLE_SUBANNOTATIONS_KEY: [_getatt],
+             OLD_ANNS_META_KEY: [get_att_dep],
+             OLD_SUBS_META_KEY: [get_att_dep]}
 
 
 class SubprojectActivationSampleMetadataAnnotationTableTests:
@@ -375,7 +371,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
             anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
         """ Main table is updated while subannotations are unaffected. """
         orig_anns = fun(prj, key)
-        orig_subs = prj[SAMPLE_SUBANNOTATIONS_KEY]
+        orig_subs = getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
         assert isinstance(orig_anns, DataFrame)
         assert SUBPROJECTS_SECTION in prj
         sps = list(prj[SUBPROJECTS_SECTION].keys())
@@ -383,7 +379,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sp = sps[0]
         prj.activate_subproject(sp)
         assert sp == prj.subproject
-        assert orig_subs.equals(prj[SAMPLE_SUBANNOTATIONS_KEY])
+        assert orig_subs.equals(getattr(prj, SAMPLE_SUBANNOTATIONS_KEY))
         new_anns_obs = fun(prj, key)
         assert not orig_anns.equals(new_anns_obs)
         new_anns_filepath = os.path.join(
@@ -414,8 +410,8 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     def test_subproject_uses_different_subsamples(prj, tmpdir,
             anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
         """ Subannotations are updated while the main table is unaltered. """
-        orig_anns = prj[SAMPLE_ANNOTATIONS_KEY]
-        orig_subs = fun(prj, key)
+        orig_anns = getattr(prj, SAMPLE_ANNOTATIONS_KEY)
+        orig_subs = getattr(prj, key)
         assert isinstance(orig_subs, DataFrame)
         assert SUBPROJECTS_SECTION in prj
         sps = list(prj[SUBPROJECTS_SECTION].keys())
@@ -423,7 +419,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sp = sps[0]
         prj.activate_subproject(sp)
         assert sp == prj.subproject
-        assert orig_anns.equals(prj[SAMPLE_ANNOTATIONS_KEY])
+        assert orig_anns.equals(getattr(prj, SAMPLE_ANNOTATIONS_KEY))
         new_subs_obs = fun(prj, key)
         assert not orig_subs.equals(new_subs_obs)
         new_subs_filepath = os.path.join(
@@ -516,21 +512,20 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
          ("subannC.txt", TAB_SUBANNS_DATA)])
     @pytest.mark.parametrize(SUBPROJECTS_SECTION,
         [{"random_sp_name": {METADATA_KEY: {OUTDIR_KEY: "random_ouput_subdir"}}}])
-    @pytest.mark.parametrize("fun", [_getatt, _getkey])
     def test_preservation_during_subproject_activation(
-            prj, fun, subprojects, anns_file, anns_data, subs_file, subs_data):
+            prj, subprojects, anns_file, anns_data, subs_file, subs_data):
         """ Tables are preserved when a subproject is activated if it declares no tables. """
         subs = prj[SUBPROJECTS_SECTION]
         for k in [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY,
                   OLD_ANNS_META_KEY, OLD_SUBS_META_KEY]:
             assert k not in subs, "Table key in subprojects section: {}".format(k)
-        anns1, subs1 = fun(prj, SAMPLE_ANNOTATIONS_KEY), \
-                       fun(prj, SAMPLE_SUBANNOTATIONS_KEY)
+        anns1, subs1 = getattr(prj, SAMPLE_ANNOTATIONS_KEY), \
+                       getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
         assert anns1 is not None
         assert subs1 is not None
         prj.activate_subproject("random_sp_name")
-        anns2 = fun(prj, SAMPLE_ANNOTATIONS_KEY)
-        subs2 = fun(prj, SAMPLE_SUBANNOTATIONS_KEY)
+        anns2 = getattr(prj, SAMPLE_ANNOTATIONS_KEY)
+        subs2 = getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
         assert anns1.equals(anns2)
         assert subs1.equals(subs2)
 
@@ -556,7 +551,7 @@ def _assert_null_prj_var(p, var):
     :param str var: name of variable to check as null
     """
     assert getattr(p, var) is None
-    assert p[var] is None
+    assert var not in p
 
 
 def _check_table(p, k, exp_nrow):
@@ -567,10 +562,7 @@ def _check_table(p, k, exp_nrow):
     :param str k: key/attribute that references the table of interest
     :param int exp_nrow: expected number of rows in the table
     """
-    dt_att = getattr(p, k)
-    dt_key = p[k]
-    assert dt_att.equals(dt_key)
-    obs_nrow = len(dt_att.index)
+    obs_nrow = len(getattr(p, k).index)
     assert exp_nrow == obs_nrow, "Rows: exp={}, obs={}".format(exp_nrow, obs_nrow)
 
 

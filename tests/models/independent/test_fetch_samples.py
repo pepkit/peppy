@@ -245,8 +245,8 @@ class ProtocolInclusionTests:
 
         # Remove protocol for ATAC-Seq samples.
         for s in samples:
-            if s.protocol == "ATAC-Seq":
-                delattr(s, "protocol")
+            if s[ASSAY_KEY] == "ATAC-Seq":
+                del s[ASSAY_KEY]
 
         observed = fetch_samples(
             prj, selector_attribute=selector_attribute, selector_include=selector_include)
@@ -348,8 +348,8 @@ class ProtocolExclusionTests:
 
         # Remove the protocols designated for sparing (from selector_exclude).
         for s in samples:
-            if s.protocol in spare_via_anonymity:
-                delattr(s, "protocol")
+            if s[ASSAY_KEY] in spare_via_anonymity:
+                del s[ASSAY_KEY]
 
         print("Protocols on samples: {}".format(
             {s.protocol for s in samples if hasattr(s, "protocol")}))

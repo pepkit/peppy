@@ -66,7 +66,7 @@ def prj(request, tmpdir):
     [(tn, f) for tn, checks in VALIDATIONS.items() for f in checks])
 def test_snake_project_table(prj, table_name, validate):
     """ Validate columns/values of a metadata table from Snakemake project. """
-    assert validate(prj[table_name])
+    assert validate(getattr(prj, table_name))
 
 
 def make_units_table_names_and_units_vectors():
