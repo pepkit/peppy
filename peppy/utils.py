@@ -288,7 +288,11 @@ def sample_folder(prj, sample):
         folder path.
     :return str: this Project's root folder for the given Sample
     """
-    return os.path.join(prj.metadata.results_subdir, sample.name)
+    try:
+        folder = prj.results_folder
+    except AttributeError:
+        folder = prj.metadata.results_subdir
+    return os.path.join(folder, sample.name)
 
 
 def type_check_strict(obj, ts):

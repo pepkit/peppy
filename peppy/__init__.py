@@ -9,7 +9,7 @@ local level, but this will at least provide a foundation.
 
 from ._version import __version__
 from .const import *
-from .exceptions import PeppyError
+from .exceptions import *
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 from .snake_project import *

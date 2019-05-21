@@ -62,7 +62,7 @@ import yaml
 from attmap import PathExAttMap
 from divvy import DEFAULT_COMPUTE_RESOURCES_NAME, ComputingConfiguration
 from .const import *
-from .exceptions import PeppyError
+from .exceptions import *
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, get_logger, \
@@ -386,9 +386,13 @@ class Project(PathExAttMap):
         """
         Names of folders to nest within a project output directory.
 
-        :return Iterable[str]: names of output-nested folders
+        :return Mapping[str, str]: names of output-nested folders
         """
-        return ["results_subdir", "submission_subdir"]
+        return {
+            RESULTS_FOLDER_KEY: "results_pipeline",
+            SUBMISSION_FOLDER_KEY: "submission"
+        }
+        #return ["results_subdir", "submission_subdir"]
 
     @property
     def protocols(self):
@@ -759,8 +763,11 @@ class Project(PathExAttMap):
         """
         Creates project directory structure if it doesn't exist.
         """
-        for folder_name in self.project_folders:
-            folder_path = self.metadata[folder_name]
+        for folder_key, folder_val in self.project_folders.items():
+            try:
+                folder_path = self.metadata[folder_key]
+            except KeyError:
+                folder_path = os.path.join(self.output_dir, folder_val)
             _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
             if not os.path.exists(folder_path):
                 _LOGGER.debug("Attempting to create project folder: '%s'",
@@ -770,6 +777,20 @@ class Project(PathExAttMap):
                 except OSError as e:
                     _LOGGER.warning("Could not create project folder: '%s'",
                                  str(e))
+
+    @property
+    def results_folder(self):
+        return self._relpath(RESULTS_FOLDER_KEY)
+
+    @property
+    def submission_folder(self):
+        return self._relpath(SUBMISSION_FOLDER_KEY)
+
+    def _relpath(self, key):
+        try:
+            return self.metadata[key]
+        except KeyError:
+            return os.path.join(self.output_dir, self.project_folders[key])
 
     def parse_config_file(self, subproject=None):
         """
@@ -844,19 +865,15 @@ class Project(PathExAttMap):
         # Here we make these absolute, so they won't be incorrectly made
         # relative to the config file.
         # These are optional because there are defaults
-        config_vars = {
-            # Defaults = {"variable": "default"}, relative to output_dir.
-            "results_subdir": "results_pipeline",
-            "submission_subdir": "submission"
-        }
-
-        for key, value in config_vars.items():
+        """
+        for key, value in self.project_folders.items():
             if key in self.metadata:
                 if not os.path.isabs(self.metadata[key]):
                     self.metadata[key] = \
                         os.path.join(self.output_dir, self.metadata[key])
             else:
                 self.metadata[key] = os.path.join(self.output_dir, value)
+        """
 
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
@@ -1183,12 +1200,25 @@ class MissingSubprojectError(PeppyError):
 class _Metadata(PathExAttMap):
     """ Project section with important information """
 
-    def __getattr__(self, item, default=None):
+    def __getitem__(self, item, expand=True):
+        x = super(_Metadata, self).__getitem__(item, expand)
+        if item in ["results_subdir", "submission_subdir"]:
+            outdir = self[OUTDIR_KEY]
+            if os.path.isabs(x):
+                if os.path.dirname(x) != outdir:
+                    raise IllegalStateException(
+                        "Subfolder '{}' ({}) is not within {} ({})".format(
+                            item, x, OUTDIR_KEY, outdir))
+            else:
+                x = os.path.join(self[OUTDIR_KEY], x)
+        return x
+
+    def __getattr__(self, item, default=None, expand=True):
         """ Reference the new attribute and warn about deprecation. """
         if item == OLD_PIPES_KEY:
             _warn_pipes_deprecation()
             item = NEW_PIPES_KEY
-        return super(_Metadata, self).__getattr__(item, default=None)
+        return super(_Metadata, self).__getattr__(item, default, expand)
 
     def __setitem__(self, key, value):
         """ Store the new key and warn about deprecation. """

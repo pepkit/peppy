@@ -512,7 +512,10 @@ class Sample(PathExAttMap):
             self.derived_cols_done.append(col)
 
         # Parent
-        self.results_subdir = project.metadata.results_subdir
+        try:
+            self.results_subdir = project.results_folder
+        except AttributeError:
+            self.results_subdir = project.metadata.results_subdir
         self.paths.sample_root = sample_folder(project, self)
 
         # Track url
