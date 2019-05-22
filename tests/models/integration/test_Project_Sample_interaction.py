@@ -251,7 +251,9 @@ def project(request, tmpdir, env_config_filepath):
 
     # Add the paths data to the Project config.
     for path_name, path in PATH_BY_TYPE.items():
-        paths_dest[path_name] = os.path.join(tmpdir.strpath, path)
+        paths_dest[path_name] = path \
+            if path_name in [RESULTS_FOLDER_KEY, SUBMISSION_FOLDER_KEY] \
+            else os.path.join(tmpdir.strpath, path)
 
     # Write the Project config file.
     conf_path = tmpdir.join("proj-conf.yaml").strpath

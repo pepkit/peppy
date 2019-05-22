@@ -787,10 +787,8 @@ class Project(PathExAttMap):
         return self._relpath(SUBMISSION_FOLDER_KEY)
 
     def _relpath(self, key):
-        try:
-            return self.metadata[key]
-        except KeyError:
-            return os.path.join(self.output_dir, self.project_folders[key])
+        return os.path.join(
+            self.output_dir, self.metadata.get(key, self.project_folders[key]))
 
     def parse_config_file(self, subproject=None):
         """
@@ -861,20 +859,6 @@ class Project(PathExAttMap):
 
         _LOGGER.debug("Project metadata: {}".format(self.metadata))
 
-        # Some metadata attributes are considered relative to the output_dir
-        # Here we make these absolute, so they won't be incorrectly made
-        # relative to the config file.
-        # These are optional because there are defaults
-        """
-        for key, value in self.project_folders.items():
-            if key in self.metadata:
-                if not os.path.isabs(self.metadata[key]):
-                    self.metadata[key] = \
-                        os.path.join(self.output_dir, self.metadata[key])
-            else:
-                self.metadata[key] = os.path.join(self.output_dir, value)
-        """
-
         # Variables which are relative to the config file
         # All variables in these sections should be relative to project config.
         relative_sections = [METADATA_KEY, "pipeline_config"]
@@ -898,6 +882,9 @@ class Project(PathExAttMap):
                 if isinstance(relpath, list):
                     absolute = [self._ensure_absolute(maybe_relpath)
                                 for maybe_relpath in relpath]
+                elif var in self.project_folders:
+                    _LOGGER.whisper("Skipping absolute assurance for key: %s", var)
+                    absolute = relpath
                 else:
                     absolute = self._ensure_absolute(relpath)
                 _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
@@ -1199,19 +1186,6 @@ class MissingSubprojectError(PeppyError):
 
 class _Metadata(PathExAttMap):
     """ Project section with important information """
-
-    def __getitem__(self, item, expand=True):
-        x = super(_Metadata, self).__getitem__(item, expand)
-        if item in ["results_subdir", "submission_subdir"]:
-            outdir = self[OUTDIR_KEY]
-            if os.path.isabs(x):
-                if os.path.dirname(x) != outdir:
-                    raise IllegalStateException(
-                        "Subfolder '{}' ({}) is not within {} ({})".format(
-                            item, x, OUTDIR_KEY, outdir))
-            else:
-                x = os.path.join(self[OUTDIR_KEY], x)
-        return x
 
     def __getattr__(self, item, default=None, expand=True):
         """ Reference the new attribute and warn about deprecation. """
