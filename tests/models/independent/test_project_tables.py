@@ -4,11 +4,8 @@ from collections import namedtuple
 from copy import deepcopy
 from functools import partial
 import os
-import sys
-if sys.version_info < (3, 3):
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
+from collections import Mapping
+import warnings
 import pandas as pd
 from pandas import DataFrame
 import pytest
@@ -127,14 +124,18 @@ def prj(prj_data, tmpdir):
 @pytest.mark.parametrize("key", [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY])
 def test_no_sheets_old_access(prj, key):
     """ When the Project uses neither metadata table slot, they're null. """
-    assert getattr(prj, key) is None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert getattr(prj, key) is None
 
 
 @pytest.mark.parametrize(
     "key", [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY])
 def test_no_sheets_new_access(prj, key):
     """ When the Project uses neither metadata table slot, they're null. """
-    assert getattr(prj, key) is None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert getattr(prj, key) is None
 
 
 @pytest.fixture(scope="function")
@@ -411,7 +412,9 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
             anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
         """ Subannotations are updated while the main table is unaltered. """
         orig_anns = getattr(prj, SAMPLE_ANNOTATIONS_KEY)
-        orig_subs = getattr(prj, key)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            orig_subs = getattr(prj, key)
         assert isinstance(orig_subs, DataFrame)
         assert SUBPROJECTS_SECTION in prj
         sps = list(prj[SUBPROJECTS_SECTION].keys())
@@ -419,8 +422,10 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sp = sps[0]
         prj.activate_subproject(sp)
         assert sp == prj.subproject
-        assert orig_anns.equals(getattr(prj, SAMPLE_ANNOTATIONS_KEY))
-        new_subs_obs = fun(prj, key)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            assert orig_anns.equals(getattr(prj, SAMPLE_ANNOTATIONS_KEY))
+            new_subs_obs = fun(prj, key)
         assert not orig_subs.equals(new_subs_obs)
         new_subs_filepath = os.path.join(
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
