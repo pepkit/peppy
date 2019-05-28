@@ -12,7 +12,7 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import *
-from peppy.project import NEW_PIPES_KEY
+from peppy.project import NEW_PIPES_KEY, SUBMISSION_FOLDER_VALUE
 from peppy.sample import PRJ_REF
 from tests.helpers import randomize_filename
 
@@ -24,8 +24,8 @@ __email__ = "vreuter@virginia.edu"
 # Project construction behavior with respect to config file format.
 PATH_BY_TYPE = {
     OUTDIR_KEY: "temporary/sequencing/results",
-    "results_subdir": "results",
-    "submission_subdir": "submission",
+    RESULTS_FOLDER_KEY: "results",
+    SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE,
     "input_dir": "dummy/sequencing/data",
     "tools_folder": "arbitrary-seq-tools-folder"}
 

@@ -91,6 +91,9 @@ DEPRECATIONS = {_OLD_CONSTANTS_KEY: CONSTANTS_DECLARATION,
                 _OLD_DERIVATIONS_KEY: DERIVATIONS_DECLARATION,
                 _OLD_IMPLICATIONS_KEY: IMPLICATIONS_DECLARATION}
 
+RESULTS_FOLDER_VALUE = "results_pipeline"
+SUBMISSION_FOLDER_VALUE = "submission"
+
 
 _LOGGER = get_logger(__name__)
 
@@ -246,7 +249,6 @@ class Project(PathExAttMap):
         self_table_attr = "_" + NAME_TABLE_ATTR
         self[self_table_attr] = None
         if path_anns_file:
-            _LOGGER.debug("Reading sample annotations sheet: '%s'", path_anns_file)
             self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
@@ -389,8 +391,8 @@ class Project(PathExAttMap):
         :return Mapping[str, str]: names of output-nested folders
         """
         return {
-            RESULTS_FOLDER_KEY: "results_pipeline",
-            SUBMISSION_FOLDER_KEY: "submission"
+            RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
+            SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE
         }
         #return ["results_subdir", "submission_subdir"]
 
@@ -928,7 +930,9 @@ class Project(PathExAttMap):
         # See https://github.com/pepkit/peppy/issues/159 for the original issue
         # and https://github.com/pepkit/peppy/pull/160 for the pull request
         # that resolved it.
+        _LOGGER.info("Reading sample annotations sheet: '%s'", sample_file)
         sep = infer_delimiter(sample_file)
+        _LOGGER.debug("Inferred delimiter: {}".format(sep))
         try:
             df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:

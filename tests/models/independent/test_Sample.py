@@ -14,6 +14,7 @@ from attmap import AttMap
 import peppy
 from peppy import Sample
 from peppy.const import *
+from peppy.project import RESULTS_FOLDER_VALUE, SUBMISSION_FOLDER_VALUE
 from tests.helpers import named_param
 
 
@@ -235,8 +236,8 @@ class SetFilePathsTests:
         return {
             METADATA_KEY: {
                 NAME_TABLE_ATTR: "anns.csv", OUTDIR_KEY: "outdir",
-                "results_subdir": "results_pipeline",
-                "submission_subdir": "submission"},
+                RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
+                SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE},
             DATA_SOURCES_SECTION: self.DATA_SOURCES,
             DERIVATIONS_DECLARATION: [data_src]}
 

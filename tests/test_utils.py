@@ -8,7 +8,8 @@ import pytest
 from attmap import PathExAttMap
 from peppy import Sample
 from peppy.const import *
-from peppy.project import NEW_PIPES_KEY
+from peppy.project import NEW_PIPES_KEY, RESULTS_FOLDER_VALUE, \
+    SUBMISSION_FOLDER_VALUE
 from peppy.utils import \
     add_project_sample_constants, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
@@ -33,8 +34,8 @@ def basic_project_data():
         METADATA_KEY: {
             NAME_TABLE_ATTR: "anns.csv",
             OUTDIR_KEY: "outdir",
-            "results_subdir": "results_pipeline",
-            "submission_subdir": "submission"},
+            RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
+            SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE},
         DERIVATIONS_DECLARATION: [DATA_SOURCE_COLNAME],
         IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
