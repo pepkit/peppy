@@ -387,7 +387,10 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
         new_anns_exp = pd.read_csv(new_anns_filepath,
             sep=infer_delimiter(new_anns_filepath), **READ_CSV_KWARGS)
-        assert new_anns_exp.equals(new_anns_obs)
+        anns_diff = _data_frame_diff(new_anns_exp, new_anns_obs)
+        if anns_diff:
+            pytest.fail("Observed annotations differ from expected: {}".
+                        format(anns_diff))
 
 
     @staticmethod
@@ -431,7 +434,9 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
         new_subs_exp = pd.read_csv(new_subs_filepath,
             sep=infer_delimiter(new_subs_filepath), **READ_CSV_KWARGS)
-        assert new_subs_exp.equals(new_subs_obs)
+        subs_diff = _data_frame_diff(new_subs_exp, new_subs_obs)
+        if subs_diff:
+            pytest.fail("Subannotations diff: {}".format(subs_diff))
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -472,8 +477,12 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sub_fp = os.path.join(tmpdir.strpath, subs_sect[sub_key])
         exp_ann = pd.read_csv(ann_fp, **READ_CSV_KWARGS)
         exp_sub = pd.read_csv(sub_fp, **READ_CSV_KWARGS)
-        assert exp_ann.equals(new_anns)
-        assert exp_sub.equals(new_subs)
+        ann_diff = _data_frame_diff(exp_ann, new_anns)
+        if ann_diff:
+            pytest.fail("Main annotations differ: {}".format(ann_diff))
+        sub_diff = _data_frame_diff(exp_sub, new_subs)
+        if sub_diff:
+            pytest.fail("Subnnotations differ: {}".format(sub_diff))
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -616,3 +625,12 @@ def _write(fp, lines):
         for l in lines:
             f.write(l)
     return fp
+
+
+def _data_frame_diff(df1, df2, include_index=False):
+    if include_index:
+        return None if df1.equals(df2) else True
+    if list(df1.columns) != list(df2.columns):
+        return ([c for c in df1.columns if c not in df2.columns],
+                [c for c in df2.columns if c not in df1.columns])
+    return {c: (df1[c], df2[c]) for c in df1.columns if list(df1[c]) != list(df2[c])}
