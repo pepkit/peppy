@@ -219,12 +219,8 @@ def path_empty_project(request, tmpdir):
     """ Provide path to Project config file with empty annotations. """
 
     # Determine how to write the data and how to name a file.
-    if "delimiter" in request.fixturenames:
-        delimiter = request.getfixturevalue("delimiter")
-        extension = "txt"
-    else:
-        delimiter = ","
-        extension = "csv"
+    delimiter = request.getfixturevalue("delimiter") if "delimiter" in request.fixturenames else ","
+    extension = "csv" if delimiter == "," else "txt"
 
     # Update the Project configuration data.
     conf_data = update_project_conf_data(extension)

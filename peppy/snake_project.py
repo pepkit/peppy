@@ -1,9 +1,11 @@
 """ Adapting Project for interop with Snakemake """
 
+from copy import deepcopy
 from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
-from .project import Project, sample_table, subsample_table
-from .utils import count_repeats, type_check_strict
+from .project import Project, sample_table, subsample_table, MAIN_INDEX_KEY, \
+    SUBS_INDEX_KEY
+from .utils import count_repeats, get_logger, type_check_strict
 from pandas import DataFrame
 
 __author__ = "Vince Reuter"
@@ -13,6 +15,7 @@ __all__ = ["SnakeProject"]
 
 
 UNITS_COLUMN = "unit"
+_LOGGER = get_logger(__name__)
 
 
 class SnakeProject(Project):
@@ -21,6 +24,12 @@ class SnakeProject(Project):
     # Hook for Project's declaration of how it identifies samples.
     # Used for validation and for merge_sample (derived cols and such)
     SAMPLE_NAME_IDENTIFIER = SNAKEMAKE_SAMPLE_COL
+
+    def __init__(self, cfg, **kwargs):
+        kwds = deepcopy(kwargs)
+        kwds.setdefault(MAIN_INDEX_KEY, SNAKEMAKE_SAMPLE_COL)
+        kwds.setdefault(SUBS_INDEX_KEY, (SNAKEMAKE_SAMPLE_COL, UNITS_COLUMN))
+        super(SnakeProject, self).__init__(cfg, **kwds)
 
     @property
     def sample_table(self):
@@ -42,35 +51,23 @@ class SnakeProject(Project):
         if reps:
             raise Exception("Repeated sample identifiers (and counts): {}".
                             format(reps))
-        return t.set_index(SNAKEMAKE_SAMPLE_COL, drop=False)
+        return self._index_main_table(t)
 
     @property
     def subsample_table(self):
-        """
-        Get (possibly building) Project's table of samples, naming for Snakemake.
+        """ The units table """
+        return self._finalize_subsample_table(subsample_table(self))
 
-        :return pandas.core.frame.DataFrame | NoneType: table of samples'
-            metadata, if one is defined
-        """
-
-        def count_names(names):
-            def go(rem, n, curr, acc):
-                if not rem:
-                    return acc + [n]
-                h, tail = rem[0], rem[1:]
-                return go(tail, n + 1, curr, acc) \
-                    if h == curr else go(tail, 1, h, acc + [n])
-            return go(names[1:], 1, names[0], []) if names else []
-
-        t = _rename_columns(subsample_table(self))
-        if UNITS_COLUMN not in t.columns:
-            units = [str(i) for n in count_names(list(t[SNAKEMAKE_SAMPLE_COL]))
-                     for i in range(1, n + 1)]
-            t.insert(1, UNITS_COLUMN, units)
-
-        t.set_index([SNAKEMAKE_SAMPLE_COL, UNITS_COLUMN], drop=False, inplace=True)
-        t.index.set_levels([i.astype(str) for i in t.index.levels])
+    def _finalize_subsample_table(self, t):
+        t = self._index_subs_table(_rename_columns(t))
+        try:
+            t.index.set_levels([l.astype(str) for l in t.index.levels])
+        except AttributeError:
+            _LOGGER.debug("Error enforcing string type on multi-index levels "
+                          "for subsample table; perhaps unit columns isn't yet "
+                          "available.")
         return t
+
 
     @staticmethod
     def _get_sample_ids(df):

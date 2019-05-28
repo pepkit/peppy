@@ -28,8 +28,8 @@ VALIDATIONS = {
     "subsample_table": [
         lambda df: SAMPLE_NAME_COLNAME not in df.columns,
         lambda df: SNAKEMAKE_SAMPLE_COL in df.columns,
-        lambda df: UNITS_COLUMN in df.columns,
-        lambda df: [str(i) for i in [1, 2, 1, 2]] == list(df[UNITS_COLUMN])
+        #lambda df: UNITS_COLUMN in df.columns,
+        #lambda df: [str(i) for i in [1, 2, 1, 2]] == list(df[UNITS_COLUMN])
     ]
 }
 
@@ -61,6 +61,7 @@ def prj(request, tmpdir):
     return SnakeProject(cfg)
 
 
+#@pytest.mark.xfail(reason="{} may not be added; implementation decision in flux.".format(UNITS_COLUMN))
 @pytest.mark.parametrize(
     ["table_name", "validate"],
     [(tn, f) for tn, checks in VALIDATIONS.items() for f in checks])

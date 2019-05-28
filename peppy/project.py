@@ -94,6 +94,9 @@ DEPRECATIONS = {_OLD_CONSTANTS_KEY: CONSTANTS_DECLARATION,
 RESULTS_FOLDER_VALUE = "results_pipeline"
 SUBMISSION_FOLDER_VALUE = "submission"
 
+MAIN_INDEX_KEY = "main_index_cols"
+SUBS_INDEX_KEY = "subs_index_cols"
+
 
 _LOGGER = get_logger(__name__)
 
@@ -186,7 +189,7 @@ class Project(PathExAttMap):
     def __init__(self, cfg, subproject=None, dry=False,
                  permissive=True, file_checks=False, compute_env_file=None,
                  no_environment_exception=None, no_compute_exception=None,
-                 defer_sample_construction=False):
+                 defer_sample_construction=False, **kwargs):
 
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
@@ -244,6 +247,12 @@ class Project(PathExAttMap):
 
         self.finalize_pipelines_directory()
 
+        # Set labels by which to index annotation data frames.
+        self["_" + MAIN_INDEX_KEY] = \
+            kwargs.get(MAIN_INDEX_KEY, SAMPLE_NAME_COLNAME)
+        self["_" + SUBS_INDEX_KEY] = \
+            kwargs.get(SUBS_INDEX_KEY, (SAMPLE_NAME_COLNAME, "subsample_name"))
+
         self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
         path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
         self_table_attr = "_" + NAME_TABLE_ATTR
@@ -258,6 +267,24 @@ class Project(PathExAttMap):
             self._samples = None
         else:
             self._set_basic_samples()
+
+    def _index_main_table(self, t):
+        """ Index column(s) of the subannotation table. """
+        return None if t is None else t.set_index(self["_" + MAIN_INDEX_KEY], drop=False)
+
+    def _index_subs_table(self, t):
+        """ Index column(s) of the subannotation table. """
+        if t is None:
+            return
+        ideal_labels = self["_" + SUBS_INDEX_KEY]
+        ideal_labels = [ideal_labels] if isinstance(ideal_labels, str) else ideal_labels
+        labels, missing = [], []
+        for l in ideal_labels:
+            (labels if l in t.columns else missing).append(l)
+        if missing:
+            _LOGGER.warning("Missing subtable index labels: {}".
+                            format(", ".join(missing)))
+        return t.set_index(labels, drop=False)
 
     def __repr__(self):
         """ Representation in interpreter. """
@@ -489,7 +516,7 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of samples'
             metadata, if one is defined
         """
-        return sample_table(self)
+        return self._index_main_table(sample_table(self))
 
     @property
     def sheet(self):
@@ -519,7 +546,10 @@ class Project(PathExAttMap):
         :return pandas.core.frame.DataFrame | NoneType: table of subsamples'
             metadata, if the project defines such a table
         """
-        return subsample_table(self)
+        return self._finalize_subsample_table(subsample_table(self))
+
+    def _finalize_subsample_table(self, t):
+        return self._index_subs_table(t)
 
     @property
     def templates_folder(self):
@@ -943,9 +973,9 @@ class Project(PathExAttMap):
             if len(missing) != 0:
                 _LOGGER.warning(
                     "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
-                    "It has: {has}".format(
+                    "It has {ncol}: {has}".format(
                         f=sample_file, n=len(missing), miss=", ".join(missing),
-                        has=", ".join(list(df.columns))))
+                        ncol=len(df.columns), has=", ".join(list(df.columns))))
         return df
 
     def _apply_parse_strat(self, filepath, spec):
@@ -955,10 +985,9 @@ class Project(PathExAttMap):
             kwds.update(spec.make_extra_kwargs(filepath))
         return spec.get_parse_fun(self)(filepath, **kwds)
 
-    def _check_subann_name_overlap(self):
+    def _check_subann_name_overlap(self, subs):
         """
         Check if all subannotations have a matching sample, and warn if not. """
-        subs = getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
         if subs is not None:
             sample_subann_names = self._get_sample_ids(subs).tolist()
             sample_names_list = list(self.sample_names)
@@ -1027,7 +1056,7 @@ class Project(PathExAttMap):
 
             _LOGGER.debug("Merging sample '%s'", sample.name)
             sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, getattr(self, SAMPLE_SUBANNOTATIONS_KEY),
+            merge_sample(sample, self["_" + SAMPLE_SUBANNOTATIONS_KEY],
                          self.data_sources, self.derived_attributes,
                          sample_colname=self.SAMPLE_NAME_IDENTIFIER)
             _LOGGER.debug("Setting sample file paths")
@@ -1069,12 +1098,12 @@ class Project(PathExAttMap):
             subann_table = self._apply_parse_strat(sub_ann, _SUBS_TABLE_SPEC)
             self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
             _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
+            self._check_subann_name_overlap(subann_table)
         else:
             _LOGGER.debug("Alleged path to sample subannotations data is "
                           "not a file: '%s'", str(sub_ann))
 
         # Set samples and handle non-unique names situation.
-        self._check_subann_name_overlap()
         self._samples = self._prep_samples()
         self._check_unique_samples()
 

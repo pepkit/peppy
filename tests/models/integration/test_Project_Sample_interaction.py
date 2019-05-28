@@ -131,6 +131,7 @@ class BuildSheetTests:
     def test_no_samples(self, protocols, delimiter, path_empty_project):
         """ Lack of Samples is unproblematic for the sheet build. """
         # Regardless of protocol(s), the sheet should be empty.
+        print("Test config file: {}".format(path_empty_project))
         p = Project(path_empty_project)
         sheet = p.build_sheet(*protocols)
         assert sheet.empty
