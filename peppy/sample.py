@@ -475,7 +475,8 @@ class Sample(PathExAttMap):
 
         project = project or self.prj
 
-        for col in project.get("derived_attributes", []):
+        derived = project.get("derived_attributes", [])
+        for col in ([derived] if isinstance(derived, str) else derived):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if not hasattr(self, col):
