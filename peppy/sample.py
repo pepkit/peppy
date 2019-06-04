@@ -723,9 +723,12 @@ def merge_sample(sample, sample_subann, data_sources=None,
         _LOGGER.debug("'{}' is not a subannotation column; trying {}".
                       format(sample_colname, alternative))
         if alternative not in sample_subann.columns:
-            raise KeyError("Subannotation requires column '{}'.".format(sample_colname))
+            raise KeyError(
+                "Subannotation requires column '{}'.".format(sample_colname))
         sample_colname = alternative
 
+    _LOGGER.debug("Using '{}' as sample name column from subannotation table".
+                  format(sample_colname))
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
 
