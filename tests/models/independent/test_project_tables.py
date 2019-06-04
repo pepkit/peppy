@@ -125,7 +125,7 @@ def prj(prj_data, tmpdir):
 def test_no_sheets_old_access(prj, key):
     """ When the Project uses neither metadata table slot, they're null. """
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+        warnings.simplefilter("ignore", category=DeprecationWarning)
         assert getattr(prj, key) is None
 
 
@@ -133,9 +133,7 @@ def test_no_sheets_old_access(prj, key):
     "key", [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY])
 def test_no_sheets_new_access(prj, key):
     """ When the Project uses neither metadata table slot, they're null. """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        assert getattr(prj, key) is None
+    assert getattr(prj, key) is None
 
 
 @pytest.fixture(scope="function")
@@ -371,7 +369,9 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     def test_subproject_uses_different_main_table(prj, tmpdir,
             anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs):
         """ Main table is updated while subannotations are unaffected. """
-        orig_anns = fun(prj, key)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            orig_anns = fun(prj, key)
         orig_subs = getattr(prj, SAMPLE_SUBANNOTATIONS_KEY)
         assert isinstance(orig_anns, DataFrame)
         assert SUBPROJECTS_SECTION in prj
@@ -381,7 +381,9 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         prj.activate_subproject(sp)
         assert sp == prj.subproject
         assert orig_subs.equals(getattr(prj, SAMPLE_SUBANNOTATIONS_KEY))
-        new_anns_obs = fun(prj, key)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            new_anns_obs = fun(prj, key)
         assert not orig_anns.equals(new_anns_obs)
         new_anns_filepath = os.path.join(
             tmpdir.strpath, prj[SUBPROJECTS_SECTION][sp][METADATA_KEY][key])
@@ -416,7 +418,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         """ Subannotations are updated while the main table is unaltered. """
         orig_anns = getattr(prj, SAMPLE_ANNOTATIONS_KEY)
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+            warnings.simplefilter("ignore", category=DeprecationWarning)
             orig_subs = getattr(prj, key)
         assert isinstance(orig_subs, DataFrame)
         assert SUBPROJECTS_SECTION in prj
@@ -425,9 +427,9 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         sp = sps[0]
         prj.activate_subproject(sp)
         assert sp == prj.subproject
+        assert orig_anns.equals(getattr(prj, SAMPLE_ANNOTATIONS_KEY))
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            assert orig_anns.equals(getattr(prj, SAMPLE_ANNOTATIONS_KEY))
+            warnings.simplefilter("ignore", category=DeprecationWarning)
             new_subs_obs = fun(prj, key)
         assert not orig_subs.equals(new_subs_obs)
         new_subs_filepath = os.path.join(
