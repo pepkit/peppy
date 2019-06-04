@@ -1,11 +1,15 @@
 # Changelog
 
-## [Unreleased]
+## [0.22.0] -- (2019-06-04)
 ### Changed
 - Deprecate `Project` "constants" in favor of "constant_attributes."
 - Simpler--and, indirectly, more informative--`Project` text representation for interactive/terminal display (`__repr__`): [Issue 296](https://github.com/pepkit/peppy/issues/296)
+
 ### Fixed
 - Properly use `constant_attributes` if present from subproject. [Issue 292](https://github.com/pepkit/peppy/issues/292)
+- Fixed a bug with subproject activation paths
+
+
 
 ## [0.21.0] -- (2019-05-02)
 
