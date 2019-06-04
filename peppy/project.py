@@ -969,7 +969,7 @@ class Project(PathExAttMap):
             raise Project.MissingSampleSheetError(sample_file)
         else:
             _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            missing = {self.SAMPLE_NAME_IDENTIFIER} - set(df.columns)
+            missing = self._missing_columns(set(df.columns))
             if len(missing) != 0:
                 _LOGGER.warning(
                     "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
@@ -977,6 +977,9 @@ class Project(PathExAttMap):
                         f=sample_file, n=len(missing), miss=", ".join(missing),
                         ncol=len(df.columns), has=", ".join(list(df.columns))))
         return df
+
+    def _missing_columns(self, cs):
+        return {self.SAMPLE_NAME_IDENTIFIER} - set(cs)
 
     def _apply_parse_strat(self, filepath, spec):
         from copy import copy as cp

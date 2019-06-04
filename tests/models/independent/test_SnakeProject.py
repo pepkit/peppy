@@ -4,6 +4,7 @@ import itertools
 import os
 import pytest
 import yaml
+from pandas import Index
 from peppy import SnakeProject
 from peppy.const import *
 from peppy.const import SNAKEMAKE_SAMPLE_COL
@@ -13,8 +14,6 @@ __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-MAIN_TABLE_NAME_COLNAME_PARAM = "main_name_colname"
-SUBS_TABLE_NAME_COLNAME_PARAM = "subs_name_colname"
 NAME_COLNAMES = [SAMPLE_NAME_COLNAME, SNAKEMAKE_SAMPLE_COL]
 SAMPLE_NAMES = ["testA", "testB"]
 
@@ -75,3 +74,13 @@ def make_units_table_names_and_units_vectors():
     names = list(itertools.chain(*zip(SAMPLE_NAMES, SAMPLE_NAMES)))
     units = [str(i) for i in [1, 2, 1, 2]]
     return names, units
+
+
+@pytest.mark.parametrize(
+    ["exp_dat", "observe"], [
+        (lambda p: p.sample_names, lambda p: p.sample_table.index),
+        (lambda p: list(itertools.chain(*[(n, n) for n in p.sample_names])),
+         lambda p: p.subsample_table.index)])
+def test_default_table_indexing(prj, exp_dat, observe):
+    exp = Index(name=SNAKEMAKE_SAMPLE_COL, data=exp_dat(prj))
+    assert exp.equals(observe(prj))

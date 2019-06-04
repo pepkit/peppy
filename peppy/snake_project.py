@@ -67,6 +67,9 @@ class SnakeProject(Project):
                           "available.")
         return t
 
+    def _missing_columns(self, cs):
+        return set() if {self.SAMPLE_NAME_IDENTIFIER, SAMPLE_NAME_COLNAME} & cs \
+            else {self.SAMPLE_NAME_IDENTIFIER}
 
     @staticmethod
     def _get_sample_ids(df):
