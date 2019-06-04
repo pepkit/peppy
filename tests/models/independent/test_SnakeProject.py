@@ -4,10 +4,11 @@ import itertools
 import os
 import pytest
 import yaml
-from pandas import Index
+from pandas import Index, MultiIndex
 from peppy import SnakeProject
 from peppy.const import *
 from peppy.const import SNAKEMAKE_SAMPLE_COL
+from peppy.project import MAIN_INDEX_KEY, SUBS_INDEX_KEY
 from peppy.snake_project import UNITS_COLUMN
 
 __author__ = "Vince Reuter"
@@ -82,5 +83,63 @@ def make_units_table_names_and_units_vectors():
         (lambda p: list(itertools.chain(*[(n, n) for n in p.sample_names])),
          lambda p: p.subsample_table.index)])
 def test_default_table_indexing(prj, exp_dat, observe):
+    """ Verify expected default behavior for indexing of Project tables. """
     exp = Index(name=SNAKEMAKE_SAMPLE_COL, data=exp_dat(prj))
     assert exp.equals(observe(prj))
+
+
+@pytest.mark.parametrize("first_sub_index", ["a", "A"])
+@pytest.mark.parametrize("sub_per_sample", [2, 3])
+@pytest.mark.parametrize(
+    "main_index_column", [SNAKEMAKE_SAMPLE_COL])
+@pytest.mark.parametrize(
+    "subs_index_column", ["unit", "subsample_name", "random_column"])
+def test_explicit_table_indexing(tmpdir, first_sub_index, sub_per_sample,
+                                 main_index_column, subs_index_column):
+    step_funs = {str: lambda s, i: chr(ord(s) + i), int: lambda x, i: x + i}
+    step = step_funs[type(first_sub_index)]
+    main_index_data = ["testA", "testB", "testC"]
+    main_vals = [x for x in range(len(main_index_data))]
+    subs_names = list(itertools.chain(*[
+        sub_per_sample * [n] for n in main_index_data]))
+    print("SUBS NAMES: {}".format(subs_names))
+    subs_index_data = list(itertools.chain(*[
+        [step(first_sub_index, i) for i in range(sub_per_sample)]
+        for _ in main_index_data]))
+    subs_vals = len(main_index_data) * list(range(len(main_index_data)))
+    ext, sep = ".tsv", "\t"
+    dat_col = "data"
+    annsfile = tmpdir.join("anns" + ext).strpath
+    subsfile = tmpdir.join("subs" + ext).strpath
+    conffile = tmpdir.join("conf.yaml").strpath
+    annstemp = "{}{}{}"
+    annslines = [annstemp.format(name, sep, value) for name, value in
+                 [(main_index_column, dat_col)] + list(zip(main_index_data, main_vals))]
+    substemp = "{n}{sep}{sub}{sep}{v}"
+    subslines = [substemp.format(n=name, sep=sep, sub=sub, v=val) for name, sub, val in
+                 [(main_index_column, subs_index_column, dat_col)] +
+                 list(zip(subs_names, subs_index_data, subs_vals))]
+    with open(annsfile, 'w') as f:
+        f.write("\n".join(annslines))
+    with open(subsfile, 'w') as f:
+        f.write("\n".join(subslines))
+    with open(conffile, 'w') as f:
+        yaml.dump({METADATA_KEY: {
+            SAMPLE_ANNOTATIONS_KEY: annsfile,
+            SAMPLE_SUBANNOTATIONS_KEY: subsfile}}, f)
+    p = SnakeProject(conffile, **{
+        MAIN_INDEX_KEY: main_index_column,
+        SUBS_INDEX_KEY: (main_index_column, subs_index_column)})
+    print("SUBS TABLE:\n{}".format(p.subsample_table))
+    exp_main_idx = Index(main_index_data, name=main_index_column)
+    assert exp_main_idx.equals(p.sample_table.index)
+    obs_subs_idx = p.subsample_table.index
+    assert isinstance(obs_subs_idx, MultiIndex)
+    exp_subs_names = [main_index_column, subs_index_column]
+    exp_subs_levels = [main_index_data, subs_index_data[:sub_per_sample]]
+    print("EXP NAMES: {}".format(exp_subs_names))
+    print("EXP LEVELS: {}".format(exp_subs_levels))
+    print("OBS NAMES: {}".format(obs_subs_idx.names))
+    print("OBS LEVELS: {}".format(obs_subs_idx.levels))
+    assert exp_subs_levels == [list(l) for l in obs_subs_idx.levels]
+    assert exp_subs_names == obs_subs_idx.names

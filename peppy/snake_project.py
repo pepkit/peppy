@@ -67,6 +67,36 @@ class SnakeProject(Project):
                           "available.")
         return t
 
+    def _index_main_table(self, t):
+        """ Index column(s) of the subannotation table. """
+        if t is None:
+            return
+        colname = self["_" + MAIN_INDEX_KEY]
+        return t.set_index(colname if colname in t.columns else SNAKEMAKE_SAMPLE_COL, drop=False)
+
+    def _index_subs_table(self, t):
+        """ Index column(s) of the subannotation table. """
+        if t is None:
+            return
+        ideal_labels = self["_" + SUBS_INDEX_KEY]
+        ideal_labels = [ideal_labels] if isinstance(ideal_labels, str) else ideal_labels
+        labels, missing = [], []
+        equiv = [SAMPLE_NAME_COLNAME, SNAKEMAKE_SAMPLE_COL]
+        for l in ideal_labels:
+            if l in equiv:
+                for eq in equiv:
+                    if eq in t.columns and eq not in labels:
+                        labels.append(eq)
+                        break
+                else:
+                    missing.append(l)
+            else:
+                (labels if l in t.columns else missing).append(l)
+        if missing:
+            _LOGGER.warning("Missing subtable index labels: {}".
+                            format(", ".join(missing)))
+        return t.set_index(labels, drop=False)
+
     def _missing_columns(self, cs):
         return set() if {self.SAMPLE_NAME_IDENTIFIER, SAMPLE_NAME_COLNAME} & cs \
             else {self.SAMPLE_NAME_IDENTIFIER}
