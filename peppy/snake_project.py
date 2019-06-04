@@ -1,8 +1,7 @@
 """ Adapting Project for interop with Snakemake """
 
 from copy import deepcopy
-from .const import *
-from .const import SNAKEMAKE_SAMPLE_COL
+from .const import SAMPLE_NAME_COLNAME, SNAKEMAKE_SAMPLE_COL
 from .project import Project, sample_table, subsample_table, MAIN_INDEX_KEY, \
     SUBS_INDEX_KEY
 from .utils import count_repeats, get_logger, type_check_strict
@@ -73,7 +72,10 @@ class SnakeProject(Project):
     def _get_sample_ids(df):
         """ Return the sample identifiers in the given table. """
         type_check_strict(df, DataFrame)
-        return df[SNAKEMAKE_SAMPLE_COL]
+        try:
+            return df[SNAKEMAKE_SAMPLE_COL]
+        except KeyError:
+            return df[SAMPLE_NAME_COLNAME]
 
 
 def _rename_columns(t):

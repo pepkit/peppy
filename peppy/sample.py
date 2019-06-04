@@ -719,7 +719,12 @@ def merge_sample(sample, sample_subann, data_sources=None,
         return merged_attrs
 
     if sample_colname not in sample_subann.columns:
-        raise KeyError("Subannotation requires column '{}'.".format(sample_colname))
+        alternative = SAMPLE_NAME_COLNAME
+        _LOGGER.debug("'{}' is not a subannotation column; trying {}".
+                      format(sample_colname, alternative))
+        if alternative not in sample_subann.columns:
+            raise KeyError("Subannotation requires column '{}'.".format(sample_colname))
+        sample_colname = alternative
 
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
