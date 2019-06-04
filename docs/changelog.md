@@ -8,7 +8,7 @@
 ### Fixed
 - Properly use `constant_attributes` if present from subproject. [Issue 292](https://github.com/pepkit/peppy/issues/292)
 - Fixed a bug with subproject activation paths
-
+- Revert deprecation of `sample_name` to `name`; so `sample_name` is again approved.
 
 
 ## [0.21.0] -- (2019-05-02)
@@ -23,7 +23,7 @@
 - Improved messaging: ["Unmatched regex-like"](https://github.com/pepkit/peppy/issues/223), ["Missing and/or empty attribute(s)"](https://github.com/pepkit/peppy/issues/282)
 - On `Project`, `sheet` is deprecated in favor of `sample_table`.
 - On `Project`, `sample_subannotation` is deprecated in favor of `subsample_table`.
-- On `Sample`, reference to `sample_name` is deprecated in favor of simly `name`.
+- On `Sample`, reference to `sample_name` is deprecated in favor of simply `name`.
 
 ## [0.20.0] -- (2019-04-17)
 ### Added
