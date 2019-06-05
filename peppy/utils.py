@@ -132,6 +132,37 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
     return list(filter(keep, proj.samples))
 
 
+def get_contains_fun(items, eqv=None):
+    """
+    Lift if necessary a collection in which membership is to be tested,
+    providing the function with which to test membership of a single item.
+
+    :param object items: ideally a collection of objects in which membership
+        of the given object of interest is to be tested, but this can be an
+        atomic object
+    :param NoneType | function(object, object) -> bool eqv: how to test
+        object for equivalence, optional; if omitted or null, the ordinary
+        __contains__ method of the collection is used
+    :return function(object) -> bool: the test for membership of a single
+        object in the given collection
+    """
+    # TODO: move to ubiquerg.
+    if isinstance(items, str) or not isinstance(items, Iterable):
+        items = [items]
+    if eqv is None:
+        return lambda x: x in items
+
+
+    def contains(this):
+        for that in items:
+            if eqv(this, that):
+                return True
+        return False
+
+
+    return contains
+
+
 def get_logger(name):
     """
     Returm a logger with given name, equipped with custom method.
@@ -142,6 +173,18 @@ def get_logger(name):
     l = logging.getLogger(name)
     l.whisper = lambda msg, *args, **kwargs: l.log(5, msg, *args, **kwargs)
     return l
+
+
+def get_name_depr_msg(old, new, cls=None):
+    """
+    Warn of an attribute name deprecation.
+
+    :param str old: name of the old attribute
+    :param str new: name of the new attribute
+    :param type cls: type on which the reference is deprecated
+    """
+    msg = "use of {} is deprecated in favor of {}".format(old, new)
+    return msg if cls is None else "On {} ".format(cls.__name__) + msg
 
 
 def grab_project_data(prj):
@@ -295,6 +338,28 @@ def sample_folder(prj, sample):
     return os.path.join(folder, sample.name)
 
 
+
+def test_contains_safe(x, items, eqv=None):
+    """
+    Test whether a particular object is in a collection.
+
+    The advantage of using this method is that the "container" object is lifted
+    to an Iterable if it's not already one, so client code need not concern
+    itself with type checks or type-related exception handlind.
+
+    :param object x: object to test for containment in a collection
+    :param object items: ideally a collection of objects in which membership
+        of the given object of interest is to be tested, but this can be an
+        atomic object
+    :param NoneType | function(object, object) -> bool eqv: how to test
+        object for equivalence, optional; if omitted or null, the ordinary
+        __contains__ method of the collection is used
+    :return bool: whether the object of interest is in the tested collection
+    """
+    # TODO: move to ubiquerg.
+    return get_contains_fun(items, eqv)(x)
+
+
 def type_check_strict(obj, ts):
     """
     Perform a type check for given object.
@@ -333,18 +398,6 @@ def standard_stream_redirector(stream):
         yield
     finally:
         sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
-
-
-def get_name_depr_msg(old, new, cls=None):
-    """
-    Warn of an attribute name deprecation.
-
-    :param str old: name of the old attribute
-    :param str new: name of the new attribute
-    :param type cls: type on which the reference is deprecated
-    """
-    msg = "use of {} is deprecated in favor of {}".format(old, new)
-    return msg if cls is None else "On {} ".format(cls.__name__) + msg
 
 
 class CommandChecker(object):
