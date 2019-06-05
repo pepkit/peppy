@@ -26,8 +26,13 @@ class SnakeProject(Project):
 
     def __init__(self, cfg, **kwargs):
         kwds = deepcopy(kwargs)
-        kwds.setdefault(MAIN_INDEX_KEY, SNAKEMAKE_SAMPLE_COL)
-        kwds.setdefault(SUBS_INDEX_KEY, (SNAKEMAKE_SAMPLE_COL, UNITS_COLUMN))
+        main_idx_keys = kwds.setdefault(MAIN_INDEX_KEY, SNAKEMAKE_SAMPLE_COL)
+        kwds[MAIN_INDEX_KEY] = _ensure_idx_key(
+            main_idx_keys, bad=SAMPLE_NAME_COLNAME, sub=SNAKEMAKE_SAMPLE_COL)
+        subs_idx_keys = kwds.setdefault(
+           SUBS_INDEX_KEY, (SNAKEMAKE_SAMPLE_COL, UNITS_COLUMN))
+        kwds[SUBS_INDEX_KEY] = _ensure_idx_key(
+            subs_idx_keys, bad=SAMPLE_NAME_COLNAME, sub=SNAKEMAKE_SAMPLE_COL)
         super(SnakeProject, self).__init__(cfg, **kwds)
 
     @property
@@ -72,7 +77,8 @@ class SnakeProject(Project):
         if t is None:
             return
         colname = self["_" + MAIN_INDEX_KEY]
-        return t.set_index(colname if colname in t.columns else SNAKEMAKE_SAMPLE_COL, drop=False)
+        return t.set_index(colname, drop=False)
+        #return t.set_index(colname if colname in t.columns else SNAKEMAKE_SAMPLE_COL, drop=False)
 
     def _index_subs_table(self, t):
         """ Index column(s) of the subannotation table. """
@@ -109,6 +115,33 @@ class SnakeProject(Project):
             return df[SNAKEMAKE_SAMPLE_COL]
         except KeyError:
             return df[SAMPLE_NAME_COLNAME]
+
+
+def _ensure_idx_key(keys, bad, sub):
+    """
+    Ensure index keys comply with expectation, forcing and warning if not.
+
+    :param str | Iterable[str] keys: index key or collection of them
+    :param str bad: restricted index key to prohibit
+    :param str sub: index key to use instread of restricted one
+    :return str | list[str]: index key or collection of them
+    """
+    warning_message = "Will use {} to index rather than {}".format(sub, bad)
+    if isinstance(keys, str):
+        if keys == bad:
+            _LOGGER.warning(warning_message)
+            return sub
+        return keys
+    ks = list(keys)
+    try:
+        idx = ks.index(bad)
+    except ValueError:
+        if not isinstance(keys, list):
+            _LOGGER.debug("Converting index keys ({}) to list".format(keys))
+    else:
+        _LOGGER.warning(warning_message)
+        ks[idx] = sub
+    return ks
 
 
 def _rename_columns(t):
