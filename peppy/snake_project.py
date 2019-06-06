@@ -35,6 +35,16 @@ class SnakeProject(Project):
             subs_idx_keys, bad=SAMPLE_NAME_COLNAME, sub=SNAKEMAKE_SAMPLE_COL)
         super(SnakeProject, self).__init__(cfg, **kwds)
 
+    def activate_subproject(self, subproject):
+        raise NotImplementedError(
+            "Subproject activation implementation is likely to change and "
+            "is not supported on {}".format(self.__class__.__name__))
+
+    def deactivate_subproject(self):
+        raise NotImplementedError(
+            "Subproject deactivation implementation is likely to change and "
+            "is not supported on {}".format(self.__class__.__name__))
+
     @property
     def sample_table(self):
         """
