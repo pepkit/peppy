@@ -19,7 +19,7 @@ from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
 
-from logmuse import setup_logger
+from logmuse import init_logger
 from peppy import Project, SAMPLE_NAME_COLNAME
 from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
 
@@ -196,7 +196,7 @@ def conf_logs(request):
     """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
     logname = "peppy"
-    setup_logger(name=logname, level=level, devmode=True)
+    init_logger(name=logname, level=level, devmode=True)
     logging.getLogger(logname).info(
         "Configured pep logger at level %s; attaching tests' logger %s",
         str(level), __name__)
@@ -219,12 +219,8 @@ def path_empty_project(request, tmpdir):
     """ Provide path to Project config file with empty annotations. """
 
     # Determine how to write the data and how to name a file.
-    if "delimiter" in request.fixturenames:
-        delimiter = request.getfixturevalue("delimiter")
-        extension = "txt"
-    else:
-        delimiter = ","
-        extension = "csv"
+    delimiter = request.getfixturevalue("delimiter") if "delimiter" in request.fixturenames else ","
+    extension = "csv" if delimiter == "," else "txt"
 
     # Update the Project configuration data.
     conf_data = update_project_conf_data(extension)
@@ -268,7 +264,7 @@ def interactive(
     # Establish logging for interactive session.
     pep_logger_kwargs = {"level": "DEBUG", "name": "peppy"}
     pep_logger_kwargs.update(logger_kwargs or {})
-    setup_logger(**pep_logger_kwargs)
+    init_logger(**pep_logger_kwargs)
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()

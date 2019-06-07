@@ -12,7 +12,7 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import *
-from peppy.project import NEW_PIPES_KEY
+from peppy.project import NEW_PIPES_KEY, SUBMISSION_FOLDER_VALUE
 from peppy.sample import PRJ_REF
 from tests.helpers import randomize_filename
 
@@ -24,8 +24,8 @@ __email__ = "vreuter@virginia.edu"
 # Project construction behavior with respect to config file format.
 PATH_BY_TYPE = {
     OUTDIR_KEY: "temporary/sequencing/results",
-    "results_subdir": "results",
-    "submission_subdir": "submission",
+    RESULTS_FOLDER_KEY: "results",
+    SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE,
     "input_dir": "dummy/sequencing/data",
     "tools_folder": "arbitrary-seq-tools-folder"}
 
@@ -131,6 +131,7 @@ class BuildSheetTests:
     def test_no_samples(self, protocols, delimiter, path_empty_project):
         """ Lack of Samples is unproblematic for the sheet build. """
         # Regardless of protocol(s), the sheet should be empty.
+        print("Test config file: {}".format(path_empty_project))
         p = Project(path_empty_project)
         sheet = p.build_sheet(*protocols)
         assert sheet.empty
@@ -251,7 +252,9 @@ def project(request, tmpdir, env_config_filepath):
 
     # Add the paths data to the Project config.
     for path_name, path in PATH_BY_TYPE.items():
-        paths_dest[path_name] = os.path.join(tmpdir.strpath, path)
+        paths_dest[path_name] = path \
+            if path_name in [RESULTS_FOLDER_KEY, SUBMISSION_FOLDER_KEY] \
+            else os.path.join(tmpdir.strpath, path)
 
     # Write the Project config file.
     conf_path = tmpdir.join("proj-conf.yaml").strpath
@@ -313,5 +316,5 @@ class SampleTextTests:
         """ Text representation of a Sample does not include its Project ref. """
         assert len(prj.samples) > 0, "No samples"    # precondition
         for s in prj.samples:
-            assert PRJ_REF in s
+            assert isinstance(getattr(s, PRJ_REF), Project)
             assert PRJ_REF not in func(s)

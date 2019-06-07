@@ -9,12 +9,12 @@ local level, but this will at least provide a foundation.
 
 from ._version import __version__
 from .const import *
-from .exceptions import PeppyError
+from .exceptions import *
 from .project import Project, ProjectContext
 from .sample import Sample, Subsample
 from .snake_project import *
 from .utils import fetch_samples, grab_project_data, CommandChecker
-#from logmuse import setup_logger
+#from logmuse import init_logger
 
 _EXPORT_FROM_UTILS = [fetch_samples.__name__, grab_project_data.__name__,
                       CommandChecker.__name__]
@@ -31,4 +31,4 @@ LOGGING_LEVEL = "INFO"
 #_LOGGER = logging.getLogger(__name__)
 #if not logging.getLogger().handlers:
 #    _LOGGER.addHandler(logging.NullHandler())
-#_LOGGER = setup_logger(name="peppy", level=LOGGING_LEVEL)
+#_LOGGER = init_logger(name="peppy", level=LOGGING_LEVEL)

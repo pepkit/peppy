@@ -2,7 +2,6 @@
 
 from collections import OrderedDict
 import glob
-from operator import itemgetter
 import os
 import sys
 if sys.version_info < (3, 3):
@@ -17,13 +16,11 @@ import yaml
 from attmap import AttMap, PathExAttMap
 from .const import *
 from .const import SNAKEMAKE_SAMPLE_COL
-from .utils import copy, get_file_size, get_logger, get_name_depr_msg, \
-    grab_project_data, parse_ftype, sample_folder
-from ngstk import peek_read_lengths_and_paired_counts_from_bam
+from .utils import copy, get_logger, get_name_depr_msg, grab_project_data, \
+    sample_folder
 
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
-NAME_ATTR = "name"
 _OLD_PROTOCOL_REF = "library"
 
 
@@ -76,6 +73,8 @@ class Sample(PathExAttMap):
     # made me go back and implement it as a top-level object
     def __init__(self, series, prj=None):
 
+        super(Sample, self).__init__()
+
         # Create data, handling library/protocol.
         data = OrderedDict(series)
 
@@ -114,13 +113,18 @@ class Sample(PathExAttMap):
                             smk=SNAKEMAKE_SAMPLE_COL, smv=name_sm,
                             pk=SAMPLE_NAME_COLNAME, pv=name_pep))
 
-        super(Sample, self).__init__(entries=data)
+        _LOGGER.whisper("Sample data: {}".format(data))
+        self.add_entries(data)
 
         if PRJ_REF in self and prj:
             _LOGGER.warn("Project provided both directly and indirectly; "
                          "using direct")
         if prj or PRJ_REF not in self:
             self[PRJ_REF] = prj or None
+
+        assert self[PRJ_REF] is None or isinstance(self[PRJ_REF], AttMap), \
+            "Project reference must be null or {}; got {}".format(AttMap.__name__, type(self[PRJ_REF]))
+
         self.merged_cols = {}
         self.derived_cols_done = []
 
@@ -133,20 +137,14 @@ class Sample(PathExAttMap):
         # so we can create a minimal, ordered representation of the original.
         # This allows summarization of the sample (i.e.,
         # appending new columns onto the original table)
-        self.sheet_attributes = series.keys()
+        self.sheet_attributes = list(series.keys())
 
         # Check if required attributes exist and are not empty.
         missing_attributes_message = self.check_valid()
         if missing_attributes_message:
             raise ValueError(missing_attributes_message)
 
-        # TODO: update based on changes; consider name as property, grabbind sample_name.
         self.name = self.sample_name
-        """
-        if SAMPLE_NAME_COLNAME in self:
-            self[NAME_ATTR] = self[SAMPLE_NAME_COLNAME]
-            del self[SAMPLE_NAME_COLNAME]
-        """
 
         # Default to no required paths and no YAML file.
         self.required_paths = None
@@ -164,25 +162,16 @@ class Sample(PathExAttMap):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
-    def _omit_from_eq(self, k):
+    def _excl_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
-        return super(Sample, self)._omit_from_eq(k) or k == PRJ_REF
+        return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)
 
-    def _omit_from_repr(self, k, cls):
+    def _excl_from_repr(self, k, cls):
         """ Exclude the Project reference from representation. """
         # TODO: better solution for this cyclical dependency hack
-        return super(Sample, self)._omit_from_repr(k, cls) or k == PRJ_REF
+        return k == PRJ_REF or super(Sample, self)._excl_from_repr(k, cls)
 
     def __setitem__(self, key, value):
-        """
-        if key == SAMPLE_NAME_COLNAME:
-            key = NAME_ATTR
-            #_LOGGER.warning(get_name_depr_msg(
-            #    SAMPLE_NAME_COLNAME, key, self.__class__))
-            if not isinstance(value, str):
-                raise TypeError("Name for sample isn't string: {} ({})".
-                                format(value, type(value)))
-        """
         # TODO: better solution for this cyclical dependency hack
         if value.__class__.__name__ == "Project":
             self.__dict__[key] = value
@@ -190,7 +179,7 @@ class Sample(PathExAttMap):
             super(Sample, self).__setitem__(key, value)
 
     def __str__(self):
-        return "Sample '{}'".format(self.name)
+        return "{} '{}'".format(self.__class__.__name__, self.name)
 
     @property
     def input_file_paths(self):
@@ -224,7 +213,7 @@ class Sample(PathExAttMap):
         """
         missing, empty = [], []
         for attr in (required or [SAMPLE_NAME_COLNAME]):
-            if not hasattr(self, attr):
+            if attr not in self:
                 missing.append(attr)
             if attr == "nan":
                 empty.append(attr)
@@ -232,76 +221,6 @@ class Sample(PathExAttMap):
             "Sample lacks attribute(s). missing={}; empty={}". \
                 format(missing, empty) if (missing or empty) else ""
         return missing_attributes_message
-
-    def determine_missing_requirements(self):
-        """
-        Determine which of this Sample's required attributes/files are missing.
-
-        :return (type, str): hypothetical exception type along with message
-            about what's missing; null and empty if nothing exceptional
-            is detected
-        """
-
-        null_return = (None, "", "")
-
-        # set_pipeline_attributes must be run first.
-        if not hasattr(self, "required_inputs"):
-            _LOGGER.warning("You must run set_pipeline_attributes "
-                         "before determine_missing_requirements")
-            return null_return
-
-        if not self.required_inputs:
-            _LOGGER.debug("No required inputs")
-            return null_return
-
-        # First, attributes
-        missing, empty = [], []
-        for file_attribute in self.required_inputs_attr:
-            _LOGGER.log(5, "Checking '{}'".format(file_attribute))
-            try:
-                attval = getattr(self, file_attribute)
-            except AttributeError:
-                _LOGGER.log(5, "Missing required input attribute '%s'",
-                            file_attribute)
-                missing.append(file_attribute)
-                continue
-            if attval == "":
-                _LOGGER.log(5, "Empty required input attribute '%s'",
-                            file_attribute)
-                empty.append(file_attribute)
-            else:
-                _LOGGER.log(5, "'{}' is valid: '{}'".
-                            format(file_attribute, attval))
-
-        if missing:
-            reason_key = "Missing attribute"
-            reason_detail = "Missing: {}".format(", ".join(missing))
-            return AttributeError, reason_key, reason_detail
-
-        if empty:
-            reason_key = "Empty attribute"
-            reason_detail = "Empty: {}".format(",".join(empty))
-            return AttributeError, reason_key, reason_detail
-
-
-        # Second, files
-        missing_files = []
-        for paths in self.required_inputs:
-            _LOGGER.log(5, "Text to split and check paths: '%s'", paths)
-            # There can be multiple, space-separated values here.
-            for path in paths.split(" "):
-                _LOGGER.log(5, "Checking path: '{}'".format(path))
-                if not os.path.exists(path):
-                    _LOGGER.log(5, "Missing required input file: '{}'".
-                                format(path))
-                    missing_files.append(path)
-
-        if not missing_files:
-            return null_return
-        else:
-            reason_key = "Missing file(s)"
-            reason_detail = ", ".join(missing_files)
-            return IOError, reason_key, reason_detail
 
     def generate_filename(self, delimiter="_"):
         """
@@ -516,7 +435,7 @@ class Sample(PathExAttMap):
             # This is necessary for derived_attributes in the merge table.
             # Here the copy() prevents the actual sample from being
             # updated by update().
-            temp_dict = self.__dict__.copy()
+            temp_dict = dict(self.items())
             temp_dict.update(extra_vars or dict())
             val = regex.format(**temp_dict)
             if '*' in val or '[' in val:
@@ -547,15 +466,17 @@ class Sample(PathExAttMap):
         """
         Sets the paths of all files for this sample.
 
-        :param attmap.PathExAttMap project: object with pointers to data paths and
-            such, either full Project or PathExAttMap with sufficient data
+        :param attmap.PathExAttMap project: object with pointers to data
+            paths and such, either full Project or PathExAttMap with
+            sufficient data
         """
         # Any columns specified as "derived" will be constructed
         # based on regex in the "data_sources" section of project config.
 
         project = project or self.prj
 
-        for col in project.get("derived_attributes", []):
+        derived = project.get("derived_attributes", [])
+        for col in ([derived] if isinstance(derived, str) else derived):
             # Only proceed if the specified column exists
             # and was not already merged or derived.
             if not hasattr(self, col):
@@ -592,7 +513,10 @@ class Sample(PathExAttMap):
             self.derived_cols_done.append(col)
 
         # Parent
-        self.results_subdir = project.metadata.results_subdir
+        try:
+            self.results_subdir = project.results_folder
+        except AttributeError:
+            self.results_subdir = project.metadata.results_subdir
         self.paths.sample_root = sample_folder(project, self)
 
         # Track url
@@ -607,7 +531,6 @@ class Sample(PathExAttMap):
             _LOGGER.debug("No trackhub/URL")
             pass
 
-
     def set_genome(self, genomes):
         """
         Set the genome for this Sample.
@@ -615,7 +538,6 @@ class Sample(PathExAttMap):
         :param Mapping[str, str] genomes: genome assembly by organism name
         """
         self._set_assembly("genome", genomes)
-
 
     def set_transcriptome(self, transcriptomes):
         """
@@ -625,7 +547,6 @@ class Sample(PathExAttMap):
             organism name
         """
         self._set_assembly("transcriptome", transcriptomes)
-
 
     def _set_assembly(self, ome, assemblies):
         if not assemblies:
@@ -643,185 +564,6 @@ class Sample(PathExAttMap):
         _LOGGER.log(5, "Setting {} as {} on sample: '{}'".
                     format(assembly, ome, self.name))
         setattr(self, ome, assembly)
-
-
-    def set_pipeline_attributes(
-            self, pipeline_interface, pipeline_name, permissive=True):
-        """
-        Set pipeline-specific sample attributes.
-
-        Some sample attributes are relative to a particular pipeline run,
-        like which files should be considered inputs, what is the total
-        input file size for the sample, etc. This function sets these
-        pipeline-specific sample attributes, provided via a PipelineInterface
-        object and the name of a pipeline to select from that interface.
-
-        :param PipelineInterface pipeline_interface: A PipelineInterface
-            object that has the settings for this given pipeline.
-        :param str pipeline_name: Which pipeline to choose.
-        :param bool permissive: whether to simply log a warning or error 
-            message rather than raising an exception if sample file is not 
-            found or otherwise cannot be read, default True
-        """
-
-        # Settings ending in _attr are lists of attribute keys.
-        # These attributes are then queried to populate values
-        # for the primary entries.
-        req_attr_names = [("ngs_input_files", "ngs_inputs_attr"),
-                          ("required_input_files", REQUIRED_INPUTS_ATTR_NAME),
-                          ("all_input_files", ALL_INPUTS_ATTR_NAME)]
-        for name_src_attr, name_dst_attr in req_attr_names:
-            _LOGGER.log(5, "Value of '%s' will be assigned to '%s'",
-                        name_src_attr, name_dst_attr)
-            value = pipeline_interface.get_attribute(
-                pipeline_name, name_src_attr)
-            _LOGGER.log(5, "Assigning '{}': {}".format(name_dst_attr, value))
-            setattr(self, name_dst_attr, value)
-
-        # Post-processing of input attribute assignments.
-        # Ensure that there's a valid all_inputs_attr.
-        if not getattr(self, ALL_INPUTS_ATTR_NAME):
-            required_inputs = getattr(self, REQUIRED_INPUTS_ATTR_NAME)
-            setattr(self, ALL_INPUTS_ATTR_NAME, required_inputs)
-        # Convert attribute keys into values.
-        if self.ngs_inputs_attr:
-            _LOGGER.log(5, "Handling NGS input attributes: '%s'", self.name)
-            # NGS data inputs exit, so we can add attributes like
-            # read_type, read_length, paired.
-            self.ngs_inputs = self.get_attr_values("ngs_inputs_attr")
-
-            set_rtype_reason = ""
-            if not hasattr(self, "read_type"):
-                set_rtype_reason = "read_type not yet set"
-            elif not self.read_type or self.read_type.lower() \
-                    not in VALID_READ_TYPES:
-                set_rtype_reason = "current read_type is invalid: '{}'". \
-                    format(self.read_type)
-            if set_rtype_reason:
-                _LOGGER.debug(
-                    "Setting read_type for %s '%s': %s",
-                    self.__class__.__name__, self.name, set_rtype_reason)
-                self.set_read_type(permissive=permissive)
-            else:
-                _LOGGER.debug("read_type is already valid: '%s'",
-                              self.read_type)
-        else:
-            _LOGGER.log(5, "No NGS inputs: '%s'", self.name)
-
-        # Assign values for actual inputs attributes.
-        self.required_inputs = self.get_attr_values(REQUIRED_INPUTS_ATTR_NAME)
-        self.all_inputs = self.get_attr_values(ALL_INPUTS_ATTR_NAME)
-        _LOGGER.debug("All '{}' inputs: {}".format(self.name, self.all_inputs))
-        self.input_file_size = get_file_size(self.all_inputs)
-
-
-    def set_read_type(self, rlen_sample_size=10, permissive=True):
-        """
-        For a sample with attr `ngs_inputs` set, this sets the 
-        read type (single, paired) and read length of an input file.
-
-        :param int rlen_sample_size: Number of reads to sample to infer read type,
-            default 10.
-        :param bool permissive: whether to simply log a warning or error message
-            rather than raising an exception if sample file is not found or 
-            otherwise cannot be read, default True.
-        """
-
-        # TODO: determine how return is being used and standardized (null vs. bool)
-
-        # Initialize the parameters in case there is no input_file, so these
-        # attributes at least exist - as long as they are not already set!
-        for attr in ["read_length", "read_type", "paired"]:
-            if not hasattr(self, attr):
-                _LOGGER.log(5, "Setting null for missing attribute: '%s'",
-                            attr)
-                setattr(self, attr, None)
-
-        # ngs_inputs must be set
-        if not self.ngs_inputs:
-            return False
-
-        ngs_paths = " ".join(self.ngs_inputs)
-
-        # Determine extant/missing filepaths.
-        existing_files = list()
-        missing_files = list()
-        for path in ngs_paths.split(" "):
-            if not os.path.exists(path):
-                missing_files.append(path)
-            else:
-                existing_files.append(path)
-        _LOGGER.debug("{} extant file(s): {}".
-                      format(len(existing_files), existing_files))
-        _LOGGER.debug("{} missing file(s): {}".
-                      format(len(missing_files), missing_files))
-
-        # For samples with multiple original BAM files, check all.
-        files = list()
-        check_by_ftype = {"bam": peek_read_lengths_and_paired_counts_from_bam,
-                          "fastq": _check_fastq}
-        for input_file in existing_files:
-            try:
-                file_type = parse_ftype(input_file)
-                read_lengths, paired = check_by_ftype[file_type](
-                    input_file, rlen_sample_size)
-            except (KeyError, TypeError):
-                message = "Input file type should be one of: {}".format(
-                    check_by_ftype.keys())
-                if not permissive:
-                    raise TypeError(message)
-                _LOGGER.error(message)
-                return
-            except NotImplementedError as e:
-                if not permissive:
-                    raise
-                _LOGGER.warning(str(e))
-                return
-            except IOError:
-                if not permissive:
-                    raise
-                _LOGGER.error("Input file does not exist or "
-                              "cannot be read: %s", str(input_file))
-                for feat_name in self._FEATURE_ATTR_NAMES:
-                    if not hasattr(self, feat_name):
-                        setattr(self, feat_name, None)
-                return
-
-            # Determine most frequent read length among sample.
-            rlen, _ = sorted(read_lengths.items(), key=itemgetter(1))[-1]
-            _LOGGER.log(5,
-                        "Selected {} as most frequent read length from "
-                        "sample read length distribution: {}".format(
-                            rlen, read_lengths))
-
-            # Decision about paired-end status is majority-rule.
-            if paired > (rlen_sample_size / 2):
-                read_type = "paired"
-                paired = True
-            else:
-                read_type = "single"
-                paired = False
-
-            files.append([rlen, read_type, paired])
-
-        # Check agreement between different files
-        # if all values are equal, set to that value;
-        # if not, set to None and warn the user about the inconsistency
-        for i, feature in enumerate(self._FEATURE_ATTR_NAMES):
-            feature_values = set(f[i] for f in files)
-            if 1 == len(feature_values):
-                feat_val = files[0][i]
-            else:
-                _LOGGER.log(5, "%d values among %d files for feature '%s'",
-                            len(feature_values), len(files), feature)
-                feat_val = None
-            _LOGGER.log(5, "Setting '%s' on %s to %s",
-                        feature, self.__class__.__name__, feat_val)
-            setattr(self, feature, feat_val)
-
-            if getattr(self, feature) is None and len(existing_files) > 0:
-                _LOGGER.warning("Not all input files agree on '%s': '%s'",
-                             feature, self.name)
 
     def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
         """
@@ -882,15 +624,14 @@ class Sample(PathExAttMap):
             if isinstance(obj, list):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttMap):
-                return {k: obj2dict(v, name=k) for k, v in obj.__dict__.items()
+                return {k: obj2dict(v, name=k) for k, v in obj.items()
                         if k not in to_skip}
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v, name=k)
                         for k, v in obj.items() if k not in to_skip}
-            elif isinstance(obj, (Paths, Sample)):
+            elif isinstance(obj, Paths):
                 return {k: obj2dict(v, name=k)
-                        for k, v in obj.__dict__.items() if
-                        k not in to_skip}
+                        for k, v in obj.__dict__.items() if k not in to_skip}
             elif isinstance(obj, Series):
                 _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
@@ -978,8 +719,16 @@ def merge_sample(sample, sample_subann, data_sources=None,
         return merged_attrs
 
     if sample_colname not in sample_subann.columns:
-        raise KeyError("Subannotation requires column '{}'.".format(sample_colname))
+        alternative = SAMPLE_NAME_COLNAME
+        _LOGGER.debug("'{}' is not a subannotation column; trying {}".
+                      format(sample_colname, alternative))
+        if alternative not in sample_subann.columns:
+            raise KeyError(
+                "Subannotation requires column '{}'.".format(sample_colname))
+        sample_colname = alternative
 
+    _LOGGER.debug("Using '{}' as sample name column from subannotation table".
+                  format(sample_colname))
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
 
@@ -1110,8 +859,3 @@ class Paths(object):
     
     def __repr__(self):
         return "Paths object."
-
-
-def _check_fastq(fastq, o):
-    raise NotImplementedError(
-        "Detection of read type/length for fastq input is not yet implemented.")

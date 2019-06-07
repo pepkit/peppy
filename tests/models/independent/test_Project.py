@@ -149,7 +149,7 @@ class ProjectRequirementsTests:
     def test_minimal_configuration_doesnt_fail(
             self, minimal_project_conf_path, env_config_filepath):
         """ Project ctor requires minimal config and default environment. """
-        Project(config_file=minimal_project_conf_path)
+        Project(minimal_project_conf_path)
 
     def test_minimal_configuration_name_inference(
             self, tmpdir, minimal_project_conf_path, env_config_filepath):

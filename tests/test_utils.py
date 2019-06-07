@@ -5,25 +5,21 @@ import copy
 import mock
 import pytest
 
-from attmap import AttMap
-from peppy import Project, Sample
+from attmap import PathExAttMap
+from peppy import Sample
 from peppy.const import *
-from peppy.project import NEW_PIPES_KEY
+from peppy.project import NEW_PIPES_KEY, RESULTS_FOLDER_VALUE, \
+    SUBMISSION_FOLDER_VALUE
 from peppy.utils import \
     add_project_sample_constants, copy as pepcopy, \
     grab_project_data, has_null_value, non_null_value
-from tests.helpers import named_param
+from tests.helpers import compare_mappings, named_param
 from ubiquerg import powerset
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
-
-class _DummyProject(Project):
-    """ Get just the methods and data-access portions of Project. """
-    def __init__(self, data):
-        self.add_entries(data)
 
 
 @pytest.fixture
@@ -38,8 +34,8 @@ def basic_project_data():
         METADATA_KEY: {
             NAME_TABLE_ATTR: "anns.csv",
             OUTDIR_KEY: "outdir",
-            "results_subdir": "results_pipeline",
-            "submission_subdir": "submission"},
+            RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
+            SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE},
         DERIVATIONS_DECLARATION: [DATA_SOURCE_COLNAME],
         IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
             "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
@@ -78,27 +74,22 @@ class GrabProjectDataTests:
     @named_param(
         argnames="sections",
         argvalues=powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS, nonempty=True))
-    @named_param(argnames="data_type",
-                 argvalues=[AttMap, _DummyProject])
     def test_does_not_need_all_sample_independent_data(
-            self, sections, data_type,
-            basic_project_data, sample_independent_data):
+            self, sections, basic_project_data, sample_independent_data):
         """ Subset of all known independent data that's present is grabbed. """
-        p = data_type(sample_independent_data)
+        p = PathExAttMap(sample_independent_data)
         expected = {s: data for s, data in basic_project_data.items()
                     if s in sections}
         observed = grab_project_data(p)
-        assert expected == observed
+        compare_mappings(expected, observed)
 
     @named_param(
         argnames="extra_data",
         argvalues=powerset(
             [{NEW_PIPES_KEY: [{"b": 1}, {"c": 2}]}, {"pipeline_config": {}}],
             nonempty=True))
-    @named_param(
-        argnames="data_type", argvalues=[AttMap, _DummyProject])
     def test_grabs_only_sample_independent_data(
-            self, sample_independent_data, extra_data, data_type):
+            self, sample_independent_data, extra_data):
         """ Only Project data defined as Sample-independent is retrieved. """
 
         # Create the data to pass the the argument to the call under test.
@@ -109,18 +100,12 @@ class GrabProjectDataTests:
         data.update(data_updates)
 
         # Convert to the correct argument type for this test case.
-        p = data_type(data)
+        p = PathExAttMap(data)
 
         # Make the equivalence assertion.
         expected = sample_independent_data
         observed = grab_project_data(p)
-        try:
-            assert expected == observed
-        except AssertionError:
-            # If the test fails, make the diff easier to read.
-            print("EXPECTED: {}".format(expected))
-            print("OBSERVED: {}".format(observed))
-            raise
+        compare_mappings(expected, observed)
 
 
 class AddProjectSampleConstantsTests:
@@ -138,16 +123,16 @@ class AddProjectSampleConstantsTests:
         assert basic_sample == sample
 
     @named_param(
-        argnames="constants",
+        argnames="const",
         argvalues=[{"new_attr": 45}, {"a1": 0, "b2": "filepath"}])
-    def test_add_project_sample_constants(self, basic_sample, constants):
+    def test_add_project_sample_constants(self, basic_sample, const):
         """ New attribute is added by the update. """
-        mock_prj = mock.MagicMock(constants=constants)
-        for attr in constants:
+        mock_prj = mock.MagicMock(constant_attributes=const)
+        for attr in const:
             assert attr not in basic_sample
             assert not hasattr(basic_sample, attr)
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
-        for attr_name, attr_value in constants.items():
+        for attr_name, attr_value in const.items():
             assert attr_value == basic_sample[attr_name]
             assert attr_value == getattr(basic_sample, attr_name)
 
@@ -156,7 +141,7 @@ class AddProjectSampleConstantsTests:
     def test_name_collision(self, basic_sample, collision, old_val, new_val):
         """ New value overwrites old value (no guarantee for null, though.) """
         basic_sample[collision] = old_val
-        mock_prj = mock.MagicMock(constants={collision: new_val})
+        mock_prj = mock.MagicMock(constant_attributes={collision: new_val})
         assert old_val == basic_sample[collision]
         basic_sample = add_project_sample_constants(basic_sample, mock_prj)
         assert new_val == basic_sample[collision]
@@ -167,12 +152,9 @@ class NullValueHelperTests:
 
     _DATA = {"a": 1, "b": [2]}
 
-    @pytest.mark.skip("Not implemented")
     @pytest.fixture(
         params=[lambda d: dict(d),
-                lambda d: AttMap().add_entries(d),
-                lambda d: _DummyProject(d)],
-        ids=["dict", AttMap.__name__, _DummyProject.__name__])
+                lambda d: PathExAttMap().add_entries(d)])
     def kvs(self, request):
         """ For test cases provide KV pair map of parameterized type."""
         return request.param(self._DATA)
@@ -222,3 +204,8 @@ def test_copy():
 def test_fetch_samples():
     """ Test selection of subset of samples from a Project. """
     pass
+
+
+def _cmp_maps(m1, m2):
+    m1, m2 = [m.to_map() if isinstance(m, PathExAttMap) else m for m in [m1, m2]]
+    assert m1 == m2

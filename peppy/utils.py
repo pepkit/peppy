@@ -7,15 +7,10 @@ import os
 import random
 import string
 import sys
-if sys.version_info < (3, 0):
-    from urlparse import urlparse
-else:
-    from urllib.parse import urlparse
 if sys.version_info < (3, 3):
     from collections import Sized
 else:
     from collections.abc import Sized
-import warnings
 import yaml
 from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 from ubiquerg import is_collection_like
@@ -26,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "CommandChecker", "add_project_sample_constants", "count_repeats",
-    "get_file_size", "get_logger", "fetch_samples", "grab_project_data",
+    "get_logger", "fetch_samples", "grab_project_data",
     "has_null_value", "is_command_callable", "type_check_strict"
 ]
 
@@ -42,7 +37,7 @@ def add_project_sample_constants(sample, project):
     :return Sample: Updates Sample instance, according to any and all
         constants declared by the Project.
     """
-    sample.update(project.constants)
+    sample.update(project.constant_attributes)
     return sample
 
 
@@ -68,16 +63,6 @@ def count_repeats(objs):
         of each is a repeated object, and the second is duplication count
     """
     return [(o, n) for o, n in Counter(objs).items() if n > 1]
-
-
-def expandpath(path):
-    """
-    Expand a filesystem path that may or may not contain user/env vars.
-
-    :param str path: path to expand
-    :return str: expanded version of input path
-    """
-    return os.path.expandvars(os.path.expanduser(path)).replace("//", "/")
 
 
 def fetch_samples(proj, selector_attribute=None, selector_include=None, selector_exclude=None):
@@ -147,26 +132,35 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
     return list(filter(keep, proj.samples))
 
 
-def get_file_size(filename):
+def get_contains_fun(items, eqv=None):
     """
-    Get size of all files in gigabytes (Gb).
+    Lift if necessary a collection in which membership is to be tested,
+    providing the function with which to test membership of a single item.
 
-    :param str | collections.Iterable[str] filename: A space-separated
-        string or list of space-separated strings of absolute file paths.
-    :return float: size of file(s), in gigabytes.
+    :param object items: ideally a collection of objects in which membership
+        of the given object of interest is to be tested, but this can be an
+        atomic object
+    :param NoneType | function(object, object) -> bool eqv: how to test
+        object for equivalence, optional; if omitted or null, the ordinary
+        __contains__ method of the collection is used
+    :return function(object) -> bool: the test for membership of a single
+        object in the given collection
     """
-    if filename is None:
-        return float(0)
-    if type(filename) is list:
-        return float(sum([get_file_size(x) for x in filename]))
-    try:
-        total_bytes = sum([float(os.stat(f).st_size)
-                           for f in filename.split(" ") if f is not ''])
-    except OSError:
-        # File not found
-        return 0.0
-    else:
-        return float(total_bytes) / (1024 ** 3)
+    # TODO: move to ubiquerg.
+    if isinstance(items, str) or not isinstance(items, Iterable):
+        items = [items]
+    if eqv is None:
+        return lambda x: x in items
+
+
+    def contains(this):
+        for that in items:
+            if eqv(this, that):
+                return True
+        return False
+
+
+    return contains
 
 
 def get_logger(name):
@@ -179,6 +173,18 @@ def get_logger(name):
     l = logging.getLogger(name)
     l.whisper = lambda msg, *args, **kwargs: l.log(5, msg, *args, **kwargs)
     return l
+
+
+def get_name_depr_msg(old, new, cls=None):
+    """
+    Warn of an attribute name deprecation.
+
+    :param str old: name of the old attribute
+    :param str new: name of the new attribute
+    :param type cls: type on which the reference is deprecated
+    """
+    msg = "use of {} is deprecated in favor of {}".format(old, new)
+    return msg if cls is None else "On {} ".format(cls.__name__) + msg
 
 
 def grab_project_data(prj):
@@ -277,16 +283,6 @@ def is_null_like(x):
         (is_collection_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
-def is_url(maybe_url):
-    """
-    Determine whether a path is a URL.
-
-    :param str maybe_url: path to investigate as URL
-    :return bool: whether path appears to be a URL
-    """
-    return urlparse(maybe_url).scheme != ""
-
-
 def non_null_value(k, m):
     """
     Determine whether a mapping has a non-null value for a given key.
@@ -296,26 +292,6 @@ def non_null_value(k, m):
     :return bool: Whether given mapping contains given key with non-null value
     """
     return k in m and not is_null_like(m[k])
-
-
-def parse_ftype(input_file):
-    """
-    Checks determine filetype from extension.
-
-    :param str input_file: String to check.
-    :return str: filetype (extension without dot prefix)
-    :raises TypeError: if file does not appear of a supported type
-    """
-    if input_file.endswith(".bam"):
-        return "bam"
-    elif input_file.endswith(".fastq") or \
-            input_file.endswith(".fq") or \
-            input_file.endswith(".fq.gz") or \
-            input_file.endswith(".fastq.gz"):
-        return "fastq"
-    else:
-        raise TypeError("Type of input file ends in neither '.bam' "
-                        "nor '.fastq' [file: '" + input_file + "']")
 
 
 def parse_text_data(lines_or_path, delimiter=os.linesep):
@@ -355,7 +331,33 @@ def sample_folder(prj, sample):
         folder path.
     :return str: this Project's root folder for the given Sample
     """
-    return os.path.join(prj.metadata.results_subdir, sample.name)
+    try:
+        folder = prj.results_folder
+    except AttributeError:
+        folder = prj.metadata.results_subdir
+    return os.path.join(folder, sample.name)
+
+
+
+def test_contains_safe(x, items, eqv=None):
+    """
+    Test whether a particular object is in a collection.
+
+    The advantage of using this method is that the "container" object is lifted
+    to an Iterable if it's not already one, so client code need not concern
+    itself with type checks or type-related exception handlind.
+
+    :param object x: object to test for containment in a collection
+    :param object items: ideally a collection of objects in which membership
+        of the given object of interest is to be tested, but this can be an
+        atomic object
+    :param NoneType | function(object, object) -> bool eqv: how to test
+        object for equivalence, optional; if omitted or null, the ordinary
+        __contains__ method of the collection is used
+    :return bool: whether the object of interest is in the tested collection
+    """
+    # TODO: move to ubiquerg.
+    return get_contains_fun(items, eqv)(x)
 
 
 def type_check_strict(obj, ts):
@@ -396,34 +398,6 @@ def standard_stream_redirector(stream):
         yield
     finally:
         sys.stdout, sys.stderr = genuine_stdout, genuine_stderr
-
-
-def warn_derived_cols():
-    """ Produce deprecation warning about derived columns. """
-    _warn_cols_to_attrs("derived")
-
-
-def warn_implied_cols():
-    """ Produce deprecation warning about implied columns. """
-    _warn_cols_to_attrs("implied")
-
-
-def get_name_depr_msg(old, new, cls=None):
-    """
-    Warn of an attribute name deprecation.
-
-    :param str old: name of the old attribute
-    :param str new: name of the new attribute
-    :param type cls: type on which the reference is deprecated
-    """
-    msg = "use of {} is deprecated in favor of {}".format(old, new)
-    return msg if cls is None else "On {} ".format(cls.__name__) + msg
-
-
-def _warn_cols_to_attrs(prefix):
-    """ Produce deprecation warning about 'columns' rather than 'attributes' """
-    warnings.warn("{pfx}_columns should be encoded and referenced "
-                  "as {pfx}_attributes".format(pfx=prefix), DeprecationWarning)
 
 
 class CommandChecker(object):
