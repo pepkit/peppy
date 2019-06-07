@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.22.0] -- (2019-06-04)
+## [0.22.0] -- (2019-06-06)
 ### Changed
 - Deprecate `Project` `constants` in favor of `constant_attributes.`
 - Improved `Project` text representation for interactive/terminal display (`__repr__`): [Issue 296](https://github.com/pepkit/peppy/issues/296)
