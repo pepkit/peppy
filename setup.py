@@ -74,6 +74,7 @@ setup(
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
+    long_description_content_type='text/markdown', 
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: BSD License",
