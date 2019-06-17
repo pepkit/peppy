@@ -22,6 +22,7 @@ from .utils import copy, get_logger, get_name_depr_msg, grab_project_data, \
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
 _OLD_PROTOCOL_REF = "library"
+PROJECT_TYPENAME = "Project"
 
 
 __all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
@@ -117,13 +118,23 @@ class Sample(PathExAttMap):
         self.add_entries(data)
 
         if PRJ_REF in self and prj:
-            _LOGGER.warn("Project provided both directly and indirectly; "
-                         "using direct")
+            _LOGGER.warn("Project data provided both in data and as separate "
+                         "constructor argument; using direct argument")
         if prj or PRJ_REF not in self:
             self[PRJ_REF] = prj or None
-
-        assert self[PRJ_REF] is None or isinstance(self[PRJ_REF], AttMap), \
-            "Project reference must be null or {}; got {}".format(AttMap.__name__, type(self[PRJ_REF]))
+        if self[PRJ_REF] is None:
+            _LOGGER.debug("No project reference for sample")
+        else:
+            typefam = AttMap
+            prefix = "Project reference on a sample must be a {}".format(typefam.__name__)
+            if not isinstance(self[PRJ_REF], typefam):
+                raise TypeError(prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
+            if _is_prj(self[PRJ_REF]):
+                _LOGGER.warning(
+                    prefix + " but cannot be a {p}; extracting storing just "
+                             "sample-independent {p} data in {k}".format(
+                        p=PROJECT_TYPENAME, k=PRJ_REF))
+                self[PRJ_REF] = grab_project_data(self[PRJ_REF])
 
         self.merged_cols = {}
         self.derived_cols_done = []
@@ -173,7 +184,7 @@ class Sample(PathExAttMap):
 
     def __setitem__(self, key, value):
         # TODO: better solution for this cyclical dependency hack
-        if value.__class__.__name__ == "Project":
+        if _is_prj(value):
             self.__dict__[key] = value
         else:
             super(Sample, self).__setitem__(key, value)
@@ -859,3 +870,19 @@ class Paths(object):
     
     def __repr__(self):
         return "Paths object."
+
+
+def _is_prj(obj):
+    """
+    Hack to get around cyclic import
+
+    Prioritize project module import sample module, not vice-versa, but we
+    still need to use some info about Project classes here.
+
+    :param object obj: object to test as a Project instance or type
+    :return bool: whether the given object is an instance of a Project or
+        Project subclass, or whether the given type is Project or a subtype
+    """
+    t = obj if isinstance(obj, type) else type(obj)
+    return PROJECT_TYPENAME == t.__name__ or \
+           PROJECT_TYPENAME in [parent.__name__ for parent in t.__bases__]

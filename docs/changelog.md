@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+### Changed
+- Prohibit storing reference to full `Project` object on a `Sample`.
+
 ## [0.22.0] -- (2019-06-06)
 ### Changed
 - Deprecate `Project` `constants` in favor of `constant_attributes.`

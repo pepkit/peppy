@@ -100,7 +100,7 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
             "({})".format(selector_attribute, type(selector_attribute)))
 
     # At least one of the samples has to have the specified attribute
-    if proj.samples and not any([hasattr(i, selector_attribute) for i in proj.samples]):
+    if proj.samples and not any([hasattr(s, selector_attribute) for s in proj.samples]):
         raise AttributeError("The Project samples do not have the attribute '{attr}'"
                              .format(attr=selector_attribute))
 
