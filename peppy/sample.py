@@ -115,20 +115,33 @@ class Sample(PathExAttMap):
                             pk=SAMPLE_NAME_COLNAME, pv=name_pep))
 
         _LOGGER.whisper("Sample data: {}".format(data))
+
+        try:
+            data_proj = data.pop(PRJ_REF)
+        except (AttributeError, KeyError):
+            data_proj = None
+
         self.add_entries(data)
 
+        if data_proj and PRJ_REF not in self:
+            self[PRJ_REF] = data_proj
+
+        typefam = PathExAttMap
         if PRJ_REF in self and prj:
             _LOGGER.warn("Project data provided both in data and as separate "
                          "constructor argument; using direct argument")
-        if prj or PRJ_REF not in self:
-            self[PRJ_REF] = prj or None
-        if self[PRJ_REF] is None:
+        if prj:
+            self[PRJ_REF] = prj
+        if not self.get(PRJ_REF):
+            # Force empty attmaps to null and ensure something's set.
+            self[PRJ_REF] = None
             _LOGGER.debug("No project reference for sample")
         else:
-            typefam = AttMap
-            prefix = "Project reference on a sample must be a {}".format(typefam.__name__)
-            if not isinstance(self[PRJ_REF], typefam):
-                raise TypeError(prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
+            prefix = "Project reference on a sample must be an instance of {}".\
+                format(typefam.__name__)
+            if not isinstance(self[PRJ_REF], Mapping):
+                raise TypeError(
+                    prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
             if _is_prj(self[PRJ_REF]):
                 _LOGGER.warning(
                     prefix + " but cannot be a {p}; extracting storing just "
@@ -185,7 +198,7 @@ class Sample(PathExAttMap):
     def __setitem__(self, key, value):
         # TODO: better solution for this cyclical dependency hack
         if _is_prj(value):
-            self.__dict__[key] = value
+            self.__dict__[key] = grab_project_data(value)
         else:
             super(Sample, self).__setitem__(key, value)
 

@@ -1,5 +1,6 @@
 """ Tests for the Sample. """
 
+from collections import Mapping
 import copy
 import os
 
@@ -10,16 +11,24 @@ import pytest
 import yaml
 from yaml import SafeLoader
 
-from attmap import AttMap
+from attmap import AttMap, EchoAttMap, PathExAttMap as PXAM
 import peppy
-from peppy import Sample
+from peppy import Project, Sample, SnakeProject
 from peppy.const import *
+from peppy.const import SNAKEMAKE_SAMPLE_COL
 from peppy.project import RESULTS_FOLDER_VALUE, SUBMISSION_FOLDER_VALUE
+from peppy.sample import PRJ_REF
 from tests.helpers import named_param
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
+
+
+def pytest_generate_tests(metafunc):
+    """ Dynamic test case generation and parameterization for this module. """
+    if "proj_type" in metafunc.fixturenames:
+        metafunc.parametrize("proj_type", [Project, SnakeProject])
 
 
 class ParseSampleImplicationsTests:
@@ -323,6 +332,12 @@ class LocateDataSourceTests:
     SOURCE_KEYS = ["src1", "src2"]
     PATH_BY_KEY = {"src1": "pathA", "src2": "pathB"}
 
+    def prj(self, tmpdir):
+        fp = tmpdir.join("simple-prj-cfg.yaml").strpath
+        with open(fp, 'w') as f:
+            yaml.dump({METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}, f)
+        return Project(fp)
+
     @pytest.fixture
     def prj_data(self):
         """ Provide basic Project data to test case. """
@@ -351,3 +366,127 @@ class LocateDataSourceTests:
             assert self.PATH_BY_KEY[src_key] == path
         else:
             assert path is None
+
+
+class SampleConstructorTests:
+    """ Basic tests of Sample's constructor """
+
+    @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
+    @pytest.mark.parametrize("fetch", [getattr, lambda s, k: s[k]])
+    def test_only_peppy_name(self, fetch, name_attr):
+        """ name and sample_name access Sample's name and work with varied syntax. """
+        name = "testsample"
+        s = Sample({SAMPLE_NAME_COLNAME: name})
+        assert name == fetch(s, name_attr)
+
+    @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
+    @pytest.mark.parametrize(["fetch", "exp_err"], [
+        (getattr, AttributeError), (lambda s, k: s[k], KeyError)])
+    def test_only_snakemake_name(self, fetch, name_attr, exp_err):
+        """ Snakemake --> peppy <--> sample --> sample_name. """
+        name = "testsample"
+        s = Sample({SNAKEMAKE_SAMPLE_COL: name})
+        with pytest.raises(exp_err):
+
+            fetch(s, SNAKEMAKE_SAMPLE_COL)
+        assert name == fetch(s, name_attr)
+
+    @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
+    @pytest.mark.parametrize(["fetch", "exp_err"], [
+        (getattr, AttributeError), (lambda s, k: s[k], KeyError)])
+    @pytest.mark.parametrize(["data", "expect_result"], [
+        ({SNAKEMAKE_SAMPLE_COL: "testsample", SAMPLE_NAME_COLNAME: "testsample"},
+         "testsample"),
+        ({SNAKEMAKE_SAMPLE_COL: "nameA", SAMPLE_NAME_COLNAME: "nameB"},
+         Exception)
+    ])
+    def test_peppy_and_snakemake_names(
+            self, fetch, name_attr, data, expect_result, exp_err):
+        """ Original peppy naming of sample name is favored; exception iff values differ. """
+        if isinstance(expect_result, type) and issubclass(expect_result, Exception):
+            with pytest.raises(expect_result):
+                Sample(data)
+        else:
+            s = Sample(data)
+            assert expect_result == fetch(s, name_attr)
+            with pytest.raises(exp_err):
+                fetch(s, SNAKEMAKE_SAMPLE_COL)
+
+    @pytest.mark.parametrize(["has_ref", "get_ref"], [
+        (lambda s: hasattr(s, PRJ_REF), lambda s: getattr(s, PRJ_REF)),
+        (lambda s: PRJ_REF in s, lambda s: s[PRJ_REF])])
+    def test_no_prj_ref(self, has_ref, get_ref):
+        """ Construction of a Sample without project ref --> null value """
+        s = Sample({SAMPLE_NAME_COLNAME: "test-sample"})
+        assert has_ref(s)
+        assert get_ref(s) is None
+
+    @pytest.mark.parametrize(
+        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]])
+    @pytest.mark.parametrize(["prj_ref_val", "expect"], [
+        (None, None), ({}, None), (AttMap(), None), (EchoAttMap(), None),
+        ({"a": 1}, PXAM({"a": 1})), (AttMap({"b": 2}), PXAM({"b": 2})),
+        (PXAM({"c": 3}), PXAM({"c": 3})), (EchoAttMap({"d": 4}), EchoAttMap({"d": 4}))])
+    def test_non_project_prj_ref(self, fetch, prj_ref_val, expect):
+        """ Project reference is null, or a PathExAttMap. """
+        s = Sample({SAMPLE_NAME_COLNAME: "testsample", PRJ_REF: prj_ref_val})
+        assert expect == fetch(s)
+
+    @pytest.mark.parametrize(
+        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]])
+    @pytest.mark.parametrize(["prj_ref_val", "expect"], [
+        (None, None), ({}, None), (AttMap(), None), (EchoAttMap(), None),
+        ({"a": 1}, PXAM({"a": 1})), (AttMap({"b": 2}), PXAM({"b": 2})),
+        (PXAM({"c": 3}), PXAM({"c": 3})), (EchoAttMap({"d": 4}), EchoAttMap({"d": 4}))])
+    def test_non_project_prj_ref_as_arg(self, fetch, prj_ref_val, expect):
+        """ Project reference must be null, or an attmap bounded above by PathExAttMap. """
+        s = Sample({SAMPLE_NAME_COLNAME: "testsample"}, prj=prj_ref_val)
+        assert expect == fetch(s)
+
+    @pytest.mark.parametrize(
+        "fetch", [#lambda s: getattr(s, PRJ_REF),
+                  lambda s: s[PRJ_REF]
+                  ])
+    def test_project_prj_ref_in_data(self, proj_type, fetch, tmpdir):
+        """ Project is converted to PathExAttMap of sample-independent data. """
+        proj_data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
+        prj = _get_prj(
+            tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
+        assert isinstance(prj, Project)
+        s = Sample({SAMPLE_NAME_COLNAME: "testsample", PRJ_REF: prj})
+        self._assert_prj_dat(proj_data, s, fetch)
+
+    @pytest.mark.parametrize(
+        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]])
+    def test_project_prj_ref_as_arg(self, proj_type, fetch, tmpdir):
+        """ Project is converted to PathExAttMap of sample-independent data. """
+        proj_data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
+        prj = _get_prj(
+            tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
+        assert isinstance(prj, Project)
+        s = Sample({SAMPLE_NAME_COLNAME: "testsample"}, prj=prj)
+        self._assert_prj_dat(proj_data, s, fetch)
+
+    @pytest.mark.skip("not implemented")
+    def test_prj_ref_data_and_arg(self):
+        """ Directly-specified project is favored. """
+        pass
+
+    def _assert_prj_dat(self, base_data, s, fetch):
+        obs = fetch(s)
+        assert isinstance(obs, Mapping) and not isinstance(obs, Project)
+        exp_meta, obs_meta = base_data[METADATA_KEY], obs[METADATA_KEY]
+        missing = {k: v for k, v in exp_meta.items() if k not in obs_meta}
+        assert {} == missing
+        diff = {k: (exp_meta[k], obs_meta[k])
+                for k in set(exp_meta.keys()) & set(obs_meta.keys())
+                if exp_meta[k] != obs_meta[k]}
+        assert {} == diff
+        extra = [v for k, v in obs_meta.items() if k not in exp_meta]
+        assert not any(extra)
+
+
+def _get_prj(conf_file, data, proj_type):
+    with open(conf_file, 'w') as f:
+        yaml.dump(data, f)
+    return proj_type(conf_file)
