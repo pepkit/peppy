@@ -214,6 +214,17 @@ class Sample(PathExAttMap):
         """
         return self.data_source.split(" ") if self.data_source else []
 
+    @property
+    def library(self):
+        """
+        Backwards-compatible alias.
+
+        :return str: The protocol / NGS library name for this Sample.
+        """
+        warnings.warn(get_name_depr_msg(
+            _OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__), DeprecationWarning)
+        return self.protocol
+
     def as_series(self):
         """
         Returns a `pandas.Series` object with all the sample's attributes.
@@ -362,17 +373,6 @@ class Sample(PathExAttMap):
             return False
         # If specified, the activation flag must be set to '1'.
         return flag != "1"
-
-    @property
-    def library(self):
-        """
-        Backwards-compatible alias.
-
-        :return str: The protocol / NGS library name for this Sample.
-        """
-        warnings.warn(get_name_depr_msg(
-            _OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__), DeprecationWarning)
-        return self.protocol
 
     def get_subsample(self, subsample_name):
         """
