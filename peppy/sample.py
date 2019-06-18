@@ -271,7 +271,7 @@ class Sample(PathExAttMap):
         :return str: name for file with which to represent this Sample on disk
         """
         base = self.name if type(self) is Sample else \
-            "{}{}{}".format(self.name, delimiter, self.__class__.__name__)
+            "{}{}{}".format(self.name, delimiter, type(self).__name__)
         return "{}.yaml".format(base)
 
     def generate_name(self):
