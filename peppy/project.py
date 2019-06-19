@@ -47,13 +47,8 @@ Explore:
 
 """
 
-from collections import Counter, namedtuple
+from collections import Counter, Iterable, Mapping, namedtuple
 import os
-import sys
-if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping
-else:
-    from collections.abc import Iterable, Mapping
 import warnings
 
 import pandas as pd

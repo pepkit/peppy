@@ -1,16 +1,11 @@
 """ Helpers without an obvious logical home. """
 
-from collections import Counter, defaultdict, Iterable
+from collections import Counter, defaultdict, Iterable, Sized
 import contextlib
 import logging
 import os
 import random
 import string
-import sys
-if sys.version_info < (3, 3):
-    from collections import Sized
-else:
-    from collections.abc import Sized
 import yaml
 from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 from ubiquerg import is_collection_like

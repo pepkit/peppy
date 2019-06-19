@@ -1,13 +1,8 @@
 """ Modeling individual samples to process or otherwise use. """
 
-from collections import OrderedDict
+from collections import Mapping, OrderedDict
 import glob
 import os
-import sys
-if sys.version_info < (3, 3):
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
 import warnings
 
 from pandas import isnull, Series
