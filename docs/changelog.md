@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.22.1] - 2019-06-19
 ### Changed
 - Prohibit storing reference to full `Project` object on a `Sample`.
 
