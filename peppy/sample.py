@@ -19,9 +19,11 @@ PRJ_REF = "prj"
 _OLD_PROTOCOL_REF = "library"
 PROJECT_TYPENAME = "Project"
 SAMPLE_YAML_FILE_KEY = "yaml_file"
+SAMPLE_YAML_EXT = ".yaml"
 
 
-__all__ = ["merge_sample", "Paths", "Sample", "Subsample", "SAMPLE_YAML_FILE_KEY"]
+__all__ = ["merge_sample", "Paths", "Sample", "Subsample", "SAMPLE_YAML_EXT",
+           "SAMPLE_YAML_FILE_KEY"]
 
 
 _LOGGER = get_logger(__name__)
@@ -268,7 +270,7 @@ class Sample(PathExAttMap):
         """
         base = self.name if type(self) is Sample else \
             "{}{}{}".format(self.name, delimiter, type(self).__name__)
-        return "{}.yaml".format(base)
+        return "{}{}".format(base, SAMPLE_YAML_EXT)
 
     def generate_name(self):
         """
