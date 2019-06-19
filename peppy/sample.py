@@ -18,9 +18,10 @@ COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
 _OLD_PROTOCOL_REF = "library"
 PROJECT_TYPENAME = "Project"
+SAMPLE_YAML_FILE_KEY = "yaml_file"
 
 
-__all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
+__all__ = ["merge_sample", "Paths", "Sample", "Subsample", "SAMPLE_YAML_FILE_KEY"]
 
 
 _LOGGER = get_logger(__name__)
@@ -167,7 +168,7 @@ class Sample(PathExAttMap):
 
         # Default to no required paths and no YAML file.
         self.required_paths = None
-        self.yaml_file = None
+        self[SAMPLE_YAML_FILE_KEY] = None
 
         # Not yet merged, potentially toggled when merge step is considered.
         self.merged = False
@@ -619,7 +620,7 @@ class Sample(PathExAttMap):
 
         _LOGGER.debug("Setting %s filepath: '%s'",
                       self.__class__.__name__, path)
-        self.yaml_file = path
+        self[SAMPLE_YAML_FILE_KEY] = path
 
         def obj2dict(obj, name=None, 
                      to_skip=(SAMPLE_SUBANNOTATIONS_KEY, "samples",
@@ -690,7 +691,7 @@ class Sample(PathExAttMap):
                           Project.__class__.__name__, self.__class__.__name__)
         """
 
-        with open(self.yaml_file, 'w') as outfile:
+        with open(self[SAMPLE_YAML_FILE_KEY], 'w') as outfile:
             _LOGGER.debug("Generating YAML data for %s: '%s'",
                           self.__class__.__name__, self.name)
             try:
