@@ -693,7 +693,8 @@ class Sample(PathExAttMap):
                           Project.__class__.__name__, self.__class__.__name__)
         """
 
-        with open(self[SAMPLE_YAML_FILE_KEY], 'w') as outfile:
+        dst = self[SAMPLE_YAML_FILE_KEY]
+        with open(dst, 'w') as outfile:
             _LOGGER.debug("Generating YAML data for %s: '%s'",
                           self.__class__.__name__, self.name)
             try:
@@ -702,6 +703,7 @@ class Sample(PathExAttMap):
                 _LOGGER.error("SERIALIZED SAMPLE DATA: {}".format(serial))
                 raise
             outfile.write(yaml_data)
+        return dst
 
     def update(self, newdata, **kwargs):
         """
