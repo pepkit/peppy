@@ -1,16 +1,11 @@
 """ Helpers without an obvious logical home. """
 
-from collections import Counter, defaultdict, Iterable
+from collections import Counter, defaultdict, Iterable, Sized
 import contextlib
 import logging
 import os
 import random
 import string
-import sys
-if sys.version_info < (3, 3):
-    from collections import Sized
-else:
-    from collections.abc import Sized
 import yaml
 from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
 from ubiquerg import is_collection_like
@@ -100,7 +95,7 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
             "({})".format(selector_attribute, type(selector_attribute)))
 
     # At least one of the samples has to have the specified attribute
-    if proj.samples and not any([hasattr(i, selector_attribute) for i in proj.samples]):
+    if proj.samples and not any([hasattr(s, selector_attribute) for s in proj.samples]):
         raise AttributeError("The Project samples do not have the attribute '{attr}'"
                              .format(attr=selector_attribute))
 

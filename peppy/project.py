@@ -47,13 +47,8 @@ Explore:
 
 """
 
-from collections import Counter, namedtuple
+from collections import Counter, Iterable, Mapping, namedtuple
 import os
-import sys
-if sys.version_info < (3, 3):
-    from collections import Iterable, Mapping
-else:
-    from collections.abc import Iterable, Mapping
 import warnings
 
 import pandas as pd
@@ -1035,6 +1030,8 @@ class Project(PathExAttMap):
         if self.get(attr) is None:
             filepath = self[METADATA_KEY].get(spec.key)
             if filepath is None:
+                _LOGGER.warning("No filepath for '{}' in project metadata".
+                                format(spec.key))
                 return None
             self[attr] = self._apply_parse_strat(filepath, spec)
         return cp(self[attr])

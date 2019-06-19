@@ -1,6 +1,6 @@
 """ Tests for interaction between a Project and a Sample. """
 
-from collections import OrderedDict
+from collections import Mapping, OrderedDict
 import copy
 import itertools
 import os
@@ -316,5 +316,5 @@ class SampleTextTests:
         """ Text representation of a Sample does not include its Project ref. """
         assert len(prj.samples) > 0, "No samples"    # precondition
         for s in prj.samples:
-            assert isinstance(getattr(s, PRJ_REF), Project)
+            assert isinstance(getattr(s, PRJ_REF), Mapping)
             assert PRJ_REF not in func(s)

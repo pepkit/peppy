@@ -1,13 +1,8 @@
 """ Modeling individual samples to process or otherwise use. """
 
-from collections import OrderedDict
+from collections import Mapping, OrderedDict
 import glob
 import os
-import sys
-if sys.version_info < (3, 3):
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
 import warnings
 
 from pandas import isnull, Series
@@ -22,9 +17,13 @@ from .utils import copy, get_logger, get_name_depr_msg, grab_project_data, \
 COL_KEY_SUFFIX = "_key"
 PRJ_REF = "prj"
 _OLD_PROTOCOL_REF = "library"
+PROJECT_TYPENAME = "Project"
+SAMPLE_YAML_FILE_KEY = "yaml_file"
+SAMPLE_YAML_EXT = ".yaml"
 
 
-__all__ = ["merge_sample", "Paths", "Sample", "Subsample"]
+__all__ = ["merge_sample", "Paths", "Sample", "Subsample", "SAMPLE_YAML_EXT",
+           "SAMPLE_YAML_FILE_KEY"]
 
 
 _LOGGER = get_logger(__name__)
@@ -114,16 +113,39 @@ class Sample(PathExAttMap):
                             pk=SAMPLE_NAME_COLNAME, pv=name_pep))
 
         _LOGGER.whisper("Sample data: {}".format(data))
+
+        try:
+            data_proj = data.pop(PRJ_REF)
+        except (AttributeError, KeyError):
+            data_proj = None
+
         self.add_entries(data)
 
-        if PRJ_REF in self and prj:
-            _LOGGER.warn("Project provided both directly and indirectly; "
-                         "using direct")
-        if prj or PRJ_REF not in self:
-            self[PRJ_REF] = prj or None
+        if data_proj and PRJ_REF not in self:
+            self[PRJ_REF] = data_proj
 
-        assert self[PRJ_REF] is None or isinstance(self[PRJ_REF], AttMap), \
-            "Project reference must be null or {}; got {}".format(AttMap.__name__, type(self[PRJ_REF]))
+        typefam = PathExAttMap
+        if PRJ_REF in self and prj:
+            _LOGGER.warn("Project data provided both in data and as separate "
+                         "constructor argument; using direct argument")
+        if prj:
+            self[PRJ_REF] = prj
+        if not self.get(PRJ_REF):
+            # Force empty attmaps to null and ensure something's set.
+            self[PRJ_REF] = None
+            _LOGGER.debug("No project reference for sample")
+        else:
+            prefix = "Project reference on a sample must be an instance of {}".\
+                format(typefam.__name__)
+            if not isinstance(self[PRJ_REF], Mapping):
+                raise TypeError(
+                    prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
+            if _is_prj(self[PRJ_REF]):
+                _LOGGER.warning(
+                    prefix + " but cannot be a {p}; extracting storing just "
+                             "sample-independent {p} data in {k}".format(
+                        p=PROJECT_TYPENAME, k=PRJ_REF))
+                self[PRJ_REF] = grab_project_data(self[PRJ_REF])
 
         self.merged_cols = {}
         self.derived_cols_done = []
@@ -148,7 +170,7 @@ class Sample(PathExAttMap):
 
         # Default to no required paths and no YAML file.
         self.required_paths = None
-        self.yaml_file = None
+        self[SAMPLE_YAML_FILE_KEY] = None
 
         # Not yet merged, potentially toggled when merge step is considered.
         self.merged = False
@@ -173,8 +195,8 @@ class Sample(PathExAttMap):
 
     def __setitem__(self, key, value):
         # TODO: better solution for this cyclical dependency hack
-        if value.__class__.__name__ == "Project":
-            self.__dict__[key] = value
+        if _is_prj(value):
+            self.__dict__[key] = grab_project_data(value)
         else:
             super(Sample, self).__setitem__(key, value)
 
@@ -189,6 +211,17 @@ class Sample(PathExAttMap):
         :return list[str]: paths to data sources / input file for this Sample.
         """
         return self.data_source.split(" ") if self.data_source else []
+
+    @property
+    def library(self):
+        """
+        Backwards-compatible alias.
+
+        :return str: The protocol / NGS library name for this Sample.
+        """
+        warnings.warn(get_name_depr_msg(
+            _OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__), DeprecationWarning)
+        return self.protocol
 
     def as_series(self):
         """
@@ -236,8 +269,8 @@ class Sample(PathExAttMap):
         :return str: name for file with which to represent this Sample on disk
         """
         base = self.name if type(self) is Sample else \
-            "{}{}{}".format(self.name, delimiter, self.__class__.__name__)
-        return "{}.yaml".format(base)
+            "{}{}{}".format(self.name, delimiter, type(self).__name__)
+        return "{}{}".format(base, SAMPLE_YAML_EXT)
 
     def generate_name(self):
         """
@@ -338,17 +371,6 @@ class Sample(PathExAttMap):
             return False
         # If specified, the activation flag must be set to '1'.
         return flag != "1"
-
-    @property
-    def library(self):
-        """
-        Backwards-compatible alias.
-
-        :return str: The protocol / NGS library name for this Sample.
-        """
-        warnings.warn(get_name_depr_msg(
-            _OLD_PROTOCOL_REF, ASSAY_KEY, self.__class__), DeprecationWarning)
-        return self.protocol
 
     def get_subsample(self, subsample_name):
         """
@@ -600,7 +622,7 @@ class Sample(PathExAttMap):
 
         _LOGGER.debug("Setting %s filepath: '%s'",
                       self.__class__.__name__, path)
-        self.yaml_file = path
+        self[SAMPLE_YAML_FILE_KEY] = path
 
         def obj2dict(obj, name=None, 
                      to_skip=(SAMPLE_SUBANNOTATIONS_KEY, "samples",
@@ -671,7 +693,8 @@ class Sample(PathExAttMap):
                           Project.__class__.__name__, self.__class__.__name__)
         """
 
-        with open(self.yaml_file, 'w') as outfile:
+        dst = self[SAMPLE_YAML_FILE_KEY]
+        with open(dst, 'w') as outfile:
             _LOGGER.debug("Generating YAML data for %s: '%s'",
                           self.__class__.__name__, self.name)
             try:
@@ -680,6 +703,7 @@ class Sample(PathExAttMap):
                 _LOGGER.error("SERIALIZED SAMPLE DATA: {}".format(serial))
                 raise
             outfile.write(yaml_data)
+        return dst
 
     def update(self, newdata, **kwargs):
         """
@@ -859,3 +883,19 @@ class Paths(object):
     
     def __repr__(self):
         return "Paths object."
+
+
+def _is_prj(obj):
+    """
+    Hack to get around cyclic import
+
+    Prioritize project module import sample module, not vice-versa, but we
+    still need to use some info about Project classes here.
+
+    :param object obj: object to test as a Project instance or type
+    :return bool: whether the given object is an instance of a Project or
+        Project subclass, or whether the given type is Project or a subtype
+    """
+    t = obj if isinstance(obj, type) else type(obj)
+    return PROJECT_TYPENAME == t.__name__ or \
+           PROJECT_TYPENAME in [parent.__name__ for parent in t.__bases__]
