@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.22.2] - 2019-06-20
+### Changed
+- Remove `ngstk` requirement
+
 ## [0.22.1] - 2019-06-19
 ### Changed
 - Prohibit storing reference to full `Project` object on a `Sample`.
