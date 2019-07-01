@@ -1,8 +1,12 @@
 # Changelog
 
+## [0.23.0] - Unreleased
+### Changed
+- Remove `is_command_callable` from `utils` module; instead, refer to [`ubiquerg`](https://pypi.org/project/ubiquerg/).
+
 ## [0.22.2] - 2019-06-20
 ### Changed
-- Remove `ngstk` requirement
+- Remove `ngstk` requirement.
 
 ## [0.22.1] - 2019-06-19
 ### Changed

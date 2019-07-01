@@ -3,4 +3,4 @@ pandas>=0.20.2
 pyyaml>=5
 divvy>=0.3.2
 logmuse>=0.2
-ubiquerg>=0.4.3
+ubiquerg>=0.4.5
