@@ -5,7 +5,7 @@ from abc import ABCMeta
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
-__all__ = ["IllegalStateException", "PeppyError"]
+__all__ = ["IllegalStateException", "InvalidSampleTableFileException", "PeppyError"]
 
 
 class PeppyError(Exception):
@@ -19,4 +19,9 @@ class PeppyError(Exception):
 
 class IllegalStateException(PeppyError):
     """ Occurrence of some illogical/prohibited state within an object. """
+    pass
+
+
+class InvalidSampleTableFileException(PeppyError):
+    """ Error type for invalid sample annotations file. """
     pass

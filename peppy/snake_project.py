@@ -114,8 +114,8 @@ class SnakeProject(Project):
         return t.set_index(labels, drop=False)
 
     def _missing_columns(self, cs):
-        return set() if {self.SAMPLE_NAME_IDENTIFIER, SAMPLE_NAME_COLNAME} & cs \
-            else {self.SAMPLE_NAME_IDENTIFIER}
+        has_name_col = (self.SAMPLE_NAME_IDENTIFIER in cs or SAMPLE_NAME_COLNAME in cs)
+        return {self.SAMPLE_NAME_IDENTIFIER} if not has_name_col else set()
 
     @staticmethod
     def _get_sample_ids(df):

@@ -962,21 +962,22 @@ class Project(PathExAttMap):
             df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
-        else:
-            _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            missing = self._missing_columns(set(df.columns))
-            if len(missing) != 0:
-                _LOGGER.warning(
-                    "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
-                    "It has {ncol}: {has}".format(
-                        f=sample_file, n=len(missing), miss=", ".join(missing),
-                        ncol=len(df.columns), has=", ".join(list(df.columns))))
+        _LOGGER.info("Storing sample table from file '%s'", sample_file)
+        missing = self._missing_columns(set(df.columns))
+        if len(missing) != 0:
+            raise InvalidSampleTableFileException(
+                "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
+                "It has {ncol}: {has}".format(
+                    f=sample_file, n=len(missing), miss=", ".join(missing),
+                    ncol=len(df.columns), has=", ".join(list(df.columns))))
         return df
 
     def _missing_columns(self, cs):
+        """ Determine names of missing, important columns. """
         return {self.SAMPLE_NAME_IDENTIFIER} - set(cs)
 
     def _apply_parse_strat(self, filepath, spec):
+        """ For the given filepath, apply the given parse strategy. """
         from copy import copy as cp
         kwds = cp(spec.kwargs)
         if spec.make_extra_kwargs:
