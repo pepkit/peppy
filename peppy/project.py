@@ -47,7 +47,7 @@ Explore:
 
 """
 
-from collections import Counter, Iterable, Mapping, namedtuple
+from collections import Counter, defaultdict, Iterable, Mapping, namedtuple
 import os
 import warnings
 
@@ -962,21 +962,46 @@ class Project(PathExAttMap):
             df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
-        else:
-            _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            missing = self._missing_columns(set(df.columns))
-            if len(missing) != 0:
-                _LOGGER.warning(
-                    "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
-                    "It has {ncol}: {has}".format(
-                        f=sample_file, n=len(missing), miss=", ".join(missing),
-                        ncol=len(df.columns), has=", ".join(list(df.columns))))
+        _LOGGER.info("Storing sample table from file '%s'", sample_file)
+        missing = self._missing_columns(set(df.columns))
+        if len(missing) != 0:
+            raise InvalidSampleTableFileException(
+                "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
+                "It has {ncol}: {has}".format(
+                    f=sample_file, n=len(missing), miss=", ".join(missing),
+                    ncol=len(df.columns), has=", ".join(list(df.columns))))
+        names, namecol = self._read_names_from_table(df)
+        repeats = dict([(n, k) for n, k in Counter(names).items() if k > 1])
+        if repeats:
+            _LOGGER.warning(
+                "Repeated sample name counts: {}".format(
+                    ", ".join(["{}={}".format(n, k) for n, k in repeats.items()])))
+            if SAMPLE_NAME_BACKUP_COLNAME in df.columns:
+                raise Exception("Backup column name ({}) is already assigned".
+                                format(SAMPLE_NAME_BACKUP_COLNAME))
+            _LOGGER.info("Making names unique and reassigning original names "
+                         "to '{}'".format(SAMPLE_NAME_BACKUP_COLNAME))
+            indexer = defaultdict(int)
+            uniq = []
+            for n in names:
+                if n in repeats:
+                    indexer[n] += 1
+                    n += "_{}".format(indexer[n])
+                uniq.append(n)
+            df[SAMPLE_NAME_BACKUP_COLNAME] = names
+            df[namecol] = uniq
         return df
 
+    def _read_names_from_table(self, df):
+        """ Read the sample names from the given annotations table. """
+        return list(df[self.SAMPLE_NAME_IDENTIFIER]), self.SAMPLE_NAME_IDENTIFIER
+
     def _missing_columns(self, cs):
+        """ Determine names of missing, important columns. """
         return {self.SAMPLE_NAME_IDENTIFIER} - set(cs)
 
     def _apply_parse_strat(self, filepath, spec):
+        """ For the given filepath, apply the given parse strategy. """
         from copy import copy as cp
         kwds = cp(spec.kwargs)
         if spec.make_extra_kwargs:
@@ -997,19 +1022,6 @@ class Project(PathExAttMap):
                     _LOGGER.debug(("Found" + info).format(n))
         else:
             _LOGGER.debug("No sample subannotations found for this Project.")
-
-    def _check_unique_samples(self):
-        """ Handle scenario in which sample names are not unique. """
-        # Defining this here but then calling out to the repeats counter has
-        # a couple of advantages. We get an unbound, isolated method (the
-        # Project-external repeat sample name counter), but we can still
-        # do this check from the sample builder, yet have it be override-able.
-        repeats = {name: n for name, n in Counter(
-            s.name for s in self._samples).items() if n > 1}
-        if repeats:
-            hist_text = "\n".join(
-                "{}: {}".format(name, n) for name, n in repeats.items())
-            _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
 
     @staticmethod
     def _get_sample_ids(df):
@@ -1105,7 +1117,6 @@ class Project(PathExAttMap):
 
         # Set samples and handle non-unique names situation.
         self._samples = self._prep_samples()
-        self._check_unique_samples()
 
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """
