@@ -117,6 +117,16 @@ class SnakeProject(Project):
         has_name_col = (self.SAMPLE_NAME_IDENTIFIER in cs or SAMPLE_NAME_COLNAME in cs)
         return {self.SAMPLE_NAME_IDENTIFIER} if not has_name_col else set()
 
+    def _read_names_from_table(self, df):
+        try:
+            names = df[self.SAMPLE_NAME_IDENTIFIER]
+        except KeyError:
+            names = df[SAMPLE_NAME_COLNAME]
+            namecol = SAMPLE_NAME_COLNAME
+        else:
+            namecol = self.SAMPLE_NAME_IDENTIFIER
+        return list(names), namecol
+
     @staticmethod
     def _get_sample_ids(df):
         """ Return the sample identifiers in the given table. """

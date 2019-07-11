@@ -5,6 +5,7 @@ __email__ = "vreuter@virginia.edu"
 
 
 SAMPLE_NAME_COLNAME = "sample_name"
+SAMPLE_NAME_BACKUP_COLNAME = "sample_name_orig"
 
 # Project-related
 NAME_TABLE_ATTR = "sample_table"
@@ -49,5 +50,5 @@ GENERIC_PROTOCOL_KEY = "*"
 OTHER_CONSTANTS = ["FLAGS", "GENERIC_PROTOCOL_KEY"]
 
 
-__all__ = ["SAMPLE_NAME_COLNAME"] + PROJECT_CONSTANTS + \
-          SAMPLE_CONSTANTS + OTHER_CONSTANTS
+__all__ = ["SAMPLE_NAME_COLNAME", "SAMPLE_NAME_BACKUP_COLNAME"] + \
+          PROJECT_CONSTANTS + SAMPLE_CONSTANTS + OTHER_CONSTANTS
