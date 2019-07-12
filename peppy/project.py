@@ -61,8 +61,8 @@ from .exceptions import *
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, get_logger, \
-    get_name_depr_msg, infer_delimiter, non_null_value, repeat_values, \
-    type_check_strict
+    get_name_depr_msg, infer_delimiter, make_unique_with_occurrence_index, \
+    non_null_value, repeat_values, type_check_strict
 from ubiquerg import is_url
 
 
@@ -1204,13 +1204,7 @@ class Project(PathExAttMap):
                                 format(SAMPLE_NAME_BACKUP_COLNAME))
             _LOGGER.info("Making names unique and reassigning original names "
                          "to '{}'".format(SAMPLE_NAME_BACKUP_COLNAME))
-            indexer = defaultdict(int)
-            uniq = []
-            for n in names:
-                if n in repeats:
-                    indexer[n] += 1
-                    n += "_{}".format(indexer[n])
-                uniq.append(n)
+            uniq = make_unique_with_occurrence_index(names, repeats)
             df[SAMPLE_NAME_BACKUP_COLNAME] = names
             df[namecol] = uniq
         return df
