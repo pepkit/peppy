@@ -47,7 +47,7 @@ Explore:
 
 """
 
-from collections import Counter, defaultdict, Iterable, Mapping, namedtuple
+from collections import defaultdict, Iterable, Mapping, namedtuple
 import os
 import warnings
 
@@ -61,7 +61,8 @@ from .exceptions import *
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, get_logger, \
-    get_name_depr_msg, infer_delimiter, non_null_value, type_check_strict
+    get_name_depr_msg, infer_delimiter, non_null_value, repeat_values, \
+    type_check_strict
 from ubiquerg import is_url
 
 
@@ -251,11 +252,11 @@ class Project(PathExAttMap):
         self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
         path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
         self_table_attr = "_" + NAME_TABLE_ATTR
-        self[self_table_attr] = None
         if path_anns_file:
             self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
+            self[self_table_attr] = None
 
         # Basic sample maker will handle name uniqueness check.
         if defer_sample_construction or self._sample_table is None:
@@ -970,27 +971,7 @@ class Project(PathExAttMap):
                 "It has {ncol}: {has}".format(
                     f=sample_file, n=len(missing), miss=", ".join(missing),
                     ncol=len(df.columns), has=", ".join(list(df.columns))))
-        names, namecol = self._read_names_from_table(df)
-        repeats = dict([(n, k) for n, k in Counter(names).items() if k > 1])
-        if repeats:
-            _LOGGER.warning(
-                "Repeated sample name counts: {}".format(
-                    ", ".join(["{}={}".format(n, k) for n, k in repeats.items()])))
-            if SAMPLE_NAME_BACKUP_COLNAME in df.columns:
-                raise Exception("Backup column name ({}) is already assigned".
-                                format(SAMPLE_NAME_BACKUP_COLNAME))
-            _LOGGER.info("Making names unique and reassigning original names "
-                         "to '{}'".format(SAMPLE_NAME_BACKUP_COLNAME))
-            indexer = defaultdict(int)
-            uniq = []
-            for n in names:
-                if n in repeats:
-                    indexer[n] += 1
-                    n += "_{}".format(indexer[n])
-                uniq.append(n)
-            df[SAMPLE_NAME_BACKUP_COLNAME] = names
-            df[namecol] = uniq
-        return df
+        return self._handle_repeat_names(df)
 
     def _read_names_from_table(self, df):
         """ Read the sample names from the given annotations table. """
@@ -1195,6 +1176,45 @@ class Project(PathExAttMap):
             k in exclusions_by_class.get(
                 cls.__name__ if isinstance(cls, type) else cls, [])
 
+    def _handle_repeat_names(self, df):
+        """
+        Deal with the possibility of non-unique sample identifiers.
+
+        Most sample (sub)annotation table files will specify unique sample
+        names, but some won't. In the case of repeated names, we make them
+        unique by postpending _i, where i is the number indicating the
+        occurrence count of the name, using 1-based counting.
+
+        The vector of names made unique by index postpending is stored in the
+        official sample name column, and the original vector of non-unique
+        names is stored in a new 'sample_name_orig' column.
+
+        :param pandas.core.frame.DataFrame df: data frame parser from
+            user-specifed file
+        :return pandas.core.frame.DataFrame: the (possibly updated) data frame
+        """
+        names, namecol = self._read_names_from_table(df)
+        repeats = repeat_values(names)
+        if repeats:
+            _LOGGER.warning(
+                "Repeated sample name counts: {}".format(
+                    ", ".join(["{}={}".format(n, k) for n, k in repeats.items()])))
+            if SAMPLE_NAME_BACKUP_COLNAME in df.columns:
+                raise Exception("Backup column name ({}) is already assigned".
+                                format(SAMPLE_NAME_BACKUP_COLNAME))
+            _LOGGER.info("Making names unique and reassigning original names "
+                         "to '{}'".format(SAMPLE_NAME_BACKUP_COLNAME))
+            indexer = defaultdict(int)
+            uniq = []
+            for n in names:
+                if n in repeats:
+                    indexer[n] += 1
+                    n += "_{}".format(indexer[n])
+                uniq.append(n)
+            df[SAMPLE_NAME_BACKUP_COLNAME] = names
+            df[namecol] = uniq
+        return df
+
 
 def suggest_implied_attributes(prj):
     """
@@ -1271,12 +1291,20 @@ def subsample_table(p):
 
     :param peppy.Project p: Project instance from which to get subsample table
     :return pandas.core.frame.DataFrame: the Project's subsample table
+    :raise peppy.InvalidSampleTableFileException: if the subannotation
     """
+    parse_strat = _SUBS_TABLE_SPEC
     if not isinstance(p, Project):
         raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
-    return p._meta_from_file_set_if_needed(_SUBS_TABLE_SPEC)
+    return p._meta_from_file_set_if_needed(parse_strat)
 
 
+# Specification of strategy for parsing a sheet-like file (sample table, subsample table)
+# An instance specifies:
+# 1. The Project key associated with the file to parse / table to make,
+# 2. How to get the parsing function from the project
+# 3. How to generate for the parse function extra keyword arguments based on the filepath
+# 4. Constant keyword arguments to pass to the parse function
 _MakeTableSpec = namedtuple(
     "_MakeTableSpec", ["key", "get_parse_fun", "make_extra_kwargs", "kwargs"])
 _MAIN_TABLE_SPEC = _MakeTableSpec(

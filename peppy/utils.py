@@ -1,6 +1,7 @@
 """ Helpers without an obvious logical home. """
 
-from collections import Counter, defaultdict, Iterable, Mapping, Sized
+from collections import Counter, defaultdict, Iterable, Mapping, OrderedDict, \
+    Sized
 import contextlib
 import logging
 import os
@@ -315,6 +316,23 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
     else:
         raise ValueError("Unable to parse as data lines {} ({})".
                          format(lines_or_path, type(lines_or_path)))
+
+
+def repeat_values(xs):
+    """
+    Determine repeated items and their total occurrence count
+
+    :param Iterable[hashable] xs: collection of items in which to find repeats
+    :return collections.OrderedDict: mapping from repeated item to occurrence
+        count, for items with at least one repeat
+    """
+    hist = Counter(xs)
+    reps = OrderedDict()
+    for x in xs:
+        n = hist[x]
+        if n > 1 and x not in reps:
+            reps[x] = n
+    return reps
 
 
 def sample_folder(prj, sample):
