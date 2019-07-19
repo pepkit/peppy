@@ -161,7 +161,7 @@ def get_contains_fun(items, eqv=None):
 
 def get_logger(name):
     """
-    Returm a logger with given name, equipped with custom method.
+    Return a logger with given name, equipped with custom method.
 
     :param str name: name for the logger to get/create.
     :return logging.Logger: named, custom logger instance.
