@@ -11,8 +11,8 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import *
-from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY, \
-    MissingSubprojectError
+from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY
+from peppy.exceptions import MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \

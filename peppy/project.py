@@ -1225,23 +1225,6 @@ def suggest_implied_attributes(prj):
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
 
 
-class MissingSubprojectError(PeppyError):
-    """ Error when project config lacks a requested subproject. """
-
-    def __init__(self, sp, defined=None):
-        """
-        Create exception with missing subproj request.
-
-        :param str sp: the requested (and missing) subproject
-        :param Iterable[str] defined: collection of names of defined subprojects
-        """
-        msg = "Subproject '{}' not found".format(sp)
-        if isinstance(defined, Iterable):
-            ctx = "defined subproject(s): {}".format(", ".join(map(str, defined)))
-            msg = "{}; {}".format(msg, ctx)
-        super(MissingSubprojectError, self).__init__(msg)
-
-
 class _Metadata(PathExAttMap):
     """ Project section with important information """
 
