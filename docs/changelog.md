@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.23.0] - Unreleased
+## [0.22.3] - Unreleased
 ### Changed
 - Remove `is_command_callable` from `utils` module; instead, refer to [`ubiquerg`](https://pypi.org/project/ubiquerg/).
 - It's now exceptional (rather than just a warning) for a sample table file to be missing a valid name column.
