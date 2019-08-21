@@ -440,6 +440,7 @@ class Sample(PathExAttMap):
 
         try:
             regex = data_sources[source_key]
+            _LOGGER.debug("Data sources: {}".format(data_sources))
         except KeyError:
             _LOGGER.debug(
                 "{}: config lacks entry for data_source key: '{}' "
@@ -459,6 +460,8 @@ class Sample(PathExAttMap):
             # updated by update().
             temp_dict = dict(self.items())
             temp_dict.update(extra_vars or dict())
+            _LOGGER.debug("temp dict: {}".format(temp_dict))
+            _LOGGER.debug("regex: {}".format(regex))
             val = regex.format(**temp_dict)
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)

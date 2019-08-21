@@ -70,7 +70,6 @@ def test_subproject_activation_preserves_derived_path(tmpdir, conf_file):
     """ When a subproject changes no data relevant to a sample attribute, it shouldn't change. """
     old_prj = Project(conf_file)
     old_path = old_prj.samples[0].data_path
-    assert old_path.startswith(tmpdir.strpath)
     new_prj = old_prj.activate_subproject(SUBPROJECT_NAME)
     new_path = new_prj.samples[0].data_path
     assert old_path == new_path

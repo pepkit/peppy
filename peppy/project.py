@@ -209,6 +209,8 @@ class Project(PathExAttMap):
             sections = cfg.keys()
         self._sections = set(DEPRECATIONS.get(n, n) for n in sections)
 
+        _LOGGER.debug("Raw config data: {}".format(self))
+
         if self.non_null("data_sources"):
             if self.config_file:
                 cfgdir = os.path.dirname(self.config_file)
@@ -218,9 +220,10 @@ class Project(PathExAttMap):
             # Expand paths now, so that it's not done for every sample.
             for src_key, src_val in self.data_sources.items():
                 src_val = os.path.expandvars(src_val)
-                if not (os.path.isabs(src_val) or is_url(src_val)):
-                    src_val = getabs(src_val)
+                # if not (os.path.isabs(src_val) or is_url(src_val)):
+                #     src_val = getabs(src_val)
                 self.data_sources[src_key] = src_val
+                _LOGGER.debug("Data source '{}' set to '{}'".format(src_key, src_val))
         else:
             # Ensure data_sources is at least set if it wasn't parsed.
             self["data_sources"] = None
