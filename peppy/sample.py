@@ -841,20 +841,22 @@ def merge_sample(sample, sample_subann, data_sources=None,
         # the choice of space-delimited string as the joined-/merged-entry
         # format--it's what's most amenable to use in building up an argument
         # string for a pipeline command.
+
+        def _select_new_attval(merged_attrs, attname, attval):
+            """ Select new attribute value for the merged columns dictionary. Prevents duplication. """
+            if attname in merged_attrs:
+                if attval not in merged_attrs[attname].split(" "):
+                    return "{} {}".format(merged_attrs[attname], attval).strip()
+                return merged_attrs[attname]
+            return str(attval).rstrip()
+
         for attname, attval in rowdata.items():
             if attname == sample_colname or not attval:
                 _LOGGER.log(5, "Skipping KV: {}={}".format(attname, attval))
                 continue
             _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
                         str(sample.name), str(attname), str(attval))
-            if attname not in merged_attrs:
-                new_attval = str(attval).rstrip()
-            else:
-                new_attval = "{} {}".format(merged_attrs[attname],
-                                            str(attval)).strip()
-            merged_attrs[attname] = new_attval  # 2)
-            _LOGGER.log(5, "Stored '%s' as value for '%s' in merged_attrs",
-                        new_attval, attname)
+            merged_attrs[attname] = _select_new_attval(merged_attrs, attname, attval)  # 2)
 
     # If present, remove sample name from the data with which to update sample.
     merged_attrs.pop(sample_colname, None)
