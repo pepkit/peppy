@@ -279,28 +279,23 @@ def is_null_like(x):
         (is_collection_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
-def make_unique_with_occurrence_index(xs, reps=None):
+def prep_uniq_sample_names(xs):
     """
-    Make a collection of elements unique
+    Prepare a dictionary of unique elements
 
-    :param xs: collection of strings for which to ensure uniqueness
-    :param Mapping[str, int] reps: optionally, a precomputed occurrence histogram
-    :return list[str] | tuple[str]: collection of unique elements
-    :raise TypeError: if the collection to make unique by index is neither list
-        nor tuple
+    :param xs: collection of strings for which to produce
+    :return Mapping[str, list[str]]: a dictionary of unique unique elements that can be
+     accessed by the original element key
     """
-    if not isinstance(xs, (tuple, list)) and not all(isinstance(x, str) for x in xs):
-        raise TypeError("Collection to make unique by index must be list or "
-                        "tuple, of all strings; got {}".format(type(xs).__name__))
-    reps = reps or repeat_values(xs)
+    reps = repeat_values(xs)
     indexer = defaultdict(int)
-    uniq = []
+    d = {}
     for x in xs:
         if x in reps:
+            d.setdefault(x, [])
             indexer[x] += 1
-            x += "_{}".format(indexer[x])
-        uniq.append(x)
-    return type(xs)(uniq)
+            d[x].append(x + "_{}".format(indexer[x]))
+    return d
 
 
 def non_null_value(k, m):
