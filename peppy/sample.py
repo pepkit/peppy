@@ -473,10 +473,9 @@ class Sample(PathExAttMap):
                 _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
-            _LOGGER.error("Cannot correctly format data source ({}): {} -- {}".
-                          format(str(type(e).__name__), str(e), regex))
+            _LOGGER.error("In sample '{}' cannot correctly format data source ({}): {} -- {}".
+                          format(self.name, str(type(e).__name__), str(e), regex))
             return regex
-
         return val
 
     def make_sample_dirs(self):
