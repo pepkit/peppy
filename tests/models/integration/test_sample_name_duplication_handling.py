@@ -1,39 +1,42 @@
 """ Tests for handling of duplicated sample names """
 
-import itertools
-from copy import deepcopy
 import pytest
 import yaml
+import collections
+from copy import deepcopy
 from peppy import Project
 from peppy.const import *
-from peppy.utils import infer_delimiter, prep_uniq_sample_names
+from peppy.utils import infer_delimiter
 
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
 
-# Partially populated Project config data; defer to tmpdir for paths.
+SRC_TEMPLATE = "{sample_name}.txt"
+ORGANISM_COLNAME = "organism"
+TEST_ORG_COLLECTION = (["frog"]*3) + (["dog"]*4) + ["sparrow"]
+
 BASE_PRJ_CFG_DAT = {
     METADATA_KEY: {},
-    DERIVATIONS_DECLARATION: ["data_source"],
-    DATA_SOURCES_SECTION: {"src": "{name}.txt"}
+    DERIVATIONS_DECLARATION: [SAMPLE_NAME_COLNAME, "data_source"],
+    DATA_SOURCES_SECTION: {
+                            "sn": "{" + ORGANISM_COLNAME + "}",
+                            "src": SRC_TEMPLATE,
+                           }
 }
 
-
 # Header fields for annotations sheet
-ANNS_FILE_COLNAMES = [(SAMPLE_NAME_COLNAME, "data_source")]
+ANNS_FILE_COLNAMES = [[SAMPLE_NAME_COLNAME, "data_source", ORGANISM_COLNAME]]
 
 # Data fields for each row of an annotations sheet
-ANNS_FILE_ROWS_DATA = [
-    [("sample" + c, "src") for c in perm]
-    for perm in set(itertools.permutations(("A", "B", "A", "B")))]
+ANNS_FILE_ROWS_DATA = [["sn", "src", org] for org in TEST_ORG_COLLECTION]
 
 
 def pytest_generate_tests(metafunc):
     """ Dynamic test case generation and parameterization for this module """
     if "rows_data" in metafunc.fixturenames:
-        metafunc.parametrize("rows_data", ANNS_FILE_ROWS_DATA)
+        metafunc.parametrize("rows_data", [ANNS_FILE_ROWS_DATA])
     if "fetch_names" in metafunc.fixturenames:
         metafunc.parametrize(
             "fetch_names", [lambda p: list(p.sample_names),
@@ -51,8 +54,8 @@ def make_anns_file(fp, rows_data):
     """
     sep = infer_delimiter(fp)
     with open(fp, 'w') as f:
-        f.write("\n".join(["{}{}{}".format(name, sep, src)
-                           for name, src in ANNS_FILE_COLNAMES + rows_data]))
+        for i in ANNS_FILE_COLNAMES + rows_data:
+            f.write("{}{}{}{}{}{}".format(i[0], sep, i[1], sep, i[2], "\n"))
     return fp
 
 
@@ -76,30 +79,23 @@ def prj(request, tmpdir, proj_conf_data):
     return Project(conf_file)
 
 
-@pytest.mark.xfail
-def test_new_sample_names_are_unique(prj, rows_data, fetch_names):
-    """ The primary sample names have uniqueness assurance. """
-    obs = fetch_names(prj)
-    assert len(set(_extract_names(rows_data))) < len(rows_data)    # Non-unique pretest
-    # As many names as original non-unique, but now they're unique.
-    assert len(obs) == len(rows_data)
-    assert len(obs) == len(set(obs))
+def test_derived_names_can_be_used_for_further_derivation(prj, rows_data):
+    """ Sample names that are created the uniqueness enforcement mechanism can be
+    used for other attributes derivation. """
+    for s in prj.samples:
+        assert getattr(s, ORGANISM_COLNAME) != SRC_TEMPLATE
 
 
-@pytest.mark.xfail
+def test_new_sample_names_are_unique(prj, rows_data):
+    """ Number of unique sample names is always equal the total samples count. """
+    assert len(prj.samples) == len(set([s.sample_name for s in prj.samples]))
+
+
 def test_original_sample_names_are_retained(prj, rows_data):
-    """ The original, perhaps duplicated names are 'backed up.' """
-    exp = _extract_names(rows_data)
-    assert exp == list(prj.sample_table[SAMPLE_NAME_BACKUP_COLNAME])
+    """ The original names are 'backed up' in duplicated samples """
+    backup_attrs = [hasattr(s, SAMPLE_NAME_BACKUP_COLNAME) for s in prj.samples]
+    unique_orgs = [item for item, count in collections.Counter(TEST_ORG_COLLECTION).items() if count == 1]
+    assert len(prj.samples) - len(unique_orgs) == sum(backup_attrs)
+    assert any(backup_attrs)
+    assert not all(backup_attrs)
 
-
-@pytest.mark.xfail
-def test_table_index_uses_unique_names(prj, rows_data):
-    """ The table is indexed according to the unique names. """
-    exp = prep_uniq_sample_names(_extract_names(rows_data))
-    assert exp == list(prj.sample_table.index)
-
-
-def _extract_names(rows_data):
-    """ Assume name is first field in collection of 2-tuples. """
-    return [sn for sn, _ in rows_data]
