@@ -61,7 +61,7 @@ from .exceptions import *
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, get_logger, \
-    get_name_depr_msg, infer_delimiter, make_unique_with_occurrence_index, \
+    get_name_depr_msg, infer_delimiter, prep_uniq_sample_names, \
     non_null_value, repeat_values, type_check_strict
 from ubiquerg import is_url
 
@@ -261,11 +261,29 @@ class Project(PathExAttMap):
             _LOGGER.warning("No sample annotations sheet in config")
             self[self_table_attr] = None
 
-        # Basic sample maker will handle name uniqueness check.
+        # Basic sample maker
         if defer_sample_construction or self._sample_table is None:
             self._samples = None
         else:
             self._set_basic_samples()
+            self._handle_repeat_names()
+
+    def _handle_repeat_names(self):
+        """ Make duplicate sample names unique and save the originals """
+        sample_names = [i.name for i in self.samples]
+        repeats = repeat_values(sample_names)
+        if repeats:
+            _LOGGER.warning("Repeated sample name counts: {}".format(", ".join(["{}={}".format(n, k)
+                                                                                for n, k in repeats.items()])))
+            non_unique_names = prep_uniq_sample_names(sample_names)
+            for s in self.samples:
+                n = s.name
+                if n in non_unique_names:
+                    new_name = non_unique_names[n].pop(0)
+                    setattr(s, "name", new_name)
+                    setattr(s, "sample_name", new_name)
+                    setattr(s, SAMPLE_NAME_BACKUP_COLNAME, n)
+                    _LOGGER.warning("Duplicated sample name '{}' changed to '{}'".format(n, new_name))
 
     def _index_main_table(self, t):
         """ Index column(s) of the subannotation table. """
@@ -974,7 +992,7 @@ class Project(PathExAttMap):
                 "It has {ncol}: {has}".format(
                     f=sample_file, n=len(missing), miss=", ".join(missing),
                     ncol=len(df.columns), has=", ".join(list(df.columns))))
-        return self._handle_repeat_names(df)
+        return df
 
     def _read_names_from_table(self, df):
         """ Read the sample names from the given annotations table. """
@@ -1068,6 +1086,7 @@ class Project(PathExAttMap):
             else:
                 _LOGGER.whisper("Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
+            sample.name = sample.sample_name
 
         return samples
 
@@ -1178,39 +1197,6 @@ class Project(PathExAttMap):
         return super(Project, self)._excl_from_repr(k, cls) or \
             k in exclusions_by_class.get(
                 cls.__name__ if isinstance(cls, type) else cls, [])
-
-    def _handle_repeat_names(self, df):
-        """
-        Deal with the possibility of non-unique sample identifiers.
-
-        Most sample (sub)annotation table files will specify unique sample
-        names, but some won't. In the case of repeated names, we make them
-        unique by postpending _i, where i is the number indicating the
-        occurrence count of the name, using 1-based counting.
-
-        The vector of names made unique by index postpending is stored in the
-        official sample name column, and the original vector of non-unique
-        names is stored in a new 'sample_name_orig' column.
-
-        :param pandas.core.frame.DataFrame df: data frame parser from
-            user-specifed file
-        :return pandas.core.frame.DataFrame: the (possibly updated) data frame
-        """
-        names, namecol = self._read_names_from_table(df)
-        repeats = repeat_values(names)
-        if repeats:
-            _LOGGER.warning(
-                "Repeated sample name counts: {}".format(
-                    ", ".join(["{}={}".format(n, k) for n, k in repeats.items()])))
-            if SAMPLE_NAME_BACKUP_COLNAME in df.columns:
-                raise Exception("Backup column name ({}) is already assigned".
-                                format(SAMPLE_NAME_BACKUP_COLNAME))
-            _LOGGER.info("Making names unique and reassigning original names "
-                         "to '{}'".format(SAMPLE_NAME_BACKUP_COLNAME))
-            uniq = make_unique_with_occurrence_index(names, repeats)
-            df[SAMPLE_NAME_BACKUP_COLNAME] = names
-            df[namecol] = uniq
-        return df
 
 
 def suggest_implied_attributes(prj):
