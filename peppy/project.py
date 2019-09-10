@@ -319,7 +319,7 @@ class Project(PathExAttMap):
             msg = "{}\nSections: {}".format(msg, ", ".join(self._sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            names = list(self.sample_names)[:MAX_PROJECT_SAMPLES_REPR]
+            names = self.repr_sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = " (showing first {})".format(len(names)) \
                 if len(names) < num_samples else ""
             msg = "{}{}: {}".format(msg, context, ", ".join(names))
@@ -483,6 +483,19 @@ class Project(PathExAttMap):
                 _LOGGER.error("Does delimiter used in the sample sheet match "
                               "file extension?")
             raise
+
+    @property
+    def repr_sample_names(self):
+        """
+        Additional property that returns sample names as defined in the name attribute in the Sample object.
+        Names of the samples my be different from the ones declared in the sample_table after the derivation
+        """
+        try:
+            return [s.name for s in self.samples]
+        except Exception as e:
+            _LOGGER.debug("Caught '{}'. Returning the original sample names, defined in the sample_table".
+                            format(e.__class__))
+            return self.sample_names
 
     @property
     def samples(self):
