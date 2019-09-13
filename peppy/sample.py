@@ -424,7 +424,6 @@ class Sample(PathExAttMap):
             with variable substitutions made
         :raises ValueError: if argument to data_sources parameter is null/empty
         """
-
         if not data_sources:
             return None
 
@@ -758,10 +757,10 @@ def merge_sample(sample, sample_subann, data_sources=None,
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
 
-    # Hash derived columns for faster lookup in case of many samples/columns.
-    derived_attributes = set(derived_attributes or [])
-    _LOGGER.debug("Merging Sample with derived attributes: {}".
-                  format(derived_attributes))
+    # The order of the derived attrs in the list below must reflect the order of the list provided in the cfg since
+    # some attrs mat depend on the derived values of others
+    derived_attributes = derived_attributes or []
+    _LOGGER.debug("Merging Sample with derived attributes: {}".format(derived_attributes))
 
     sample_indexer = sample_subann[sample_colname] == sample.name
     this_sample_rows = sample_subann[sample_indexer]
@@ -794,8 +793,7 @@ def merge_sample(sample, sample_subann, data_sources=None,
         # Iterate over column names to avoid Python3 RuntimeError for
         # during-iteration change of dictionary size.
         for attr_name in this_sample_rows.columns:
-            if attr_name == sample_colname or \
-                    attr_name not in derived_attributes:
+            if attr_name == sample_colname or attr_name not in derived_attributes:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
 
@@ -805,15 +803,13 @@ def merge_sample(sample, sample_subann, data_sources=None,
             col_key = attr_name + COL_KEY_SUFFIX
             merged_attrs[col_key] = ""
             rowdata[col_key] = attr_value
-            data_src_path = sample.locate_data_source(
-                data_sources, attr_name, source_key=rowdata[attr_name],
-                extra_vars=rowdata)  # 1)
+            # 1)
+            data_src_path = \
+                sample.locate_data_source(data_sources, attr_name, source_key=rowdata[attr_name], extra_vars=rowdata)
             rowdata[attr_name] = data_src_path
 
         _LOGGER.log(5, "Adding derived attributes")
-
         for attr in derived_attributes:
-
             # Skip over any attributes that the sample lacks or that are
             # covered by the data from the current (row's) data.
             if not hasattr(sample, attr) or attr in rowdata:
