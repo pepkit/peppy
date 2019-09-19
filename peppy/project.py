@@ -268,6 +268,16 @@ class Project(PathExAttMap):
             self._set_basic_samples()
             self._handle_repeat_names()
 
+    # The __reduce__ function provides an interface for
+    # correct object serialization with the pickle pickle.
+    # In this case, only the required "cfg" argument is given
+    # and kwargs used for class initialization are ignored.
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self.config_file,)
+        )
+
     def _handle_repeat_names(self):
         """ Make duplicate sample names unique and save the originals """
         sample_names = [i.name for i in self.samples]

@@ -154,6 +154,7 @@ class Sample(PathExAttMap):
             series = series.to_dict(OrderedDict)
         elif isinstance(series, Sample):
             series = series.as_series().to_dict(OrderedDict)
+        self._series = series
 
         # Keep a list of attributes that came from the sample sheet,
         # so we can create a minimal, ordered representation of the original.
@@ -183,6 +184,17 @@ class Sample(PathExAttMap):
         # between times and perhaps individuals (processing time vs.
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
+
+    # The __reduce__ function provides an interface for
+    # correct object serialization with the pickle pickle.
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self._series,),
+            (None, {}),
+            iter([]),
+            iter({"prj": self.prj}.items())
+        )
 
     def _excl_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
