@@ -154,7 +154,6 @@ class Sample(PathExAttMap):
             series = series.to_dict(OrderedDict)
         elif isinstance(series, Sample):
             series = series.as_series().to_dict(OrderedDict)
-        self._series = series
 
         # Keep a list of attributes that came from the sample sheet,
         # so we can create a minimal, ordered representation of the original.
@@ -186,11 +185,11 @@ class Sample(PathExAttMap):
         self.paths = Paths()
 
     # The __reduce__ function provides an interface for
-    # correct object serialization with the pickle pickle.
+    # correct object serialization with the pickle module.
     def __reduce__(self):
         return (
             self.__class__,
-            (self._series,),
+            (self.as_series(),),
             (None, {}),
             iter([]),
             iter({"prj": self.prj}.items())
@@ -244,7 +243,7 @@ class Sample(PathExAttMap):
         """
         # Note that this preserves metadata, but it could be excluded
         # with self.items() rather than self.__dict__.
-        return Series(self.__dict__)
+        return Series({k: getattr(self, k) for k in self.sheet_attributes})
 
     def check_valid(self, required=None):
         """

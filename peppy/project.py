@@ -269,7 +269,7 @@ class Project(PathExAttMap):
             self._handle_repeat_names()
 
     # The __reduce__ function provides an interface for
-    # correct object serialization with the pickle pickle.
+    # correct object serialization with the pickle module.
     # In this case, only the required "cfg" argument is given
     # and kwargs used for class initialization are ignored.
     def __reduce__(self):

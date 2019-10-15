@@ -2,7 +2,10 @@
 
 from collections import Mapping
 import copy
+import pickle
+import tempfile
 import os
+
 
 import mock
 import numpy as np
@@ -484,6 +487,22 @@ class SampleConstructorTests:
         assert {} == diff
         extra = [v for k, v in obs_meta.items() if k not in exp_meta]
         assert not any(extra)
+
+
+class SampleSerializationTests:
+    """ Basic tests of Sample serialization with pickle module. """
+
+    @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
+    def test_pickle_roundtrip(self, name_attr):
+        """ Test whether pickle roundtrip produces a comparable object """
+        name = "testsample"
+        s = Sample({SAMPLE_NAME_COLNAME: name})
+
+        _buffer = tempfile.TemporaryFile()
+        pickle.dump(s, _buffer)
+        _buffer.seek(0)
+        new_s = pickle.load(_buffer)
+        assert s == new_s
 
 
 def _get_prj(conf_file, data, proj_type):
