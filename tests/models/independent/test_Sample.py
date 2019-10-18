@@ -492,12 +492,9 @@ class SampleConstructorTests:
 class SampleSerializationTests:
     """ Basic tests of Sample serialization with pickle module. """
 
-    @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
-    def test_pickle_roundtrip(self, name_attr):
+    def test_pickle_roundtrip(self):
         """ Test whether pickle roundtrip produces a comparable object """
-        name = "testsample"
-        s = Sample({SAMPLE_NAME_COLNAME: name})
-
+        s = Sample({SAMPLE_NAME_COLNAME: "testsample"})
         _buffer = tempfile.TemporaryFile()
         pickle.dump(s, _buffer)
         _buffer.seek(0)
