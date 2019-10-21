@@ -184,6 +184,17 @@ class Sample(PathExAttMap):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
+    # The __reduce__ function provides an interface for
+    # correct object serialization with the pickle module.
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self.as_series(),),
+            (None, {}),
+            iter([]),
+            iter({"prj": self.prj}.items())
+        )
+
     def _excl_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
         return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)
@@ -232,7 +243,7 @@ class Sample(PathExAttMap):
         """
         # Note that this preserves metadata, but it could be excluded
         # with self.items() rather than self.__dict__.
-        return Series(self.__dict__)
+        return Series({k: getattr(self, k) for k in self.sheet_attributes})
 
     def check_valid(self, required=None):
         """
