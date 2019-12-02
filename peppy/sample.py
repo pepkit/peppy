@@ -485,7 +485,7 @@ class Sample(PathExAttMap):
         except Exception as e:
             _LOGGER.error("In sample '{}' cannot correctly format data source ({}): {} -- {}".
                           format(self.name, str(type(e).__name__), str(e), regex))
-            return regex
+            return None
         return val
 
     def make_sample_dirs(self):
@@ -774,7 +774,8 @@ def merge_sample(sample, sample_subann, data_sources=None,
     _LOGGER.debug("Merging Sample with derived attributes: {}".format(derived_attributes))
 
     sample_indexer = sample_subann[sample_colname] == sample.name
-    this_sample_rows = sample_subann[sample_indexer]
+    this_sample_rows = sample_subann[sample_indexer].dropna(how="any", axis=1)
+    # this_sample_rows = sample_subann[sample_indexer]
     if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
         return merged_attrs
