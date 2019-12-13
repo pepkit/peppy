@@ -47,7 +47,7 @@ Explore:
 
 """
 
-from collections import Counter, Iterable, Mapping, namedtuple
+from collections import defaultdict, Iterable, Mapping, namedtuple
 import os
 import warnings
 
@@ -61,7 +61,8 @@ from .exceptions import *
 from .sample import merge_sample, Sample
 from .utils import \
     add_project_sample_constants, copy, fetch_samples, get_logger, \
-    get_name_depr_msg, infer_delimiter, non_null_value, type_check_strict
+    get_name_depr_msg, infer_delimiter, prep_uniq_sample_names, \
+    non_null_value, repeat_values, type_check_strict
 from ubiquerg import is_url
 
 
@@ -208,6 +209,8 @@ class Project(PathExAttMap):
             sections = cfg.keys()
         self._sections = set(DEPRECATIONS.get(n, n) for n in sections)
 
+        _LOGGER.debug("Raw config data: {}".format(self))
+
         if self.non_null("data_sources"):
             if self.config_file:
                 cfgdir = os.path.dirname(self.config_file)
@@ -217,9 +220,10 @@ class Project(PathExAttMap):
             # Expand paths now, so that it's not done for every sample.
             for src_key, src_val in self.data_sources.items():
                 src_val = os.path.expandvars(src_val)
-                if not (os.path.isabs(src_val) or is_url(src_val)):
-                    src_val = getabs(src_val)
+                # if not (os.path.isabs(src_val) or is_url(src_val)):
+                #     src_val = getabs(src_val)
                 self.data_sources[src_key] = src_val
+                _LOGGER.debug("Data source '{}' set to '{}'".format(src_key, src_val))
         else:
             # Ensure data_sources is at least set if it wasn't parsed.
             self["data_sources"] = None
@@ -251,17 +255,45 @@ class Project(PathExAttMap):
         self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
         path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
         self_table_attr = "_" + NAME_TABLE_ATTR
-        self[self_table_attr] = None
         if path_anns_file:
             self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
         else:
             _LOGGER.warning("No sample annotations sheet in config")
+            self[self_table_attr] = None
 
-        # Basic sample maker will handle name uniqueness check.
+        # Basic sample maker
         if defer_sample_construction or self._sample_table is None:
             self._samples = None
         else:
             self._set_basic_samples()
+            self._handle_repeat_names()
+
+    # The __reduce__ function provides an interface for
+    # correct object serialization with the pickle module.
+    # In this case, only the required "cfg" argument is given
+    # and kwargs used for class initialization are ignored.
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self.config_file,)
+        )
+
+    def _handle_repeat_names(self):
+        """ Make duplicate sample names unique and save the originals """
+        sample_names = [i.name for i in self.samples]
+        repeats = repeat_values(sample_names)
+        if repeats:
+            _LOGGER.warning("Repeated sample name counts: {}".format(", ".join(["{}={}".format(n, k)
+                                                                                for n, k in repeats.items()])))
+            non_unique_names = prep_uniq_sample_names(sample_names)
+            for s in self.samples:
+                n = s.name
+                if n in non_unique_names:
+                    new_name = non_unique_names[n].pop(0)
+                    setattr(s, "name", new_name)
+                    setattr(s, "sample_name", new_name)
+                    setattr(s, SAMPLE_NAME_BACKUP_COLNAME, n)
+                    _LOGGER.warning("Duplicated sample name '{}' changed to '{}'".format(n, new_name))
 
     def _index_main_table(self, t):
         """ Index column(s) of the subannotation table. """
@@ -297,7 +329,7 @@ class Project(PathExAttMap):
             msg = "{}\nSections: {}".format(msg, ", ".join(self._sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            names = list(self.sample_names)[:MAX_PROJECT_SAMPLES_REPR]
+            names = self.repr_sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = " (showing first {})".format(len(names)) \
                 if len(names) < num_samples else ""
             msg = "{}{}: {}".format(msg, context, ", ".join(names))
@@ -461,6 +493,19 @@ class Project(PathExAttMap):
                 _LOGGER.error("Does delimiter used in the sample sheet match "
                               "file extension?")
             raise
+
+    @property
+    def repr_sample_names(self):
+        """
+        Additional property that returns sample names as defined in the name attribute in the Sample object.
+        Names of the samples my be different from the ones declared in the sample_table after the derivation
+        """
+        try:
+            return [s.name for s in self.samples]
+        except Exception as e:
+            _LOGGER.debug("Caught '{}'. Returning the original sample names, defined in the sample_table".
+                            format(e.__class__))
+            return self.sample_names
 
     @property
     def samples(self):
@@ -962,21 +1007,26 @@ class Project(PathExAttMap):
             df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
-        else:
-            _LOGGER.info("Setting sample sheet from file '%s'", sample_file)
-            missing = self._missing_columns(set(df.columns))
-            if len(missing) != 0:
-                _LOGGER.warning(
-                    "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
-                    "It has {ncol}: {has}".format(
-                        f=sample_file, n=len(missing), miss=", ".join(missing),
-                        ncol=len(df.columns), has=", ".join(list(df.columns))))
+        _LOGGER.info("Storing sample table from file '%s'", sample_file)
+        missing = self._missing_columns(set(df.columns))
+        if len(missing) != 0:
+            raise InvalidSampleTableFileException(
+                "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
+                "It has {ncol}: {has}".format(
+                    f=sample_file, n=len(missing), miss=", ".join(missing),
+                    ncol=len(df.columns), has=", ".join(list(df.columns))))
         return df
 
+    def _read_names_from_table(self, df):
+        """ Read the sample names from the given annotations table. """
+        return list(df[self.SAMPLE_NAME_IDENTIFIER]), self.SAMPLE_NAME_IDENTIFIER
+
     def _missing_columns(self, cs):
+        """ Determine names of missing, important columns. """
         return {self.SAMPLE_NAME_IDENTIFIER} - set(cs)
 
     def _apply_parse_strat(self, filepath, spec):
+        """ For the given filepath, apply the given parse strategy. """
         from copy import copy as cp
         kwds = cp(spec.kwargs)
         if spec.make_extra_kwargs:
@@ -997,19 +1047,6 @@ class Project(PathExAttMap):
                     _LOGGER.debug(("Found" + info).format(n))
         else:
             _LOGGER.debug("No sample subannotations found for this Project.")
-
-    def _check_unique_samples(self):
-        """ Handle scenario in which sample names are not unique. """
-        # Defining this here but then calling out to the repeats counter has
-        # a couple of advantages. We get an unbound, isolated method (the
-        # Project-external repeat sample name counter), but we can still
-        # do this check from the sample builder, yet have it be override-able.
-        repeats = {name: n for name, n in Counter(
-            s.name for s in self._samples).items() if n > 1}
-        if repeats:
-            hist_text = "\n".join(
-                "{}: {}".format(name, n) for name, n in repeats.items())
-            _LOGGER.warning("Non-unique sample names:\n{}".format(hist_text))
 
     @staticmethod
     def _get_sample_ids(df):
@@ -1072,6 +1109,7 @@ class Project(PathExAttMap):
             else:
                 _LOGGER.whisper("Path to sample data: '%s'", sample.data_source)
             samples.append(sample)
+            sample.name = sample.sample_name
 
         return samples
 
@@ -1105,7 +1143,6 @@ class Project(PathExAttMap):
 
         # Set samples and handle non-unique names situation.
         self._samples = self._prep_samples()
-        self._check_unique_samples()
 
     def set_project_permissions(self):
         """ Make the project's public_html folder executable. """
@@ -1200,23 +1237,6 @@ def suggest_implied_attributes(prj):
     return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
 
 
-class MissingSubprojectError(PeppyError):
-    """ Error when project config lacks a requested subproject. """
-
-    def __init__(self, sp, defined=None):
-        """
-        Create exception with missing subproj request.
-
-        :param str sp: the requested (and missing) subproject
-        :param Iterable[str] defined: collection of names of defined subprojects
-        """
-        msg = "Subproject '{}' not found".format(sp)
-        if isinstance(defined, Iterable):
-            ctx = "defined subproject(s): {}".format(", ".join(map(str, defined)))
-            msg = "{}; {}".format(msg, ctx)
-        super(MissingSubprojectError, self).__init__(msg)
-
-
 class _Metadata(PathExAttMap):
     """ Project section with important information """
 
@@ -1260,12 +1280,20 @@ def subsample_table(p):
 
     :param peppy.Project p: Project instance from which to get subsample table
     :return pandas.core.frame.DataFrame: the Project's subsample table
+    :raise peppy.InvalidSampleTableFileException: if the subannotation
     """
+    parse_strat = _SUBS_TABLE_SPEC
     if not isinstance(p, Project):
         raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
-    return p._meta_from_file_set_if_needed(_SUBS_TABLE_SPEC)
+    return p._meta_from_file_set_if_needed(parse_strat)
 
 
+# Specification of strategy for parsing a sheet-like file (sample table, subsample table)
+# An instance specifies:
+# 1. The Project key associated with the file to parse / table to make,
+# 2. How to get the parsing function from the project
+# 3. How to generate for the parse function extra keyword arguments based on the filepath
+# 4. Constant keyword arguments to pass to the parse function
 _MakeTableSpec = namedtuple(
     "_MakeTableSpec", ["key", "get_parse_fun", "make_extra_kwargs", "kwargs"])
 _MAIN_TABLE_SPEC = _MakeTableSpec(

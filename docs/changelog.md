@@ -1,8 +1,16 @@
 # Changelog
 
+## [0.22.3] - Unreleased
+### Changed
+- Remove `is_command_callable` from `utils` module; instead, refer to [`ubiquerg`](https://pypi.org/project/ubiquerg/).
+- It's now exceptional (rather than just a warning) for a sample table file to be missing a valid name column.
+
+### Fixed
+- Empty columns in subsample tables are treated just as empty columns in sample tables (respective attributes are not included rather than populated with `nan`)
+
 ## [0.22.2] - 2019-06-20
 ### Changed
-- Remove `ngstk` requirement
+- Remove `ngstk` requirement.
 
 ## [0.22.1] - 2019-06-19
 ### Changed

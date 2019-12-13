@@ -1,6 +1,7 @@
 """ Helpers without an obvious logical home. """
 
-from collections import Counter, defaultdict, Iterable, Sized
+from collections import Counter, defaultdict, Iterable, Mapping, OrderedDict, \
+    Sized
 import contextlib
 import logging
 import os
@@ -8,7 +9,7 @@ import random
 import string
 import yaml
 from .const import SAMPLE_INDEPENDENT_PROJECT_SECTIONS
-from ubiquerg import is_collection_like
+from ubiquerg import is_collection_like, is_command_callable
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -16,8 +17,8 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "CommandChecker", "add_project_sample_constants", "count_repeats",
-    "get_logger", "fetch_samples", "grab_project_data",
-    "has_null_value", "is_command_callable", "type_check_strict"
+    "get_logger", "fetch_samples", "grab_project_data", "has_null_value",
+    "type_check_strict"
 ]
 
 
@@ -160,7 +161,7 @@ def get_contains_fun(items, eqv=None):
 
 def get_logger(name):
     """
-    Returm a logger with given name, equipped with custom method.
+    Return a logger with given name, equipped with custom method.
 
     :param str name: name for the logger to get/create.
     :return logging.Logger: named, custom logger instance.
@@ -278,6 +279,25 @@ def is_null_like(x):
         (is_collection_like(x) and isinstance(x, Sized) and 0 == len(x))
 
 
+def prep_uniq_sample_names(xs):
+    """
+    Prepare a dictionary of unique elements
+
+    :param xs: collection of strings for which to produce
+    :return Mapping[str, list[str]]: a dictionary of unique unique elements that can be
+     accessed by the original element key
+    """
+    reps = repeat_values(xs)
+    indexer = defaultdict(int)
+    d = {}
+    for x in xs:
+        if x in reps:
+            d.setdefault(x, [])
+            indexer[x] += 1
+            d[x].append(x + "_{}".format(indexer[x]))
+    return d
+
+
 def non_null_value(k, m):
     """
     Determine whether a mapping has a non-null value for a given key.
@@ -315,6 +335,23 @@ def parse_text_data(lines_or_path, delimiter=os.linesep):
     else:
         raise ValueError("Unable to parse as data lines {} ({})".
                          format(lines_or_path, type(lines_or_path)))
+
+
+def repeat_values(xs):
+    """
+    Determine repeated items and their total occurrence count
+
+    :param Iterable[hashable] xs: collection of items in which to find repeats
+    :return collections.OrderedDict: mapping from repeated item to occurrence
+        count, for items with at least one repeat
+    """
+    hist = Counter(xs)
+    reps = OrderedDict()
+    for x in xs:
+        n = hist[x]
+        if n > 1 and x not in reps:
+            reps[x] = n
+    return reps
 
 
 def sample_folder(prj, sample):
@@ -450,38 +487,20 @@ class CommandChecker(object):
                              s, self.path)
                 continue
             # Test each of the section's commands.
-            try:
-                # Is section's data a mapping?
-                commands_iter = section_data.items()
-                self._logger.debug("Processing section '%s' data "
-                                   "as mapping", s)
-                for name, command in commands_iter:
-                    failed = self._store_status(section=s, command=command,
-                                                name=name)
-                    self._logger.debug("Command '%s': %s", command,
-                                       "FAILURE" if failed else "SUCCESS")
-            except AttributeError:
-                self._logger.debug("Processing section '%s' data as list", s)
-                commands_iter = conf_data[s]
-                for cmd_item in commands_iter:
-                    # Item is K-V pair?
-                    try:
-                        name, command = cmd_item
-                    except ValueError:
-                        # Treat item as command itself.
-                        name, command = "", cmd_item
-                    success = self._store_status(section=s, command=command,
-                                                 name=name)
-                    self._logger.debug("Command '%s': %s", command,
-                                       "SUCCESS" if success else "FAILURE")
+            cmds = list(section_data.values()) if isinstance(section_data, Mapping) \
+                else [c[1] if isinstance(c, (tuple, list)) else c for c in section_data]
+            for command in cmds:
+                succ = self._store_status(section=s, command=command)
+                self._logger.debug("Command '%s': %s", command,
+                                   "SUCCESS" if succ else "FAILURE")
 
-    def _store_status(self, section, command, name):
+    def _store_status(self, section, command):
         """
         Based on new command execution attempt, update instance's
         data structures with information about the success/fail status.
         Return the result of the execution test.
         """
-        succeeded = is_command_callable(command, name)
+        succeeded = is_command_callable(command)
         # Store status regardless of its value in the instance's largest DS.
         self.section_to_status_by_command[section][command] = succeeded
         if not succeeded:
@@ -505,23 +524,3 @@ class CommandChecker(object):
         if not self.section_to_status_by_command:
             raise ValueError("No commands validated")
         return 0 == len(self.failures)
-
-
-def is_command_callable(command, name=""):
-    """
-    Check if command can be called.
-
-    :param str command: actual command to call
-    :param str name: nickname/alias by which to reference the command, optional
-    :return bool: whether given command's call succeeded
-    """
-
-    # Use `command` to see if command is callable, store exit code
-    code = os.system(
-        "command -v {0} >/dev/null 2>&1 || {{ exit 1; }}".format(command))
-
-    if code != 0:
-        alias_value = " ('{}') ".format(name) if name else " "
-        _LOGGER.debug("Command '{0}' is not callable: {1}".
-                      format(alias_value, command))
-    return not bool(code)

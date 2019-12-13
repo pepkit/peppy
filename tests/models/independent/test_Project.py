@@ -1,6 +1,8 @@
 """ Tests for the NGS Project model. """
 
 import copy
+import pickle
+import tempfile
 import os
 import warnings
 
@@ -11,8 +13,8 @@ import yaml
 
 from peppy import Project, Sample
 from peppy.const import *
-from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY, \
-    MissingSubprojectError
+from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY
+from peppy.exceptions import MissingSubprojectError
 from peppy.sample import COL_KEY_SUFFIX
 from tests.conftest import \
     DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
@@ -721,10 +723,24 @@ class ProjectWarningTests:
         assert 0 == (len(recwarn) - num_yaml_warns)
 
 
+class ProjectSerializationTests:
+    """ Basic tests of Project serialization with pickle module. """
+
+    def test_pickle_roundtrip(self, minimal_project_conf_path):
+        """ Test whether pickle roundtrip produces a comparable object """
+        prj = Project(minimal_project_conf_path)
+
+        _buffer = tempfile.TemporaryFile()
+        pickle.dump(prj, _buffer)
+        _buffer.seek(0)
+        new_prj = pickle.load(_buffer)
+        assert prj == new_prj
+
+
 def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     """
     Write the configuration file for a Project.
-    
+
     :param dict config_data: configuration data to write to disk
     :param str dirpath: path to folder in which to place file
     :param str filename: name for config file

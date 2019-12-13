@@ -184,6 +184,17 @@ class Sample(PathExAttMap):
         # analysis time, and a pipeline author vs. a pipeline user).
         self.paths = Paths()
 
+    # The __reduce__ function provides an interface for
+    # correct object serialization with the pickle module.
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (self.as_series(),),
+            (None, {}),
+            iter([]),
+            iter({"prj": self.prj}.items())
+        )
+
     def _excl_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
         return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)
@@ -232,7 +243,7 @@ class Sample(PathExAttMap):
         """
         # Note that this preserves metadata, but it could be excluded
         # with self.items() rather than self.__dict__.
-        return Series(self.__dict__)
+        return Series({k: getattr(self, k) for k in self.sheet_attributes})
 
     def check_valid(self, required=None):
         """
@@ -424,7 +435,6 @@ class Sample(PathExAttMap):
             with variable substitutions made
         :raises ValueError: if argument to data_sources parameter is null/empty
         """
-
         if not data_sources:
             return None
 
@@ -440,6 +450,7 @@ class Sample(PathExAttMap):
 
         try:
             regex = data_sources[source_key]
+            _LOGGER.debug("Data sources: {}".format(data_sources))
         except KeyError:
             _LOGGER.debug(
                 "{}: config lacks entry for data_source key: '{}' "
@@ -459,6 +470,8 @@ class Sample(PathExAttMap):
             # updated by update().
             temp_dict = dict(self.items())
             temp_dict.update(extra_vars or dict())
+            _LOGGER.debug("temp dict: {}".format(temp_dict))
+            _LOGGER.debug("regex: {}".format(regex))
             val = regex.format(**temp_dict)
             if '*' in val or '[' in val:
                 _LOGGER.debug("Pre-glob: %s", val)
@@ -470,10 +483,9 @@ class Sample(PathExAttMap):
                 _LOGGER.debug("Post-glob: %s", val)
 
         except Exception as e:
-            _LOGGER.error("Cannot correctly format data source ({}): {} -- {}".
-                          format(str(type(e).__name__), str(e), regex))
-            return regex
-
+            _LOGGER.error("In sample '{}' cannot correctly format data source ({}): {} -- {}".
+                          format(self.name, str(type(e).__name__), str(e), regex))
+            return None
         return val
 
     def make_sample_dirs(self):
@@ -756,13 +768,14 @@ def merge_sample(sample, sample_subann, data_sources=None,
     _LOGGER.debug("Merging Sample with data sources: {}".
                   format(data_sources))
 
-    # Hash derived columns for faster lookup in case of many samples/columns.
-    derived_attributes = set(derived_attributes or [])
-    _LOGGER.debug("Merging Sample with derived attributes: {}".
-                  format(derived_attributes))
+    # The order of the derived attrs in the list below must reflect the order of the list provided in the cfg since
+    # some attrs mat depend on the derived values of others
+    derived_attributes = derived_attributes or []
+    _LOGGER.debug("Merging Sample with derived attributes: {}".format(derived_attributes))
 
     sample_indexer = sample_subann[sample_colname] == sample.name
-    this_sample_rows = sample_subann[sample_indexer]
+    this_sample_rows = sample_subann[sample_indexer].dropna(how="any", axis=1)
+    # this_sample_rows = sample_subann[sample_indexer]
     if len(this_sample_rows) == 0:
         _LOGGER.debug("No merge rows for sample '%s', skipping", sample.name)
         return merged_attrs
@@ -792,8 +805,7 @@ def merge_sample(sample, sample_subann, data_sources=None,
         # Iterate over column names to avoid Python3 RuntimeError for
         # during-iteration change of dictionary size.
         for attr_name in this_sample_rows.columns:
-            if attr_name == sample_colname or \
-                    attr_name not in derived_attributes:
+            if attr_name == sample_colname or attr_name not in derived_attributes:
                 _LOGGER.log(5, "Skipping merger of attribute '%s'", attr_name)
                 continue
 
@@ -803,15 +815,13 @@ def merge_sample(sample, sample_subann, data_sources=None,
             col_key = attr_name + COL_KEY_SUFFIX
             merged_attrs[col_key] = ""
             rowdata[col_key] = attr_value
-            data_src_path = sample.locate_data_source(
-                data_sources, attr_name, source_key=rowdata[attr_name],
-                extra_vars=rowdata)  # 1)
+            # 1)
+            data_src_path = \
+                sample.locate_data_source(data_sources, attr_name, source_key=rowdata[attr_name], extra_vars=rowdata)
             rowdata[attr_name] = data_src_path
 
         _LOGGER.log(5, "Adding derived attributes")
-
         for attr in derived_attributes:
-
             # Skip over any attributes that the sample lacks or that are
             # covered by the data from the current (row's) data.
             if not hasattr(sample, attr) or attr in rowdata:
@@ -838,20 +848,22 @@ def merge_sample(sample, sample_subann, data_sources=None,
         # the choice of space-delimited string as the joined-/merged-entry
         # format--it's what's most amenable to use in building up an argument
         # string for a pipeline command.
+
+        def _select_new_attval(merged_attrs, attname, attval):
+            """ Select new attribute value for the merged columns dictionary. Prevents duplication. """
+            if attname in merged_attrs:
+                if attval not in merged_attrs[attname].split(" "):
+                    return "{} {}".format(merged_attrs[attname], attval).strip()
+                return merged_attrs[attname]
+            return str(attval).rstrip()
+
         for attname, attval in rowdata.items():
             if attname == sample_colname or not attval:
                 _LOGGER.log(5, "Skipping KV: {}={}".format(attname, attval))
                 continue
             _LOGGER.log(5, "merge: sample '%s'; '%s'='%s'",
                         str(sample.name), str(attname), str(attval))
-            if attname not in merged_attrs:
-                new_attval = str(attval).rstrip()
-            else:
-                new_attval = "{} {}".format(merged_attrs[attname],
-                                            str(attval)).strip()
-            merged_attrs[attname] = new_attval  # 2)
-            _LOGGER.log(5, "Stored '%s' as value for '%s' in merged_attrs",
-                        new_attval, attname)
+            merged_attrs[attname] = _select_new_attval(merged_attrs, attname, attval)  # 2)
 
     # If present, remove sample name from the data with which to update sample.
     merged_attrs.pop(sample_colname, None)
