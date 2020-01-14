@@ -1000,14 +1000,14 @@ class Project(PathExAttMap):
         # See https://github.com/pepkit/peppy/issues/159 for the original issue
         # and https://github.com/pepkit/peppy/pull/160 for the pull request
         # that resolved it.
-        _LOGGER.info("Reading sample annotations sheet: '%s'", sample_file)
+        _LOGGER.info("Reading sample table: '%s'", sample_file)
         sep = infer_delimiter(sample_file)
         _LOGGER.debug("Inferred delimiter: {}".format(sep))
         try:
             df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
         except IOError:
             raise Project.MissingSampleSheetError(sample_file)
-        _LOGGER.info("Storing sample table from file '%s'", sample_file)
+        _LOGGER.debug("Storing sample table from file '%s'", sample_file)
         missing = self._missing_columns(set(df.columns))
         if len(missing) != 0:
             raise InvalidSampleTableFileException(

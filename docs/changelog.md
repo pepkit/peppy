@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.22.4] - unreleased
+### Changed
+- Reduced duplicated message verbosity
+
 ## [0.22.3] - 2019-12-13
 ### Changed
 - Remove `is_command_callable` from `utils` module; instead, refer to [`ubiquerg`](https://pypi.org/project/ubiquerg/).
