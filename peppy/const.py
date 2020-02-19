@@ -3,6 +3,7 @@
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
+PKG_NAME = "peppy"
 
 SAMPLE_NAME_COLNAME = "sample_name"
 SAMPLE_NAME_BACKUP_COLNAME = "sample_name_orig"
@@ -48,7 +49,7 @@ SAMPLE_CONSTANTS = ["ALL_INPUTS_ATTR_NAME", "ASSAY_KEY", "DATA_SOURCE_COLNAME",
 FLAGS = ["completed", "running", "failed", "waiting", "partial"]
 GENERIC_PROTOCOL_KEY = "*"
 OTHER_CONSTANTS = ["FLAGS", "GENERIC_PROTOCOL_KEY"]
-
+MAX_PROJECT_SAMPLES_REPR = 20
 
 __all__ = ["SAMPLE_NAME_COLNAME", "SAMPLE_NAME_BACKUP_COLNAME"] + \
           PROJECT_CONSTANTS + SAMPLE_CONSTANTS + OTHER_CONSTANTS
