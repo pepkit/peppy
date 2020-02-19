@@ -30,11 +30,12 @@ SNAKEMAKE_SAMPLE_COL = "sample"
 
 # Sample-related
 PROTOCOL_KEY = "protocol"
+SAMPLE_NAME_ATTR = "sample_name"
 SAMPLE_TABLE_KEY = "sample_table"
 SUBSAMPLE_TABLE_KEY = "subsample_table"
 PRJ_REF = "project"
 SAMPLE_CONSTANTS = ["PROTOCOL_KEY", "SAMPLE_TABLE_KEY", "SUBSAMPLE_TABLE_KEY",
-                    "PRJ_REF"]
+                    "PRJ_REF", "SAMPLE_NAME_ATTR"]
 
 # Other
 PKG_NAME = "peppy"

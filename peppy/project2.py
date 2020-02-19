@@ -35,8 +35,6 @@ class Project2(PathExAttMap):
         super(Project2, self).__init__()
         if isinstance(cfg, str):
             self[CONFIG_FILE_KEY] = os.path.abspath(cfg)
-            _LOGGER.debug("Parsing {} config file".
-                          format(self.__class__.__name__))
             self.parse_config_file(subproject)
         else:
             self[CONFIG_FILE_KEY] = None
@@ -126,7 +124,7 @@ class Project2(PathExAttMap):
     def modify_samples(self):
         self.attr_constants()
         # self.attr_synonyms()
-        # self.attr_imply()
+        self.attr_imply()
         # self.attr_derive()
 
     def attr_constants(self):
@@ -135,13 +133,46 @@ class Project2(PathExAttMap):
         If Project does not declare constants, no update occurs.
         """
         if CONSTANTS_KEY in self:
-            [s.update(self[CONSTANTS_KEY]) for s in self.samples]
-
-    def attr_imply(self):
-        pass
+            [s.update(self[MODIFIERS_KEY][CONSTANTS_KEY]) for s in self.samples]
 
     def attr_synonyms(self):
         pass
+
+    def attr_imply(self):
+        """
+        Infer value for additional field(s) from other field(s).
+
+        Add columns/fields to the sample based on values in those already-set
+        that the sample's project defines as indicative of implications for
+        additional data elements for the sample.
+        """
+        implications = self[MODIFIERS_KEY][IMPLIED_KEY]
+        _LOGGER.debug("Sample attribute implications: {}".format(implications))
+        if not implications:
+            return
+        for sample in self.samples:
+            sn = sample[SAMPLE_NAME_ATTR] \
+                if SAMPLE_NAME_ATTR in sample else "this sample"
+            for implier_name, implied in implications.items():
+                _LOGGER.debug("Setting Sample variable(s) implied by '{}'"
+                              .format(implier_name))
+                try:
+                    implier_value = sample[implier_name]
+                except KeyError:
+                    _LOGGER.debug("No '{}' for {}".format(implier_name, sn))
+                    continue
+                try:
+                    implied_val_by_attr = implied[implier_value]
+                    _LOGGER.debug("Implications for '{}'={}: {}".
+                                  format(implier_name, implier_value,
+                                         str(implied_val_by_attr)))
+                    for colname, implied_value in implied_val_by_attr.items():
+                        _LOGGER.debug("Setting '{}'={}".
+                                      format(colname, implied_value))
+                        sample.__setitem__(colname, implied_value)
+                except KeyError:
+                    _LOGGER.debug("Unknown implied value for implier '{}'='{}'"
+                                  .format(implier_name, implier_value))
 
     def attr_derive(self):
         pass
