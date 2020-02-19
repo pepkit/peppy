@@ -1,7 +1,7 @@
 """
 Build a Project object.
 """
-from .const import *
+from .const2 import *
 from .utils import copy, non_null_value
 from .exceptions import *
 from .sample2 import Sample2
@@ -16,9 +16,6 @@ from logging import getLogger
 import pandas as pd
 import os
 
-READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
-                   "keep_default_na": False, "na_values": [""]}
-
 _LOGGER = getLogger(PKG_NAME)
 
 
@@ -30,45 +27,21 @@ class Project2(PathExAttMap):
     :param str | Mapping cfg: Project config file (YAML), or appropriate
         key-value mapping of data to constitute project
     :param str subproject: Subproject to use within configuration file, optional
-
-    :Example:
-
-    .. code-block:: python
-
-        from models import Project
-        prj = Project("config.yaml")
-
     """
-
-    # Hook for Project's declaration of how it identifies samples.
-    # Used for validation and for merge_sample (derived cols and such)
-    SAMPLE_NAME_IDENTIFIER = SAMPLE_NAME_COLNAME
-
-    DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
-
     def __init__(self, cfg, subproject=None):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__, " from file {}".format(cfg)
             if cfg else ""))
         super(Project2, self).__init__()
         if isinstance(cfg, str):
-            self.config_file = os.path.abspath(cfg)
+            self[CONFIG_FILE_KEY] = os.path.abspath(cfg)
             _LOGGER.debug("Parsing {} config file".
                           format(self.__class__.__name__))
-            sections = self.parse_config_file(subproject)
+            self.parse_config_file(subproject)
         else:
-            self.config_file = None
-            sections = cfg.keys()
-        self._sections = sections
+            self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
-        # self.modify_samples()
-
-    def load_samples(self):
-        self._read_sample_data()
-        samples_list = []
-        for _, r in self[SAMPLE_ANNOTATIONS_KEY].iterrows():
-            samples_list.append(Sample2(r.dropna(), prj=self))
-        return samples_list
+        self.modify_samples()
 
     def parse_config_file(self, subproject=None):
         """
@@ -90,17 +63,20 @@ class Project2(PathExAttMap):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
         self.add_entries(config)
+        self[CONFIG_VERSION_KEY] = self._get_cfg_v()
+        if self[CONFIG_VERSION_KEY] < 2:
+            self._format_cfg()
 
         # Overwrite any config entries with entries in the subproject.
         if subproject:
-            if non_null_value(SUBPROJECTS_SECTION, config):
+            if non_null_value(SUBPROJECTS_KEY, config):
                 _LOGGER.debug("Adding entries for subproject '{}'".
                               format(subproject))
                 try:
-                    subproj_updates = config[SUBPROJECTS_SECTION][subproject]
+                    subproj_updates = config[SUBPROJECTS_KEY][subproject]
                 except KeyError:
                     raise MissingSubprojectError(subproject,
-                                                 config[SUBPROJECTS_SECTION])
+                                                 config[SUBPROJECTS_KEY])
                 _LOGGER.debug("Updating with: {}".format(subproj_updates))
                 self.add_entries(subproj_updates)
                 self._subproject = subproject
@@ -110,7 +86,7 @@ class Project2(PathExAttMap):
         else:
             _LOGGER.debug("No subproject requested")
 
-        self.setdefault(CONSTANTS_DECLARATION, {})
+        self.setdefault(CONSTANTS_KEY, {})
 
         # Ensure required absolute paths are present and absolute.
         for var in self.required_metadata:
@@ -140,21 +116,31 @@ class Project2(PathExAttMap):
             _LOGGER.debug("Setting '{}' to '{}'".format(var, absolute))
             relative_vars[var] = absolute
 
-        return set(config.keys())
+    def load_samples(self):
+        self._read_sample_data()
+        samples_list = []
+        for _, r in self[SAMPLE_TABLE_KEY].iterrows():
+            samples_list.append(Sample2(r.dropna(), prj=self))
+        return samples_list
 
     def modify_samples(self):
         self.attr_constants()
-        self.attr_synonyms()
-        self.attr_imply()
-        self.attr_derive()
+        # self.attr_synonyms()
+        # self.attr_imply()
+        # self.attr_derive()
+
+    def attr_constants(self):
+        """
+        Update each Sample with constants declared by a Project.
+        If Project does not declare constants, no update occurs.
+        """
+        if CONSTANTS_KEY in self:
+            [s.update(self[CONSTANTS_KEY]) for s in self.samples]
 
     def attr_imply(self):
         pass
 
     def attr_synonyms(self):
-        pass
-
-    def attr_constants(self):
         pass
 
     def attr_derive(self):
@@ -173,13 +159,14 @@ class Project2(PathExAttMap):
             num_samples = 0
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            msg = "{}\nSections: {}".format(msg, ", ".join(self._sections))
+            sections = [s for s in self.keys() if not s.startswith("_")]
+            msg = "{}\nSections: {}".format(msg, ", ".join(sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
             context = " (showing first {})".format(num_samples) \
                 if num_samples < num_samples else ""
             msg = "{}{}".format(msg, context)
-        subs = self.get(SUBPROJECTS_SECTION)
+        subs = self.get(SUBPROJECTS_KEY)
         return "{}\nSubprojects: {}".\
             format(msg, ", ".join(subs.keys())) if subs else msg
 
@@ -253,22 +240,75 @@ class Project2(PathExAttMap):
         Read the sample_table and subsample_table into dataframes
         and store in the object root
         """
+        read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
+                           "keep_default_na": False, "na_values": [""]}
         no_metadata_msg = "No " + METADATA_KEY + ".{} specified"
-        st = self[METADATA_KEY][SAMPLE_ANNOTATIONS_KEY]
+        st = self[METADATA_KEY][SAMPLE_TABLE_KEY]
         try:
-            sst = self[METADATA_KEY][SAMPLE_SUBANNOTATIONS_KEY]
+            sst = self[METADATA_KEY][SUBSAMPLE_TABLE_KEY]
         except KeyError:
             sst = None
-            _LOGGER.warning(no_metadata_msg.format(SAMPLE_SUBANNOTATIONS_KEY))
+            _LOGGER.warning(no_metadata_msg.format(SUBSAMPLE_TABLE_KEY))
         if st:
-            self[SAMPLE_ANNOTATIONS_KEY] = \
-                pd.read_csv(st, sep=infer_delimiter(st), **READ_CSV_KWARGS)
+            self[SAMPLE_TABLE_KEY] = \
+                pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
         else:
-            _LOGGER.warning(no_metadata_msg.format(SAMPLE_ANNOTATIONS_KEY))
+            _LOGGER.warning(no_metadata_msg.format(SAMPLE_TABLE_KEY))
             if sst:
-                self[SAMPLE_SUBANNOTATIONS_KEY] = \
+                self[SUBSAMPLE_TABLE_KEY] = \
                     pd.read_csv(sst, sep=infer_delimiter(sst),
-                                **READ_CSV_KWARGS)
+                                **read_csv_kwargs)
+
+    def _get_cfg_v(self):
+        """
+        Get config file version number
+
+        :raise InvalidConfigFileException: if new v2 section is used,
+            but version==1 or no version is defined
+        :return float: config version number
+        """
+        v = 1
+        if CONFIG_VERSION_KEY in self:
+            v = self[CONFIG_VERSION_KEY]
+            if not isinstance(v, (float, int)):
+                raise InvalidConfigFileException("{} must be numeric".
+                                                 format(CONFIG_VERSION_KEY))
+        if MODIFIERS_KEY in self and v < 2:
+            raise InvalidConfigFileException(
+                "Project configuration file ({p}) subscribes to {c} >= 2.0, "
+                "since '{m}' section is defined. Set {c} to 2.0 in your config".
+                    format(p=self[CONFIG_FILE_KEY], c=CONFIG_VERSION_KEY,
+                           m=MODIFIERS_KEY))
+        return float(v)
+
+    def _format_cfg(self):
+        """
+        Format Project object to comply with the new config v2.0 specifications
+        """
+        move_pairs = {"derived_attributes": DERIVED_KEY,
+                      "derived_columns": DERIVED_KEY,
+                      "constant_attributes": CONSTANTS_KEY,
+                      "implied_attributes": IMPLIED_KEY,
+                      "implied_columns": IMPLIED_KEY,
+                      "data_sources": DERIVED_SOURCES_KEY}
+
+        def _mv_if_in(mapping, k_from, k_to):
+            """
+            Move the sections within mapping
+
+            :param Mapping mapping: object to move sections within
+            :param str k_from: key of the section to move
+            :param str k_to: key of the sample_modifiers subsection to move to
+            """
+            if k_from in mapping:
+                mapping.setdefault(MODIFIERS_KEY, PathExAttMap())
+                mapping[MODIFIERS_KEY][k_to] = self[k_from]
+                del self[k_from]
+                _LOGGER.debug("Section '{}' moved to: {}.{}".
+                              format(k_from, MODIFIERS_KEY, k_to))
+        for k, v in move_pairs.items():
+            _mv_if_in(self, k, v)
+
 
 
 def infer_delimiter(filepath):

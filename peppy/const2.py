@@ -1,0 +1,44 @@
+""" Package constants """
+
+__author__ = "Michal Stolarczyk"
+__email__ = "michal@virginia.edu"
+
+# Project-related
+CONFIG_VERSION_KEY = "config_version"
+CONFIG_FILE_KEY = "config_file"
+PROJECT_TYPENAME = "Project"
+MODIFIERS_KEY = "sample_modifiers"
+NAME_TABLE_ATTR = "sample_table"
+CONSTANTS_KEY = "constants"
+DERIVED_SOURCES_KEY = "derived_sources"
+DERIVED_KEY = "derived"
+IMPLIED_KEY = "implied"
+METADATA_KEY = "metadata"
+OUTDIR_KEY = "output_dir"
+SAMPLE_INDEPENDENT_PROJECT_SECTIONS = [METADATA_KEY, DERIVED_KEY, IMPLIED_KEY]
+SUBPROJECTS_KEY = "subprojects"
+PIPE_ARGS_SECTION = "pipeline_args"
+SUBMISSION_FOLDER_KEY = "submission_subdir"
+RESULTS_FOLDER_KEY = "results_subdir"
+PROJECT_CONSTANTS = [
+    "CONSTANTS_KEY", "DERIVED_SOURCES_KEY", "DERIVED_KEY", "MODIFIERS_KEY",
+    "IMPLIED_KEY", "METADATA_KEY", "NAME_TABLE_ATTR", "OUTDIR_KEY",
+    "PIPE_ARGS_SECTION", "RESULTS_FOLDER_KEY", "CONFIG_FILE_KEY",
+    "SAMPLE_INDEPENDENT_PROJECT_SECTIONS", "SUBMISSION_FOLDER_KEY",
+    "SUBPROJECTS_KEY", "PROJECT_TYPENAME", "CONFIG_VERSION_KEY"]
+SNAKEMAKE_SAMPLE_COL = "sample"
+
+# Sample-related
+PROTOCOL_KEY = "protocol"
+SAMPLE_TABLE_KEY = "sample_table"
+SUBSAMPLE_TABLE_KEY = "subsample_table"
+PRJ_REF = "project"
+SAMPLE_CONSTANTS = ["PROTOCOL_KEY", "SAMPLE_TABLE_KEY", "SUBSAMPLE_TABLE_KEY",
+                    "PRJ_REF"]
+
+# Other
+PKG_NAME = "peppy"
+MAX_PROJECT_SAMPLES_REPR = 20
+OTHER_CONSTANTS = ["MAX_PROJECT_SAMPLES_REPR", "PKG_NAME"]
+
+__all__ = PROJECT_CONSTANTS + SAMPLE_CONSTANTS + OTHER_CONSTANTS

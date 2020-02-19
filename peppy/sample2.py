@@ -2,10 +2,8 @@ from collections import Mapping, OrderedDict
 from logging import getLogger
 import os
 
-from pandas import Series
-
 from attmap import PathExAttMap
-from .const import *
+from .const2 import *
 from .utils import copy, grab_project_data
 
 _LOGGER = getLogger(PKG_NAME)
@@ -78,3 +76,11 @@ class Sample2(PathExAttMap):
             iter([]),
             iter({PRJ_REF: self[PRJ_REF]}.items())
         )
+
+    def _excl_from_eq(self, k):
+        """ Exclude the Project reference from object comparison. """
+        return k == PRJ_REF or super(Sample2, self)._excl_from_eq(k)
+
+    def _excl_from_repr(self, k, cls):
+        """ Exclude the Project reference from representation. """
+        return k == PRJ_REF or super(Sample2, self)._excl_from_repr(k, cls)

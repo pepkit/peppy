@@ -6,7 +6,8 @@ from collections import Iterable
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
 
-__all__ = ["IllegalStateException", "InvalidSampleTableFileException", "PeppyError", "MissingSubprojectError"]
+__all__ = ["IllegalStateException", "InvalidSampleTableFileException",
+           "PeppyError", "MissingSubprojectError", "InvalidConfigFileException"]
 
 
 class PeppyError(Exception):
@@ -43,3 +44,8 @@ class MissingSubprojectError(PeppyError):
             ctx = "defined subproject(s): {}".format(", ".join(map(str, defined)))
             msg = "{}; {}".format(msg, ctx)
         super(MissingSubprojectError, self).__init__(msg)
+
+
+class InvalidConfigFileException(PeppyError):
+    """ Error type for invalid project donfig file """
+    pass
