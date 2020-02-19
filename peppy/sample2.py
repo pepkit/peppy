@@ -1,6 +1,7 @@
 from collections import Mapping, OrderedDict
 from logging import getLogger
 import os
+import glob
 
 from attmap import PathExAttMap
 from .const2 import *
@@ -65,6 +66,65 @@ class Sample2(PathExAttMap):
                              " sample-independent Project data in {k}"
                     .format(k=PRJ_REF))
                 self[PRJ_REF] = grab_project_data(self[PRJ_REF])
+        self._derived_cols_done = []
+
+    def derive_attribute(self, data_sources, attr_name):
+        """
+        Uses the template path provided in the project config section
+        "data_sources" to piece together an actual path by substituting
+        variables (encoded by "{variable}"") with sample attributes.
+
+        :param Mapping data_sources: mapping from key name (as a value in
+            a cell of a tabular data structure) to, e.g., filepath
+        :param str attr_name: Name of sample attribute
+            (equivalently, sample sheet column) specifying a derived column.
+        :return str: regex expansion of data source specified in configuration,
+            with variable substitutions made
+        :raises ValueError: if argument to data_sources parameter is null/empty
+        """
+        if not data_sources:
+            return None
+        sn = self[SAMPLE_NAME_ATTR] \
+            if SAMPLE_NAME_ATTR in self else "this sample"
+        try:
+            source_key = getattr(self, attr_name)
+        except AttributeError:
+            reason = "'{attr}': to locate sample's derived attribute source, " \
+                     "provide the name of a key from '{sources}' or ensure " \
+                     "sample has attribute '{attr}'".\
+                format(attr=attr_name, sources=DERIVED_SOURCES_KEY)
+            raise AttributeError(reason)
+
+        try:
+            regex = data_sources[source_key]
+            _LOGGER.debug("Data sources: {}".format(data_sources))
+        except KeyError:
+            _LOGGER.debug("{}: config lacks entry for data_source key: "
+                          "'{}' in column '{}'; known: {}".
+                          format(sn, source_key, attr_name,
+                                 data_sources.keys()))
+            return ""
+        deriv_exc_base = "In sample '{sn}' cannot correctly parse derived " \
+                         "attribute source: {r}.".format(sn=sn, r=regex)
+        try:
+            val = regex.format(**dict(self.items()))
+        except KeyError as ke:
+            _LOGGER.warning(deriv_exc_base + " Can't access {ke} attribute".
+                            format(ke=str(ke)))
+        except Exception as e:
+            _LOGGER.warning(deriv_exc_base + " Exception type: {e}".
+                            format(e=str(type(e).__name__)))
+        else:
+            if '*' in val or '[' in val:
+                _LOGGER.debug("Pre-glob: {}".format(val))
+                val_globbed = sorted(glob.glob(val))
+                if not val_globbed:
+                    _LOGGER.debug("No files match the glob: '{}'".format(val))
+                else:
+                    val = val_globbed
+                    _LOGGER.debug("Post-glob: {}".format(val))
+            return val
+        return None
 
     # The __reduce__ function provides an interface for
     # correct object serialization with the pickle module.

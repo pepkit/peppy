@@ -125,7 +125,9 @@ class Project2(PathExAttMap):
         self.attr_constants()
         # self.attr_synonyms()
         self.attr_imply()
-        # self.attr_derive()
+        self._assert_samples_have_names()
+        self.attr_merge()
+        self.attr_derive()
 
     def attr_constants(self):
         """
@@ -137,6 +139,35 @@ class Project2(PathExAttMap):
 
     def attr_synonyms(self):
         pass
+
+    def _assert_samples_have_names(self):
+        """
+        Make sure samples have sample_name attribute specified.
+        Try to derive this attribute first.
+
+        :raise InvalidSampleTableFileException: if names are not specified
+        """
+        try:
+            # before merging, which is requires sample_name attribute to map
+            # sample_table rows to subsample_table rows,
+            # perform only sample_name attr derivation
+            if SAMPLE_NAME_ATTR in self[MODIFIERS_KEY][DERIVED_KEY]:
+                self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
+        except KeyError:
+            pass
+        for sample in self.samples:
+            try:
+                sample.sample_name
+            except KeyError:
+                msg = "{st} is missing '{sn}' column;" \
+                      " you must specify {sn}s in {st} or derive them".\
+                    format(st=SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
+                raise InvalidSampleTableFileException(msg)
+
+    def attr_merge(self):
+        if SUBSAMPLE_TABLE_KEY in self:
+            _LOGGER.debug("{} found, attempting merge".
+                          format(SUBSAMPLE_TABLE_KEY))
 
     def attr_imply(self):
         """
@@ -163,19 +194,52 @@ class Project2(PathExAttMap):
                     continue
                 try:
                     implied_val_by_attr = implied[implier_value]
-                    _LOGGER.debug("Implications for '{}'={}: {}".
+                    _LOGGER.debug("Implications for '{}'='{}': {}".
                                   format(implier_name, implier_value,
                                          str(implied_val_by_attr)))
                     for colname, implied_value in implied_val_by_attr.items():
-                        _LOGGER.debug("Setting '{}'={}".
+                        _LOGGER.debug("Setting '{}' attribute value to '{}'".
                                       format(colname, implied_value))
                         sample.__setitem__(colname, implied_value)
                 except KeyError:
                     _LOGGER.debug("Unknown implied value for implier '{}'='{}'"
                                   .format(implier_name, implier_value))
 
-    def attr_derive(self):
-        pass
+    def attr_derive(self, attrs=None):
+        """
+        Set derived attributes for all Samples tied to this Project instance
+        """
+        # Any columns specified as "derived" will be constructed
+        # based on regex in the "data_sources" section of project config.
+        da = self[MODIFIERS_KEY][DERIVED_KEY]
+        ds = self[MODIFIERS_KEY][DERIVED_SOURCES_KEY]
+        derivations = attrs or (da if isinstance(da, list) else [da])
+        _LOGGER.debug("Derivations to be done: {}".format(derivations))
+        for sample in self.samples:
+            for attr in derivations:
+                # Only proceed if the specified column exists
+                # and was not already merged or derived.
+                if not hasattr(sample, attr):
+                    _LOGGER.debug("'{}' lacks '{}' attribute".
+                                  format(sample.sample_name, attr))
+                    continue
+                elif attr in sample._derived_cols_done:
+                    _LOGGER.debug("'{}' has been derived".format(attr))
+                    continue
+                _LOGGER.debug("Deriving '{}' attribute for '{}'".
+                              format(attr, sample.sample_name))
+
+                derived_attr = sample.derive_attribute(ds, attr)
+                if derived_attr:
+                    _LOGGER.debug(
+                        "Setting '{}' to '{}'".format(attr, derived_attr))
+                    setattr(sample, attr, derived_attr)
+
+                else:
+                    _LOGGER.debug(
+                        "Not setting null/empty value for data source "
+                        "'{}': {}".format(attr, type(derived_attr)))
+                sample._derived_cols_done.append(attr)
 
     def __repr__(self):
         """ Representation in interpreter. """
@@ -285,10 +349,11 @@ class Project2(PathExAttMap):
                 pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
         else:
             _LOGGER.warning(no_metadata_msg.format(SAMPLE_TABLE_KEY))
-            if sst:
-                self[SUBSAMPLE_TABLE_KEY] = \
-                    pd.read_csv(sst, sep=infer_delimiter(sst),
-                                **read_csv_kwargs)
+        if sst:
+            self[SUBSAMPLE_TABLE_KEY] = \
+                pd.read_csv(sst, sep=infer_delimiter(sst), **read_csv_kwargs)
+        else:
+            _LOGGER.debug(no_metadata_msg.format(SUBSAMPLE_TABLE_KEY))
 
     def _get_cfg_v(self):
         """
