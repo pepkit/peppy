@@ -64,7 +64,7 @@ class Project2(PathExAttMap):
         self[CONFIG_VERSION_KEY] = self._get_cfg_v()
         if self[CONFIG_VERSION_KEY] < 2:
             self._format_cfg()
-
+        self["_config"] = self.to_dict()
         # Overwrite any config entries with entries in the subproject.
         if subproject:
             if non_null_value(SUBPROJECTS_KEY, config):
@@ -86,33 +86,21 @@ class Project2(PathExAttMap):
 
         self.setdefault(CONSTANTS_KEY, {})
 
-        # Ensure required absolute paths are present and absolute.
-        for var in self.required_metadata:
-            if var not in self.metadata:
-                raise ValueError("Missing required metadata item: '{}'"
-                                 .format(var))
-            self[METADATA_KEY][var] = os.path.expandvars(self.metadata.get(var))
-
-        _LOGGER.debug("Project metadata: {}".format(self.metadata))
-
         # All variables in METADATA_KEY should be relative to project config.
-        try:
-            relative_vars = self[METADATA_KEY]
-        except KeyError as e:
-            raise type(e)(e.message + "; " + METADATA_KEY + " is required.")
-        for var in relative_vars.keys():
-            relpath = relative_vars[var]
+        relative_vars = [SAMPLE_TABLE_KEY, SUBSAMPLE_TABLE_KEY]
+        for key in relative_vars:
+            relpath = self[key]
             if relpath is None:
                 continue
-            _LOGGER.debug("Ensuring absolute path for '{}'".format(var))
+            _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
             # Parsed from YAML, so small space of possible datatypes.
             if isinstance(relpath, list):
                 absolute = [self._ensure_absolute(maybe_relpath)
                             for maybe_relpath in relpath]
             else:
                 absolute = self._ensure_absolute(relpath)
-            _LOGGER.debug("Setting '{}' to '{}'".format(var, absolute))
-            relative_vars[var] = absolute
+            _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
+            self[key] = absolute
 
     def load_samples(self):
         self._read_sample_data()
@@ -209,8 +197,6 @@ class Project2(PathExAttMap):
         """
         Set derived attributes for all Samples tied to this Project instance
         """
-        # Any columns specified as "derived" will be constructed
-        # based on regex in the "data_sources" section of project config.
         da = self[MODIFIERS_KEY][DERIVED_KEY]
         ds = self[MODIFIERS_KEY][DERIVED_SOURCES_KEY]
         derivations = attrs or (da if isinstance(da, list) else [da])
@@ -278,18 +264,14 @@ class Project2(PathExAttMap):
             parent.__name__ for parent in t.__bases__]
 
     @property
-    def required_metadata(self):
+    def config(self):
         """
-        Names of metadata fields that must be present for a valid project.
+        Get the config mapping
 
-        Make a base project as unconstrained as possible by requiring no
-        specific metadata attributes. It's likely that some common-sense
-        requirements may arise in domain-specific client applications, in
-        which case this can be redefined in a subclass.
-
-        :return Iterable[str]: names of metadata fields required by a project
+        :return Mapping: config. May be formatted to comply with the most
+            recent version specifications
         """
-        return []
+        return self._config
 
     @property
     def samples(self):
@@ -338,9 +320,9 @@ class Project2(PathExAttMap):
         read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
                            "keep_default_na": False, "na_values": [""]}
         no_metadata_msg = "No " + METADATA_KEY + ".{} specified"
-        st = self[METADATA_KEY][SAMPLE_TABLE_KEY]
+        st = self[SAMPLE_TABLE_KEY]
         try:
-            sst = self[METADATA_KEY][SUBSAMPLE_TABLE_KEY]
+            sst = self[SUBSAMPLE_TABLE_KEY]
         except KeyError:
             sst = None
             _LOGGER.warning(no_metadata_msg.format(SUBSAMPLE_TABLE_KEY))
@@ -381,14 +363,23 @@ class Project2(PathExAttMap):
         """
         Format Project object to comply with the new config v2.0 specifications
         """
-        move_pairs = {"derived_attributes": DERIVED_KEY,
-                      "derived_columns": DERIVED_KEY,
-                      "constant_attributes": CONSTANTS_KEY,
-                      "implied_attributes": IMPLIED_KEY,
-                      "implied_columns": IMPLIED_KEY,
-                      "data_sources": DERIVED_SOURCES_KEY}
+        mod_move_pairs = {
+            "derived_attributes": DERIVED_KEY,
+            "derived_columns": DERIVED_KEY,
+            "constant_attributes": CONSTANTS_KEY,
+            "implied_attributes": IMPLIED_KEY,
+            "implied_columns": IMPLIED_KEY,
+            "data_sources": DERIVED_SOURCES_KEY
+        }
 
-        def _mv_if_in(mapping, k_from, k_to):
+        metadata_move_pairs = {
+            SAMPLE_TABLE_KEY: SAMPLE_TABLE_KEY,
+            SUBSAMPLE_TABLE_KEY: SUBSAMPLE_TABLE_KEY,
+            "sample_annotation": SAMPLE_TABLE_KEY,
+            "sample_subannotation": SUBSAMPLE_TABLE_KEY
+        }
+
+        def _mv_if_in(mapping, k_from, k_to, modifiers=False):
             """
             Move the sections within mapping
 
@@ -396,15 +387,23 @@ class Project2(PathExAttMap):
             :param str k_from: key of the section to move
             :param str k_to: key of the sample_modifiers subsection to move to
             """
-            if k_from in mapping:
-                mapping.setdefault(MODIFIERS_KEY, PathExAttMap())
-                mapping[MODIFIERS_KEY][k_to] = self[k_from]
-                del self[k_from]
-                _LOGGER.debug("Section '{}' moved to: {}.{}".
-                              format(k_from, MODIFIERS_KEY, k_to))
-        for k, v in move_pairs.items():
+            if modifiers:
+                if k_from in mapping:
+                    mapping.setdefault(MODIFIERS_KEY, PathExAttMap())
+                    mapping[MODIFIERS_KEY][k_to] = mapping[k_from]
+                    del mapping[k_from]
+                    _LOGGER.debug("Section '{}' moved to: {}.{}".
+                                  format(k_from, MODIFIERS_KEY, k_to))
+            else:
+                if METADATA_KEY in mapping and k_from in mapping[METADATA_KEY]:
+                    mapping[k_to] = mapping[METADATA_KEY][k_from]
+                    del mapping[METADATA_KEY][k_from]
+                    _LOGGER.debug("Section '{}.{}' moved to: {}".
+                                  format(METADATA_KEY, k_from, k_to))
+        for k, v in mod_move_pairs.items():
+            _mv_if_in(self, k, v, modifiers=True)
+        for k, v in metadata_move_pairs.items():
             _mv_if_in(self, k, v)
-
 
 
 def infer_delimiter(filepath):
