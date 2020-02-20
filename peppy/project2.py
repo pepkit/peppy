@@ -106,6 +106,8 @@ class Project2(PathExAttMap):
         return samples_list
 
     def modify_samples(self):
+        if MODIFIERS_KEY not in self:
+            return
         self.attr_constants()
         # self.attr_synonyms()
         self.attr_imply()
@@ -223,7 +225,10 @@ class Project2(PathExAttMap):
         that the sample's project defines as indicative of implications for
         additional data elements for the sample.
         """
-        implications = self[MODIFIERS_KEY][IMPLIED_KEY]
+        try:
+            implications = self[MODIFIERS_KEY][IMPLIED_KEY]
+        except KeyError:
+            return
         _LOGGER.debug("Sample attribute implications: {}".format(implications))
         if not implications:
             return
