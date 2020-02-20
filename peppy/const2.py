@@ -34,8 +34,9 @@ SAMPLE_NAME_ATTR = "sample_name"
 SAMPLE_TABLE_KEY = "sample_table"
 SUBSAMPLE_TABLE_KEY = "subsample_table"
 PRJ_REF = "project"
+ATTR_KEY_SUFFIX = "_key"
 SAMPLE_CONSTANTS = ["PROTOCOL_KEY", "SAMPLE_TABLE_KEY", "SUBSAMPLE_TABLE_KEY",
-                    "PRJ_REF", "SAMPLE_NAME_ATTR"]
+                    "PRJ_REF", "SAMPLE_NAME_ATTR", "ATTR_KEY_SUFFIX"]
 
 # Other
 PKG_NAME = "peppy"

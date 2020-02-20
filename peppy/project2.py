@@ -154,8 +154,8 @@ class Project2(PathExAttMap):
 
     def attr_merge(self):
         """
-
-        :return:
+        Merge sample subannotations (from subsample table) with
+        sample annotations (from sample_table)
         """
         if SUBSAMPLE_TABLE_KEY not in self:
             _LOGGER.debug("No {} found, skpping merge".
@@ -199,9 +199,9 @@ class Project2(PathExAttMap):
                     return [str(attval).rstrip()]
 
                 for attname, attval in rowdata.items():
-                    _LOGGER.debug("attname: {}".format(attname))
                     if attname == sample_colname or not attval:
-                        _LOGGER.debug("Skipping KV: {}={}".format(attname, attval))
+                        _LOGGER.debug("Skipping KV: {}={}".
+                                      format(attname, attval))
                         continue
                     _LOGGER.debug("merge: sample '{}'; "
                                   "'{}'='{}'".format(sample[SAMPLE_NAME_ATTR],
@@ -275,16 +275,17 @@ class Project2(PathExAttMap):
                 _LOGGER.debug("Deriving '{}' attribute for '{}'".
                               format(attr, sample.sample_name))
 
+                # Set {atr}_key, so the original source can also be retrieved
+                setattr(self, attr + ATTR_KEY_SUFFIX, getattr(self, attr))
+
                 derived_attr = sample.derive_attribute(ds, attr)
                 if derived_attr:
                     _LOGGER.debug(
                         "Setting '{}' to '{}'".format(attr, derived_attr))
                     setattr(sample, attr, derived_attr)
-
                 else:
-                    _LOGGER.debug(
-                        "Not setting null/empty value for data source "
-                        "'{}': {}".format(attr, type(derived_attr)))
+                    _LOGGER.debug("Not setting null/empty value for data source"
+                                  " '{}': {}".format(attr, type(derived_attr)))
                 sample._derived_cols_done.append(attr)
 
     def __repr__(self):
