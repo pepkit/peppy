@@ -1,14 +1,16 @@
 from collections import Mapping, OrderedDict
+from string import Formatter
 from logging import getLogger
+from copy import copy as cp
 import os
 import glob
 
 from attmap import PathExAttMap
 from .const2 import *
 from .utils import copy, grab_project_data
+from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)
-
 
 @copy
 class Sample2(PathExAttMap):
@@ -82,6 +84,61 @@ class Sample2(PathExAttMap):
             with variable substitutions made
         :raises ValueError: if argument to data_sources parameter is null/empty
         """
+
+        def _format_regex(regex, items):
+            """
+            Format derived source with object attributes
+
+            :param str regex: string to format,
+                e.g. {identifier}{file_id}_data.txt
+            :param Iterable[Iterable[Iterable | str]] items: items to format
+                the string with
+            :raise InvalidSampleTableFileException: if after merging
+                subannotations the lengths of multi-value attrs are not even
+            :return Iterable | str: formatted regex string(s)
+            """
+            keys = [i[1] for i in Formatter().parse(regex) if i[1] is not None]
+            if not keys:
+                return [regex]
+            attr_lens = [len(v) for k, v in items.items()
+                         if (isinstance(v, list) and k in keys)]
+            if not bool(attr_lens):
+                return [regex.format(**items)]
+            if len(set(attr_lens)) != 1:
+                msg = "All attributes to format the {} ({}) have to be the " \
+                      "same length, got: {}. Correct your {}".\
+                    format(DERIVED_SOURCES_KEY, regex, attr_lens,
+                           SUBSAMPLE_TABLE_KEY)
+                raise InvalidSampleTableFileException(msg)
+            vals = []
+            for i in range(0, attr_lens[0]):
+                items_cpy = cp(items)
+                for k in keys:
+                    if isinstance(items_cpy[k], list):
+                        items_cpy[k] = items_cpy[k][i]
+                vals.append(regex.format(**items_cpy))
+            return vals
+
+        def _glob_regex(patterns):
+            """
+            Perform unix style pathname pattern expansion for multiple patterns
+
+            :param Iterable[str] patterns: patterns to expand
+            :return str| Iterable[str]: expanded patterns
+            """
+            outputs = []
+            for p in patterns:
+                if '*' in p or '[' in p:
+                    _LOGGER.debug("Pre-glob: {}".format(p))
+                    val_globbed = sorted(glob.glob(p))
+                    if not val_globbed:
+                        _LOGGER.debug("No files match the glob: '{}'".format(p))
+                    else:
+                        p = val_globbed
+                        _LOGGER.debug("Post-glob: {}".format(p))
+                outputs.extend(p)
+            return outputs if len(outputs) > 1 else outputs[0]
+
         if not data_sources:
             return None
         sn = self[SAMPLE_NAME_ATTR] \
@@ -107,7 +164,7 @@ class Sample2(PathExAttMap):
         deriv_exc_base = "In sample '{sn}' cannot correctly parse derived " \
                          "attribute source: {r}.".format(sn=sn, r=regex)
         try:
-            val = regex.format(**dict(self.items()))
+            vals = _format_regex(regex, dict(self.items()))
         except KeyError as ke:
             _LOGGER.warning(deriv_exc_base + " Can't access {ke} attribute".
                             format(ke=str(ke)))
@@ -115,15 +172,7 @@ class Sample2(PathExAttMap):
             _LOGGER.warning(deriv_exc_base + " Exception type: {e}".
                             format(e=str(type(e).__name__)))
         else:
-            if '*' in val or '[' in val:
-                _LOGGER.debug("Pre-glob: {}".format(val))
-                val_globbed = sorted(glob.glob(val))
-                if not val_globbed:
-                    _LOGGER.debug("No files match the glob: '{}'".format(val))
-                else:
-                    val = val_globbed
-                    _LOGGER.debug("Post-glob: {}".format(val))
-            return val
+            return _glob_regex(vals)
         return None
 
     # The __reduce__ function provides an interface for
