@@ -84,8 +84,6 @@ class Project2(PathExAttMap):
         else:
             _LOGGER.debug("No subproject requested")
 
-        self.setdefault(CONSTANTS_KEY, {})
-
         # All variables in METADATA_KEY should be relative to project config.
         relative_vars = [SAMPLE_TABLE_KEY, SUBSAMPLE_TABLE_KEY]
         for key in relative_vars:
@@ -464,6 +462,8 @@ class Project2(PathExAttMap):
             _mv_if_in(self, k, v, modifiers=True)
         for k, v in metadata_move_pairs.items():
             _mv_if_in(self, k, v)
+        if not self[METADATA_KEY]:
+            del self[METADATA_KEY]
 
 
 def infer_delimiter(filepath):
