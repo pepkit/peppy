@@ -39,6 +39,7 @@ class Project2(PathExAttMap):
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
+        self._subproject = None
         self.modify_samples()
 
     def parse_config_file(self, subproject=None):
@@ -297,6 +298,70 @@ class Project2(PathExAttMap):
                                   " '{}': {}".format(attr, type(derived_attr)))
                 sample._derived_cols_done.append(attr)
 
+    def activate_subproject(self, subproject):
+        """
+        Update settings based on subproject-specific values.
+
+        This method will update Project attributes, adding new values
+        associated with the subproject indicated, and in case of collision with
+        an existing key/attribute the subproject's value will be favored.
+
+        :param str subproject: A string with a subproject name to be activated
+        :return peppy.Project: Updated Project instance
+        :raise TypeError: if argument to subroject parameter is null
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
+        """
+        if subproject is None:
+            raise TypeError(
+                "The subproject argument can not be null. To deactivate a "
+                "subproject use the deactivate_subproject method.")
+        if not self.config_file:
+            raise NotImplementedError(
+                "Subproject activation isn't supported on a project not "
+                "created from a config file")
+        previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
+        conf_file = self.config_file
+        self.__init__(conf_file, subproject)
+        for k, v in previous:
+            if k.startswith("_"):
+                continue
+            if k not in self or (self.is_null(k) and v is not None):
+                _LOGGER.debug("Restoring {}: {}".format(k, v))
+                self[k] = v
+        self._subproject = subproject
+        return self
+
+    def deactivate_subproject(self):
+        """
+        Bring the original project settings back.
+
+        :return peppy.Project: Updated Project instance
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
+        """
+        if self.subproject is None:
+            _LOGGER.warning("No subproject has been activated.")
+            return self
+        if not self.config_file:
+            raise NotImplementedError(
+                "Subproject deactivation isn't supported on a project that "
+                "lacks a config file.")
+        self.__init__(self.config_file)
+        return self
+
+    def validate(self):
+        """
+        Prioritize project module import sample module, not vice-versa, but we
+        still need to use some info about Project classes here.
+
+        :return bool: whether the given object is an instance of a Project or
+            Project subclass, or whether the given type is Project or a subtype
+        """
+        t = self if isinstance(self, type) else type(self)
+        return PROJECT_TYPENAME == t.__name__ or PROJECT_TYPENAME in [
+            parent.__name__ for parent in t.__bases__]
+
     def __repr__(self):
         """ Representation in interpreter. """
         if len(self) == 0:
@@ -321,17 +386,6 @@ class Project2(PathExAttMap):
         return "{}\nSubprojects: {}".\
             format(msg, ", ".join(subs.keys())) if subs else msg
 
-    def validate(self):
-        """
-        Prioritize project module import sample module, not vice-versa, but we
-        still need to use some info about Project classes here.
-
-        :return bool: whether the given object is an instance of a Project or
-            Project subclass, or whether the given type is Project or a subtype
-        """
-        t = self if isinstance(self, type) else type(self)
-        return PROJECT_TYPENAME == t.__name__ or PROJECT_TYPENAME in [
-            parent.__name__ for parent in t.__bases__]
 
     @property
     def config(self):
@@ -356,6 +410,15 @@ class Project2(PathExAttMap):
         if self.sample_table is None:
             _LOGGER.warning("No samples are defined")
             return []
+
+    @property
+    def subproject(self):
+        """
+        Return currently active subproject or None if none was activated
+
+        :return str: name of currently active subproject
+        """
+        return self._subproject
 
     def _ensure_absolute(self, maybe_relpath):
         """ Ensure that a possibly relative path is absolute. """
