@@ -177,6 +177,27 @@ class Sample2(PathExAttMap):
             return _glob_regex(vals)
         return None
 
+    @property
+    def project(self):
+        """
+        Get the project mapping
+
+        :return peppy.Project: project object the sample was created from
+        """
+        return self[PRJ_REF]
+
+    def __setattr__(self, key, value):
+        self._try_touch_samples()
+        super(Sample2, self).__setattr__(key, value)
+
+    def __delattr__(self, item):
+        self._try_touch_samples()
+        super(Sample2, self).__delattr__(item)
+
+    def __setitem__(self, key, value):
+        self._try_touch_samples()
+        super(Sample2, self).__setitem__(key, value)
+
     # The __reduce__ function provides an interface for
     # correct object serialization with the pickle module.
     def __reduce__(self):
@@ -195,3 +216,12 @@ class Sample2(PathExAttMap):
     def _excl_from_repr(self, k, cls):
         """ Exclude the Project reference from representation. """
         return k == PRJ_REF or super(Sample2, self)._excl_from_repr(k, cls)
+
+    def _try_touch_samples(self):
+        """
+        Safely sets sample edited flag to true
+        """
+        try:
+            self[PRJ_REF][SAMPLE_EDIT_FLAG_KEY] = True
+        except (KeyError, AttributeError):
+            pass

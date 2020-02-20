@@ -41,6 +41,39 @@ class Project2(PathExAttMap):
         self._samples = self.load_samples()
         self._subproject = None
         self.modify_samples()
+        self[SAMPLE_EDIT_FLAG_KEY] = False
+        self._sample_table = self._get_df_from_samples()
+
+    def _get_df_from_samples(self):
+        """
+        Generate a data frame from samples. Excludes private
+        attrs (prepended with an underscore)
+
+        :return pandas.DataFrame: a data frame with current samples attributes
+        """
+        df = pd.DataFrame()
+        for sample in self.samples:
+            sd = sample.to_dict()
+            ser = pd.Series(
+                {k: v for (k, v) in sd.items() if not k.startswith("_")}
+            )
+            df = df.append(ser, ignore_index=True)
+        return df
+
+    @property
+    def sample_table(self):
+        """
+        Get sample table. If any sample edits were performed,
+        it will be re-generated
+
+        :return pandas.DataFrame: a data frame with current samples attributes
+        """
+        if self[SAMPLE_EDIT_FLAG_KEY]:
+            _LOGGER.debug("Sample edits performed. Generating new data frame")
+            self[SAMPLE_EDIT_FLAG_KEY] = False
+            return self._get_df_from_samples()
+        _LOGGER.debug("No sample edits performed. Returning stashed data frame")
+        return self._sample_table
 
     def parse_config_file(self, subproject=None):
         """
@@ -286,7 +319,7 @@ class Project2(PathExAttMap):
                               format(attr, sample.sample_name))
 
                 # Set {atr}_key, so the original source can also be retrieved
-                setattr(sample, attr + ATTR_KEY_SUFFIX, getattr(sample, attr))
+                setattr(sample, ATTR_KEY_PREFIX + attr, getattr(sample, attr))
 
                 derived_attr = sample.derive_attribute(ds, attr)
                 if derived_attr:
@@ -396,6 +429,7 @@ class Project2(PathExAttMap):
             recent version specifications
         """
         return self._config
+
 
     @property
     def samples(self):
