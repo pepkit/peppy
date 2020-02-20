@@ -61,10 +61,6 @@ class Project2(PathExAttMap):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
         self.add_entries(config)
-        self[CONFIG_VERSION_KEY] = self._get_cfg_v()
-        if self[CONFIG_VERSION_KEY] < 2:
-            self._format_cfg()
-        self["_config"] = self.to_dict()
         # Overwrite any config entries with entries in the subproject.
         if subproject:
             if non_null_value(SUBPROJECTS_KEY, config):
@@ -81,8 +77,10 @@ class Project2(PathExAttMap):
                 _LOGGER.info("Using subproject: '{}'".format(subproject))
             else:
                 raise MissingSubprojectError(subproject)
-        else:
-            _LOGGER.debug("No subproject requested")
+        self[CONFIG_VERSION_KEY] = self._get_cfg_v()
+        if self[CONFIG_VERSION_KEY] < 2:
+            self._format_cfg()
+        self["_config"] = self.to_dict()
 
         # All variables in METADATA_KEY should be relative to project config.
         relative_vars = [SAMPLE_TABLE_KEY, SUBSAMPLE_TABLE_KEY]
@@ -120,7 +118,9 @@ class Project2(PathExAttMap):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if CONSTANTS_KEY in self:
+        if CONSTANTS_KEY in self[MODIFIERS_KEY]:
+            _LOGGER.debug("Applying constant attributes: {}".
+                          format(self[MODIFIERS_KEY][CONSTANTS_KEY]))
             [s.update(self[MODIFIERS_KEY][CONSTANTS_KEY]) for s in self.samples]
 
     def attr_synonyms(self):
@@ -144,7 +144,7 @@ class Project2(PathExAttMap):
         for sample in self.samples:
             try:
                 sample.sample_name
-            except KeyError:
+            except (KeyError, AttributeError):
                 msg = "{st} is missing '{sn}' column;" \
                       " you must specify {sn}s in {st} or derive them".\
                     format(st=SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
@@ -261,11 +261,8 @@ class Project2(PathExAttMap):
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
         for sample in self.samples:
             for attr in derivations:
-                # Only proceed if the specified column exists
-                # and was not already merged or derived.
                 if not hasattr(sample, attr):
-                    _LOGGER.debug("'{}' lacks '{}' attribute".
-                                  format(sample.sample_name, attr))
+                    _LOGGER.debug("sample lacks '{}' attribute".format(attr))
                     continue
                 elif attr in sample._derived_cols_done:
                     _LOGGER.debug("'{}' has been derived".format(attr))
@@ -445,19 +442,27 @@ class Project2(PathExAttMap):
             :param str k_from: key of the section to move
             :param str k_to: key of the sample_modifiers subsection to move to
             """
+            present = "Section '{}' already in '{}'"
             if modifiers:
                 if k_from in mapping:
                     mapping.setdefault(MODIFIERS_KEY, PathExAttMap())
-                    mapping[MODIFIERS_KEY][k_to] = mapping[k_from]
-                    del mapping[k_from]
-                    _LOGGER.debug("Section '{}' moved to: {}.{}".
-                                  format(k_from, MODIFIERS_KEY, k_to))
+                    if k_to in mapping[MODIFIERS_KEY]:
+                        _LOGGER.info(present.format(k_to,
+                                                    mapping[MODIFIERS_KEY]))
+                    else:
+                        mapping[MODIFIERS_KEY][k_to] = mapping[k_from]
+                        del mapping[k_from]
+                        _LOGGER.debug("Section '{}' moved to: {}.{}".
+                                      format(k_from, MODIFIERS_KEY, k_to))
             else:
                 if METADATA_KEY in mapping and k_from in mapping[METADATA_KEY]:
-                    mapping[k_to] = mapping[METADATA_KEY][k_from]
-                    del mapping[METADATA_KEY][k_from]
-                    _LOGGER.debug("Section '{}.{}' moved to: {}".
-                                  format(METADATA_KEY, k_from, k_to))
+                    if k_to in mapping:
+                        _LOGGER.info(present.format(k_to, mapping))
+                    else:
+                        mapping[k_to] = mapping[METADATA_KEY][k_from]
+                        del mapping[METADATA_KEY][k_from]
+                        _LOGGER.debug("Section '{}.{}' moved to: {}".
+                                      format(METADATA_KEY, k_from, k_to))
         for k, v in mod_move_pairs.items():
             _mv_if_in(self, k, v, modifiers=True)
         for k, v in metadata_move_pairs.items():
