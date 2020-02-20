@@ -153,9 +153,69 @@ class Project2(PathExAttMap):
                 raise InvalidSampleTableFileException(msg)
 
     def attr_merge(self):
-        if SUBSAMPLE_TABLE_KEY in self:
-            _LOGGER.debug("{} found, attempting merge".
+        """
+
+        :return:
+        """
+        if SUBSAMPLE_TABLE_KEY not in self:
+            _LOGGER.debug("No {} found, skpping merge".
                           format(SUBSAMPLE_TABLE_KEY))
+            return
+        merged_attrs = {}
+        subsample_table = self[SUBSAMPLE_TABLE_KEY]
+        for sample in self.samples:
+            sample_colname = SAMPLE_NAME_ATTR
+            if sample_colname not in subsample_table.columns:
+                raise KeyError("Subannotation requires column '{}'."
+                               .format(sample_colname))
+            _LOGGER.debug("Using '{}' as sample name column from "
+                          "subannotation table".format(sample_colname))
+            sample_indexer = \
+                subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
+            this_sample_rows = subsample_table[sample_indexer].\
+                dropna(how="any", axis=1)
+            if len(this_sample_rows) == 0:
+                _LOGGER.debug("No merge rows for sample '%s', skipping",
+                              sample[SAMPLE_NAME_ATTR])
+                return merged_attrs
+            _LOGGER.debug("%d rows to merge", len(this_sample_rows))
+            _LOGGER.debug("Merge rows dict: "
+                          "{}".format(this_sample_rows.to_dict()))
+
+            merged_attrs = {key: list() for key in this_sample_rows.columns}
+            _LOGGER.debug(this_sample_rows)
+            for subsample_row_id, row in this_sample_rows.iterrows():
+                try:
+                    row['subsample_name']
+                except KeyError:
+                    row['subsample_name'] = str(subsample_row_id)
+                rowdata = row.to_dict()
+
+                def _select_new_attval(merged_attrs, attname, attval):
+                    """ Select new attribute value for the merged columns
+                    dictionary """
+                    if attname in merged_attrs:
+                        return merged_attrs[attname] + [attval]
+                    return [str(attval).rstrip()]
+
+                for attname, attval in rowdata.items():
+                    _LOGGER.debug("attname: {}".format(attname))
+                    if attname == sample_colname or not attval:
+                        _LOGGER.debug("Skipping KV: {}={}".format(attname, attval))
+                        continue
+                    _LOGGER.debug("merge: sample '{}'; "
+                                  "'{}'='{}'".format(sample[SAMPLE_NAME_ATTR],
+                                                     attname, attval))
+                    merged_attrs[attname] = _select_new_attval(merged_attrs,
+                                                               attname, attval)
+
+            # If present, remove sample name from the data with which to update
+            # sample.
+            merged_attrs.pop(sample_colname, None)
+
+            _LOGGER.debug("Updating Sample {}: {}".
+                          format(sample[SAMPLE_NAME_ATTR], merged_attrs))
+            sample.update(merged_attrs)
 
     def attr_imply(self):
         """
