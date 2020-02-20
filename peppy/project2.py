@@ -109,7 +109,7 @@ class Project2(PathExAttMap):
         if MODIFIERS_KEY not in self:
             return
         self.attr_constants()
-        # self.attr_synonyms()
+        self.attr_synonyms()
         self.attr_imply()
         self._assert_samples_have_names()
         self.attr_merge()
@@ -126,7 +126,16 @@ class Project2(PathExAttMap):
             [s.update(self[MODIFIERS_KEY][CONSTANTS_KEY]) for s in self.samples]
 
     def attr_synonyms(self):
-        pass
+        """
+        Copy attribute values for all samples to a new one
+        """
+        if SYNONYMS_KEY in self[MODIFIERS_KEY]:
+            synonyms = self[MODIFIERS_KEY][SYNONYMS_KEY]
+            _LOGGER.debug("Applying synonyms: {}".format(synonyms))
+            for sample in self.samples:
+                for attr, new in synonyms.items():
+                    if attr in sample:
+                        setattr(sample, new, getattr(sample, attr))
 
     def _assert_samples_have_names(self):
         """
@@ -276,7 +285,7 @@ class Project2(PathExAttMap):
                               format(attr, sample.sample_name))
 
                 # Set {atr}_key, so the original source can also be retrieved
-                setattr(self, attr + ATTR_KEY_SUFFIX, getattr(self, attr))
+                setattr(sample, attr + ATTR_KEY_SUFFIX, getattr(sample, attr))
 
                 derived_attr = sample.derive_attribute(ds, attr)
                 if derived_attr:
