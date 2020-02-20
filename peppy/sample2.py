@@ -136,7 +136,8 @@ class Sample2(PathExAttMap):
                     else:
                         p = val_globbed
                         _LOGGER.debug("Post-glob: {}".format(p))
-                outputs.extend(p)
+
+                outputs.extend(p if isinstance(p, list) else [p])
             return outputs if len(outputs) > 1 else outputs[0]
 
         if not data_sources:
@@ -165,6 +166,7 @@ class Sample2(PathExAttMap):
                          "attribute source: {r}.".format(sn=sn, r=regex)
         try:
             vals = _format_regex(regex, dict(self.items()))
+            _LOGGER.debug("Formatted regex: {}".format(vals))
         except KeyError as ke:
             _LOGGER.warning(deriv_exc_base + " Can't access {ke} attribute".
                             format(ke=str(ke)))
