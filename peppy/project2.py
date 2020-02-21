@@ -32,7 +32,7 @@ class Project2(PathExAttMap):
         key-value mapping of data to constitute project
     :param str subproject: Subproject to use within configuration file, optional
     """
-    def __init__(self, cfg, subproject=None):
+    def __init__(self, cfg, subproject=None, schema=None):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
             " from file {}".format(cfg) if cfg else "")
@@ -42,6 +42,8 @@ class Project2(PathExAttMap):
             cfg_pth = os.path.abspath(cfg)
             self.parse_config_file(cfg_pth, subproject)
             self[CONFIG_FILE_KEY] = cfg_pth
+            if schema:
+                self.validate_config(schema=schema)
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
@@ -49,7 +51,9 @@ class Project2(PathExAttMap):
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self._sample_table = self._get_df_from_samples()
-
+        if schema:
+            [self.validate_sample(s[SAMPLE_NAME_ATTR], schema)
+             for s in self.samples]
     def _get_df_from_samples(self):
         """
         Generate a data frame from samples. Excludes private
@@ -85,6 +89,7 @@ class Project2(PathExAttMap):
         """
         Parse provided yaml config file and check required fields exist.
 
+        :param str cfg_path: path to the config file to read and parse
         :param str subproject: Name of subproject to activate, optional
         :raises KeyError: if config file lacks required section(s)
         """
@@ -693,7 +698,7 @@ def _validate_object(object, schema, exclude_case=False):
         jsonschema.validate(object, schema)
     except jsonschema.exceptions.ValidationError as e:
         if not exclude_case:
-            raise e
+            raise
         raise jsonschema.exceptions.ValidationError(e.message)
 
 
