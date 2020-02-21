@@ -1,20 +1,26 @@
 """
 Build a Project object.
 """
+import os
 from .const2 import *
 from .utils import copy, non_null_value
 from .exceptions import *
 from .sample2 import Sample2
+from ._version import __version__
 from attmap import PathExAttMap
 from ubiquerg import is_url
-from collections import Mapping
+from yacman import load_yaml as _load_yaml
+from ubiquerg import VersionInHelpParser
+import logmuse
+
+import jsonschema
 import yaml
 import warnings
-
-from logging import getLogger
-
 import pandas as pd
-import os
+
+from collections import Mapping
+from logging import getLogger
+from copy import deepcopy
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -582,6 +588,147 @@ class Project2(PathExAttMap):
         if not self[METADATA_KEY]:
             del self[METADATA_KEY]
 
+    def get_sample(self, sample_name):
+        """
+        Get an individual sample object from the project.
+
+        Will raise a ValueError if the sample is not found. In the case of multiple
+        samples with the same name (which is not typically allowed), a warning is
+        raised and the first sample is returned.
+
+        :param str sample_name: The name of a sample to retrieve
+        :return Sample: The requested Sample object
+        """
+        samples = self.get_samples([sample_name])
+        if len(samples) > 1:
+            _LOGGER.warning("More than one sample was detected; "
+                            "returning the first")
+        try:
+            return samples[0]
+        except IndexError:
+            raise ValueError("Project has no sample named {}."
+                             .format(sample_name))
+
+    def get_samples(self, sample_names):
+        """
+        Returns a list of sample objects given a list of sample names
+
+        :param list sample_names: A list of sample names to retrieve
+        :return list[Sample]: A list of Sample objects
+        """
+        return [s for s in self.samples if s.name in sample_names]
+
+    def validate_project(self, schema, exclude_case=False):
+        """
+        Validate a project object against a schema
+
+        :param str | dict schema: schema dict to validate against
+            or a path to one
+        :param bool exclude_case: whether to exclude validated objects
+            from the error.
+            Useful when used ith large projects
+        """
+        schema_dict = _read_schema(schema=schema)
+        project_dict = self.to_dict()
+        _validate_object(project_dict, _preprocess_schema(schema_dict),
+                         exclude_case)
+        _LOGGER.debug("Project validation successful")
+
+    def validate_sample(self, sample_name, schema, exclude_case=False):
+        """
+        Validate the selected sample object against a schema
+
+        :param str | int sample_name: name or index of the sample to validate
+        :param str | dict schema: schema dict to validate against
+            or a path to one
+        :param bool exclude_case: whether to exclude validated objects
+            from the error.
+            Useful when used ith large projects
+        """
+        schema_dict = _read_schema(schema=schema)
+        sample_dict = self.samples[sample_name] if isinstance(sample_name, int)\
+            else self.get_sample(sample_name)
+        sample_schema_dict = schema_dict["properties"]["samples"]["items"]
+        _validate_object(sample_dict, sample_schema_dict, exclude_case)
+        _LOGGER.debug("'{}' sample validation successful".format(sample_name))
+
+    def validate_config(self, schema, exclude_case=False):
+        """
+        Validate the config part of the Project object against a schema
+
+        :param str | dict schema: schema dict to validate against
+            or a path to one
+        :param bool exclude_case: whether to exclude validated objects
+            from the error.
+            Useful when used ith large projects
+        """
+        schema_dict = _read_schema(schema=schema)
+        schema_cpy = deepcopy(schema_dict)
+        try:
+            del schema_cpy["properties"]["samples"]
+        except KeyError:
+            pass
+        if "required" in schema_cpy:
+            try:
+                schema_cpy["required"].remove("samples")
+            except ValueError:
+                pass
+        project_dict = self.to_dict()
+        _validate_object(project_dict, schema_cpy, exclude_case)
+        _LOGGER.debug("Config validation successful")
+
+
+def _validate_object(object, schema, exclude_case=False):
+    """
+    Generic function to validate object against a schema
+
+    :param Mapping object: an object to validate
+    :param str | dict schema: schema dict to validate against or a path to one
+    :param bool exclude_case: whether to exclude validated objects
+        from the error. Useful when used with large projects
+    """
+    try:
+        jsonschema.validate(object, schema)
+    except jsonschema.exceptions.ValidationError as e:
+        if not exclude_case:
+            raise e
+        raise jsonschema.exceptions.ValidationError(e.message)
+
+
+def _read_schema(schema):
+    """
+    Safely read schema from YAML-formatted file.
+
+    :param str | Mapping schema: path to the schema file
+        or schema in a dict form
+    :return dict: read schema
+    :raise TypeError: if the schema arg is neither a Mapping nor a file path
+    """
+    if isinstance(schema, str):
+        return _load_yaml(schema)
+    elif isinstance(schema, dict):
+        return schema
+    raise TypeError("schema has to be either a dict, URL to remote schema "
+                    "or a path to an existing file")
+
+
+def _preprocess_schema(schema_dict):
+    """
+    Preprocess schema before validation for user's convenience
+
+    Preprocessing includes: renaming 'samples' to '_samples'
+    since in the peppy.Project object _samples attribute holds the list of peppy.Samples objects.
+    :param dict schema_dict: schema dictionary to preprocess
+    :return dict: preprocessed schema
+    """
+    _LOGGER.debug("schema ori: {}".format(schema_dict))
+    if "samples" in schema_dict["properties"]:
+        schema_dict["properties"]["_samples"] = schema_dict["properties"]["samples"]
+        del schema_dict["properties"]["samples"]
+        schema_dict["required"][schema_dict["required"].index("samples")] = "_samples"
+    _LOGGER.debug("schema edited: {}".format(schema_dict))
+    return schema_dict
+
 
 def infer_delimiter(filepath):
     """
@@ -592,5 +739,3 @@ def infer_delimiter(filepath):
     """
     ext = os.path.splitext(filepath)[1][1:].lower()
     return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
-
-
