@@ -6,12 +6,10 @@ from .const2 import *
 from .utils import copy, non_null_value
 from .exceptions import *
 from .sample2 import Sample2
-from ._version import __version__
 from attmap import PathExAttMap
 from ubiquerg import is_url
 from yacman import load_yaml as _load_yaml
-from ubiquerg import VersionInHelpParser
-import logmuse
+
 
 import jsonschema
 import yaml
