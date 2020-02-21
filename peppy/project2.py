@@ -34,12 +34,14 @@ class Project2(PathExAttMap):
     """
     def __init__(self, cfg, subproject=None):
         _LOGGER.debug("Creating {}{}".format(
-            self.__class__.__name__, " from file {}".format(cfg)
-            if cfg else ""))
+            self.__class__.__name__,
+            " from file {}".format(cfg) if cfg else "")
+        )
         super(Project2, self).__init__()
         if isinstance(cfg, str):
-            self.parse_config_file(os.path.abspath(cfg), subproject)
-            self[CONFIG_FILE_KEY] = os.path.abspath(cfg)
+            cfg_pth = os.path.abspath(cfg)
+            self.parse_config_file(cfg_pth, subproject)
+            self[CONFIG_FILE_KEY] = cfg_pth
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
@@ -94,7 +96,19 @@ class Project2(PathExAttMap):
             "Config file parse did not yield a Mapping; got {} ({})".\
             format(config, type(config))
 
-        _LOGGER.debug("Raw config data: {}".format(config))
+        _LOGGER.debug("Raw ({}) config data: {}".format(cfg_path, config))
+
+        # recursively import configs
+        if CFG_IMPORTS_KEY in config and config[CFG_IMPORTS_KEY]:
+            _LOGGER.info("Importing external Project configurations: {}".
+                         format(", ".join(config[CFG_IMPORTS_KEY])))
+            for i in config[CFG_IMPORTS_KEY]:
+                _LOGGER.debug("Processing external config: {}".format(i))
+                if os.path.exists(i):
+                    self.parse_config_file(cfg_path=i)
+                else:
+                    _LOGGER.warning("External Project configuration does not"
+                                    " exist: {}".format(i))
 
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
@@ -126,16 +140,21 @@ class Project2(PathExAttMap):
 
     def _make_sections_absolute(self, sections, cfg_path):
         for key in sections:
-            relpath = self[key]
+            try:
+                relpath = self[key]
+            except KeyError:
+                _LOGGER.warning("No '{}' section in configuration file: {}"
+                                .format(key, cfg_path))
+                continue
             if relpath is None:
                 continue
             _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
             # Parsed from YAML, so small space of possible datatypes.
             if isinstance(relpath, list):
-                absolute = [self._ensure_absolute(maybe_relpath, cfg_path)
+                absolute = [_ensure_path_absolute(maybe_relpath, cfg_path)
                             for maybe_relpath in relpath]
             else:
-                absolute = self._ensure_absolute(relpath, cfg_path)
+                absolute = _ensure_path_absolute(relpath, cfg_path)
             _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
             self[key] = absolute
 
@@ -468,31 +487,6 @@ class Project2(PathExAttMap):
         """
         return self._subproject
 
-    def _ensure_absolute(self, maybe_relpath, cfg_path):
-        """ Ensure that a possibly relative path is absolute. """
-        if not isinstance(maybe_relpath, str):
-            raise TypeError(
-                "Attempting to ensure non-text value is absolute path: {} ({})".
-                    format(maybe_relpath, type(maybe_relpath)))
-        _LOGGER.debug("Ensuring absolute: '{}'".format(maybe_relpath))
-        if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.debug("Already absolute")
-            return maybe_relpath
-        # Maybe we have env vars that make the path absolute?
-        expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
-        _LOGGER.debug("Expanded: '{}'".format(expanded))
-        if os.path.isabs(expanded):
-            _LOGGER.debug("Expanded is absolute")
-            return expanded
-        _LOGGER.debug("Making non-absolute path '{}' be absolute".
-                      format(maybe_relpath))
-
-        # Set path to an absolute path, relative to project config.
-        config_dirpath = os.path.dirname(cfg_path)
-        _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
-        abs_path = os.path.join(config_dirpath, maybe_relpath)
-        return abs_path
-
     def _read_sample_data(self):
         """
         Read the sample_table and subsample_table into dataframes
@@ -723,19 +717,48 @@ def _read_schema(schema):
 def _preprocess_schema(schema_dict):
     """
     Preprocess schema before validation for user's convenience
-
     Preprocessing includes: renaming 'samples' to '_samples'
-    since in the peppy.Project object _samples attribute holds the list of peppy.Samples objects.
+    since in the peppy.Project object _samples attribute holds the list
+    of peppy.Samples objects.
+
     :param dict schema_dict: schema dictionary to preprocess
     :return dict: preprocessed schema
     """
     _LOGGER.debug("schema ori: {}".format(schema_dict))
     if "samples" in schema_dict["properties"]:
-        schema_dict["properties"]["_samples"] = schema_dict["properties"]["samples"]
+        schema_dict["properties"]["_samples"] = \
+            schema_dict["properties"]["samples"]
         del schema_dict["properties"]["samples"]
-        schema_dict["required"][schema_dict["required"].index("samples")] = "_samples"
+        schema_dict["required"][schema_dict["required"].index("samples")] = \
+            "_samples"
     _LOGGER.debug("schema edited: {}".format(schema_dict))
     return schema_dict
+
+
+def _ensure_path_absolute(maybe_relpath, cfg_path):
+    """ Ensure that a possibly relative path is absolute. """
+    if not isinstance(maybe_relpath, str):
+        raise TypeError(
+            "Attempting to ensure non-text value is absolute path: {} ({})".
+                format(maybe_relpath, type(maybe_relpath)))
+    _LOGGER.debug("Ensuring absolute: '{}'".format(maybe_relpath))
+    if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+        _LOGGER.debug("Already absolute")
+        return maybe_relpath
+    # Maybe we have env vars that make the path absolute?
+    expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
+    _LOGGER.debug("Expanded: '{}'".format(expanded))
+    if os.path.isabs(expanded):
+        _LOGGER.debug("Expanded is absolute")
+        return expanded
+    _LOGGER.debug("Making non-absolute path '{}' be absolute".
+                  format(maybe_relpath))
+
+    # Set path to an absolute path, relative to project config.
+    config_dirpath = os.path.dirname(cfg_path)
+    _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
+    abs_path = os.path.join(config_dirpath, maybe_relpath)
+    return abs_path
 
 
 def infer_delimiter(filepath):
