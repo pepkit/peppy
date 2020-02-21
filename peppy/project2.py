@@ -38,8 +38,8 @@ class Project2(PathExAttMap):
             if cfg else ""))
         super(Project2, self).__init__()
         if isinstance(cfg, str):
+            self.parse_config_file(os.path.abspath(cfg), subproject)
             self[CONFIG_FILE_KEY] = os.path.abspath(cfg)
-            self.parse_config_file(subproject)
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
@@ -79,7 +79,7 @@ class Project2(PathExAttMap):
         _LOGGER.debug("No sample edits performed. Returning stashed data frame")
         return self._sample_table
 
-    def parse_config_file(self, subproject=None):
+    def parse_config_file(self, cfg_path, subproject=None):
         """
         Parse provided yaml config file and check required fields exist.
 
@@ -87,7 +87,7 @@ class Project2(PathExAttMap):
         :raises KeyError: if config file lacks required section(s)
         """
 
-        with open(self.config_file, 'r') as conf_file:
+        with open(cfg_path, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
         assert isinstance(config, Mapping), \
@@ -118,21 +118,24 @@ class Project2(PathExAttMap):
         self[CONFIG_VERSION_KEY] = self._get_cfg_v()
         if self[CONFIG_VERSION_KEY] < 2:
             self._format_cfg()
-        self["_config"] = self.to_dict()
 
-        # All variables in METADATA_KEY should be relative to project config.
+        # here specify cfg sections that may need expansion
         relative_vars = [SAMPLE_TABLE_KEY, SUBSAMPLE_TABLE_KEY]
-        for key in relative_vars:
+        self._make_sections_absolute(relative_vars, cfg_path)
+        self[CONFIG_KEY] = self.to_dict()
+
+    def _make_sections_absolute(self, sections, cfg_path):
+        for key in sections:
             relpath = self[key]
             if relpath is None:
                 continue
             _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
             # Parsed from YAML, so small space of possible datatypes.
             if isinstance(relpath, list):
-                absolute = [self._ensure_absolute(maybe_relpath)
+                absolute = [self._ensure_absolute(maybe_relpath, cfg_path)
                             for maybe_relpath in relpath]
             else:
-                absolute = self._ensure_absolute(relpath)
+                absolute = self._ensure_absolute(relpath, cfg_path)
             _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
             self[key] = absolute
 
@@ -353,12 +356,12 @@ class Project2(PathExAttMap):
             raise TypeError(
                 "The subproject argument can not be null. To deactivate a "
                 "subproject use the deactivate_subproject method.")
-        if not self.config_file:
+        if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError(
                 "Subproject activation isn't supported on a project not "
                 "created from a config file")
         previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
-        conf_file = self.config_file
+        conf_file = self[CONFIG_FILE_KEY]
         self.__init__(conf_file, subproject)
         for k, v in previous:
             if k.startswith("_"):
@@ -380,11 +383,11 @@ class Project2(PathExAttMap):
         if self.subproject is None:
             _LOGGER.warning("No subproject has been activated.")
             return self
-        if not self.config_file:
+        if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError(
                 "Subproject deactivation isn't supported on a project that "
                 "lacks a config file.")
-        self.__init__(self.config_file)
+        self.__init__(self[CONFIG_FILE_KEY])
         return self
 
     def validate(self):
@@ -403,8 +406,8 @@ class Project2(PathExAttMap):
         """ Representation in interpreter. """
         if len(self) == 0:
             return "{}"
-        msg = "Project ({})".format(self.config_file) \
-            if self.config_file else "Project:"
+        msg = "Project ({})".format(self[CONFIG_FILE_KEY]) \
+            if self[CONFIG_FILE_KEY] else "Project:"
         try:
             num_samples = len(self._samples)
         except (AttributeError, TypeError):
@@ -423,7 +426,6 @@ class Project2(PathExAttMap):
         return "{}\nSubprojects: {}".\
             format(msg, ", ".join(subs.keys())) if subs else msg
 
-
     @property
     def config(self):
         """
@@ -432,8 +434,16 @@ class Project2(PathExAttMap):
         :return Mapping: config. May be formatted to comply with the most
             recent version specifications
         """
-        return self._config
+        return self[CONFIG_KEY]
 
+    @property
+    def config_file(self):
+        """
+        Get the config file path
+
+        :return str: path to the config file
+        """
+        return self[CONFIG_FILE_KEY]
 
     @property
     def samples(self):
@@ -458,7 +468,7 @@ class Project2(PathExAttMap):
         """
         return self._subproject
 
-    def _ensure_absolute(self, maybe_relpath):
+    def _ensure_absolute(self, maybe_relpath, cfg_path):
         """ Ensure that a possibly relative path is absolute. """
         if not isinstance(maybe_relpath, str):
             raise TypeError(
@@ -478,7 +488,7 @@ class Project2(PathExAttMap):
                       format(maybe_relpath))
 
         # Set path to an absolute path, relative to project config.
-        config_dirpath = os.path.dirname(self.config_file)
+        config_dirpath = os.path.dirname(cfg_path)
         _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
         abs_path = os.path.join(config_dirpath, maybe_relpath)
         return abs_path
@@ -590,12 +600,12 @@ class Project2(PathExAttMap):
         """
         Get an individual sample object from the project.
 
-        Will raise a ValueError if the sample is not found. In the case of multiple
-        samples with the same name (which is not typically allowed), a warning is
-        raised and the first sample is returned.
+        Will raise a ValueError if the sample is not found.
+        In the case of multiple samples with the same name (which is not
+        typically allowed), a warning is raised and the first sample is returned
 
         :param str sample_name: The name of a sample to retrieve
-        :return Sample: The requested Sample object
+        :return peppy.Sample: The requested Sample object
         """
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
@@ -612,9 +622,9 @@ class Project2(PathExAttMap):
         Returns a list of sample objects given a list of sample names
 
         :param list sample_names: A list of sample names to retrieve
-        :return list[Sample]: A list of Sample objects
+        :return list[peppy.Sample]: A list of Sample objects
         """
-        return [s for s in self.samples if s.name in sample_names]
+        return [s for s in self.samples if s[SAMPLE_NAME_ATTR] in sample_names]
 
     def validate_project(self, schema, exclude_case=False):
         """
