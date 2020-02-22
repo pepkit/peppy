@@ -54,6 +54,7 @@ class Project2(PathExAttMap):
         if schema:
             [self.validate_sample(s[SAMPLE_NAME_ATTR], schema)
              for s in self.samples]
+
     def _get_df_from_samples(self):
         """
         Generate a data frame from samples. Excludes private
@@ -69,21 +70,6 @@ class Project2(PathExAttMap):
             )
             df = df.append(ser, ignore_index=True)
         return df
-
-    @property
-    def sample_table(self):
-        """
-        Get sample table. If any sample edits were performed,
-        it will be re-generated
-
-        :return pandas.DataFrame: a data frame with current samples attributes
-        """
-        if self[SAMPLE_EDIT_FLAG_KEY]:
-            _LOGGER.debug("Sample edits performed. Generating new data frame")
-            self[SAMPLE_EDIT_FLAG_KEY] = False
-            return self._get_df_from_samples()
-        _LOGGER.debug("No sample edits performed. Returning stashed data frame")
-        return self._sample_table
 
     def parse_config_file(self, cfg_path, subproject=None):
         """
@@ -148,8 +134,8 @@ class Project2(PathExAttMap):
             try:
                 relpath = self[key]
             except KeyError:
-                _LOGGER.warning("No '{}' section in configuration file: {}"
-                                .format(key, cfg_path))
+                _LOGGER.debug("No '{}' section in configuration file: {}".
+                              format(key, cfg_path))
                 continue
             if relpath is None:
                 continue
@@ -482,6 +468,21 @@ class Project2(PathExAttMap):
         if self.sample_table is None:
             _LOGGER.warning("No samples are defined")
             return []
+
+    @property
+    def sample_table(self):
+        """
+        Get sample table. If any sample edits were performed,
+        it will be re-generated
+
+        :return pandas.DataFrame: a data frame with current samples attributes
+        """
+        if self[SAMPLE_EDIT_FLAG_KEY]:
+            _LOGGER.debug("Sample edits performed. Generating new data frame")
+            self[SAMPLE_EDIT_FLAG_KEY] = False
+            return self._get_df_from_samples()
+        _LOGGER.debug("No sample edits performed. Returning stashed data frame")
+        return self._sample_table
 
     @property
     def subproject(self):
