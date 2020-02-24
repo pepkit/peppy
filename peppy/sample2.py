@@ -209,6 +209,32 @@ class Sample2(PathExAttMap):
             iter({PRJ_REF: self[PRJ_REF]}.items())
         )
 
+    def __repr__(self, max_attr=10):
+        """ Representation in interpreter. """
+        if len(self) == 0:
+            return ""
+        head = "Sample '{}'".format(self[SAMPLE_NAME_ATTR])
+        try:
+            prj_cfg = self[PRJ_REF][CONFIG_FILE_KEY]
+        except KeyError:
+            pass
+        else:
+            head += " in Project ({})".format(prj_cfg)
+        pub_attrs = {k: v for k, v in self.items() if not k.startswith("_")}
+        maxlen = max(map(len, pub_attrs.keys())) + 2
+        attrs = ""
+        counter = 0
+        for k, v in pub_attrs.items():
+            attrs += "\n{}{}".\
+                format((k + ":").ljust(maxlen),
+                       v if not isinstance(v, list) else ", ".join(v))
+            if counter == max_attr:
+                attrs += "\n\n...".ljust(maxlen) + \
+                         "(showing first {})".format(max_attr)
+                break
+            counter += 1
+        return head + "\n" + attrs
+
     def _excl_from_eq(self, k):
         """ Exclude the Project reference from object comparison. """
         return k == PRJ_REF or super(Sample2, self)._excl_from_eq(k)
