@@ -221,6 +221,7 @@ class Project2(PathExAttMap):
             _LOGGER.debug("No {} found, skpping merge".
                           format(SUBSAMPLE_TABLE_KEY))
             return
+        self._check_subann_name_overlap()
         merged_attrs = {}
         subsample_table = self[SUBSAMPLE_TABLE_KEY]
         for sample in self.samples:
@@ -485,6 +486,15 @@ class Project2(PathExAttMap):
         return self._sample_table
 
     @property
+    def subsample_table(self):
+        """
+        Get subsample table
+
+        :return pandas.DataFrame: a data frame with subsample attributes
+        """
+        return self[SUBSAMPLE_TABLE_KEY]
+
+    @property
     def subproject(self):
         """
         Return currently active subproject or None if none was activated
@@ -501,9 +511,9 @@ class Project2(PathExAttMap):
         read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
                            "keep_default_na": False, "na_values": [""]}
         no_metadata_msg = "No " + METADATA_KEY + ".{} specified"
-        st = self[SAMPLE_TABLE_KEY]
+        st = self[CONFIG_KEY][SAMPLE_TABLE_KEY]
         try:
-            sst = self[SUBSAMPLE_TABLE_KEY]
+            sst = self[CONFIG_KEY][SUBSAMPLE_TABLE_KEY]
         except KeyError:
             sst = None
             _LOGGER.warning(no_metadata_msg.format(SUBSAMPLE_TABLE_KEY))
@@ -685,6 +695,16 @@ class Project2(PathExAttMap):
         _validate_object(project_dict, schema_cpy, exclude_case)
         _LOGGER.debug("Config validation successful")
 
+    def _check_subann_name_overlap(self):
+        """
+        Check if all subannotations have a matching sample, and warn if not
+        """
+        subsample_names = list(self[SUBSAMPLE_TABLE_KEY][SAMPLE_NAME_ATTR])
+        sample_names_list = [s[SAMPLE_NAME_ATTR] for s in self.samples]
+        for n in subsample_names:
+            if n not in sample_names_list:
+                _LOGGER.warning(("Couldn't find matching sample for "
+                                 "subsample: {}").format(n))
 
 def _validate_object(object, schema, exclude_case=False):
     """
