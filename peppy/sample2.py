@@ -62,12 +62,6 @@ class Sample2(PathExAttMap):
             if not isinstance(self[PRJ_REF], Mapping):
                 raise TypeError(
                     prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
-            if self[PRJ_REF].validate():
-                _LOGGER.warning(
-                    prefix + " but cannot be a Project; extracting storing just"
-                             " sample-independent Project data in {k}"
-                    .format(k=PRJ_REF))
-                self[PRJ_REF] = grab_project_data(self[PRJ_REF])
         self._derived_cols_done = []
 
     def derive_attribute(self, data_sources, attr_name):
@@ -209,7 +203,7 @@ class Sample2(PathExAttMap):
             iter({PRJ_REF: self[PRJ_REF]}.items())
         )
 
-    def __repr__(self, max_attr=10):
+    def __str__(self, max_attr=10):
         """ Representation in interpreter. """
         if len(self) == 0:
             return ""

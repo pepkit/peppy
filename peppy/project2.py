@@ -106,14 +106,14 @@ class Project2(PathExAttMap):
         self.add_entries(config)
         # Overwrite any config entries with entries in the subproject.
         if subproject:
-            if non_null_value(SUBPROJECTS_KEY, config):
+            if non_null_value(AMENDMENTS_KEY, config):
                 _LOGGER.debug("Adding entries for subproject '{}'".
                               format(subproject))
                 try:
-                    subproj_updates = config[SUBPROJECTS_KEY][subproject]
+                    subproj_updates = config[AMENDMENTS_KEY][subproject]
                 except KeyError:
                     raise MissingSubprojectError(subproject,
-                                                 config[SUBPROJECTS_KEY])
+                                                 config[AMENDMENTS_KEY])
                 _LOGGER.debug("Updating with: {}".format(subproj_updates))
                 self.add_entries(subproj_updates)
                 self._subproject = subproject
@@ -171,17 +171,17 @@ class Project2(PathExAttMap):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if CONSTANTS_KEY in self[MODIFIERS_KEY]:
+        if CONSTANT_KEY in self[MODIFIERS_KEY]:
             _LOGGER.debug("Applying constant attributes: {}".
-                          format(self[MODIFIERS_KEY][CONSTANTS_KEY]))
-            [s.update(self[MODIFIERS_KEY][CONSTANTS_KEY]) for s in self.samples]
+                          format(self[MODIFIERS_KEY][CONSTANT_KEY]))
+            [s.update(self[MODIFIERS_KEY][CONSTANT_KEY]) for s in self.samples]
 
     def attr_synonyms(self):
         """
         Copy attribute values for all samples to a new one
         """
-        if SYNONYMS_KEY in self[MODIFIERS_KEY]:
-            synonyms = self[MODIFIERS_KEY][SYNONYMS_KEY]
+        if DUPLICATED_KEY in self[MODIFIERS_KEY]:
+            synonyms = self[MODIFIERS_KEY][DUPLICATED_KEY]
             _LOGGER.debug("Applying synonyms: {}".format(synonyms))
             for sample in self.samples:
                 for attr, new in synonyms.items():
@@ -413,7 +413,7 @@ class Project2(PathExAttMap):
         return PROJECT_TYPENAME == t.__name__ or PROJECT_TYPENAME in [
             parent.__name__ for parent in t.__bases__]
 
-    def __repr__(self):
+    def __str__(self):
         """ Representation in interpreter. """
         if len(self) == 0:
             return "{}"
@@ -430,12 +430,14 @@ class Project2(PathExAttMap):
             msg = "{}\nSections: {}".format(msg, ", ".join(sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            context = " (showing first {})".format(num_samples) \
-                if num_samples < num_samples else ""
-            msg = "{}{}".format(msg, context)
-        subs = self.get(SUBPROJECTS_KEY)
-        return "{}\nSubprojects: {}".\
-            format(msg, ", ".join(subs.keys())) if subs else msg
+            sample_names = list(self[SAMPLE_TABLE_KEY][SAMPLE_NAME_ATTR])
+            repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
+            context = " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR) \
+                if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
+            msg = "{}{}: {}".format(msg, context, ", ".join(repr_names))
+        amendments = self[AMENDMENTS_KEY]
+        return "{}\nAmendments: {}".\
+            format(msg, ", ".join(amendments.keys())) if amendments else msg
 
     @property
     def config(self):
@@ -557,7 +559,7 @@ class Project2(PathExAttMap):
         mod_move_pairs = {
             "derived_attributes": DERIVED_KEY,
             "derived_columns": DERIVED_KEY,
-            "constant_attributes": CONSTANTS_KEY,
+            "constant_attributes": CONSTANT_KEY,
             "implied_attributes": IMPLIED_KEY,
             "implied_columns": IMPLIED_KEY,
             "data_sources": DERIVED_SOURCES_KEY
@@ -705,6 +707,7 @@ class Project2(PathExAttMap):
             if n not in sample_names_list:
                 _LOGGER.warning(("Couldn't find matching sample for "
                                  "subsample: {}").format(n))
+
 
 def _validate_object(object, schema, exclude_case=False):
     """
