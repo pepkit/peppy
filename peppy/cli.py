@@ -1,3 +1,4 @@
+import sys
 from ubiquerg import VersionInHelpParser
 import logmuse
 from ._version import __version__
@@ -35,6 +36,10 @@ def build_argparser():
             help="Whether to exclude the validation case from an error. "
                  "Only the human readable message explaining the error will "
                  "be raised. Useful when validating large PEPs.")
+
+    sps[INSPECT_CMD].add_argument(
+        "-n", "--sample-name", required=False, nargs="+",
+        help="Name of the samples to inspect.")
 
     group = sps[VALIDATE_CMD].add_mutually_exclusive_group()
 
@@ -77,4 +82,10 @@ def main():
         _LOGGER.info("Validation successful")
     if args.command == INSPECT_CMD:
         # TODO: add more detailed Project info
+        if args.sample_name:
+            samples = p.get_samples(args.sample_name)
+            for s in samples:
+                print(s)
+                print("\n")
+            sys.exit(0)
         print(p)
