@@ -48,9 +48,9 @@ class Project2(PathExAttMap):
         self[ACTIVE_AMENDMENTS_KEY] = None
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self._sample_table = self._get_table_from_samples()
+        self._sample_table = self._get_table_from_samples(index="sample_name")
 
-    def _get_table_from_samples(self):
+    def _get_table_from_samples(self, index=None):
         """
         Generate a data frame from samples. Excludes private
         attrs (prepended with an underscore)
@@ -64,6 +64,9 @@ class Project2(PathExAttMap):
                 {k: v for (k, v) in sd.items() if not k.startswith("_")}
             )
             df = df.append(ser, ignore_index=True)
+        if index:
+            _LOGGER.warning("setting index to: {}".format(index))
+            df.set_index(keys=index, drop=False)
         return df
 
     def parse_config_file(self, cfg_path, amendments=None):
@@ -218,7 +221,7 @@ class Project2(PathExAttMap):
         Merge sample subannotations (from subsample table) with
         sample annotations (from sample_table)
         """
-        if SUBSAMPLE_DF_KEY not in self:
+        if SUBSAMPLE_DF_KEY not in self or self[SUBSAMPLE_DF_KEY] is None:
             _LOGGER.debug("No {} found, skpping merge".
                           format(CFG_SUBSAMPLE_TABLE_KEY))
             return
@@ -496,7 +499,15 @@ class Project2(PathExAttMap):
             return []
 
     @property
-    def sample_table(self):
+    def amendments(self):
+        """
+        Return currently active list of amendments or None if none was activated
+
+        :return Iterable[str]: a list of currently active amendment names
+        """
+        return self[ACTIVE_AMENDMENTS_KEY]
+
+    def sample_table(self, index="sample_name"):
         """
         Get sample table. If any sample edits were performed,
         it will be re-generated
@@ -506,27 +517,19 @@ class Project2(PathExAttMap):
         if self[SAMPLE_EDIT_FLAG_KEY]:
             _LOGGER.debug("Sample edits performed. Generating new data frame")
             self[SAMPLE_EDIT_FLAG_KEY] = False
-            return self._get_table_from_samples()
+            return self._get_table_from_samples(index=index)
         _LOGGER.debug("No sample edits performed. Returning stashed data frame")
         return self._sample_table
 
-    @property
-    def subsample_table(self):
+    def subsample_table(self, index=["sample_name", "subsample_name"]):
         """
         Get subsample table
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
+        if isinstance(self[SUBSAMPLE_DF_KEY], pd.DataFrame):
+            self[SUBSAMPLE_DF_KEY].set_index(keys=index, drop=False)
         return self[SUBSAMPLE_DF_KEY]
-
-    @property
-    def amendments(self):
-        """
-        Return currently active list of amendments or None if none was activated
-
-        :return Iterable[str]: a list of currently active amendment names
-        """
-        return self[ACTIVE_AMENDMENTS_KEY]
 
     def _read_sample_data(self):
         """
@@ -549,11 +552,13 @@ class Project2(PathExAttMap):
                 pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
+            self[SAMPLE_DF_KEY] = None
         if sst:
             self[SUBSAMPLE_DF_KEY] = \
                 pd.read_csv(sst, sep=infer_delimiter(sst), **read_csv_kwargs)
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
+            self[SUBSAMPLE_DF_KEY] = None
 
     def _get_cfg_v(self):
         """
@@ -785,23 +790,19 @@ def _ensure_path_absolute(maybe_relpath, cfg_path):
         raise TypeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".
                 format(maybe_relpath, type(maybe_relpath)))
-    _LOGGER.debug("Ensuring absolute: '{}'".format(maybe_relpath))
     if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
         _LOGGER.debug("Already absolute")
         return maybe_relpath
     # Maybe we have env vars that make the path absolute?
     expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
-    _LOGGER.debug("Expanded: '{}'".format(expanded))
     if os.path.isabs(expanded):
-        _LOGGER.debug("Expanded is absolute")
+        _LOGGER.debug("Expanded: {}".format(expanded))
         return expanded
-    _LOGGER.debug("Making non-absolute path '{}' be absolute".
-                  format(maybe_relpath))
-
     # Set path to an absolute path, relative to project config.
     config_dirpath = os.path.dirname(cfg_path)
     _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
     abs_path = os.path.join(config_dirpath, maybe_relpath)
+    _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
     return abs_path
 
 
