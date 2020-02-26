@@ -150,7 +150,7 @@ class Project2(PathExAttMap):
         self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
-            _LOGGER.warn("sample_Table was not loaded, can't create Samples")
+            _LOGGER.warn("sample_table was not loaded, can't create Samples")
             return []
         _LOGGER.warn(self[SAMPLE_DF_KEY])
         for _, r in self[SAMPLE_DF_KEY].iterrows():
@@ -158,7 +158,7 @@ class Project2(PathExAttMap):
         return samples_list
 
     def modify_samples(self):
-        if MODIFIERS_KEY not in self[CONFIG_KEY]:
+        if CONFIG_KEY not in self or MODIFIERS_KEY not in self[CONFIG_KEY]:
             return
         self.attr_constants()
         self.attr_synonyms()
@@ -405,6 +405,20 @@ class Project2(PathExAttMap):
         self.__init__(self[CONFIG_FILE_KEY])
         return self
 
+    def add_samples(self, samples):
+        """
+        Add list of Sample objects
+
+        :param peppy.Sample | Iterable[peppy.Sample] samples: samples to add
+        """
+        samples = [samples] if isinstance(samples, Sample2) else samples
+        for sample in samples:
+            if isinstance(sample, Sample2):
+                self._samples.append(sample)
+                self[SAMPLE_EDIT_FLAG_KEY] = True
+            else:
+                _LOGGER.warning("not a peppy.Sample object, not adding")
+
     def validate(self):
         """
         Prioritize project module import sample module, not vice-versa, but we
@@ -428,10 +442,6 @@ class Project2(PathExAttMap):
         except (AttributeError, TypeError):
             _LOGGER.debug("No samples established on project")
             num_samples = 0
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            sections = [s for s in self[CONFIG_KEY].keys()]
-            msg = "{}\nSections: {}".format(msg, ", ".join(sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
             sample_names = list(self[SAMPLE_DF_KEY][SAMPLE_NAME_ATTR])
@@ -439,14 +449,19 @@ class Project2(PathExAttMap):
             context = " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR) \
                 if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
             msg = "{}{}: {}".format(msg, context, ", ".join(repr_names))
-        amendments = self[CONFIG_KEY][AMENDMENTS_KEY]
-        if amendments:
-            msg = "{}\nAmendments: {}".format(msg, ", ".join(amendments.keys()))
+        else:
+            msg = "{} {}".format(msg, "no samples")
+        if CONFIG_KEY not in self:
+            return msg
+        sections = [s for s in self[CONFIG_KEY].keys()]
+        msg = "{}\nSections: {}".format(msg, ", ".join(sections))
+        if AMENDMENTS_KEY in self[CONFIG_KEY]:
+            msg = "{}\nAmendments: {}".\
+                format(msg, ", ".join(self[CONFIG_KEY][AMENDMENTS_KEY].keys()))
         if self[ACTIVE_AMENDMENTS_KEY]:
             msg = "{}\nActivated amendments: {}".\
                 format(msg, ", ".join(self[ACTIVE_AMENDMENTS_KEY]))
         return msg
-
 
     @property
     def config(self):
@@ -521,7 +536,7 @@ class Project2(PathExAttMap):
         """
         read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
                            "keep_default_na": False, "na_values": [""]}
-        no_metadata_msg = "No " + METADATA_KEY + ".{} specified"
+        no_metadata_msg = "No {} specified"
         if CONFIG_KEY not in self:
             _LOGGER.warn("No config key in Project")
             return
@@ -614,11 +629,11 @@ class Project2(PathExAttMap):
                         _LOGGER.debug("Section '{}.{}' moved to: {}".
                                       format(METADATA_KEY, k_from, k_to))
         for k, v in mod_move_pairs.items():
-            _mv_if_in(self, k, v, modifiers=True)
+            _mv_if_in(self[CONFIG_KEY], k, v, modifiers=True)
         for k, v in metadata_move_pairs.items():
-            _mv_if_in(self, k, v)
-        if not self[METADATA_KEY]:
-            del self[METADATA_KEY]
+            _mv_if_in(self[CONFIG_KEY], k, v)
+        if not self[CONFIG_KEY][METADATA_KEY]:
+            del self[CONFIG_KEY][METADATA_KEY]
 
     def get_sample(self, sample_name):
         """

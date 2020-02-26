@@ -24,7 +24,7 @@ def build_argparser():
     sps = {}
     for cmd, desc in SUBPARSER_MSGS.items():
         sps[cmd] = subparsers.add_parser(cmd, description=desc, help=desc)
-        sps[cmd].add_argument('-p', '--pep', required=True,
+        sps[cmd].add_argument('pep', metavar="PEP",
                               help="Path to a PEP configuration "
                                    "file in yaml format.")
 
