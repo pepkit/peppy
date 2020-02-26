@@ -152,7 +152,6 @@ class Project2(PathExAttMap):
         if SAMPLE_DF_KEY not in self:
             _LOGGER.warn("sample_table was not loaded, can't create Samples")
             return []
-        _LOGGER.warn(self[SAMPLE_DF_KEY])
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample2(r.dropna(), prj=self))
         return samples_list
@@ -453,8 +452,8 @@ class Project2(PathExAttMap):
             msg = "{} {}".format(msg, "no samples")
         if CONFIG_KEY not in self:
             return msg
-        sections = [s for s in self[CONFIG_KEY].keys()]
-        msg = "{}\nSections: {}".format(msg, ", ".join(sections))
+        msg = "{}\nSections: {}".\
+            format(msg, ", ".join([s for s in self[CONFIG_KEY].keys()]))
         if AMENDMENTS_KEY in self[CONFIG_KEY]:
             msg = "{}\nAmendments: {}".\
                 format(msg, ", ".join(self[CONFIG_KEY][AMENDMENTS_KEY].keys()))
@@ -545,7 +544,6 @@ class Project2(PathExAttMap):
             sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
         except KeyError:
             sst = None
-            _LOGGER.warning(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
         if st:
             self[SAMPLE_DF_KEY] = \
                 pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
@@ -579,27 +577,15 @@ class Project2(PathExAttMap):
                            m=MODIFIERS_KEY))
         return float(v)
 
-    def _format_cfg(self):
+    def _format_cfg(self, mod_move_pairs=MODIFIERS_MOVE_PAIRS):
         """
-        Format Project object to comply with the new config v2.0 specifications
+        Format Project object to comply with the new config v2.0 specifications.
+        All keys from metadata section will be moved to the root of config.
+        mod_move_pairs will be used to move and rename sections
+        to sample_modifiers section
+
         """
-        mod_move_pairs = {
-            "derived_attributes": DERIVED_KEY,
-            "derived_columns": DERIVED_KEY,
-            "constant_attributes": CONSTANT_KEY,
-            "implied_attributes": IMPLIED_KEY,
-            "implied_columns": IMPLIED_KEY,
-            "data_sources": DERIVED_SOURCES_KEY
-        }
-
-        metadata_move_pairs = {
-            "sample_table": CFG_SAMPLE_TABLE_KEY,
-            "subsample_table": CFG_SUBSAMPLE_TABLE_KEY,
-            "sample_annotation": CFG_SAMPLE_TABLE_KEY,
-            "sample_subannotation": CFG_SUBSAMPLE_TABLE_KEY
-        }
-
-        def _mv_if_in(mapping, k_from, k_to, modifiers=False):
+        def _mv_if_in(mapping, k_from=None, k_to=None, modifiers=False):
             """
             Move the sections within mapping
 
@@ -609,6 +595,8 @@ class Project2(PathExAttMap):
             """
             present = "Section '{}' already in '{}'"
             if modifiers:
+                assert all(v is not None for v in [k_from, k_to]), \
+                    "Keys can't be None"
                 if k_from in mapping:
                     mapping.setdefault(MODIFIERS_KEY, PathExAttMap())
                     if k_to in mapping[MODIFIERS_KEY]:
@@ -620,19 +608,19 @@ class Project2(PathExAttMap):
                         _LOGGER.debug("Section '{}' moved to: {}.{}".
                                       format(k_from, MODIFIERS_KEY, k_to))
             else:
-                if METADATA_KEY in mapping and k_from in mapping[METADATA_KEY]:
-                    if k_to in mapping:
-                        _LOGGER.info(present.format(k_to, mapping))
-                    else:
-                        mapping[k_to] = mapping[METADATA_KEY][k_from]
-                        del mapping[METADATA_KEY][k_from]
-                        _LOGGER.debug("Section '{}.{}' moved to: {}".
-                                      format(METADATA_KEY, k_from, k_to))
+                if METADATA_KEY in mapping:
+                    for mk in mapping[METADATA_KEY].keys():
+                        if mk in mapping:
+                            _LOGGER.info(present.format(mk, mapping))
+                        else:
+                            mapping[mk] = mapping[METADATA_KEY][mk]
+                            del mapping[METADATA_KEY][mk]
+                            _LOGGER.debug("Section '{}.{}' moved to: {}".
+                                          format(METADATA_KEY, mk, mk))
         for k, v in mod_move_pairs.items():
             _mv_if_in(self[CONFIG_KEY], k, v, modifiers=True)
-        for k, v in metadata_move_pairs.items():
-            _mv_if_in(self[CONFIG_KEY], k, v)
-        if not self[CONFIG_KEY][METADATA_KEY]:
+        _mv_if_in(self[CONFIG_KEY], k, v)
+        if METADATA_KEY in self[CONFIG_KEY]:
             del self[CONFIG_KEY][METADATA_KEY]
 
     def get_sample(self, sample_name):
