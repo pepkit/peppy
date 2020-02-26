@@ -30,9 +30,9 @@ class Project2(PathExAttMap):
 
     :param str | Mapping cfg: Project config file (YAML), or appropriate
         key-value mapping of data to constitute project
-    :param str subproject: Subproject to use within configuration file, optional
+    :param Iterable[str] amendments: amendments to use within configuration file
     """
-    def __init__(self, cfg, subproject=None, schema=None):
+    def __init__(self, cfg=None, amendments=None):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
             " from file {}".format(cfg) if cfg else "")
@@ -40,20 +40,15 @@ class Project2(PathExAttMap):
         super(Project2, self).__init__()
         if isinstance(cfg, str):
             cfg_pth = os.path.abspath(cfg)
-            self.parse_config_file(cfg_pth, subproject)
+            self.parse_config_file(cfg_pth, amendments)
             self[CONFIG_FILE_KEY] = cfg_pth
-            if schema:
-                self.validate_config(schema=schema)
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
-        self._subproject = None
+        self[ACTIVE_AMENDMENTS_KEY] = None
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self._sample_table = self._get_df_from_samples()
-        if schema:
-            [self.validate_sample(s[SAMPLE_NAME_ATTR], schema)
-             for s in self.samples]
+        self._sample_sheet = self._get_df_from_samples()
 
     def _get_df_from_samples(self):
         """
@@ -71,15 +66,14 @@ class Project2(PathExAttMap):
             df = df.append(ser, ignore_index=True)
         return df
 
-    def parse_config_file(self, cfg_path, subproject=None):
+    def parse_config_file(self, cfg_path, amendments=None):
         """
         Parse provided yaml config file and check required fields exist.
 
         :param str cfg_path: path to the config file to read and parse
-        :param str subproject: Name of subproject to activate, optional
+        :param Iterable[str] amendments: Name of amendments to activate
         :raises KeyError: if config file lacks required section(s)
         """
-
         with open(cfg_path, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
@@ -104,35 +98,38 @@ class Project2(PathExAttMap):
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
         self.add_entries(config)
-        # Overwrite any config entries with entries in the subproject.
-        if subproject:
-            if non_null_value(AMENDMENTS_KEY, config):
-                _LOGGER.debug("Adding entries for subproject '{}'".
-                              format(subproject))
-                try:
-                    subproj_updates = config[AMENDMENTS_KEY][subproject]
-                except KeyError:
-                    raise MissingSubprojectError(subproject,
-                                                 config[AMENDMENTS_KEY])
-                _LOGGER.debug("Updating with: {}".format(subproj_updates))
-                self.add_entries(subproj_updates)
-                self._subproject = subproject
-                _LOGGER.info("Using subproject: '{}'".format(subproject))
-            else:
-                raise MissingSubprojectError(subproject)
+
+        # Overwrite any config entries with entries in the amendments.
+        amendments = [amendments] if isinstance(amendments, str) else amendments
+        if amendments:
+            for amendment in amendments:
+                if non_null_value(AMENDMENTS_KEY, config):
+                    _LOGGER.debug("Adding entries for amendment '{}'".
+                                  format(amendment))
+                    try:
+                        amends = config[AMENDMENTS_KEY][amendment]
+                    except KeyError:
+                        raise MissingAmendmentError(amendment,
+                                                     config[AMENDMENTS_KEY])
+                    _LOGGER.debug("Updating with: {}".format(amends))
+                    self.add_entries(amends)
+                    _LOGGER.info("Using amendment: '{}'".format(amendment))
+                else:
+                    raise MissingAmendmentError(amendment)
+            self[ACTIVE_AMENDMENTS_KEY] = amendments
         self[CONFIG_VERSION_KEY] = self._get_cfg_v()
         if self[CONFIG_VERSION_KEY] < 2:
             self._format_cfg()
 
         # here specify cfg sections that may need expansion
-        relative_vars = [SAMPLE_TABLE_KEY, SUBSAMPLE_TABLE_KEY]
-        self._make_sections_absolute(relative_vars, cfg_path)
+        relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         self[CONFIG_KEY] = self.to_dict()
+        self._make_sections_absolute(relative_vars, cfg_path)
 
     def _make_sections_absolute(self, sections, cfg_path):
         for key in sections:
             try:
-                relpath = self[key]
+                relpath = self[CONFIG_KEY][key]
             except KeyError:
                 _LOGGER.debug("No '{}' section in configuration file: {}".
                               format(key, cfg_path))
@@ -147,12 +144,15 @@ class Project2(PathExAttMap):
             else:
                 absolute = _ensure_path_absolute(relpath, cfg_path)
             _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
-            self[key] = absolute
+            self[CONFIG_KEY][key] = absolute
 
     def load_samples(self):
         self._read_sample_data()
         samples_list = []
-        for _, r in self[SAMPLE_TABLE_KEY].iterrows():
+        if SAMPLE_SHEET_KEY not in self:
+            _LOGGER.warn("{} was not loaded, can't create Samples".format(SAMPLE_SHEET_KEY))
+            return []
+        for _, r in self[SAMPLE_SHEET_KEY].iterrows():
             samples_list.append(Sample2(r.dropna(), prj=self))
         return samples_list
 
@@ -209,7 +209,7 @@ class Project2(PathExAttMap):
             except (KeyError, AttributeError):
                 msg = "{st} is missing '{sn}' column;" \
                       " you must specify {sn}s in {st} or derive them".\
-                    format(st=SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
+                    format(st=SAMPLE_SHEET_KEY, sn=SAMPLE_NAME_ATTR)
                 raise InvalidSampleTableFileException(msg)
 
     def attr_merge(self):
@@ -217,13 +217,13 @@ class Project2(PathExAttMap):
         Merge sample subannotations (from subsample table) with
         sample annotations (from sample_table)
         """
-        if SUBSAMPLE_TABLE_KEY not in self:
+        if SUBSAMPLE_SHEET_KEY not in self:
             _LOGGER.debug("No {} found, skpping merge".
-                          format(SUBSAMPLE_TABLE_KEY))
+                          format(SUBSAMPLE_SHEET_KEY))
             return
         self._check_subann_name_overlap()
         merged_attrs = {}
-        subsample_table = self[SUBSAMPLE_TABLE_KEY]
+        subsample_table = self[SUBSAMPLE_SHEET_KEY]
         for sample in self.samples:
             sample_colname = SAMPLE_NAME_ATTR
             if sample_colname not in subsample_table.columns:
@@ -349,41 +349,43 @@ class Project2(PathExAttMap):
                                   " '{}': {}".format(attr, type(derived_attr)))
                 sample._derived_cols_done.append(attr)
 
-    def activate_subproject(self, subproject):
+    def activate_amendments(self, amendments):
         """
-        Update settings based on subproject-specific values.
+        Update settings based on amendment-specific values.
 
         This method will update Project attributes, adding new values
-        associated with the subproject indicated, and in case of collision with
-        an existing key/attribute the subproject's value will be favored.
+        associated with the amendments indicated, and in case of collision with
+        an existing key/attribute the amendments' values will be favored.
 
-        :param str subproject: A string with a subproject name to be activated
+        :param Iterable[str] amendments: A string with amendment
+            names to be activated
         :return peppy.Project: Updated Project instance
-        :raise TypeError: if argument to subroject parameter is null
+        :raise TypeError: if argument to amendment parameter is null
         :raise NotImplementedError: if this call is made on a project not
             created from a config file
         """
-        if subproject is None:
+        amendments = [amendments] if isinstance(amendments, str) else amendments
+        if amendments is None:
             raise TypeError(
-                "The subproject argument can not be null. To deactivate a "
-                "subproject use the deactivate_subproject method.")
+                "The amendment argument can not be null. To deactivate a "
+                "amendment use the deactivate_amendment method.")
         if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError(
-                "Subproject activation isn't supported on a project not "
+                "amendment activation isn't supported on a project not "
                 "created from a config file")
-        previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
+        prev = [(k, v) for k, v in self.items() if not k.startswith("_")]
         conf_file = self[CONFIG_FILE_KEY]
-        self.__init__(conf_file, subproject)
-        for k, v in previous:
+        self.__init__(conf_file, amendments)
+        for k, v in prev:
             if k.startswith("_"):
                 continue
             if k not in self or (self.is_null(k) and v is not None):
                 _LOGGER.debug("Restoring {}: {}".format(k, v))
                 self[k] = v
-        self._subproject = subproject
+        self[ACTIVE_AMENDMENTS_KEY] = amendments
         return self
 
-    def deactivate_subproject(self):
+    def deactivate_amendments(self):
         """
         Bring the original project settings back.
 
@@ -391,12 +393,12 @@ class Project2(PathExAttMap):
         :raise NotImplementedError: if this call is made on a project not
             created from a config file
         """
-        if self.subproject is None:
-            _LOGGER.warning("No subproject has been activated.")
+        if self[ACTIVE_AMENDMENTS_KEY] is None:
+            _LOGGER.warning("No amendments have been activated.")
             return self
         if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError(
-                "Subproject deactivation isn't supported on a project that "
+                "amendments deactivation isn't supported on a project that "
                 "lacks a config file.")
         self.__init__(self[CONFIG_FILE_KEY])
         return self
@@ -430,7 +432,7 @@ class Project2(PathExAttMap):
             msg = "{}\nSections: {}".format(msg, ", ".join(sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            sample_names = list(self[SAMPLE_TABLE_KEY][SAMPLE_NAME_ATTR])
+            sample_names = list(self[SAMPLE_SHEET_KEY][SAMPLE_NAME_ATTR])
             repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR) \
                 if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
@@ -468,12 +470,12 @@ class Project2(PathExAttMap):
         """
         if self._samples:
             return self._samples
-        if self.sample_table is None:
+        if SAMPLE_SHEET_KEY not in self or self[SAMPLE_SHEET_KEY] is None:
             _LOGGER.warning("No samples are defined")
             return []
 
     @property
-    def sample_table(self):
+    def sample_sheet(self):
         """
         Get sample table. If any sample edits were performed,
         it will be re-generated
@@ -485,25 +487,25 @@ class Project2(PathExAttMap):
             self[SAMPLE_EDIT_FLAG_KEY] = False
             return self._get_df_from_samples()
         _LOGGER.debug("No sample edits performed. Returning stashed data frame")
-        return self._sample_table
+        return self._sample_sheet
 
     @property
-    def subsample_table(self):
+    def subsample_sheet(self):
         """
         Get subsample table
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
-        return self[SUBSAMPLE_TABLE_KEY]
+        return self[SUBSAMPLE_SHEET_KEY]
 
     @property
-    def subproject(self):
+    def amendments(self):
         """
-        Return currently active subproject or None if none was activated
+        Return currently active list of amendments or None if none was activated
 
-        :return str: name of currently active subproject
+        :return Iterable[str]: a list of currently active amendment names
         """
-        return self._subproject
+        return self[ACTIVE_AMENDMENTS_KEY]
 
     def _read_sample_data(self):
         """
@@ -513,22 +515,25 @@ class Project2(PathExAttMap):
         read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
                            "keep_default_na": False, "na_values": [""]}
         no_metadata_msg = "No " + METADATA_KEY + ".{} specified"
-        st = self[CONFIG_KEY][SAMPLE_TABLE_KEY]
+        if CONFIG_KEY not in self:
+            _LOGGER.warn("No config key in Project")
+            return
+        st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
         try:
-            sst = self[CONFIG_KEY][SUBSAMPLE_TABLE_KEY]
+            sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
         except KeyError:
             sst = None
-            _LOGGER.warning(no_metadata_msg.format(SUBSAMPLE_TABLE_KEY))
+            _LOGGER.warning(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
         if st:
-            self[SAMPLE_TABLE_KEY] = \
+            self[SAMPLE_SHEET_KEY] = \
                 pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
         else:
-            _LOGGER.warning(no_metadata_msg.format(SAMPLE_TABLE_KEY))
+            _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
         if sst:
-            self[SUBSAMPLE_TABLE_KEY] = \
+            self[SUBSAMPLE_SHEET_KEY] = \
                 pd.read_csv(sst, sep=infer_delimiter(sst), **read_csv_kwargs)
         else:
-            _LOGGER.debug(no_metadata_msg.format(SUBSAMPLE_TABLE_KEY))
+            _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
 
     def _get_cfg_v(self):
         """
@@ -566,10 +571,10 @@ class Project2(PathExAttMap):
         }
 
         metadata_move_pairs = {
-            SAMPLE_TABLE_KEY: SAMPLE_TABLE_KEY,
-            SUBSAMPLE_TABLE_KEY: SUBSAMPLE_TABLE_KEY,
-            "sample_annotation": SAMPLE_TABLE_KEY,
-            "sample_subannotation": SUBSAMPLE_TABLE_KEY
+            SAMPLE_SHEET_KEY: SAMPLE_SHEET_KEY,
+            SUBSAMPLE_SHEET_KEY: SUBSAMPLE_SHEET_KEY,
+            "sample_annotation": SAMPLE_SHEET_KEY,
+            "sample_subannotation": SUBSAMPLE_SHEET_KEY
         }
 
         def _mv_if_in(mapping, k_from, k_to, modifiers=False):
@@ -701,7 +706,7 @@ class Project2(PathExAttMap):
         """
         Check if all subannotations have a matching sample, and warn if not
         """
-        subsample_names = list(self[SUBSAMPLE_TABLE_KEY][SAMPLE_NAME_ATTR])
+        subsample_names = list(self[SUBSAMPLE_SHEET_KEY][SAMPLE_NAME_ATTR])
         sample_names_list = [s[SAMPLE_NAME_ATTR] for s in self.samples]
         for n in subsample_names:
             if n not in sample_names_list:

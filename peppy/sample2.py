@@ -102,7 +102,7 @@ class Sample2(PathExAttMap):
                 msg = "All attributes to format the {} ({}) have to be the " \
                       "same length, got: {}. Correct your {}".\
                     format(DERIVED_SOURCES_KEY, regex, attr_lens,
-                           SUBSAMPLE_TABLE_KEY)
+                           SUBSAMPLE_SHEET_KEY)
                 raise InvalidSampleTableFileException(msg)
             vals = []
             for i in range(0, attr_lens[0]):

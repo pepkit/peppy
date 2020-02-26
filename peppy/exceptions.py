@@ -3,11 +3,8 @@
 from abc import ABCMeta
 from collections import Iterable
 
-__author__ = "Vince Reuter"
-__email__ = "vreuter@virginia.edu"
-
 __all__ = ["IllegalStateException", "InvalidSampleTableFileException",
-           "PeppyError", "MissingSubprojectError", "InvalidConfigFileException"]
+           "PeppyError", "MissingAmendmentError", "InvalidConfigFileException"]
 
 
 class PeppyError(Exception):
@@ -29,21 +26,22 @@ class InvalidSampleTableFileException(PeppyError):
     pass
 
 
-class MissingSubprojectError(PeppyError):
+class MissingAmendmentError(PeppyError):
     """ Error when project config lacks a requested subproject. """
 
-    def __init__(self, sp, defined=None):
+    def __init__(self, amendment, defined=None):
         """
-        Create exception with missing subproj request.
+        Create exception with missing amendment request.
 
-        :param str sp: the requested (and missing) subproject
-        :param Iterable[str] defined: collection of names of defined subprojects
+        :param str amendment: the requested (and missing) amendment
+        :param Iterable[str] defined: collection of names of defined amendment
         """
-        msg = "Subproject '{}' not found".format(sp)
+        msg = "Amendment '{}' not found".format(amendment)
         if isinstance(defined, Iterable):
-            ctx = "defined subproject(s): {}".format(", ".join(map(str, defined)))
+            ctx = "defined amendments(s): {}".\
+                format(", ".join(map(str, defined)))
             msg = "{}; {}".format(msg, ctx)
-        super(MissingSubprojectError, self).__init__(msg)
+        super(MissingAmendmentError, self).__init__(msg)
 
 
 class InvalidConfigFileException(PeppyError):
