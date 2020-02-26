@@ -48,9 +48,9 @@ class Project2(PathExAttMap):
         self[ACTIVE_AMENDMENTS_KEY] = None
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self._sample_sheet = self._get_df_from_samples()
+        self._sample_table = self._get_table_from_samples()
 
-    def _get_df_from_samples(self):
+    def _get_table_from_samples(self):
         """
         Generate a data frame from samples. Excludes private
         attrs (prepended with an underscore)
@@ -74,6 +74,8 @@ class Project2(PathExAttMap):
         :param Iterable[str] amendments: Name of amendments to activate
         :raises KeyError: if config file lacks required section(s)
         """
+        if CONFIG_KEY not in self:
+            self[CONFIG_KEY] = PathExAttMap()
         with open(cfg_path, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
@@ -95,10 +97,9 @@ class Project2(PathExAttMap):
                     _LOGGER.warning("External Project configuration does not"
                                     " exist: {}".format(i))
 
+        self[CONFIG_KEY].add_entries(config)
         # Parse yaml into the project's attributes.
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
-        self.add_entries(config)
-
         # Overwrite any config entries with entries in the amendments.
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments:
@@ -112,18 +113,17 @@ class Project2(PathExAttMap):
                         raise MissingAmendmentError(amendment,
                                                      config[AMENDMENTS_KEY])
                     _LOGGER.debug("Updating with: {}".format(amends))
-                    self.add_entries(amends)
+                    self[CONFIG_KEY].add_entries(amends)
                     _LOGGER.info("Using amendment: '{}'".format(amendment))
                 else:
                     raise MissingAmendmentError(amendment)
             self[ACTIVE_AMENDMENTS_KEY] = amendments
-        self[CONFIG_VERSION_KEY] = self._get_cfg_v()
-        if self[CONFIG_VERSION_KEY] < 2:
-            self._format_cfg()
 
+        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self._get_cfg_v()
+        if self[CONFIG_KEY][CONFIG_VERSION_KEY] < 2:
+            self._format_cfg()
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
-        self[CONFIG_KEY] = self.to_dict()
         self._make_sections_absolute(relative_vars, cfg_path)
 
     def _make_sections_absolute(self, sections, cfg_path):
@@ -149,15 +149,16 @@ class Project2(PathExAttMap):
     def load_samples(self):
         self._read_sample_data()
         samples_list = []
-        if SAMPLE_SHEET_KEY not in self:
-            _LOGGER.warn("{} was not loaded, can't create Samples".format(SAMPLE_SHEET_KEY))
+        if SAMPLE_DF_KEY not in self:
+            _LOGGER.warn("sample_Table was not loaded, can't create Samples")
             return []
-        for _, r in self[SAMPLE_SHEET_KEY].iterrows():
+        _LOGGER.warn(self[SAMPLE_DF_KEY])
+        for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample2(r.dropna(), prj=self))
         return samples_list
 
     def modify_samples(self):
-        if MODIFIERS_KEY not in self:
+        if MODIFIERS_KEY not in self[CONFIG_KEY]:
             return
         self.attr_constants()
         self.attr_synonyms()
@@ -171,17 +172,18 @@ class Project2(PathExAttMap):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if CONSTANT_KEY in self[MODIFIERS_KEY]:
+        if CONSTANT_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
             _LOGGER.debug("Applying constant attributes: {}".
-                          format(self[MODIFIERS_KEY][CONSTANT_KEY]))
-            [s.update(self[MODIFIERS_KEY][CONSTANT_KEY]) for s in self.samples]
+                          format(self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY]))
+            [s.update(self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY])
+             for s in self.samples]
 
     def attr_synonyms(self):
         """
         Copy attribute values for all samples to a new one
         """
-        if DUPLICATED_KEY in self[MODIFIERS_KEY]:
-            synonyms = self[MODIFIERS_KEY][DUPLICATED_KEY]
+        if DUPLICATED_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
+            synonyms = self[CONFIG_KEY][MODIFIERS_KEY][DUPLICATED_KEY]
             _LOGGER.debug("Applying synonyms: {}".format(synonyms))
             for sample in self.samples:
                 for attr, new in synonyms.items():
@@ -199,7 +201,7 @@ class Project2(PathExAttMap):
             # before merging, which is requires sample_name attribute to map
             # sample_table rows to subsample_table rows,
             # perform only sample_name attr derivation
-            if SAMPLE_NAME_ATTR in self[MODIFIERS_KEY][DERIVED_KEY]:
+            if SAMPLE_NAME_ATTR in self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY]:
                 self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
         except KeyError:
             pass
@@ -209,7 +211,7 @@ class Project2(PathExAttMap):
             except (KeyError, AttributeError):
                 msg = "{st} is missing '{sn}' column;" \
                       " you must specify {sn}s in {st} or derive them".\
-                    format(st=SAMPLE_SHEET_KEY, sn=SAMPLE_NAME_ATTR)
+                    format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
                 raise InvalidSampleTableFileException(msg)
 
     def attr_merge(self):
@@ -217,13 +219,13 @@ class Project2(PathExAttMap):
         Merge sample subannotations (from subsample table) with
         sample annotations (from sample_table)
         """
-        if SUBSAMPLE_SHEET_KEY not in self:
+        if SUBSAMPLE_DF_KEY not in self:
             _LOGGER.debug("No {} found, skpping merge".
-                          format(SUBSAMPLE_SHEET_KEY))
+                          format(CFG_SUBSAMPLE_TABLE_KEY))
             return
         self._check_subann_name_overlap()
         merged_attrs = {}
-        subsample_table = self[SUBSAMPLE_SHEET_KEY]
+        subsample_table = self[SUBSAMPLE_DF_KEY]
         for sample in self.samples:
             sample_colname = SAMPLE_NAME_ATTR
             if sample_colname not in subsample_table.columns:
@@ -287,7 +289,7 @@ class Project2(PathExAttMap):
         additional data elements for the sample.
         """
         try:
-            implications = self[MODIFIERS_KEY][IMPLIED_KEY]
+            implications = self[CONFIG_KEY][MODIFIERS_KEY][IMPLIED_KEY]
         except KeyError:
             return
         _LOGGER.debug("Sample attribute implications: {}".format(implications))
@@ -321,8 +323,8 @@ class Project2(PathExAttMap):
         """
         Set derived attributes for all Samples tied to this Project instance
         """
-        da = self[MODIFIERS_KEY][DERIVED_KEY]
-        ds = self[MODIFIERS_KEY][DERIVED_SOURCES_KEY]
+        da = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY]
+        ds = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_SOURCES_KEY]
         derivations = attrs or (da if isinstance(da, list) else [da])
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
         for sample in self.samples:
@@ -368,7 +370,7 @@ class Project2(PathExAttMap):
         if amendments is None:
             raise TypeError(
                 "The amendment argument can not be null. To deactivate a "
-                "amendment use the deactivate_amendment method.")
+                "amendment use the deactivate_amendments method.")
         if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError(
                 "amendment activation isn't supported on a project not "
@@ -428,18 +430,23 @@ class Project2(PathExAttMap):
             num_samples = 0
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            sections = [s for s in self.keys() if not s.startswith("_")]
+            sections = [s for s in self[CONFIG_KEY].keys()]
             msg = "{}\nSections: {}".format(msg, ", ".join(sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            sample_names = list(self[SAMPLE_SHEET_KEY][SAMPLE_NAME_ATTR])
+            sample_names = list(self[SAMPLE_DF_KEY][SAMPLE_NAME_ATTR])
             repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR) \
                 if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
             msg = "{}{}: {}".format(msg, context, ", ".join(repr_names))
-        amendments = self[AMENDMENTS_KEY]
-        return "{}\nAmendments: {}".\
-            format(msg, ", ".join(amendments.keys())) if amendments else msg
+        amendments = self[CONFIG_KEY][AMENDMENTS_KEY]
+        if amendments:
+            msg = "{}\nAmendments: {}".format(msg, ", ".join(amendments.keys()))
+        if self[ACTIVE_AMENDMENTS_KEY]:
+            msg = "{}\nActivated amendments: {}".\
+                format(msg, ", ".join(self[ACTIVE_AMENDMENTS_KEY]))
+        return msg
+
 
     @property
     def config(self):
@@ -470,12 +477,12 @@ class Project2(PathExAttMap):
         """
         if self._samples:
             return self._samples
-        if SAMPLE_SHEET_KEY not in self or self[SAMPLE_SHEET_KEY] is None:
+        if SAMPLE_DF_KEY not in self or self[SAMPLE_DF_KEY] is None:
             _LOGGER.warning("No samples are defined")
             return []
 
     @property
-    def sample_sheet(self):
+    def sample_table(self):
         """
         Get sample table. If any sample edits were performed,
         it will be re-generated
@@ -485,18 +492,18 @@ class Project2(PathExAttMap):
         if self[SAMPLE_EDIT_FLAG_KEY]:
             _LOGGER.debug("Sample edits performed. Generating new data frame")
             self[SAMPLE_EDIT_FLAG_KEY] = False
-            return self._get_df_from_samples()
+            return self._get_table_from_samples()
         _LOGGER.debug("No sample edits performed. Returning stashed data frame")
-        return self._sample_sheet
+        return self._sample_table
 
     @property
-    def subsample_sheet(self):
+    def subsample_table(self):
         """
         Get subsample table
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
-        return self[SUBSAMPLE_SHEET_KEY]
+        return self[SUBSAMPLE_DF_KEY]
 
     @property
     def amendments(self):
@@ -525,12 +532,12 @@ class Project2(PathExAttMap):
             sst = None
             _LOGGER.warning(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
         if st:
-            self[SAMPLE_SHEET_KEY] = \
+            self[SAMPLE_DF_KEY] = \
                 pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
         if sst:
-            self[SUBSAMPLE_SHEET_KEY] = \
+            self[SUBSAMPLE_DF_KEY] = \
                 pd.read_csv(sst, sep=infer_delimiter(sst), **read_csv_kwargs)
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
@@ -544,12 +551,12 @@ class Project2(PathExAttMap):
         :return float: config version number
         """
         v = 1
-        if CONFIG_VERSION_KEY in self:
-            v = self[CONFIG_VERSION_KEY]
+        if CONFIG_VERSION_KEY in self[CONFIG_KEY]:
+            v = self[CONFIG_KEY][CONFIG_VERSION_KEY]
             if not isinstance(v, (float, int)):
                 raise InvalidConfigFileException("{} must be numeric".
                                                  format(CONFIG_VERSION_KEY))
-        if MODIFIERS_KEY in self and v < 2:
+        if MODIFIERS_KEY in self[CONFIG_KEY] and v < 2:
             raise InvalidConfigFileException(
                 "Project configuration file ({p}) subscribes to {c} >= 2.0, "
                 "since '{m}' section is defined. Set {c} to 2.0 in your config".
@@ -571,10 +578,10 @@ class Project2(PathExAttMap):
         }
 
         metadata_move_pairs = {
-            SAMPLE_SHEET_KEY: SAMPLE_SHEET_KEY,
-            SUBSAMPLE_SHEET_KEY: SUBSAMPLE_SHEET_KEY,
-            "sample_annotation": SAMPLE_SHEET_KEY,
-            "sample_subannotation": SUBSAMPLE_SHEET_KEY
+            "sample_table": CFG_SAMPLE_TABLE_KEY,
+            "subsample_table": CFG_SUBSAMPLE_TABLE_KEY,
+            "sample_annotation": CFG_SAMPLE_TABLE_KEY,
+            "sample_subannotation": CFG_SUBSAMPLE_TABLE_KEY
         }
 
         def _mv_if_in(mapping, k_from, k_to, modifiers=False):
@@ -706,7 +713,7 @@ class Project2(PathExAttMap):
         """
         Check if all subannotations have a matching sample, and warn if not
         """
-        subsample_names = list(self[SUBSAMPLE_SHEET_KEY][SAMPLE_NAME_ATTR])
+        subsample_names = list(self[SUBSAMPLE_DF_KEY][SAMPLE_NAME_ATTR])
         sample_names_list = [s[SAMPLE_NAME_ATTR] for s in self.samples]
         for n in subsample_names:
             if n not in sample_names_list:

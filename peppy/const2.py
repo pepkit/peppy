@@ -40,11 +40,14 @@ SAMPLE_SHEET_KEY = "sample_sheet"
 SUBSAMPLE_SHEET_KEY = "subsample_sheet"
 CFG_SAMPLE_TABLE_KEY = "sample_table"
 CFG_SUBSAMPLE_TABLE_KEY = "subsample_table"
+SAMPLE_DF_KEY = "_sample_df"
+SUBSAMPLE_DF_KEY = "_subsample_df"
 PRJ_REF = "_project"
 ATTR_KEY_PREFIX = "_key_"
 SAMPLE_CONSTANTS = ["PROTOCOL_KEY", "SUBSAMPLE_SHEET_KEY", "SAMPLE_SHEET_KEY",
                     "PRJ_REF", "SAMPLE_NAME_ATTR", "ATTR_KEY_PREFIX",
-                    "CFG_SAMPLE_TABLE_KEY", "CFG_SUBSAMPLE_TABLE_KEY"]
+                    "CFG_SAMPLE_TABLE_KEY", "CFG_SUBSAMPLE_TABLE_KEY",
+                    "SAMPLE_DF_KEY", "SUBSAMPLE_DF_KEY"]
 
 # CLI
 VALIDATE_CMD = "validate"
