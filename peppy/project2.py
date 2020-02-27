@@ -41,8 +41,8 @@ class Project2(PathExAttMap):
         super(Project2, self).__init__()
         if isinstance(cfg, str):
             cfg_pth = os.path.abspath(cfg)
-            self.parse_config_file(cfg_pth, amendments)
             self[CONFIG_FILE_KEY] = cfg_pth
+            self.parse_config_file(cfg_pth, amendments)
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
@@ -103,9 +103,9 @@ class Project2(PathExAttMap):
                                     " exist: {}".format(i))
 
         self[CONFIG_KEY].add_entries(config)
-        # Parse yaml into the project's attributes.
+        # Parse yaml into the project.config attributes
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
-        # Overwrite any config entries with entries in the amendments.
+        # Overwrite any config entries with entries in the amendments
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments:
             for amendment in amendments:
@@ -124,9 +124,8 @@ class Project2(PathExAttMap):
                     raise MissingAmendmentError(amendment)
             self[ACTIVE_AMENDMENTS_KEY] = amendments
 
-        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self._get_cfg_v()
-        if self[CONFIG_KEY][CONFIG_VERSION_KEY] < 2:
-            self._format_cfg()
+        # determine config version and reformat it, if needed
+        self[CONFIG_KEY][CONFIG_VERSION_KEY] = ".".join(self._get_cfg_v())
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         self._make_sections_absolute(relative_vars, cfg_path)
@@ -142,7 +141,7 @@ class Project2(PathExAttMap):
             if relpath is None:
                 continue
             _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
-            # Parsed from YAML, so small space of possible datatypes.
+            # Parsed from YAML, so small space of possible datatypes
             if isinstance(relpath, list):
                 absolute = [_ensure_path_absolute(maybe_relpath, cfg_path)
                             for maybe_relpath in relpath]
@@ -569,22 +568,37 @@ class Project2(PathExAttMap):
         Get config file version number
 
         :raise InvalidConfigFileException: if new v2 section is used,
-            but version==1 or no version is defined
-        :return float: config version number
+            but version<2
+        :return list[str] | None: config version bundle if >=2.0.0 or None if older
         """
-        v = 1
         if CONFIG_VERSION_KEY in self[CONFIG_KEY]:
-            v = self[CONFIG_KEY][CONFIG_VERSION_KEY]
-            if not isinstance(v, (float, int)):
-                raise InvalidConfigFileException("{} must be numeric".
+            v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
+            if not isinstance(v_str, str):
+                raise InvalidConfigFileException("{} must be a string".
                                                  format(CONFIG_VERSION_KEY))
-        if MODIFIERS_KEY in self[CONFIG_KEY] and v < 2:
-            raise InvalidConfigFileException(
-                "Project configuration file ({p}) subscribes to {c} >= 2.0, "
-                "since '{m}' section is defined. Set {c} to 2.0 in your config".
-                    format(p=self[CONFIG_FILE_KEY], c=CONFIG_VERSION_KEY,
-                           m=MODIFIERS_KEY))
-        return float(v)
+            v_bundle = v_str.split(".")
+            assert len(v_bundle) == 3, \
+                InvalidConfigFileException("Version string is not tripartite")
+            try:
+                v_bundle = list(map(int, v_bundle))
+            except ValueError:
+                raise InvalidConfigFileException("Version string elements are "
+                                                 "not coercible to integers")
+            if v_bundle[0] < 2:
+                if MODIFIERS_KEY in self[CONFIG_KEY]:
+                    raise InvalidConfigFileException(
+                        "Project configuration file ({p}) subscribes to {c} "
+                        ">= 2.0.0, since '{m}' section is defined. Set {c} to "
+                        "2.0.0 in your config"
+                            .format(p=self[CONFIG_FILE_KEY],
+                                    c=CONFIG_VERSION_KEY, m=MODIFIERS_KEY))
+                else:
+                    self._format_cfg()
+                    return ["2", "0", "0"]
+            return list(map(str, v_bundle))
+        else:
+            self._format_cfg()
+            return ["2", "0", "0"]
 
     def _format_cfg(self, mod_move_pairs=MODIFIERS_MOVE_PAIRS):
         """
