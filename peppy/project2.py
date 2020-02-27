@@ -291,36 +291,36 @@ class Project2(PathExAttMap):
         that the sample's project defines as indicative of implications for
         additional data elements for the sample.
         """
-        try:
-            implications = self[CONFIG_KEY][MODIFIERS_KEY][IMPLIED_KEY]
-        except KeyError:
+        if IMPLIED_KEY not in self[CONFIG_KEY][MODIFIERS_KEY]:
             return
+        implications = self[CONFIG_KEY][MODIFIERS_KEY][IMPLIED_KEY]
+        if not isinstance(implications, list):
+            raise InvalidConfigFileException(
+                "{}.{} has to be a list of key-value pairs"
+                    .format(MODIFIERS_KEY, IMPLIED_KEY)
+            )
         _LOGGER.debug("Sample attribute implications: {}".format(implications))
-        if not implications:
-            return
-        for sample in self.samples:
-            sn = sample[SAMPLE_NAME_ATTR] \
-                if SAMPLE_NAME_ATTR in sample else "this sample"
-            for implier_name, implied in implications.items():
-                _LOGGER.debug("Setting Sample variable(s) implied by '{}'"
-                              .format(implier_name))
+        for implication in implications:
+            if not all([key in implication for key in IMPLIED_COND_KEYS]):
+                raise InvalidConfigFileException(
+                    "{}.{} section is invalid: {}".
+                        format(MODIFIERS_KEY, IMPLIED_KEY, implication)
+                )
+            implier_attr = list(implication[IMPLIED_IF_KEY].keys())[0]
+            implier_val = implication[IMPLIED_IF_KEY][implier_attr]
+            implied_attr = list(implication[IMPLIED_THEN_KEY].keys())[0]
+            implied_val = implication[IMPLIED_THEN_KEY][implied_attr]
+            _LOGGER.debug("Setting Sample attributes implied by '{}'".
+                          format(implier_attr))
+            for sample in self.samples:
                 try:
-                    implier_value = sample[implier_name]
+                    sample_val = sample[implier_attr]
                 except KeyError:
-                    _LOGGER.debug("No '{}' for {}".format(implier_name, sn))
                     continue
-                try:
-                    implied_val_by_attr = implied[implier_value]
-                    _LOGGER.debug("Implications for '{}'='{}': {}".
-                                  format(implier_name, implier_value,
-                                         str(implied_val_by_attr)))
-                    for colname, implied_value in implied_val_by_attr.items():
-                        _LOGGER.debug("Setting '{}' attribute value to '{}'".
-                                      format(colname, implied_value))
-                        sample.__setitem__(colname, implied_value)
-                except KeyError:
-                    _LOGGER.debug("Unknown implied value for implier '{}'='{}'"
-                                  .format(implier_name, implier_value))
+                if sample_val in implier_val:
+                    _LOGGER.debug("Setting implied attr: '{}={}'".
+                                  format(implied_attr, implied_val))
+                    sample.__setitem__(implied_attr, implied_val)
 
     def attr_derive(self, attrs=None):
         """
