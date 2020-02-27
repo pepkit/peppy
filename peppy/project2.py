@@ -618,6 +618,13 @@ class Project2(PathExAttMap):
             :param str k_from: key of the section to move
             :param str k_to: key of the sample_modifiers subsection to move to
             """
+            # TODO: determine whether we want to support the implications
+            #  reformatting or drop the old cfg format altogether
+            if k_from == "implied_attributes":
+                raise NotImplementedError(
+                    "Implications reformatting is not yet implemented. Edit the"
+                    " config file manually to comply with PEP 2.0.0 spec."
+                )
             mv_msg = "Section '{}' moved to sample_modifiers.{}"
             if k_from in map:
                 map.setdefault(MODIFIERS_KEY, PathExAttMap())
