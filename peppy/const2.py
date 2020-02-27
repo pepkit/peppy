@@ -4,17 +4,18 @@ __author__ = "Michal Stolarczyk"
 __email__ = "michal@virginia.edu"
 
 # Project-related
-CONFIG_VERSION_KEY = "config_version"
+CONFIG_VERSION_KEY = "pep_version"
 CONFIG_FILE_KEY = "_config_file"
 CONFIG_KEY = "_config"
 PROJECT_TYPENAME = "Project"
 MODIFIERS_KEY = "sample_modifiers"
 NAME_TABLE_ATTR = "sample_table"
-CONSTANT_KEY = "constant"
-DUPLICATED_KEY = "duplicated"
-DERIVED_SOURCES_KEY = "derived_sources"
-DERIVED_KEY = "derived"
-IMPLIED_KEY = "implied"
+CONSTANT_KEY = "append"
+DUPLICATED_KEY = "duplicate"
+DERIVED_KEY = "derive"
+DERIVED_SOURCES_KEY = "sources"
+DERIVED_ATTRS_KEY = "attributes"
+IMPLIED_KEY = "imply"
 METADATA_KEY = "metadata"
 OUTDIR_KEY = "output_dir"
 CFG_IMPORTS_KEY = "imports"
@@ -30,8 +31,7 @@ PROJECT_CONSTANTS = [
     "PIPE_ARGS_SECTION", "RESULTS_FOLDER_KEY", "CONFIG_FILE_KEY", "CONFIG_KEY",
     "SUBMISSION_FOLDER_KEY", "AMENDMENTS_KEY", "PROJECT_TYPENAME",
     "CONFIG_VERSION_KEY", "DUPLICATED_KEY", "SAMPLE_EDIT_FLAG_KEY",
-    "CFG_IMPORTS_KEY", "ACTIVE_AMENDMENTS_KEY"]
-SNAKEMAKE_SAMPLE_COL = "sample"
+    "CFG_IMPORTS_KEY", "ACTIVE_AMENDMENTS_KEY", "DERIVED_ATTRS_KEY"]
 
 # Sample-related
 PROTOCOL_KEY = "protocol"
@@ -44,10 +44,10 @@ SAMPLE_DF_KEY = "_sample_df"
 SUBSAMPLE_DF_KEY = "_subsample_df"
 PRJ_REF = "_project"
 ATTR_KEY_PREFIX = "_key_"
-SAMPLE_CONSTANTS = ["PROTOCOL_KEY", "SUBSAMPLE_SHEET_KEY", "SAMPLE_SHEET_KEY",
-                    "PRJ_REF", "SAMPLE_NAME_ATTR", "ATTR_KEY_PREFIX",
-                    "CFG_SAMPLE_TABLE_KEY", "CFG_SUBSAMPLE_TABLE_KEY",
-                    "SAMPLE_DF_KEY", "SUBSAMPLE_DF_KEY"]
+SAMPLE_CONSTANTS = [
+    "PROTOCOL_KEY", "SUBSAMPLE_SHEET_KEY", "SAMPLE_SHEET_KEY", "PRJ_REF",
+    "SAMPLE_NAME_ATTR", "ATTR_KEY_PREFIX", "CFG_SAMPLE_TABLE_KEY",
+    "CFG_SUBSAMPLE_TABLE_KEY", "SAMPLE_DF_KEY", "SUBSAMPLE_DF_KEY"]
 
 # CLI
 VALIDATE_CMD = "validate"
@@ -63,15 +63,15 @@ CLI_CONSTANTS = ["VALIDATE_CMD", "INSPECT_CMD", "SUBPARSER_MSGS"]
 PKG_NAME = "peppy"
 MAX_PROJECT_SAMPLES_REPR = 20
 MODIFIERS_MOVE_PAIRS = {
-    "derived_attributes": DERIVED_KEY,
+    "derived_attributes": [DERIVED_KEY, DERIVED_ATTRS_KEY],
     "derived_columns": DERIVED_KEY,
     "constant_attributes": CONSTANT_KEY,
     "implied_attributes": IMPLIED_KEY,
     "implied_columns": IMPLIED_KEY,
-    "data_sources": DERIVED_SOURCES_KEY
+    "data_sources": [DERIVED_KEY, DERIVED_SOURCES_KEY]
 }
 OTHER_CONSTANTS = [
-    "MAX_PROJECT_SAMPLES_REPR", "PKG_NAME","MODIFIERS_MOVE_PAIRS"]
+    "MAX_PROJECT_SAMPLES_REPR", "PKG_NAME", "MODIFIERS_MOVE_PAIRS"]
 
 
 __all__ = PROJECT_CONSTANTS + SAMPLE_CONSTANTS + OTHER_CONSTANTS + CLI_CONSTANTS

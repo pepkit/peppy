@@ -327,8 +327,8 @@ class Project2(PathExAttMap):
         """
         Set derived attributes for all Samples tied to this Project instance
         """
-        da = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY]
-        ds = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_SOURCES_KEY]
+        da = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
+        ds = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
         derivations = attrs or (da if isinstance(da, list) else [da])
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
         for sample in self.samples:
@@ -592,45 +592,57 @@ class Project2(PathExAttMap):
         All keys from metadata section will be moved to the root of config.
         mod_move_pairs will be used to move and rename sections
         to sample_modifiers section
-
         """
-        def _mv_if_in(mapping, k_from=None, k_to=None, modifiers=False):
-            """
-            Move the sections within mapping
 
-            :param Mapping mapping: object to move sections within
+        def _mv_to_modifiers(map, k_from, k_to):
+            """
+            Move the sections from the root of the mapping
+            to the sample_modifiers section. Some of the target sections
+            may be multi-layer (encoded as list in the reference mapping)
+
+            :param Mapping map: object to move sections within
             :param str k_from: key of the section to move
             :param str k_to: key of the sample_modifiers subsection to move to
             """
-            present = "Section '{}' already in '{}'"
-            if modifiers:
-                assert all(v is not None for v in [k_from, k_to]), \
-                    "Keys can't be None"
-                if k_from in mapping:
-                    mapping.setdefault(MODIFIERS_KEY, PathExAttMap())
-                    if k_to in mapping[MODIFIERS_KEY]:
-                        _LOGGER.info(present.format(k_to,
-                                                    mapping[MODIFIERS_KEY]))
-                    else:
-                        mapping[MODIFIERS_KEY][k_to] = mapping[k_from]
-                        del mapping[k_from]
-                        _LOGGER.debug("Section '{}' moved to: {}.{}".
-                                      format(k_from, MODIFIERS_KEY, k_to))
-            else:
-                if METADATA_KEY in mapping:
-                    for mk in mapping[METADATA_KEY].keys():
-                        if mk in mapping:
-                            _LOGGER.info(present.format(mk, mapping))
+            mv_msg = "Section '{}' moved to sample_modifiers.{}"
+            if k_from in map:
+                map.setdefault(MODIFIERS_KEY, PathExAttMap())
+                if isinstance(k_to, list):
+                    if k_to[0] in map[MODIFIERS_KEY]:
+                        if k_to[1] not in map[MODIFIERS_KEY][k_to[0]]:
+                            map[MODIFIERS_KEY][k_to[0]].\
+                                setdefault(k_to[1], PathExAttMap())
                         else:
-                            mapping[mk] = mapping[METADATA_KEY][mk]
-                            del mapping[METADATA_KEY][mk]
-                            _LOGGER.debug("Section '{}.{}' moved to: {}".
-                                          format(METADATA_KEY, mk, mk))
+                            return
+                    else:
+                        map[MODIFIERS_KEY].setdefault(k_to[0], PathExAttMap())
+                    map[MODIFIERS_KEY][k_to[0]][k_to[1]] = map[k_from]
+                    del map[k_from]
+                    _LOGGER.debug(mv_msg.format(k_from, ".".join(k_to)))
+                else:
+                    if k_to not in map[MODIFIERS_KEY]:
+                        map[MODIFIERS_KEY][k_to] = map[k_from]
+                        del map[k_from]
+                        _LOGGER.debug(mv_msg.format(k_from, k_to))
+
+        def _mv_to_root(map):
+            """
+            Move the sections in the metadata section to the root of the mapping
+
+            :param Mapping map: object to move sections within
+            """
+            if METADATA_KEY in map:
+                for mk in map[METADATA_KEY].keys():
+                    if mk not in map:
+                        map[mk] = map[METADATA_KEY][mk]
+                        del map[METADATA_KEY][mk]
+                        _LOGGER.debug("Section {m}.{k} moved to {k}".
+                                      format(m=METADATA_KEY, k=mk))
+                del self[CONFIG_KEY][METADATA_KEY]
+
         for k, v in mod_move_pairs.items():
-            _mv_if_in(self[CONFIG_KEY], k, v, modifiers=True)
-        _mv_if_in(self[CONFIG_KEY], k, v)
-        if METADATA_KEY in self[CONFIG_KEY]:
-            del self[CONFIG_KEY][METADATA_KEY]
+            _mv_to_modifiers(self[CONFIG_KEY], k, v)
+        _mv_to_root(self[CONFIG_KEY])
 
     def get_sample(self, sample_name):
         """
