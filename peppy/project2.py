@@ -32,7 +32,8 @@ class Project2(PathExAttMap):
         key-value mapping of data to constitute project
     :param Iterable[str] amendments: amendments to use within configuration file
     """
-    def __init__(self, cfg=None, amendments=None):
+    def __init__(self, cfg=None, sample_table_index=None,
+                 subsample_table_index=None, amendments=None):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
             " from file {}".format(cfg) if cfg else "")
@@ -45,12 +46,14 @@ class Project2(PathExAttMap):
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
+        self.st_index = sample_table_index or "sample_name"
+        self.sst_index = subsample_table_index or "subsample_name"
         self[ACTIVE_AMENDMENTS_KEY] = None
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self._sample_table = self._get_table_from_samples(index="sample_name")
+        self._sample_table = self._get_table_from_samples(index=self.st_index)
 
-    def _get_table_from_samples(self, index=None):
+    def _get_table_from_samples(self, index):
         """
         Generate a data frame from samples. Excludes private
         attrs (prepended with an underscore)
@@ -64,9 +67,8 @@ class Project2(PathExAttMap):
                 {k: v for (k, v) in sd.items() if not k.startswith("_")}
             )
             df = df.append(ser, ignore_index=True)
-        if index:
-            _LOGGER.warning("setting index to: {}".format(index))
-            df.set_index(keys=index, drop=False)
+        _LOGGER.debug("setting sample_table index to: {}".format(index))
+        df.set_index(keys=index, drop=False)
         return df
 
     def parse_config_file(self, cfg_path, amendments=None):
@@ -507,7 +509,8 @@ class Project2(PathExAttMap):
         """
         return self[ACTIVE_AMENDMENTS_KEY]
 
-    def sample_table(self, index="sample_name"):
+    @property
+    def sample_table(self):
         """
         Get sample table. If any sample edits were performed,
         it will be re-generated
@@ -515,20 +518,21 @@ class Project2(PathExAttMap):
         :return pandas.DataFrame: a data frame with current samples attributes
         """
         if self[SAMPLE_EDIT_FLAG_KEY]:
-            _LOGGER.debug("Sample edits performed. Generating new data frame")
+            _LOGGER.debug("Generating new sample_table DataFrame")
             self[SAMPLE_EDIT_FLAG_KEY] = False
-            return self._get_table_from_samples(index=index)
-        _LOGGER.debug("No sample edits performed. Returning stashed data frame")
+            return self._get_table_from_samples(index=self.st_index)
+        _LOGGER.debug("Returning stashed sample_table DataFrame")
         return self._sample_table
 
-    def subsample_table(self, index=["sample_name", "subsample_name"]):
+    @property
+    def subsample_table(self):
         """
         Get subsample table
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
         if isinstance(self[SUBSAMPLE_DF_KEY], pd.DataFrame):
-            self[SUBSAMPLE_DF_KEY].set_index(keys=index, drop=False)
+            self[SUBSAMPLE_DF_KEY].set_index(keys=self.sst_index, drop=False)
         return self[SUBSAMPLE_DF_KEY]
 
     def _read_sample_data(self):
