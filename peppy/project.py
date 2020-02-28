@@ -477,7 +477,7 @@ class Project(PathExAttMap):
         if AMENDMENTS_KEY in self[CONFIG_KEY]:
             msg = "{}\nAmendments: {}".\
                 format(msg, ", ".join(self[CONFIG_KEY][AMENDMENTS_KEY].keys()))
-        if self[ACTIVE_AMENDMENTS_KEY]:
+        if self.amendments:
             msg = "{}\nActivated amendments: {}".\
                 format(msg, ", ".join(self[ACTIVE_AMENDMENTS_KEY]))
         return msg
