@@ -153,7 +153,7 @@ class Project(PathExAttMap):
         self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
-            _LOGGER.warn("sample_table was not loaded, can't create Samples")
+            _LOGGER.warning("sample_table was not loaded, can't create Samples")
             return []
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
@@ -421,18 +421,6 @@ class Project(PathExAttMap):
             else:
                 _LOGGER.warning("not a peppy.Sample object, not adding")
 
-    def validate(self):
-        """
-        Prioritize project module import sample module, not vice-versa, but we
-        still need to use some info about Project classes here.
-
-        :return bool: whether the given object is an instance of a Project or
-            Project subclass, or whether the given type is Project or a subtype
-        """
-        t = self if isinstance(self, type) else type(self)
-        return PROJECT_TYPENAME == t.__name__ or PROJECT_TYPENAME in [
-            parent.__name__ for parent in t.__bases__]
-
     def __str__(self):
         """ Representation in interpreter. """
         if len(self) == 0:
@@ -542,7 +530,7 @@ class Project(PathExAttMap):
                            "keep_default_na": False, "na_values": [""]}
         no_metadata_msg = "No {} specified"
         if CONFIG_KEY not in self:
-            _LOGGER.warn("No config key in Project")
+            _LOGGER.warning("No config key in Project")
             return
         st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
         try:
@@ -810,12 +798,13 @@ def _preprocess_schema(schema_dict):
     :return dict: preprocessed schema
     """
     _LOGGER.debug("schema ori: {}".format(schema_dict))
-    if "samples" in schema_dict["properties"]:
-        schema_dict["properties"]["_samples"] = \
-            schema_dict["properties"]["samples"]
-        del schema_dict["properties"]["samples"]
-        schema_dict["required"][schema_dict["required"].index("samples")] = \
-            "_samples"
+    rename_dict = {"_samples": "samples", "_config": "config"}
+    for k, v in rename_dict.items():
+        if v in schema_dict["properties"]:
+            schema_dict["properties"][k] = \
+                schema_dict["properties"][v]
+            del schema_dict["properties"][v]
+            schema_dict["required"][schema_dict["required"].index(v)] = k
     _LOGGER.debug("schema edited: {}".format(schema_dict))
     return schema_dict
 

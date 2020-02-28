@@ -24,9 +24,6 @@ OUTDIR_KEY = "output_dir"
 CFG_IMPORTS_KEY = "imports"
 AMENDMENTS_KEY = "amendments"
 ACTIVE_AMENDMENTS_KEY = "_" + AMENDMENTS_KEY
-PIPE_ARGS_SECTION = "pipeline_args"
-SUBMISSION_FOLDER_KEY = "submission_subdir"
-RESULTS_FOLDER_KEY = "results_subdir"
 SAMPLE_EDIT_FLAG_KEY = "_samples_touched"
 PROJECT_CONSTANTS = [
     "CONSTANT_KEY", "DERIVED_SOURCES_KEY", "DERIVED_KEY", "MODIFIERS_KEY",

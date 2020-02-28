@@ -86,14 +86,3 @@ def fetch_samples(proj, selector_attribute=None, selector_include=None, selector
                    getattr(s, selector_attribute) in make_set(selector_include)
 
     return list(filter(keep, proj.samples))
-
-
-def infer_delimiter(filepath):
-    """
-    From extension infer delimiter used in a separated values file.
-
-    :param str filepath: path to file about which to make inference
-    :return str | NoneType: extension if inference succeeded; else null
-    """
-    ext = os.path.splitext(filepath)[1][1:].lower()
-    return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
