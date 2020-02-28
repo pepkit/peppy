@@ -2,9 +2,9 @@ import sys
 from ubiquerg import VersionInHelpParser
 import logmuse
 from ._version import __version__
-from .const2 import *
+from .const import *
 from logging import getLogger
-from .project2 import Project2
+from .project import Project
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -60,7 +60,7 @@ def main():
     parser = logmuse.add_logging_options(build_argparser())
     args, remaining_args = parser.parse_known_args()
     _LOGGER.debug("Creating a Project object from: {}".format(args.pep))
-    p = Project2(args.pep)
+    p = Project(args.pep)
     if args.command == VALIDATE_CMD:
         if args.sample_name:
             try:
