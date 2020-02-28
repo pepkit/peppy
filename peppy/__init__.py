@@ -12,11 +12,8 @@ from .const import *
 from .exceptions import *
 from .project import Project
 from .sample import Sample
-from .utils import fetch_samples
-
-_EXPORT_FROM_UTILS = [fetch_samples.__name__]
 
 __classes__ = ["Project", "Sample"]
-__all__ = __classes__ + ["PeppyError"] + _EXPORT_FROM_UTILS
+__all__ = __classes__ + ["PeppyError"]
 
 LOGGING_LEVEL = "INFO"

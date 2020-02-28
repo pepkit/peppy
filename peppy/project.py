@@ -50,6 +50,7 @@ class Project(PathExAttMap):
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self._sample_table = self._get_table_from_samples(index=self.st_index)
+        self.name = self.infer_name()
 
     def _get_table_from_samples(self, index):
         """
@@ -421,12 +422,36 @@ class Project(PathExAttMap):
             else:
                 _LOGGER.warning("not a peppy.Sample object, not adding")
 
+    def infer_name(self):
+        """
+        Infer project name from config file path.
+        First assume the name is the folder in which the config file resides,
+        unless that folder is named "metadata", in which case the project name
+        is the parent of that folder.
+        :return str: inferred name for project.
+        :raise NotImplementedError: if the project lacks both a name and a
+            configuration file (no basis, then, for inference)
+        """
+        if hasattr(self[CONFIG_KEY], "name"):
+            return self[CONFIG_KEY].name
+        if not self[CONFIG_FILE_KEY]:
+            raise NotImplementedError("Project name inference isn't supported "
+                                      "on a project that lacks a config file.")
+        config_folder = os.path.dirname(self[CONFIG_FILE_KEY])
+        project_name = os.path.basename(config_folder)
+        if project_name == METADATA_KEY:
+            project_name = os.path.basename(os.path.dirname(config_folder))
+        return project_name
+
     def __str__(self):
         """ Representation in interpreter. """
         if len(self) == 0:
             return "{}"
-        msg = "Project ({})".format(self[CONFIG_FILE_KEY]) \
-            if self[CONFIG_FILE_KEY] else "Project:"
+        msg = "Project"
+        if NAME_KEY in self:
+            msg += " '{}'".format(self[NAME_KEY])
+        if CONFIG_FILE_KEY in self:
+            msg += " ({})".format(self[CONFIG_FILE_KEY])
         try:
             num_samples = len(self._samples)
         except (AttributeError, TypeError):
@@ -605,15 +630,15 @@ class Project(PathExAttMap):
             :param str k_from: key of the section to move
             :param str k_to: key of the sample_modifiers subsection to move to
             """
-            # TODO: determine whether we want to support the implications
-            #  reformatting or drop the old cfg format altogether
-            if k_from == "implied_attributes":
-                raise NotImplementedError(
-                    "Implications reformatting is not yet implemented. Edit the"
-                    " config file manually to comply with PEP 2.0.0 spec."
-                )
             mv_msg = "Section '{}' moved to sample_modifiers.{}"
             if k_from in map:
+                # TODO: determine whether we want to support the implications
+                #  reformatting or drop the old cfg format altogether
+                if k_from == "implied_attributes":
+                    raise NotImplementedError(
+                        "Implications reformatting is not yet implemented. "
+                        "Edit the"
+                        " config file manually to comply with PEP 2.0.0 spec.")
                 map.setdefault(MODIFIERS_KEY, PathExAttMap())
                 if isinstance(k_to, list):
                     if k_to[0] in map[MODIFIERS_KEY]:

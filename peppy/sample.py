@@ -3,6 +3,7 @@ from string import Formatter
 from logging import getLogger
 from copy import copy as cp
 import glob
+import os
 
 from attmap import PathExAttMap
 from .const import *
@@ -10,6 +11,9 @@ from .utils import copy
 from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)
+SAMPLE_YAML_FILE_KEY = "yaml_file"
+SAMPLE_YAML_EXT = ".yaml"
+
 
 @copy
 class Sample(PathExAttMap):
@@ -62,6 +66,80 @@ class Sample(PathExAttMap):
                 raise TypeError(
                     prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
         self._derived_cols_done = []
+
+    def get_attr_values(self, attrlist):
+        """
+        Get value corresponding to each given attribute.
+
+        :param str attrlist: name of an attribute storing a list of attr names
+        :return list | NoneType: value (or empty string) corresponding to
+            each named attribute; null if this Sample's value for the
+            attribute given by the argument to the "attrlist" parameter is
+            empty/null, or if this Sample lacks the indicated attribute
+        """
+        # If attribute is None, then value is also None.
+        attribute_list = getattr(self, attrlist, None)
+        if not attribute_list:
+            return None
+
+        if not isinstance(attribute_list, list):
+            attribute_list = [attribute_list]
+
+        # Strings contained here are appended later so shouldn't be null.
+        return [getattr(self, attr, "") for attr in attribute_list]
+
+    def generate_filename(self, delimiter="_"):
+        """
+        Create a name for file in which to represent this Sample.
+        This uses knowledge of the instance's subtype, sandwiching a delimiter
+        between the name of this Sample and the name of the subtype before the
+        extension. If the instance is a base Sample type, then the filename
+        is simply the sample name with an extension.
+
+        :param str delimiter: what to place between sample name and name of
+            subtype; this is only relevant if the instance is of a subclass
+        :return str: name for file with which to represent this Sample on disk
+        """
+        base = self.sample_name if type(self) is Sample \
+            else "{}{}{}".format(self.sample_name, delimiter, type(self).__name__)
+        return "{}{}".format(base, SAMPLE_YAML_EXT)
+
+    def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
+        """
+        Serializes itself in YAML format.
+
+        :param str path: A file path to write yaml to; provide this or
+            the subs_folder_path
+        :param str subs_folder_path: path to folder in which to place file
+            that's being written; provide this or a full filepath
+        :param str delimiter: text to place between the sample name and the
+            suffix within the filename; irrelevant if there's no suffix
+        :return str: filepath used (same as input if given, otherwise the
+            path value that was inferred)
+        :raises ValueError: if neither full filepath nor path to extant
+            parent directory is provided.
+        """
+
+        # Determine filepath, prioritizing anything given, then falling
+        # back to a default using this Sample's Project's submission_subdir.
+        # Use the sample name and YAML extension as the file name,
+        # interjecting a pipeline name as a subfolder within the Project's
+        # submission_subdir if such a pipeline name is provided.
+        if not path:
+            if not subs_folder_path:
+                raise ValueError(
+                    "To represent {} on disk, provide a full path or a path "
+                    "to a parent (submissions) folder".
+                        format(self.__class__.__name__))
+            _LOGGER.debug("Creating filename for %s: '%s'",
+                          self.__class__.__name__, self.sample_name)
+            filename = self.generate_filename(delimiter=delimiter)
+            _LOGGER.debug("Filename: '%s'", filename)
+            path = os.path.join(subs_folder_path, filename)
+
+        _LOGGER.debug("Setting %s filepath: '%s'",
+                      self.__class__.__name__, path)
+        self[SAMPLE_YAML_FILE_KEY] = path
 
     def derive_attribute(self, data_sources, attr_name):
         """
