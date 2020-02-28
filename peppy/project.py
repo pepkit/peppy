@@ -123,6 +123,7 @@ class Project(PathExAttMap):
                 else:
                     raise MissingAmendmentError(amendment)
             self[ACTIVE_AMENDMENTS_KEY] = amendments
+            _LOGGER.debug("Active amendments set to: {}".format(self[ACTIVE_AMENDMENTS_KEY]))
 
         # determine config version and reformat it, if needed
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = ".".join(self._get_cfg_v())
@@ -163,6 +164,11 @@ class Project(PathExAttMap):
     def modify_samples(self):
         if CONFIG_KEY not in self or MODIFIERS_KEY not in self[CONFIG_KEY]:
             return
+        mod_diff = set(self[CONFIG_KEY][MODIFIERS_KEY].keys()) - \
+                   set(SAMPLE_MODIFIERS)
+        if len(mod_diff) > 0:
+            _LOGGER.warning("Config '{}' section contains unrecognized "
+                            "subsections: {}".format(MODIFIERS_KEY, mod_diff))
         self.attr_constants()
         self.attr_synonyms()
         self.attr_imply()
@@ -637,8 +643,8 @@ class Project(PathExAttMap):
                 if k_from == "implied_attributes":
                     raise NotImplementedError(
                         "Implications reformatting is not yet implemented. "
-                        "Edit the"
-                        " config file manually to comply with PEP 2.0.0 spec.")
+                        "Edit the config file manually to comply with "
+                        "PEP 2.0.0 specification: http://pep.databio.org")
                 map.setdefault(MODIFIERS_KEY, PathExAttMap())
                 if isinstance(k_to, list):
                     if k_to[0] in map[MODIFIERS_KEY]:
