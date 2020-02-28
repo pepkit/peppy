@@ -586,7 +586,8 @@ class Project(PathExAttMap):
 
         :raise InvalidConfigFileException: if new v2 section is used,
             but version<2
-        :return list[str] | None: config version bundle if >=2.0.0 or None if older
+        :return list[str] | None: config version bundle if >=2.0.0
+            or None if older
         """
         if CONFIG_VERSION_KEY in self[CONFIG_KEY]:
             v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
@@ -639,7 +640,7 @@ class Project(PathExAttMap):
             if k_from in map:
                 # TODO: determine whether we want to support the implications
                 #  reformatting or drop the old cfg format altogether
-                if k_from == "implied_attributes":
+                if k_from in ["implied_attributes", "implied_columns"]:
                     raise NotImplementedError(
                         "Implications reformatting is not yet implemented. "
                         "Edit the config file manually to comply with "
