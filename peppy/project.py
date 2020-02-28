@@ -1,20 +1,19 @@
 """
 Build a Project object.
 """
-import os
 from .const import *
-from .utils import copy, non_null_value
+from .utils import copy
 from .exceptions import *
 from .sample import Sample
+
 from attmap import PathExAttMap
 from ubiquerg import is_url
 from yacman import load_yaml as _load_yaml
 
-
+import os
 import jsonschema
 import yaml
 import pandas as pd
-
 from collections import Mapping
 from logging import getLogger
 from copy import deepcopy
@@ -108,7 +107,8 @@ class Project(PathExAttMap):
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments:
             for amendment in amendments:
-                if non_null_value(AMENDMENTS_KEY, config):
+                if AMENDMENTS_KEY in config \
+                        and config[AMENDMENTS_KEY] is not None:
                     _LOGGER.debug("Adding entries for amendment '{}'".
                                   format(amendment))
                     try:
