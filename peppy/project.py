@@ -46,7 +46,6 @@ class Project(PathExAttMap):
         self._samples = self.load_samples()
         self.st_index = sample_table_index or "sample_name"
         self.sst_index = subsample_table_index or "subsample_name"
-        self[ACTIVE_AMENDMENTS_KEY] = None
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self._sample_table = self._get_table_from_samples(index=self.st_index)
@@ -123,7 +122,6 @@ class Project(PathExAttMap):
                 else:
                     raise MissingAmendmentError(amendment)
             self[ACTIVE_AMENDMENTS_KEY] = amendments
-            _LOGGER.debug("Active amendments set to: {}".format(self[ACTIVE_AMENDMENTS_KEY]))
 
         # determine config version and reformat it, if needed
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = ".".join(self._get_cfg_v())
@@ -524,7 +522,8 @@ class Project(PathExAttMap):
 
         :return Iterable[str]: a list of currently active amendment names
         """
-        return self[ACTIVE_AMENDMENTS_KEY]
+        return self[ACTIVE_AMENDMENTS_KEY] if ACTIVE_AMENDMENTS_KEY in self \
+            else None
 
     @property
     def sample_table(self):
