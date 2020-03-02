@@ -28,6 +28,11 @@ class Project(PathExAttMap):
 
     :param str | Mapping cfg: Project config file (YAML), or appropriate
         key-value mapping of data to constitute project
+    :param str | Iterable[str] sample_table_index: name of the columns to set
+        the sample_table index to
+    :param str | Iterable[str] subsample_table_index: name of the columns to set
+        the subsample_table index to
+    :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
     """
     def __init__(self, cfg=None, sample_table_index=None,
@@ -56,6 +61,7 @@ class Project(PathExAttMap):
         Generate a data frame from samples. Excludes private
         attrs (prepended with an underscore)
 
+        :param str | Iterable[str] index: name of the columns to set the index to
         :return pandas.DataFrame: a data frame with current samples attributes
         """
         df = pd.DataFrame()
@@ -65,6 +71,12 @@ class Project(PathExAttMap):
                 {k: v for (k, v) in sd.items() if not k.startswith("_")}
             )
             df = df.append(ser, ignore_index=True)
+        index = [index] if isinstance(index, str) else index
+        if not all([i in df.columns for i in index]):
+            _LOGGER.warning(
+                "Could not set sample_table index. At least one of the "
+                "requested columns does not exist: {}".format(index))
+            return df
         _LOGGER.debug("setting sample_table index to: {}".format(index))
         df.set_index(keys=index, drop=False)
         return df
@@ -513,7 +525,7 @@ class Project(PathExAttMap):
         if self._samples:
             return self._samples
         if SAMPLE_DF_KEY not in self or self[SAMPLE_DF_KEY] is None:
-            _LOGGER.warning("No samples are defined")
+            _LOGGER.debug("No samples are defined")
             return []
 
     @property
@@ -548,9 +560,17 @@ class Project(PathExAttMap):
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
-        if isinstance(self[SUBSAMPLE_DF_KEY], pd.DataFrame):
-            self[SUBSAMPLE_DF_KEY].set_index(keys=self.sst_index, drop=False)
-        return self[SUBSAMPLE_DF_KEY]
+        sdf = self[SUBSAMPLE_DF_KEY]
+        index = self.sst_index
+        if isinstance(sdf, pd.DataFrame):
+            if not all([i in sdf.columns for i in index]):
+                _LOGGER.warning(
+                    "Could not set subsample_table index. At least one of the "
+                    "requested columns does not exist: {}".format(index))
+                return sdf
+            sdf.set_index(keys=index, drop=False)
+            _LOGGER.debug("Setting subsample_table index to: {}".format(index))
+        return sdf
 
     def _read_sample_data(self):
         """
@@ -564,11 +584,12 @@ class Project(PathExAttMap):
             _LOGGER.warning("No config key in Project")
             return
         if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
-            raise SampleTableFileException(
-                "Sample table is not linked to the Project. Use '{}' key "
+            _LOGGER.warning(
+                "sample_table is not linked to the Project. Use '{}' key "
                 "in configuration file to specify a path to the sample "
                 "annotation sheet".format(CFG_SAMPLE_TABLE_KEY)
             )
+            return
         st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
         try:
             sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
@@ -614,9 +635,9 @@ class Project(PathExAttMap):
                     raise InvalidConfigFileException(
                         "Project configuration file ({p}) subscribes to {c} "
                         ">= 2.0.0, since '{m}' section is defined. Set {c} to "
-                        "2.0.0 in your config"
-                            .format(p=self[CONFIG_FILE_KEY],
-                                    c=CONFIG_VERSION_KEY, m=MODIFIERS_KEY))
+                        "2.0.0 in your config".format(p=self[CONFIG_FILE_KEY],
+                                                      c=CONFIG_VERSION_KEY,
+                                                      m=MODIFIERS_KEY))
                 else:
                     self._format_cfg()
                     return ["2", "0", "0"]
