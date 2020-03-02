@@ -312,8 +312,7 @@ class Project(PathExAttMap):
                 )
             implier_attr = list(implication[IMPLIED_IF_KEY].keys())[0]
             implier_val = implication[IMPLIED_IF_KEY][implier_attr]
-            implied_attr = list(implication[IMPLIED_THEN_KEY].keys())[0]
-            implied_val = implication[IMPLIED_THEN_KEY][implied_attr]
+            implied_attrs = list(implication[IMPLIED_THEN_KEY].keys())
             _LOGGER.debug("Setting Sample attributes implied by '{}'".
                           format(implier_attr))
             for sample in self.samples:
@@ -322,9 +321,11 @@ class Project(PathExAttMap):
                 except KeyError:
                     continue
                 if sample_val in implier_val:
-                    _LOGGER.debug("Setting implied attr: '{}={}'".
-                                  format(implied_attr, implied_val))
-                    sample.__setitem__(implied_attr, implied_val)
+                    for implied_attr in implied_attrs:
+                        imp_val = implication[IMPLIED_THEN_KEY][implied_attr]
+                        _LOGGER.debug("Setting implied attr: '{}={}'".
+                                      format(implied_attr, imp_val))
+                        sample.__setitem__(implied_attr, imp_val)
 
     def attr_derive(self, attrs=None):
         """
