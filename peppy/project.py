@@ -50,11 +50,21 @@ class Project(PathExAttMap):
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
         self.st_index = sample_table_index or "sample_name"
-        self.sst_index = subsample_table_index or "subsample_name"
+        self.sst_index = subsample_table_index or \
+                         ["sample_name", "subsample_name"]
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self._sample_table = self._get_table_from_samples(index=self.st_index)
         self.name = self.infer_name()
+
+    def _reinit(self):
+        """
+        Clear all object attributes and initialize again
+        """
+        cfg_path = self[CONFIG_FILE_KEY] if CONFIG_FILE_KEY in self else None
+        for attr in self.keys():
+            del self[attr]
+        self.__init__(cfg=cfg_path)
 
     def _get_table_from_samples(self, index):
         """
@@ -78,7 +88,7 @@ class Project(PathExAttMap):
                 "requested columns does not exist: {}".format(index))
             return df
         _LOGGER.debug("Setting sample_table index to: {}".format(index))
-        df.set_index(keys=index, drop=False)
+        df.set_index(keys=index, drop=False, inplace=True)
         return df
 
     def parse_config_file(self, cfg_path, amendments=None):
@@ -422,7 +432,7 @@ class Project(PathExAttMap):
             raise NotImplementedError(
                 "amendments deactivation isn't supported on a project that "
                 "lacks a config file.")
-        self.__init__(cfg=self[CONFIG_FILE_KEY])
+        self._reinit()
         return self
 
     def add_samples(self, samples):
@@ -568,8 +578,10 @@ class Project(PathExAttMap):
                     "Could not set subsample_table index. At least one of the "
                     "requested columns does not exist: {}".format(index))
                 return sdf
-            sdf.set_index(keys=index, drop=False)
+            sdf.set_index(keys=index, drop=False, inplace=True)
             _LOGGER.debug("Setting subsample_table index to: {}".format(index))
+            sdf.index = sdf.index.set_levels([i.astype(str)
+                                              for i in sdf.index.levels])
         return sdf
 
     def _read_sample_data(self):
