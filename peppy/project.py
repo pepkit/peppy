@@ -562,6 +562,12 @@ class Project(PathExAttMap):
         if CONFIG_KEY not in self:
             _LOGGER.warning("No config key in Project")
             return
+        if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
+            raise SampleTableFileException(
+                "Sample table is not linked to the Project. Use '{}' key "
+                "in configuration file to specify a path to the sample "
+                "annotation sheet".format(CFG_SAMPLE_TABLE_KEY)
+            )
         st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
         try:
             sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]

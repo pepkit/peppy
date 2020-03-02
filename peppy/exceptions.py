@@ -4,7 +4,8 @@ from abc import ABCMeta
 from collections import Iterable
 
 __all__ = ["IllegalStateException", "InvalidSampleTableFileException",
-           "PeppyError", "MissingAmendmentError", "InvalidConfigFileException"]
+           "PeppyError", "MissingAmendmentError", "InvalidConfigFileException",
+           "SampleTableFileException"]
 
 
 class PeppyError(Exception):
@@ -21,7 +22,12 @@ class IllegalStateException(PeppyError):
     pass
 
 
-class InvalidSampleTableFileException(PeppyError):
+class SampleTableFileException(PeppyError):
+    """ Error type for invalid sample annotations file. """
+    pass
+
+
+class InvalidSampleTableFileException(SampleTableFileException):
     """ Error type for invalid sample annotations file. """
     pass
 
