@@ -35,8 +35,8 @@ class Project(PathExAttMap):
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
     """
-    def __init__(self, cfg=None, sample_table_index=None,
-                 subsample_table_index=None, amendments=None):
+    def __init__(self, cfg=None, amendments=None, sample_table_index=None,
+                 subsample_table_index=None):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
             " from file {}".format(cfg) if cfg else "")
@@ -77,7 +77,7 @@ class Project(PathExAttMap):
                 "Could not set sample_table index. At least one of the "
                 "requested columns does not exist: {}".format(index))
             return df
-        _LOGGER.debug("setting sample_table index to: {}".format(index))
+        _LOGGER.debug("Setting sample_table index to: {}".format(index))
         df.set_index(keys=index, drop=False)
         return df
 
@@ -312,8 +312,8 @@ class Project(PathExAttMap):
         implications = self[CONFIG_KEY][MODIFIERS_KEY][IMPLIED_KEY]
         if not isinstance(implications, list):
             raise InvalidConfigFileException(
-                "{}.{} has to be a list of key-value pairs"
-                    .format(MODIFIERS_KEY, IMPLIED_KEY)
+                "{}.{} has to be a list of key-value pairs".
+                    format(MODIFIERS_KEY, IMPLIED_KEY)
             )
         _LOGGER.debug("Sample attribute implications: {}".format(implications))
         for implication in implications:
@@ -397,7 +397,7 @@ class Project(PathExAttMap):
                 "created from a config file")
         prev = [(k, v) for k, v in self.items() if not k.startswith("_")]
         conf_file = self[CONFIG_FILE_KEY]
-        self.__init__(conf_file, amendments)
+        self.__init__(cfg=conf_file, amendments=amendments)
         for k, v in prev:
             if k.startswith("_"):
                 continue
@@ -422,7 +422,7 @@ class Project(PathExAttMap):
             raise NotImplementedError(
                 "amendments deactivation isn't supported on a project that "
                 "lacks a config file.")
-        self.__init__(self[CONFIG_FILE_KEY])
+        self.__init__(cfg=self[CONFIG_FILE_KEY])
         return self
 
     def add_samples(self, samples):
