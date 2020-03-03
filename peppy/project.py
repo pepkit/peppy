@@ -332,17 +332,26 @@ class Project(PathExAttMap):
                     "{}.{} section is invalid: {}".
                         format(MODIFIERS_KEY, IMPLIED_KEY, implication)
                 )
-            implier_attr = list(implication[IMPLIED_IF_KEY].keys())[0]
-            implier_val = implication[IMPLIED_IF_KEY][implier_attr]
+            implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
             implied_attrs = list(implication[IMPLIED_THEN_KEY].keys())
-            _LOGGER.debug("Setting Sample attributes implied by '{}'".
-                          format(implier_attr))
             for sample in self.samples:
-                try:
+                _LOGGER.debug("Setting Sample attributes implied by '{}'".
+                              format(implier_attrs))
+                for implier_attr in implier_attrs:
+                    implier_val = implication[IMPLIED_IF_KEY][implier_attr]
+                    if implier_attr not in sample:
+                        _LOGGER.debug("Sample lacks implier attr ({}), "
+                                      "skipping:".format(implier_attr))
+                        break
                     sample_val = sample[implier_attr]
-                except KeyError:
-                    continue
-                if sample_val in implier_val:
+                    if sample_val not in implier_val:
+                        _LOGGER.debug(
+                            "Sample attr value does not match any of implier "
+                            "requirements ({} not in {}), skipping".
+                                format(sample_val, implier_val))
+                        break
+                else:
+                    # only executed if the inner loop did NOT break
                     for implied_attr in implied_attrs:
                         imp_val = implication[IMPLIED_THEN_KEY][implied_attr]
                         _LOGGER.debug("Setting implied attr: '{}={}'".
