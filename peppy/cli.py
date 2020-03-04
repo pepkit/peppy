@@ -59,6 +59,10 @@ def main():
     """ Primary workflow """
     parser = logmuse.add_logging_options(build_argparser())
     args, remaining_args = parser.parse_known_args()
+    if not args.command:
+        parser.print_help()
+        _LOGGER.error("No command given")
+        sys.exit(1)
     _LOGGER.debug("Creating a Project object from: {}".format(args.pep))
     p = Project(args.pep)
     if args.command == VALIDATE_CMD:
