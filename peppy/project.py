@@ -49,9 +49,9 @@ class Project(PathExAttMap):
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = self.load_samples()
-        self.st_index = sample_table_index or "sample_name"
+        self.st_index = sample_table_index or SAMPLE_NAME_ATTR
         self.sst_index = subsample_table_index or \
-                         ["sample_name", "subsample_name"]
+                         [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
         self.modify_samples()
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self._sample_table = self._get_table_from_samples(index=self.st_index)
@@ -140,7 +140,7 @@ class Project(PathExAttMap):
                                                      config[AMENDMENTS_KEY])
                     _LOGGER.debug("Updating with: {}".format(amends))
                     self[CONFIG_KEY].add_entries(amends)
-                    _LOGGER.info("Using amendment: '{}'".format(amendment))
+                    _LOGGER.info("Using amendments: {}".format(amendment))
                 else:
                     raise MissingAmendmentError(amendment)
             self[ACTIVE_AMENDMENTS_KEY] = amendments
@@ -253,7 +253,6 @@ class Project(PathExAttMap):
                           format(CFG_SUBSAMPLE_TABLE_KEY))
             return
         self._check_subann_name_overlap()
-        merged_attrs = {}
         subsample_table = self[SUBSAMPLE_DF_KEY]
         for sample in self.samples:
             sample_colname = SAMPLE_NAME_ATTR
@@ -278,9 +277,9 @@ class Project(PathExAttMap):
             _LOGGER.debug(this_sample_rows)
             for subsample_row_id, row in this_sample_rows.iterrows():
                 try:
-                    row['subsample_name']
+                    row[SUBSAMPLE_NAME_ATTR]
                 except KeyError:
-                    row['subsample_name'] = str(subsample_row_id)
+                    row[SUBSAMPLE_NAME_ATTR] = str(subsample_row_id)
                 rowdata = row.to_dict()
 
                 def _select_new_attval(merged_attrs, attname, attval):

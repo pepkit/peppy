@@ -228,9 +228,9 @@ class Sample(PathExAttMap):
             regex = data_sources[source_key]
             _LOGGER.debug("Data sources: {}".format(data_sources))
         except KeyError:
-            _LOGGER.debug("{}: config lacks entry for data_source key: "
+            _LOGGER.debug("{}: config lacks entry for {} key: "
                           "'{}' in column '{}'; known: {}".
-                          format(sn, source_key, attr_name,
+                          format(sn, DERIVED_SOURCES_KEY, source_key, attr_name,
                                  data_sources.keys()))
             return ""
         deriv_exc_base = "In sample '{sn}' cannot correctly parse derived " \
