@@ -269,7 +269,7 @@ class Project(PathExAttMap):
             if len(this_sample_rows) == 0:
                 _LOGGER.debug("No merge rows for sample '%s', skipping",
                               sample[SAMPLE_NAME_ATTR])
-                return merged_attrs
+                continue
             _LOGGER.debug("%d rows to merge", len(this_sample_rows))
             _LOGGER.debug("Merge rows dict: "
                           "{}".format(this_sample_rows.to_dict()))
