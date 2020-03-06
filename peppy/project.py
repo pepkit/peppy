@@ -110,6 +110,7 @@ class Project(PathExAttMap):
 
         _LOGGER.debug("Raw ({}) config data: {}".format(cfg_path, config))
 
+        _make_sections_absolute(config, [CFG_IMPORTS_KEY], cfg_path)
         # recursively import configs
         if CFG_IMPORTS_KEY in config and config[CFG_IMPORTS_KEY]:
             _LOGGER.info("Importing external Project configurations: {}".
@@ -149,27 +150,7 @@ class Project(PathExAttMap):
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = ".".join(self._get_cfg_v())
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
-        self._make_sections_absolute(relative_vars, cfg_path)
-
-    def _make_sections_absolute(self, sections, cfg_path):
-        for key in sections:
-            try:
-                relpath = self[CONFIG_KEY][key]
-            except KeyError:
-                _LOGGER.debug("No '{}' section in configuration file: {}".
-                              format(key, cfg_path))
-                continue
-            if relpath is None:
-                continue
-            _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
-            # Parsed from YAML, so small space of possible datatypes
-            if isinstance(relpath, list):
-                absolute = [_ensure_path_absolute(maybe_relpath, cfg_path)
-                            for maybe_relpath in relpath]
-            else:
-                absolute = _ensure_path_absolute(relpath, cfg_path)
-            _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
-            self[CONFIG_KEY][key] = absolute
+        _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
     def load_samples(self):
         self._read_sample_data()
@@ -921,3 +902,24 @@ def infer_delimiter(filepath):
     """
     ext = os.path.splitext(filepath)[1][1:].lower()
     return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
+
+
+def _make_sections_absolute(object, sections, cfg_path):
+    for key in sections:
+        try:
+            relpath = object[key]
+        except KeyError:
+            _LOGGER.debug("No '{}' section in configuration file: {}".
+                          format(key, cfg_path))
+            continue
+        if relpath is None:
+            continue
+        _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
+        # Parsed from YAML, so small space of possible datatypes
+        if isinstance(relpath, list):
+            absolute = [_ensure_path_absolute(maybe_relpath, cfg_path)
+                        for maybe_relpath in relpath]
+        else:
+            absolute = _ensure_path_absolute(relpath, cfg_path)
+        _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
+        object[key] = absolute
