@@ -361,6 +361,8 @@ class Project(PathExAttMap):
         """
         Set derived attributes for all Samples tied to this Project instance
         """
+        if DERIVED_KEY not in self[CONFIG_KEY][MODIFIERS_KEY]:
+            return
         da = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
         ds = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
         derivations = attrs or (da if isinstance(da, list) else [da])
