@@ -2,7 +2,6 @@
 tests/test/*
 
 # toy/experimental files
-*.csv
 *.tsv
 *.pkl
 

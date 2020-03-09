@@ -1,0 +1,7 @@
+sample_name,organism,time,file_path,protocol
+frog_0h,frog,0,data/lab/project/frog_0h.fastq,ATAC-seq
+frog_1h,frog,1,data/lab/project/frog_1h.fastq,ATAC-seq
+human_1h,human,1,data/lab/project/human_1h.fastq,ATAC-seq
+human_0h,human,0,data/lab/project/human_0h.fastq,ATAC-seq
+mouse_1h,mouse,1,data/lab/project/mouse_1h.fastq,ATAC-seq
+mouse_0h,mouse,0,data/lab/project/mouse_1h.fastq,ATAC-seq

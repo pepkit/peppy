@@ -1,0 +1,5 @@
+sample_name,protocol,identifier,read1,read2,file_id
+frog_1,anySampleType,frog1,R1,R2,
+frog_2,anySampleType,frog2,R1,R2,
+frog_3,anySampleType,frog3,R1,R2,
+frog_4,anySampleType,frog4,R1,R2,
