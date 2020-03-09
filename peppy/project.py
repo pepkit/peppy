@@ -450,6 +450,8 @@ class Project(PathExAttMap):
         :raise NotImplementedError: if the project lacks both a name and a
             configuration file (no basis, then, for inference)
         """
+        if CONFIG_KEY not in self:
+            return
         if hasattr(self[CONFIG_KEY], "name"):
             return self[CONFIG_KEY].name
         if not self[CONFIG_FILE_KEY]:
