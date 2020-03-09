@@ -1,0 +1,35 @@
+protocol_mapping:
+  PROTO1: pipeline1.py
+  PROTO2: pipeline2.py 
+
+pipelines:
+  pipeline1.py:
+    name: PIPELINE1
+    path: pipelines/pipeline1.py
+    looper_args: True
+    required_input_files: [read1]
+    all_input_files: [read1, read2]
+    ngs_input_files: [read1, read2]
+    arguments:
+      "--sample-name": sample_name
+    outputs:
+      output1: "pipeline1/{sample.sample_name}_{sample.Sample_geo_accession}_1.bw"
+      output2:  "pipeline1/{sample.sample_name}_{sample.Sample_geo_accession}_2.bw"
+    bioconductor:
+      readFunName: readData
+      readFunPath: readData.R
+  pipeline2.py:
+    name: PIPELINE2
+    path: pipelines/pipeline2.py
+    looper_args: True
+    required_input_files: [read1]
+    all_input_files: [read1, read2]
+    ngs_input_files: [read1, read2]
+    arguments:
+      "--sample-name": sample_name
+    outputs:
+      output1: "pipeline2/{sample.sample_name}_{sample.Sample_geo_accession}_1.bw"
+      output2:  "pipeline2/{sample.sample_name}_{sample.Sample_geo_accession}_2.bw"
+    bioconductor:
+      readFunName: readData
+      readFunPath: readData.R
