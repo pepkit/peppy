@@ -2,13 +2,12 @@
 Build a Project object.
 """
 from .const import *
-from .utils import copy
+from .utils import copy, read_schema
 from .exceptions import *
 from .sample import Sample
 
 from attmap import PathExAttMap
 from ubiquerg import is_url
-from yacman import load_yaml as _load_yaml
 
 import os
 import jsonschema
@@ -756,7 +755,7 @@ class Project(PathExAttMap):
             from the error.
             Useful when used ith large projects
         """
-        schema_dict = _read_schema(schema=schema)
+        schema_dict = read_schema(schema=schema)
         project_dict = self.to_dict()
         _validate_object(project_dict, _preprocess_schema(schema_dict),
                          exclude_case)
@@ -773,7 +772,7 @@ class Project(PathExAttMap):
             from the error.
             Useful when used ith large projects
         """
-        schema_dict = _read_schema(schema=schema)
+        schema_dict = read_schema(schema=schema)
         sample_dict = self.samples[sample_name] if isinstance(sample_name, int)\
             else self.get_sample(sample_name)
         sample_schema_dict = schema_dict["properties"]["samples"]["items"]
@@ -790,7 +789,7 @@ class Project(PathExAttMap):
             from the error.
             Useful when used ith large projects
         """
-        schema_dict = _read_schema(schema=schema)
+        schema_dict = read_schema(schema=schema)
         schema_cpy = deepcopy(schema_dict)
         try:
             del schema_cpy["properties"]["samples"]
@@ -832,23 +831,6 @@ def _validate_object(object, schema, exclude_case=False):
         if not exclude_case:
             raise
         raise jsonschema.exceptions.ValidationError(e.message)
-
-
-def _read_schema(schema):
-    """
-    Safely read schema from YAML-formatted file.
-
-    :param str | Mapping schema: path to the schema file
-        or schema in a dict form
-    :return dict: read schema
-    :raise TypeError: if the schema arg is neither a Mapping nor a file path
-    """
-    if isinstance(schema, str):
-        return _load_yaml(schema)
-    elif isinstance(schema, dict):
-        return schema
-    raise TypeError("schema has to be either a dict, URL to remote schema "
-                    "or a path to an existing file")
 
 
 def _preprocess_schema(schema_dict):

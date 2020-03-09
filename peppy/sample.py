@@ -5,9 +5,11 @@ from copy import copy as cp
 import glob
 import os
 
+from ubiquerg import size
 from attmap import PathExAttMap
+
 from .const import *
-from .utils import copy
+from .utils import copy, read_schema
 from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)
@@ -66,6 +68,55 @@ class Sample(PathExAttMap):
                 raise TypeError(
                     prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
         self._derived_cols_done = []
+
+    def validate_inputs(self, schema):
+        """
+        Determine which of this Sample's required attributes/files are missing
+        and calculate sizes of the inputs
+
+        The names of the attributes that are required and/or deemed as inputs
+        are sourced from the schema,more specifically from required_input_attrs
+        and input_attrs sections in samples section
+
+        :param str | dict schema: schema dict to validate against
+            or a path to one
+        :return (type, str): hypothetical exception type along with message
+            about what's missing; null and empty if nothing exceptional
+            is detected
+        """
+        # TODO: use consts
+        schema_dict = read_schema(schema=schema)
+        sample_schema_dict = schema_dict["properties"]["samples"]["items"]
+        _LOGGER.error("sample_schema_dict: {}\n".format(sample_schema_dict))
+        if INPUTS_ATTR_NAME in sample_schema_dict:
+            self.all_inputs_attrs = sample_schema_dict[INPUTS_ATTR_NAME]
+            self.all_inputs = self.get_attr_values("all_inputs_attrs")
+        if REQ_INPUTS_ATTR_NAME in sample_schema_dict:
+            self.required_inputs_attrs = sample_schema_dict[REQ_INPUTS_ATTR_NAME]
+            self.required_inputs = self.get_attr_values("required_inputs_attrs")
+        if "all_inputs" in self:
+            self.input_file_size = \
+                sum([size(f, size_str=False) or 0.0
+                     for f in self.all_inputs if f != ""])/(1024 ** 3)
+        if not self.required_inputs:
+            _LOGGER.debug("No required inputs")
+            return (None, "", "")
+        missing_files = []
+        for paths in self.required_inputs:
+            paths = paths if isinstance(paths, list) else [paths]
+            for path in paths:
+                _LOGGER.debug("Checking if required input path exists: '{}'"
+                              .format(path))
+                if not os.path.exists(path):
+                    _LOGGER.warning("Missing required input file: '{}'".
+                                    format(path))
+                    missing_files.append(path)
+        if not missing_files:
+            return (None, "", "")
+        else:
+            reason_key = "Missing file(s)"
+            reason_detail = ", ".join(missing_files)
+            return IOError, reason_key, reason_detail
 
     def get_attr_values(self, attrlist):
         """
