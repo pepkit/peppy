@@ -85,3 +85,13 @@ class SampleModifiersTests:
         p = Project(cfg=example_pep_cfg_path)
         assert all([isinstance(s["file"], list) for s in p.samples
                     if s["sample_name"] in ["frog_1", "frog2"]])
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["basic"], indirect=True)
+    def test_sample_updates_regenerate_df(self, example_pep_cfg_path):
+        """
+        Verify that Sample modifications cause sample_table regeneration
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        s_ori = p.sample_table
+        p.samples[0].update({"witam": "i_o_zdrowie_pytam"})
+        assert not p.sample_table.equals(s_ori)
