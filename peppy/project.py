@@ -551,7 +551,10 @@ class Project(PathExAttMap):
         if self[SAMPLE_EDIT_FLAG_KEY]:
             _LOGGER.debug("Generating new sample_table DataFrame")
             self[SAMPLE_EDIT_FLAG_KEY] = False
-            return self._get_table_from_samples(index=self.st_index)
+            new_df = self._get_table_from_samples(index=self.st_index)
+            self._sample_table = new_df
+            return new_df
+
         _LOGGER.debug("Returning stashed sample_table DataFrame")
         return self._sample_table
 
