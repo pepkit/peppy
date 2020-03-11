@@ -87,7 +87,7 @@ class Sample(PathExAttMap):
         # TODO: use consts
         schema_dict = read_schema(schema=schema)
         sample_schema_dict = schema_dict["properties"]["samples"]["items"]
-        _LOGGER.error("sample_schema_dict: {}\n".format(sample_schema_dict))
+        _LOGGER.debug("sample_schema_dict: {}\n".format(sample_schema_dict))
         if INPUTS_ATTR_NAME in sample_schema_dict:
             self.all_inputs_attrs = sample_schema_dict[INPUTS_ATTR_NAME]
             self.all_inputs = self.get_attr_values("all_inputs_attrs")
@@ -98,9 +98,9 @@ class Sample(PathExAttMap):
             self.input_file_size = \
                 sum([size(f, size_str=False) or 0.0
                      for f in self.all_inputs if f != ""])/(1024 ** 3)
-        if not self.required_inputs:
+        if "required_inputs" not in self or not self.required_inputs:
             _LOGGER.debug("No required inputs")
-            return (None, "", "")
+            return None, "", ""
         missing_files = []
         for paths in self.required_inputs:
             paths = paths if isinstance(paths, list) else [paths]
@@ -112,7 +112,7 @@ class Sample(PathExAttMap):
                                     format(path))
                     missing_files.append(path)
         if not missing_files:
-            return (None, "", "")
+            return None, "", ""
         else:
             reason_key = "Missing file(s)"
             reason_detail = ", ".join(missing_files)
