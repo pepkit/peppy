@@ -210,14 +210,13 @@ class Project(PathExAttMap):
             # before merging, which is requires sample_name attribute to map
             # sample_table rows to subsample_table rows,
             # perform only sample_name attr derivation
-            if SAMPLE_NAME_ATTR in self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY]:
+            if SAMPLE_NAME_ATTR in self[CONFIG_KEY][MODIFIERS_KEY]\
+                    [DERIVED_KEY][DERIVED_ATTRS_KEY]:
                 self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
         except KeyError:
             pass
         for sample in self.samples:
-            try:
-                sample.sample_name
-            except (KeyError, AttributeError):
+            if SAMPLE_NAME_ATTR not in sample:
                 msg = "{st} is missing '{sn}' column;" \
                       " you must specify {sn}s in {st} or derive them".\
                     format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
