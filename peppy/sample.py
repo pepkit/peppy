@@ -143,10 +143,10 @@ class Sample(PathExAttMap):
                 return [obj2dict(i) for i in obj]
             if isinstance(obj, AttMap):
                 return {k: obj2dict(v, name=k) for k, v in obj.items()
-                        if k not in to_skip}
+                        if k not in to_skip and not k.startswith("_")}
             elif isinstance(obj, Mapping):
-                return {k: obj2dict(v, name=k)
-                        for k, v in obj.items() if k not in to_skip}
+                return {k: obj2dict(v, name=k) for k, v in obj.items()
+                        if k not in to_skip and not k.startswith("_")}
             elif isinstance(obj, Series):
                 _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
