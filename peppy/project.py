@@ -198,8 +198,9 @@ class Project(PathExAttMap):
         if CONSTANT_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
             _LOGGER.debug("Applying constant attributes: {}".
                           format(self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY]))
-            [s.update(self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY])
-             for s in self.samples]
+            to_append = self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY]
+            for attr, val in to_append.items():
+                [s.update({attr: val}) for s in self.samples if attr not in s]
 
     def attr_synonyms(self):
         """
