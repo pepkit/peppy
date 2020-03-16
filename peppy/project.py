@@ -169,12 +169,26 @@ class Project(PathExAttMap):
         if len(mod_diff) > 0:
             _LOGGER.warning("Config '{}' section contains unrecognized "
                             "subsections: {}".format(MODIFIERS_KEY, mod_diff))
+        self.attr_remove()
         self.attr_constants()
         self.attr_synonyms()
         self.attr_imply()
         self._assert_samples_have_names()
         self.attr_merge()
         self.attr_derive()
+
+    def attr_remove(self):
+        """
+        Remove declared attributes from all samples that have them defined
+        """
+        def _del_if_in(obj, attr):
+            if attr in obj:
+                del obj[attr]
+        if REMOVE_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
+            to_remove = self[CONFIG_KEY][MODIFIERS_KEY][REMOVE_KEY]
+            _LOGGER.debug("Removing attributes: {}".format(to_remove))
+            for attr in to_remove:
+                [_del_if_in(s, attr) for s in self.samples]
 
     def attr_constants(self):
         """
