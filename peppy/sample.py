@@ -9,7 +9,7 @@ from ubiquerg import size
 from attmap import PathExAttMap
 
 from .const import *
-from .utils import copy, read_schema
+from .utils import copy, read_schema, grab_project_data
 from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)
@@ -68,6 +68,111 @@ class Sample(PathExAttMap):
                 raise TypeError(
                     prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
         self._derived_cols_done = []
+
+    def generate_filename(self, delimiter="_"):
+        """
+        Create a name for file in which to represent this Sample.
+
+        This uses knowledge of the instance's subtype, sandwiching a delimiter
+        between the name of this Sample and the name of the subtype before the
+        extension. If the instance is a base Sample type, then the filename
+        is simply the sample name with an extension.
+
+        :param str delimiter: what to place between sample name and name of
+            subtype; this is only relevant if the instance is of a subclass
+        :return str: name for file with which to represent this Sample on disk
+        """
+        base = self.sample_name if type(self) is Sample else \
+            "{}{}{}".format(self.sample_name, delimiter, type(self).__name__)
+        return "{}{}".format(base, SAMPLE_YAML_EXT)
+
+    def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
+        """
+        Serializes itself in YAML format.
+        :param str path: A file path to write yaml to; provide this or
+            the subs_folder_path
+        :param str subs_folder_path: path to folder in which to place file
+            that's being written; provide this or a full filepath
+        :param str delimiter: text to place between the sample name and the
+            suffix within the filename; irrelevant if there's no suffix
+        :return str: filepath used (same as input if given, otherwise the
+            path value that was inferred)
+        :raises ValueError: if neither full filepath nor path to extant
+            parent directory is provided.
+        """
+        # Determine filepath, prioritizing anything given, then falling
+        # back to a default using this Sample's Project's submission_subdir.
+        # Use the sample name and YAML extension as the file name,
+        # interjecting a pipeline name as a subfolder within the Project's
+        # submission_subdir if such a pipeline name is provided.
+        import yaml
+        if not path:
+            if not subs_folder_path:
+                raise ValueError(
+                    "To represent {} on disk, provide a full path or a "
+                    "path to a parent (submissions) folder".
+                        format(self.__class__.__name__)
+                )
+            _LOGGER.debug("Creating filename for Sample: {}".
+                          format(self[SAMPLE_NAME_ATTR]))
+            filename = self.generate_filename(delimiter=delimiter)
+            _LOGGER.debug("Filename: {}".format(filename))
+            path = os.path.join(subs_folder_path, filename)
+        _LOGGER.debug("Setting Sample filepath: {}".format(path))
+        self[SAMPLE_YAML_FILE_KEY] = path
+
+        def obj2dict(obj, name=None, to_skip=(SUBSAMPLE_DF_KEY, SAMPLE_DF_KEY)):
+            """
+            Build representation of object as a dict, recursively
+            for all objects that might be attributes of self.
+            :param object obj: what to serialize to write to YAML.
+            :param str name: name of the object to represent.
+            :param Iterable[str] to_skip: names of attributes to ignore.
+            """
+            from pandas import isnull, Series
+            from collections import Mapping
+            from attmap import AttMap
+            if name:
+                _LOGGER.log(5, "Converting to dict: {}".format(name))
+            if name == PRJ_REF:
+                _LOGGER.debug("Attempting to store Samples's project data")
+                prj_data = grab_project_data(obj)
+                _LOGGER.debug("Sample's project data: {}".format(prj_data))
+                return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
+            if isinstance(obj, list):
+                return [obj2dict(i) for i in obj]
+            if isinstance(obj, AttMap):
+                return {k: obj2dict(v, name=k) for k, v in obj.items()
+                        if k not in to_skip}
+            elif isinstance(obj, Mapping):
+                return {k: obj2dict(v, name=k)
+                        for k, v in obj.items() if k not in to_skip}
+            elif isinstance(obj, Series):
+                _LOGGER.warning("Serializing series as mapping, not array-like")
+                return obj.to_dict()
+            elif hasattr(obj, 'dtype'):  # numpy data types
+                # TODO: this fails with ValueError for multi-element array.
+                return obj.item()
+            elif isnull(obj):
+                # Missing values as evaluated by pandas.isnull().
+                # This gets correctly written into yaml.
+                return "NaN"
+            else:
+                return obj
+
+        _LOGGER.debug("Serializing: {}".format(self[SAMPLE_NAME_ATTR]))
+        serial = obj2dict(self)
+
+        dst = self[SAMPLE_YAML_FILE_KEY]
+        with open(dst, 'w') as outfile:
+            _LOGGER.debug("Generating YAML data for: {}".format(self[SAMPLE_NAME_ATTR]))
+            try:
+                yaml_data = yaml.safe_dump(serial, default_flow_style=False)
+            except yaml.representer.RepresenterError:
+                _LOGGER.error("SERIALIZED SAMPLE DATA: {}".format(serial))
+                raise
+            outfile.write(yaml_data)
+        return dst
 
     def validate_inputs(self, schema):
         """
@@ -139,59 +244,6 @@ class Sample(PathExAttMap):
         # Strings contained here are appended later so shouldn't be null.
         return [getattr(self, attr, "") for attr in attribute_list]
 
-    def generate_filename(self, delimiter="_"):
-        """
-        Create a name for file in which to represent this Sample.
-        This uses knowledge of the instance's subtype, sandwiching a delimiter
-        between the name of this Sample and the name of the subtype before the
-        extension. If the instance is a base Sample type, then the filename
-        is simply the sample name with an extension.
-
-        :param str delimiter: what to place between sample name and name of
-            subtype; this is only relevant if the instance is of a subclass
-        :return str: name for file with which to represent this Sample on disk
-        """
-        base = self.sample_name if type(self) is Sample \
-            else "{}{}{}".format(self.sample_name, delimiter, type(self).__name__)
-        return "{}{}".format(base, SAMPLE_YAML_EXT)
-
-    def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
-        """
-        Serializes itself in YAML format.
-
-        :param str path: A file path to write yaml to; provide this or
-            the subs_folder_path
-        :param str subs_folder_path: path to folder in which to place file
-            that's being written; provide this or a full filepath
-        :param str delimiter: text to place between the sample name and the
-            suffix within the filename; irrelevant if there's no suffix
-        :return str: filepath used (same as input if given, otherwise the
-            path value that was inferred)
-        :raises ValueError: if neither full filepath nor path to extant
-            parent directory is provided.
-        """
-
-        # Determine filepath, prioritizing anything given, then falling
-        # back to a default using this Sample's Project's submission_subdir.
-        # Use the sample name and YAML extension as the file name,
-        # interjecting a pipeline name as a subfolder within the Project's
-        # submission_subdir if such a pipeline name is provided.
-        if not path:
-            if not subs_folder_path:
-                raise ValueError(
-                    "To represent {} on disk, provide a full path or a path "
-                    "to a parent (submissions) folder".
-                        format(self.__class__.__name__))
-            _LOGGER.debug("Creating filename for %s: '%s'",
-                          self.__class__.__name__, self.sample_name)
-            filename = self.generate_filename(delimiter=delimiter)
-            _LOGGER.debug("Filename: '%s'", filename)
-            path = os.path.join(subs_folder_path, filename)
-
-        _LOGGER.debug("Setting %s filepath: '%s'",
-                      self.__class__.__name__, path)
-        self[SAMPLE_YAML_FILE_KEY] = path
-
     def derive_attribute(self, data_sources, attr_name):
         """
         Uses the template path provided in the project config section
@@ -246,7 +298,7 @@ class Sample(PathExAttMap):
             Perform unix style pathname pattern expansion for multiple patterns
 
             :param Iterable[str] patterns: patterns to expand
-            :return str| Iterable[str]: expanded patterns
+            :return str | Iterable[str]: expanded patterns
             """
             outputs = []
             for p in patterns:

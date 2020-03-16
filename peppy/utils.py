@@ -2,6 +2,7 @@
 
 import logging
 from yacman import load_yaml as _load_yaml
+from .const import CONFIG_KEY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,3 +34,27 @@ def read_schema(schema):
         return schema
     raise TypeError("schema has to be either a dict, URL to remote schema "
                     "or a path to an existing file")
+
+
+def grab_project_data(prj):
+    """
+    From the given Project, grab Sample-independent data.
+
+    There are some aspects of a Project of which it's beneficial for a Sample
+    to be aware, particularly for post-hoc analysis. Since Sample objects
+    within a Project are mutually independent, though, each doesn't need to
+    know about any of the others. A Project manages its, Sample instances,
+    so for each Sample knowledge of Project data is limited. This method
+    facilitates adoption of that conceptual model.
+
+    :param Project prj: Project from which to grab data
+    :return Mapping: Sample-independent data sections from given Project
+    """
+    if not prj:
+        return {}
+
+    try:
+        data = prj[CONFIG_KEY]
+    except KeyError:
+        _LOGGER.debug("Project lacks section {}, skipping".format(CONFIG_KEY))
+    return data
