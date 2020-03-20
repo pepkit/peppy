@@ -9,7 +9,7 @@ from ubiquerg import size
 from attmap import PathExAttMap
 
 from .const import *
-from .utils import copy, read_schema, grab_project_data
+from .utils import copy, grab_project_data
 from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)

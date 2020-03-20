@@ -2,7 +2,7 @@
 Build a Project object.
 """
 from .const import *
-from .utils import copy, read_schema
+from .utils import copy
 from .exceptions import *
 from .sample import Sample
 
@@ -10,12 +10,10 @@ from attmap import PathExAttMap
 from ubiquerg import is_url
 
 import os
-import jsonschema
 import yaml
 import pandas as pd
 from collections import Mapping
 from logging import getLogger
-from copy import deepcopy
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -196,9 +194,8 @@ class Project(PathExAttMap):
         If Project does not declare constants, no update occurs.
         """
         if CONSTANT_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
-            _LOGGER.debug("Applying constant attributes: {}".
-                          format(self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY]))
             to_append = self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY]
+            _LOGGER.debug("Applying constant attributes: {}".format(to_append))
             for attr, val in to_append.items():
                 [s.update({attr: val}) for s in self.samples if attr not in s]
 
@@ -762,65 +759,6 @@ class Project(PathExAttMap):
         """
         return [s for s in self.samples if s[SAMPLE_NAME_ATTR] in sample_names]
 
-    def validate_project(self, schema, exclude_case=False):
-        """
-        Validate a project object against a schema
-
-        :param str | dict schema: schema dict to validate against
-            or a path to one
-        :param bool exclude_case: whether to exclude validated objects
-            from the error.
-            Useful when used ith large projects
-        """
-        schema_dict = read_schema(schema=schema)
-        project_dict = self.to_dict()
-        _validate_object(project_dict, _preprocess_schema(schema_dict),
-                         exclude_case)
-        _LOGGER.debug("Project validation successful")
-
-    def validate_sample(self, sample_name, schema, exclude_case=False):
-        """
-        Validate the selected sample object against a schema
-
-        :param str | int sample_name: name or index of the sample to validate
-        :param str | dict schema: schema dict to validate against
-            or a path to one
-        :param bool exclude_case: whether to exclude validated objects
-            from the error.
-            Useful when used ith large projects
-        """
-        schema_dict = read_schema(schema=schema)
-        sample_dict = self.samples[sample_name] if isinstance(sample_name, int)\
-            else self.get_sample(sample_name)
-        sample_schema_dict = schema_dict["properties"]["samples"]["items"]
-        _validate_object(sample_dict, sample_schema_dict, exclude_case)
-        _LOGGER.debug("'{}' sample validation successful".format(sample_name))
-
-    def validate_config(self, schema, exclude_case=False):
-        """
-        Validate the config part of the Project object against a schema
-
-        :param str | dict schema: schema dict to validate against
-            or a path to one
-        :param bool exclude_case: whether to exclude validated objects
-            from the error.
-            Useful when used ith large projects
-        """
-        schema_dict = read_schema(schema=schema)
-        schema_cpy = deepcopy(schema_dict)
-        try:
-            del schema_cpy["properties"]["samples"]
-        except KeyError:
-            pass
-        if "required" in schema_cpy:
-            try:
-                schema_cpy["required"].remove("samples")
-            except ValueError:
-                pass
-        project_dict = self.to_dict()
-        _validate_object(project_dict, schema_cpy, exclude_case)
-        _LOGGER.debug("Config validation successful")
-
     def _check_subann_name_overlap(self):
         """
         Check if all subannotations have a matching sample, and warn if not
@@ -831,45 +769,6 @@ class Project(PathExAttMap):
             if n not in sample_names_list:
                 _LOGGER.warning(("Couldn't find matching sample for "
                                  "subsample: {}").format(n))
-
-
-def _validate_object(object, schema, exclude_case=False):
-    """
-    Generic function to validate object against a schema
-
-    :param Mapping object: an object to validate
-    :param str | dict schema: schema dict to validate against or a path to one
-    :param bool exclude_case: whether to exclude validated objects
-        from the error. Useful when used with large projects
-    """
-    try:
-        jsonschema.validate(object, schema)
-    except jsonschema.exceptions.ValidationError as e:
-        if not exclude_case:
-            raise
-        raise jsonschema.exceptions.ValidationError(e.message)
-
-
-def _preprocess_schema(schema_dict):
-    """
-    Preprocess schema before validation for user's convenience
-    Preprocessing includes: renaming 'samples' to '_samples'
-    since in the peppy.Project object _samples attribute holds the list
-    of peppy.Samples objects.
-
-    :param dict schema_dict: schema dictionary to preprocess
-    :return dict: preprocessed schema
-    """
-    _LOGGER.debug("schema ori: {}".format(schema_dict))
-    rename_dict = {"_samples": "samples", "_config": "config"}
-    for k, v in rename_dict.items():
-        if v in schema_dict["properties"]:
-            schema_dict["properties"][k] = \
-                schema_dict["properties"][v]
-            del schema_dict["properties"][v]
-            schema_dict["required"][schema_dict["required"].index(v)] = k
-    _LOGGER.debug("schema edited: {}".format(schema_dict))
-    return schema_dict
 
 
 def _ensure_path_absolute(maybe_relpath, cfg_path):
