@@ -183,15 +183,13 @@ class Sample(PathExAttMap):
         are sourced from the schema,more specifically from required_input_attrs
         and input_attrs sections in samples section
 
-        :param str | dict schema: schema dict to validate against
-            or a path to one
+        :param dict schema: schema dict to validate against
         :return (type, str): hypothetical exception type along with message
             about what's missing; null and empty if nothing exceptional
             is detected
         """
         # TODO: use consts
-        schema_dict = read_schema(schema=schema)
-        sample_schema_dict = schema_dict["properties"]["samples"]["items"]
+        sample_schema_dict = schema["properties"]["samples"]["items"]
         _LOGGER.debug("sample_schema_dict: {}\n".format(sample_schema_dict))
         if INPUTS_ATTR_NAME in sample_schema_dict:
             self.all_inputs_attrs = sample_schema_dict[INPUTS_ATTR_NAME]
