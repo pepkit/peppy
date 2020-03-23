@@ -356,6 +356,9 @@ class Project(PathExAttMap):
             return
         da = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
         ds = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
+        if not len(da) == len(ds):
+            _LOGGER.warning("Mismatch between derived attributes and sources. "
+                            "Lengths: {}!={}".format(len(da), len(ds)))
         derivations = attrs or (da if isinstance(da, list) else [da])
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
         for sample in self.samples:
