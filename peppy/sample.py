@@ -68,6 +68,19 @@ class Sample(PathExAttMap):
                 raise TypeError(
                     prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
         self._derived_cols_done = []
+        self._attributes = list(series.keys())
+
+    def get_sheet_dict(self):
+        """
+        Create a K-V pairs for items originally passed in via the sample sheet.
+        This is useful for summarizing; it provides a representation of the
+        sample that excludes things like config files and derived entries.
+
+        :return OrderedDict: mapping from name to value for data elements
+            originally provided via the sample sheet (i.e., the a map-like
+            representation of the instance, excluding derived items)
+        """
+        return OrderedDict([[k, getattr(self, k)] for k in self._attributes])
 
     def generate_filename(self, delimiter="_"):
         """
