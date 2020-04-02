@@ -197,14 +197,13 @@ class Sample(PathExAttMap):
         and input_attrs sections in samples section
 
         :param dict schema: schema dict to validate against
-        :return (type, str): hypothetical exception type along with message
-            about what's missing; null and empty if nothing exceptional
-            is detected
+        :return (type, str, Iterable[str]): hypothetical exception type along
+            with message about what's missing; null and empty if nothing
+            exceptional is detected
         """
-        sample_schema_dict = schema["properties"]["samples"]["items"]
-        _LOGGER.debug("sample_schema_dict: {}\n".format(sample_schema_dict))
         self.all_inputs = set()
         self.required_inputs = set()
+        sample_schema_dict = schema["properties"]["samples"]["items"]
         if INPUTS_ATTR_NAME in sample_schema_dict:
             self[INPUTS_ATTR_NAME] = sample_schema_dict[INPUTS_ATTR_NAME]
             self.all_inputs.update(self.get_attr_values(INPUTS_ATTR_NAME))
@@ -215,25 +214,10 @@ class Sample(PathExAttMap):
         self.input_file_size = \
             sum([size(f, size_str=False) or 0.0
                  for f in self.all_inputs if f != ""])/(1024 ** 3)
-        if REQ_INPUTS_ATTR_NAME not in self or not self.required_inputs:
-            _LOGGER.debug("No required inputs")
+        missing = [i for i in self.required_inputs if not os.path.exists(i)]
+        if not missing:
             return None, "", ""
-        missing_files = []
-        for paths in self.required_inputs:
-            paths = paths if isinstance(paths, list) else [paths]
-            for path in paths:
-                _LOGGER.debug("Checking if required input path exists: '{}'"
-                              .format(path))
-                if not os.path.exists(path):
-                    _LOGGER.warning("Missing required input file: '{}'".
-                                    format(path))
-                    missing_files.append(path)
-        if not missing_files:
-            return None, "", ""
-        else:
-            reason_key = "Missing file(s)"
-            reason_detail = ", ".join(missing_files)
-            return IOError, reason_key, reason_detail
+        return IOError, "Missing files", ", ".join(missing)
 
     def get_attr_values(self, attrlist):
         """
