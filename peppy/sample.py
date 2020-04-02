@@ -201,20 +201,21 @@ class Sample(PathExAttMap):
             about what's missing; null and empty if nothing exceptional
             is detected
         """
-        # TODO: use consts
         sample_schema_dict = schema["properties"]["samples"]["items"]
         _LOGGER.debug("sample_schema_dict: {}\n".format(sample_schema_dict))
+        self.all_inputs = set()
+        self.required_inputs = set()
         if INPUTS_ATTR_NAME in sample_schema_dict:
-            self.all_inputs_attrs = sample_schema_dict[INPUTS_ATTR_NAME]
-            self.all_inputs = self.get_attr_values("all_inputs_attrs")
+            self[INPUTS_ATTR_NAME] = sample_schema_dict[INPUTS_ATTR_NAME]
+            self.all_inputs.update(self.get_attr_values(INPUTS_ATTR_NAME))
         if REQ_INPUTS_ATTR_NAME in sample_schema_dict:
-            self.required_inputs_attrs = sample_schema_dict[REQ_INPUTS_ATTR_NAME]
-            self.required_inputs = self.get_attr_values("required_inputs_attrs")
-        if "all_inputs" in self:
-            self.input_file_size = \
-                sum([size(f, size_str=False) or 0.0
-                     for f in self.all_inputs if f != ""])/(1024 ** 3)
-        if "required_inputs" not in self or not self.required_inputs:
+            self[REQ_INPUTS_ATTR_NAME] = sample_schema_dict[REQ_INPUTS_ATTR_NAME]
+            self.required_inputs = self.get_attr_values(REQ_INPUTS_ATTR_NAME)
+            self.all_inputs.update(self.required_inputs)
+        self.input_file_size = \
+            sum([size(f, size_str=False) or 0.0
+                 for f in self.all_inputs if f != ""])/(1024 ** 3)
+        if REQ_INPUTS_ATTR_NAME not in self or not self.required_inputs:
             _LOGGER.debug("No required inputs")
             return None, "", ""
         missing_files = []
