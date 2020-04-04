@@ -140,7 +140,7 @@ class Sample(PathExAttMap):
                 _LOGGER.error("Serialized sample data: {}".format(serial))
                 raise
             outfile.write(yaml_data)
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Sample data written to: {}".format(self[SAMPLE_YAML_FILE_KEY]))
 
     def validate_inputs(self, schema):
