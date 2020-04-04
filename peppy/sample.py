@@ -3,6 +3,7 @@ from string import Formatter
 from logging import getLogger
 from copy import copy as cp
 import glob
+import yaml
 import os
 
 from ubiquerg import size
@@ -13,8 +14,6 @@ from .utils import copy, grab_project_data
 from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)
-SAMPLE_YAML_FILE_KEY = "yaml_file"
-SAMPLE_YAML_EXT = ".yaml"
 
 
 @copy
@@ -82,42 +81,18 @@ class Sample(PathExAttMap):
         """
         return OrderedDict([[k, getattr(self, k)] for k in self._attributes])
 
-    def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
+    def to_yaml(self, path):
         """
         Serializes itself in YAML format.
+
         :param str path: A file path to write yaml to; provide this or
             the subs_folder_path
-        :param str subs_folder_path: path to folder in which to place file
-            that's being written; provide this or a full filepath
-        :param str delimiter: text to place between the sample name and the
-            suffix within the filename; irrelevant if there's no suffix
-        :return str: filepath used (same as input if given, otherwise the
-            path value that was inferred)
-        :raises ValueError: if neither full filepath nor path to extant
-            parent directory is provided.
         """
-        # Determine filepath, prioritizing anything given, then falling
-        # back to a default using this Sample's Project's submission_subdir.
-        # Use the sample name and YAML extension as the file name,
-        # interjecting a pipeline name as a subfolder within the Project's
-        # submission_subdir if such a pipeline name is provided.
-        import yaml
-        if not path:
-            if not subs_folder_path:
-                raise ValueError(
-                    "To represent {} on disk, provide a full path or a "
-                    "path to a parent (submissions) folder".
-                        format(self.__class__.__name__)
-                )
-            filename = "{}{}".format(self.sample_name, SAMPLE_YAML_EXT)
-            path = os.path.join(subs_folder_path, filename)
-        _LOGGER.info("Setting Sample filepath: {}".format(path))
-        self[SAMPLE_YAML_FILE_KEY] = path
-
-        def obj2dict(obj, name=None, to_skip=(SUBSAMPLE_DF_KEY, SAMPLE_DF_KEY)):
+        def _obj2dict(obj, name=None, to_skip=(SUBSAMPLE_DF_KEY, SAMPLE_DF_KEY)):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
+
             :param object obj: what to serialize to write to YAML.
             :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
@@ -131,17 +106,17 @@ class Sample(PathExAttMap):
                 _LOGGER.debug("Attempting to store Samples's project data")
                 prj_data = grab_project_data(obj)
                 _LOGGER.debug("Sample's project data: {}".format(prj_data))
-                return {k: obj2dict(v, name=k) for k, v in prj_data.items()}
+                return {k: _obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
-                return [obj2dict(i) for i in obj]
+                return [_obj2dict(i) for i in obj]
             if isinstance(obj, AttMap):
-                return {k: obj2dict(v, name=k) for k, v in obj.items()
+                return {k: _obj2dict(v, name=k) for k, v in obj.items()
                         if k not in to_skip and not k.startswith("_")}
             elif isinstance(obj, Mapping):
-                return {k: obj2dict(v, name=k) for k, v in obj.items()
+                return {k: _obj2dict(v, name=k) for k, v in obj.items()
                         if k not in to_skip and not k.startswith("_")}
             if isinstance(obj, set):
-                return [obj2dict(i) for i in obj]
+                return [_obj2dict(i) for i in obj]
             elif isinstance(obj, Series):
                 _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
@@ -154,18 +129,19 @@ class Sample(PathExAttMap):
                 return "NaN"
             else:
                 return obj
-
-        _LOGGER.debug("Serializing: {}".format(self[SAMPLE_NAME_ATTR]))
-        serial = obj2dict(self)
-        dst = self[SAMPLE_YAML_FILE_KEY]
-        with open(dst, 'w') as outfile:
+        assert path.lower().endswith(SAMPLE_YAML_EXT), \
+            OSError("Sample must be saved to a YAML file. Got: {}".format(path))
+        self[SAMPLE_YAML_FILE_KEY] = path
+        serial = _obj2dict(self)
+        with open(self[SAMPLE_YAML_FILE_KEY], 'w') as outfile:
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             except yaml.representer.RepresenterError:
-                _LOGGER.error("SERIALIZED SAMPLE DATA: {}".format(serial))
+                _LOGGER.error("Serialized sample data: {}".format(serial))
                 raise
             outfile.write(yaml_data)
-        return dst
+            _LOGGER.info(
+                "Sample data written to: {}".format(self[SAMPLE_YAML_FILE_KEY]))
 
     def validate_inputs(self, schema):
         """
