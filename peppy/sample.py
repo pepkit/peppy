@@ -82,23 +82,6 @@ class Sample(PathExAttMap):
         """
         return OrderedDict([[k, getattr(self, k)] for k in self._attributes])
 
-    def generate_filename(self, delimiter="_"):
-        """
-        Create a name for file in which to represent this Sample.
-
-        This uses knowledge of the instance's subtype, sandwiching a delimiter
-        between the name of this Sample and the name of the subtype before the
-        extension. If the instance is a base Sample type, then the filename
-        is simply the sample name with an extension.
-
-        :param str delimiter: what to place between sample name and name of
-            subtype; this is only relevant if the instance is of a subclass
-        :return str: name for file with which to represent this Sample on disk
-        """
-        base = self.sample_name if type(self) is Sample else \
-            "{}{}{}".format(self.sample_name, delimiter, type(self).__name__)
-        return "{}{}".format(base, SAMPLE_YAML_EXT)
-
     def to_yaml(self, path=None, subs_folder_path=None, delimiter="_"):
         """
         Serializes itself in YAML format.
@@ -126,12 +109,9 @@ class Sample(PathExAttMap):
                     "path to a parent (submissions) folder".
                         format(self.__class__.__name__)
                 )
-            _LOGGER.debug("Creating filename for Sample: {}".
-                          format(self[SAMPLE_NAME_ATTR]))
-            filename = self.generate_filename(delimiter=delimiter)
-            _LOGGER.debug("Filename: {}".format(filename))
+            filename = "{}{}".format(self.sample_name, SAMPLE_YAML_EXT)
             path = os.path.join(subs_folder_path, filename)
-        _LOGGER.debug("Setting Sample filepath: {}".format(path))
+        _LOGGER.info("Setting Sample filepath: {}".format(path))
         self[SAMPLE_YAML_FILE_KEY] = path
 
         def obj2dict(obj, name=None, to_skip=(SUBSAMPLE_DF_KEY, SAMPLE_DF_KEY)):
@@ -160,6 +140,8 @@ class Sample(PathExAttMap):
             elif isinstance(obj, Mapping):
                 return {k: obj2dict(v, name=k) for k, v in obj.items()
                         if k not in to_skip and not k.startswith("_")}
+            if isinstance(obj, set):
+                return [obj2dict(i) for i in obj]
             elif isinstance(obj, Series):
                 _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
@@ -175,10 +157,8 @@ class Sample(PathExAttMap):
 
         _LOGGER.debug("Serializing: {}".format(self[SAMPLE_NAME_ATTR]))
         serial = obj2dict(self)
-
         dst = self[SAMPLE_YAML_FILE_KEY]
         with open(dst, 'w') as outfile:
-            _LOGGER.debug("Generating YAML data for: {}".format(self[SAMPLE_NAME_ATTR]))
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             except yaml.representer.RepresenterError:
