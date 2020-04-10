@@ -1,6 +1,0 @@
-metadata:
-  sample_annotation: sample_annotation.csv
-  sample_subannotation: sample_subannotation.csv
-  output_dir: $HOME/hello_looper_results
-  pipeline_interfaces: [../pipeline/pipeline_interface.yaml]
-
