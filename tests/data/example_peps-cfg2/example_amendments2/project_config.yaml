@@ -20,7 +20,7 @@ sample_modifiers:
       then:  
           genome: "mm10"
           macs_genome_size: "mm"
-
-amendments:
-  noFrog:
-    sample_table: sample_table_noFrog.csv
+project_modifiers:
+  amend:
+    noFrog:
+      sample_table: sample_table_noFrog.csv

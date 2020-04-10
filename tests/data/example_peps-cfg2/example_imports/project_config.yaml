@@ -3,5 +3,6 @@ sample_table: sample_table.csv
 output_dir: $HOME/hello_looper_results
 pipeline_dir: $HOME/pipeline_dir
 
-imports:
-  - project_config1.yaml
+project_modifiers:
+  import:
+    - project_config1.yaml

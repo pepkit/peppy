@@ -107,12 +107,14 @@ class Project(PathExAttMap):
 
         _LOGGER.debug("Raw ({}) config data: {}".format(cfg_path, config))
 
-        _make_sections_absolute(config, [CFG_IMPORTS_KEY], cfg_path)
         # recursively import configs
-        if CFG_IMPORTS_KEY in config and config[CFG_IMPORTS_KEY]:
-            _LOGGER.info("Importing external Project configurations: {}".
-                         format(", ".join(config[CFG_IMPORTS_KEY])))
-            for i in config[CFG_IMPORTS_KEY]:
+        if PROJ_MODS_KEY in config and CFG_IMPORTS_KEY in config[PROJ_MODS_KEY]\
+                and config[PROJ_MODS_KEY][CFG_IMPORTS_KEY]:
+            _make_sections_absolute(
+                config[PROJ_MODS_KEY], [CFG_IMPORTS_KEY], cfg_path)
+            _LOGGER.info("Importing external Project configurations: {}".format
+                         (", ".join(config[PROJ_MODS_KEY][CFG_IMPORTS_KEY])))
+            for i in config[PROJ_MODS_KEY][CFG_IMPORTS_KEY]:
                 _LOGGER.debug("Processing external config: {}".format(i))
                 if os.path.exists(i):
                     self.parse_config_file(cfg_path=i)
@@ -127,15 +129,16 @@ class Project(PathExAttMap):
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments:
             for amendment in amendments:
-                if AMENDMENTS_KEY in config \
-                        and config[AMENDMENTS_KEY] is not None:
+                if PROJ_MODS_KEY in config \
+                        and AMENDMENTS_KEY in config[PROJ_MODS_KEY] \
+                        and config[PROJ_MODS_KEY][AMENDMENTS_KEY] is not None:
                     _LOGGER.debug("Adding entries for amendment '{}'".
                                   format(amendment))
                     try:
-                        amends = config[AMENDMENTS_KEY][amendment]
+                        amends = config[PROJ_MODS_KEY][AMENDMENTS_KEY][amendment]
                     except KeyError:
-                        raise MissingAmendmentError(amendment,
-                                                     config[AMENDMENTS_KEY])
+                        raise MissingAmendmentError(
+                            amendment, config[PROJ_MODS_KEY][AMENDMENTS_KEY])
                     _LOGGER.debug("Updating with: {}".format(amends))
                     self[CONFIG_KEY].add_entries(amends)
                     _LOGGER.info("Using amendments: {}".format(amendment))
@@ -160,13 +163,13 @@ class Project(PathExAttMap):
         return samples_list
 
     def modify_samples(self):
-        if CONFIG_KEY not in self or MODIFIERS_KEY not in self[CONFIG_KEY]:
+        if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
             return
-        mod_diff = set(self[CONFIG_KEY][MODIFIERS_KEY].keys()) - \
+        mod_diff = set(self[CONFIG_KEY][SAMPLE_MODS_KEY].keys()) - \
                    set(SAMPLE_MODIFIERS)
         if len(mod_diff) > 0:
             _LOGGER.warning("Config '{}' section contains unrecognized "
-                            "subsections: {}".format(MODIFIERS_KEY, mod_diff))
+                            "subsections: {}".format(SAMPLE_MODS_KEY, mod_diff))
         self.attr_remove()
         self.attr_constants()
         self.attr_synonyms()
@@ -182,8 +185,8 @@ class Project(PathExAttMap):
         def _del_if_in(obj, attr):
             if attr in obj:
                 del obj[attr]
-        if REMOVE_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
-            to_remove = self[CONFIG_KEY][MODIFIERS_KEY][REMOVE_KEY]
+        if REMOVE_KEY in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+            to_remove = self[CONFIG_KEY][SAMPLE_MODS_KEY][REMOVE_KEY]
             _LOGGER.debug("Removing attributes: {}".format(to_remove))
             for attr in to_remove:
                 [_del_if_in(s, attr) for s in self.samples]
@@ -193,8 +196,8 @@ class Project(PathExAttMap):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if CONSTANT_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
-            to_append = self[CONFIG_KEY][MODIFIERS_KEY][CONSTANT_KEY]
+        if CONSTANT_KEY in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+            to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][CONSTANT_KEY]
             _LOGGER.debug("Applying constant attributes: {}".format(to_append))
             for attr, val in to_append.items():
                 [s.update({attr: val}) for s in self.samples if attr not in s]
@@ -203,8 +206,8 @@ class Project(PathExAttMap):
         """
         Copy attribute values for all samples to a new one
         """
-        if DUPLICATED_KEY in self[CONFIG_KEY][MODIFIERS_KEY]:
-            synonyms = self[CONFIG_KEY][MODIFIERS_KEY][DUPLICATED_KEY]
+        if DUPLICATED_KEY in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+            synonyms = self[CONFIG_KEY][SAMPLE_MODS_KEY][DUPLICATED_KEY]
             _LOGGER.debug("Applying synonyms: {}".format(synonyms))
             for sample in self.samples:
                 for attr, new in synonyms.items():
@@ -222,7 +225,7 @@ class Project(PathExAttMap):
             # before merging, which is requires sample_name attribute to map
             # sample_table rows to subsample_table rows,
             # perform only sample_name attr derivation
-            if SAMPLE_NAME_ATTR in self[CONFIG_KEY][MODIFIERS_KEY]\
+            if SAMPLE_NAME_ATTR in self[CONFIG_KEY][SAMPLE_MODS_KEY]\
                     [DERIVED_KEY][DERIVED_ATTRS_KEY]:
                 self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
         except KeyError:
@@ -307,20 +310,20 @@ class Project(PathExAttMap):
         that the sample's project defines as indicative of implications for
         additional data elements for the sample.
         """
-        if IMPLIED_KEY not in self[CONFIG_KEY][MODIFIERS_KEY]:
+        if IMPLIED_KEY not in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
             return
-        implications = self[CONFIG_KEY][MODIFIERS_KEY][IMPLIED_KEY]
+        implications = self[CONFIG_KEY][SAMPLE_MODS_KEY][IMPLIED_KEY]
         if not isinstance(implications, list):
             raise InvalidConfigFileException(
                 "{}.{} has to be a list of key-value pairs".
-                    format(MODIFIERS_KEY, IMPLIED_KEY)
+                    format(SAMPLE_MODS_KEY, IMPLIED_KEY)
             )
         _LOGGER.debug("Sample attribute implications: {}".format(implications))
         for implication in implications:
             if not all([key in implication for key in IMPLIED_COND_KEYS]):
                 raise InvalidConfigFileException(
                     "{}.{} section is invalid: {}".
-                        format(MODIFIERS_KEY, IMPLIED_KEY, implication)
+                        format(SAMPLE_MODS_KEY, IMPLIED_KEY, implication)
                 )
             implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
             implied_attrs = list(implication[IMPLIED_THEN_KEY].keys())
@@ -352,10 +355,10 @@ class Project(PathExAttMap):
         """
         Set derived attributes for all Samples tied to this Project instance
         """
-        if DERIVED_KEY not in self[CONFIG_KEY][MODIFIERS_KEY]:
+        if DERIVED_KEY not in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
             return
-        da = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
-        ds = self[CONFIG_KEY][MODIFIERS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
+        da = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
+        ds = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
         if not len(da) == len(ds):
             _LOGGER.warning("Mismatch between derived attributes and sources. "
                             "Lengths: {}!={}".format(len(da), len(ds)))
@@ -503,9 +506,12 @@ class Project(PathExAttMap):
             return msg
         msg = "{}\nSections: {}".\
             format(msg, ", ".join([s for s in self[CONFIG_KEY].keys()]))
-        if AMENDMENTS_KEY in self[CONFIG_KEY]:
+        if PROJ_MODS_KEY in self[CONFIG_KEY] \
+                and AMENDMENTS_KEY in self[CONFIG_KEY][PROJ_MODS_KEY]:
             msg = "{}\nAmendments: {}".\
-                format(msg, ", ".join(self[CONFIG_KEY][AMENDMENTS_KEY].keys()))
+                format(msg, ", ".
+                       join(self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].
+                            keys()))
         if self.amendments:
             msg = "{}\nActivated amendments: {}".\
                 format(msg, ", ".join(self[ACTIVE_AMENDMENTS_KEY]))
@@ -652,13 +658,13 @@ class Project(PathExAttMap):
                 raise InvalidConfigFileException("Version string elements are "
                                                  "not coercible to integers")
             if v_bundle[0] < 2:
-                if MODIFIERS_KEY in self[CONFIG_KEY]:
+                if SAMPLE_MODS_KEY in self[CONFIG_KEY]:
                     raise InvalidConfigFileException(
                         "Project configuration file ({p}) subscribes to {c} "
                         ">= 2.0.0, since '{m}' section is defined. Set {c} to "
                         "2.0.0 in your config".format(p=self[CONFIG_FILE_KEY],
                                                       c=CONFIG_VERSION_KEY,
-                                                      m=MODIFIERS_KEY))
+                                                      m=SAMPLE_MODS_KEY))
                 else:
                     self._format_cfg()
                     return ["2", "0", "0"]
@@ -694,22 +700,22 @@ class Project(PathExAttMap):
                         "Implications reformatting is not yet implemented. "
                         "Edit the config file manually to comply with "
                         "PEP 2.0.0 specification: http://pep.databio.org")
-                map.setdefault(MODIFIERS_KEY, PathExAttMap())
+                map.setdefault(SAMPLE_MODS_KEY, PathExAttMap())
                 if isinstance(k_to, list):
-                    if k_to[0] in map[MODIFIERS_KEY]:
-                        if k_to[1] not in map[MODIFIERS_KEY][k_to[0]]:
-                            map[MODIFIERS_KEY][k_to[0]].\
+                    if k_to[0] in map[SAMPLE_MODS_KEY]:
+                        if k_to[1] not in map[SAMPLE_MODS_KEY][k_to[0]]:
+                            map[SAMPLE_MODS_KEY][k_to[0]].\
                                 setdefault(k_to[1], PathExAttMap())
                         else:
                             return
                     else:
-                        map[MODIFIERS_KEY].setdefault(k_to[0], PathExAttMap())
-                    map[MODIFIERS_KEY][k_to[0]][k_to[1]] = map[k_from]
+                        map[SAMPLE_MODS_KEY].setdefault(k_to[0], PathExAttMap())
+                    map[SAMPLE_MODS_KEY][k_to[0]][k_to[1]] = map[k_from]
                     del map[k_from]
                     _LOGGER.debug(mv_msg.format(k_from, ".".join(k_to)))
                 else:
-                    if k_to not in map[MODIFIERS_KEY]:
-                        map[MODIFIERS_KEY][k_to] = map[k_from]
+                    if k_to not in map[SAMPLE_MODS_KEY]:
+                        map[SAMPLE_MODS_KEY][k_to] = map[k_from]
                         del map[k_from]
                         _LOGGER.debug(mv_msg.format(k_from, k_to))
 

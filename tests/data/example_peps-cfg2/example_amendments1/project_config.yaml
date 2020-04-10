@@ -8,9 +8,9 @@ sample_modifiers:
     sources:
       source1: /data/lab/project/{organism}_{time}h.fastq
       source2: /path/from/collaborator/weirdNamingScheme_{external_id}.fastq
-
-amendments:
-  newLib:
-    sample_table: sample_table_newLib.csv
-  newLib2:
-    sample_table: sample_table_newLib2.csv
+project_modifiers:
+  amend:
+    newLib:
+      sample_table: sample_table_newLib.csv
+    newLib2:
+      sample_table: sample_table_newLib2.csv
