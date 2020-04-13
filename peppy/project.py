@@ -554,7 +554,7 @@ class Project(PathExAttMap):
     @property
     def list_amendments(self):
         """
-        Return list of available amendments or None if none not declared
+        Return a list of available amendments or None if not declared
 
         :return Iterable[str]: a list of available amendment names
         """
