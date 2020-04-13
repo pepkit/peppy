@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -ne 1 ]; then
-    echo $0: usage: update_examples branch
+    echo $0: usage: update_test_data.sh branch
     exit 1
 fi
 

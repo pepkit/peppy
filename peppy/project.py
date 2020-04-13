@@ -432,7 +432,8 @@ class Project(PathExAttMap):
         :raise NotImplementedError: if this call is made on a project not
             created from a config file
         """
-        if self[ACTIVE_AMENDMENTS_KEY] is None:
+        if ACTIVE_AMENDMENTS_KEY not in self \
+                or self[ACTIVE_AMENDMENTS_KEY] is None:
             _LOGGER.warning("No amendments have been activated.")
             return self
         if not self[CONFIG_FILE_KEY]:
@@ -549,6 +550,20 @@ class Project(PathExAttMap):
         if SAMPLE_DF_KEY not in self or self[SAMPLE_DF_KEY] is None:
             _LOGGER.debug("No samples are defined")
             return []
+
+    @property
+    def list_amendments(self):
+        """
+        Return list of available amendments or None if none not declared
+
+        :return Iterable[str]: a list of available amendment names
+        """
+        try:
+            return self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys()
+        except Exception as e:
+            _LOGGER.debug("Could not retrieve available amendments: {}".
+                          format(getattr(e, 'message', repr(e))))
+            return None
 
     @property
     def amendments(self):
