@@ -162,10 +162,10 @@ class Sample(PathExAttMap):
         sample_schema_dict = schema["properties"]["samples"]["items"]
         if INPUTS_ATTR_NAME in sample_schema_dict:
             self[INPUTS_ATTR_NAME] = sample_schema_dict[INPUTS_ATTR_NAME]
-            self.all_inputs.update(self.get_attr_values(INPUTS_ATTR_NAME))
+            self.all_inputs.update(self.get_attr_values(self[INPUTS_ATTR_NAME]))
         if REQ_INPUTS_ATTR_NAME in sample_schema_dict:
             self[REQ_INPUTS_ATTR_NAME] = sample_schema_dict[REQ_INPUTS_ATTR_NAME]
-            self.required_inputs = self.get_attr_values(REQ_INPUTS_ATTR_NAME)
+            self.required_inputs = self.get_attr_values(self[REQ_INPUTS_ATTR_NAME])
             self.all_inputs.update(self.required_inputs)
         self.input_file_size = \
             sum([size(f, size_str=False) or 0.0
@@ -185,16 +185,14 @@ class Sample(PathExAttMap):
             attribute given by the argument to the "attrlist" parameter is
             empty/null, or if this Sample lacks the indicated attribute
         """
+        from pandas.core.common import flatten
         # If attribute is None, then value is also None.
-        attribute_list = getattr(self, attrlist, None)
-        if not attribute_list:
+        if not attrlist:
             return None
-
-        if not isinstance(attribute_list, list):
-            attribute_list = [attribute_list]
-
+        if not isinstance(attrlist, list):
+            attrlist = [attrlist]
         # Strings contained here are appended later so shouldn't be null.
-        return [getattr(self, attr, "") for attr in attribute_list]
+        return list(flatten([getattr(self, attr, "") for attr in attrlist]))
 
     def derive_attribute(self, data_sources, attr_name):
         """
