@@ -2,6 +2,7 @@ from collections import Mapping, OrderedDict
 from string import Formatter
 from logging import getLogger
 from copy import copy as cp
+from warnings import catch_warnings as cw
 import glob
 import yaml
 import os
@@ -167,9 +168,13 @@ class Sample(PathExAttMap):
             self[REQ_INPUTS_ATTR_NAME] = sample_schema_dict[REQ_INPUTS_ATTR_NAME]
             self.required_inputs = self.get_attr_values(self[REQ_INPUTS_ATTR_NAME])
             self.all_inputs.update(self.required_inputs)
-        self.input_file_size = \
-            sum([size(f, size_str=False) or 0.0
-                 for f in self.all_inputs if f != ""])/(1024 ** 3)
+        with cw(record=True) as w:
+            self.input_file_size = \
+                sum([size(f, size_str=False) or 0.0
+                     for f in self.all_inputs if f != ""])/(1024 ** 3)
+            if w:
+                _LOGGER.warning("{} input files missing, job input size was not"
+                                " calculated accurately".format(len(w)))
         missing = [i for i in self.required_inputs if not os.path.exists(i)]
         if not missing:
             return None, "", ""
