@@ -51,5 +51,5 @@ class MissingAmendmentError(PeppyError):
 
 
 class InvalidConfigFileException(PeppyError):
-    """ Error type for invalid project donfig file """
+    """ Error type for invalid project config file """
     pass

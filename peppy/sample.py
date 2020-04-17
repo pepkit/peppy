@@ -229,6 +229,8 @@ class Sample(PathExAttMap):
             keys = [i[1] for i in Formatter().parse(regex) if i[1] is not None]
             if not keys:
                 return [regex]
+            if "$" in regex:
+                raise OSError("Not all environment variables were populated")
             attr_lens = [len(v) for k, v in items.items()
                          if (isinstance(v, list) and k in keys)]
             if not bool(attr_lens):
@@ -300,8 +302,8 @@ class Sample(PathExAttMap):
             _LOGGER.warning(deriv_exc_base + " Can't access {ke} attribute".
                             format(ke=str(ke)))
         except Exception as e:
-            _LOGGER.warning(deriv_exc_base + " Exception type: {e}".
-                            format(e=str(type(e).__name__)))
+            _LOGGER.warning(deriv_exc_base + " Caught exception: {e}".
+                            format(e=getattr(e, 'message', repr(e))))
         else:
             return _glob_regex(vals)
         return None
