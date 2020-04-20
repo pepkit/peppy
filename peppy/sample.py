@@ -160,6 +160,7 @@ class Sample(PathExAttMap):
         """
         self.all_inputs = set()
         self.required_inputs = set()
+        schema = schema[-1]  # use only first schema, in case there are imports
         sample_schema_dict = schema["properties"]["samples"]["items"]
         if INPUTS_ATTR_NAME in sample_schema_dict:
             self[INPUTS_ATTR_NAME] = sample_schema_dict[INPUTS_ATTR_NAME]
