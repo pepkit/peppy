@@ -129,16 +129,16 @@ class Project(PathExAttMap):
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments:
             for amendment in amendments:
-                if PROJ_MODS_KEY in config \
-                        and AMENDMENTS_KEY in config[PROJ_MODS_KEY] \
-                        and config[PROJ_MODS_KEY][AMENDMENTS_KEY] is not None:
+                c = self[CONFIG_KEY]
+                if PROJ_MODS_KEY in c and AMENDMENTS_KEY in c[PROJ_MODS_KEY] \
+                        and c[PROJ_MODS_KEY][AMENDMENTS_KEY] is not None:
                     _LOGGER.debug("Adding entries for amendment '{}'".
                                   format(amendment))
                     try:
-                        amends = config[PROJ_MODS_KEY][AMENDMENTS_KEY][amendment]
+                        amends = c[PROJ_MODS_KEY][AMENDMENTS_KEY][amendment]
                     except KeyError:
                         raise MissingAmendmentError(
-                            amendment, config[PROJ_MODS_KEY][AMENDMENTS_KEY])
+                            amendment, c[PROJ_MODS_KEY][AMENDMENTS_KEY])
                     _LOGGER.debug("Updating with: {}".format(amends))
                     self[CONFIG_KEY].add_entries(amends)
                     _LOGGER.info("Using amendments: {}".format(amendment))
