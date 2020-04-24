@@ -1,0 +1,27 @@
+description: Sample objects produced by test pipeline.
+properties:
+  samples:
+    type: array
+    items:
+      type: object
+      properties:
+        test_property: 
+          type: string
+          description: "Test sample property"
+          path: "~/sample/{sample_name}_file.txt"
+        test_property1: 
+          type: string
+          description: "Test sample property"
+          path: "~/sample/{sample_name}_file1.txt"
+  test_property: 
+    type: image
+    title: "Test title"
+    description: "Test project property"
+    thumbnail_path: "~/test_{name}.png"
+    path: "~/test_{name}.pdf"
+  test_property1: 
+    type: image
+    title: "Test title1"
+    description: "Test project property1"
+    thumbnail_path: "~/test_{name}.png"
+    path: "~/test_{name}1.pdf"

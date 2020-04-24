@@ -1,0 +1,5 @@
+sample_name,protocol,organism,time,file_path
+pig_0h,RRBS,pig,0,data/lab/project/pig_0h.fastq
+pig_1h,RRBS,pig,1,data/lab/project/pig_1h.fastq
+frog_0h,RRBS,frog,0,data/lab/project/frog_0h.fastq
+frog_1h,RRBS,frog,1,data/lab/project/frog_1h.fastq

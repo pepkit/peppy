@@ -1,0 +1,5 @@
+sample_name,protocol,organism,time,file_path
+pig_0h,ABCD,pig,0,source1
+pig_1h,ABCD,pig,1,source1
+frog_0h,ABCD,frog,0,source1
+frog_1h,ABCD,frog,1,source1

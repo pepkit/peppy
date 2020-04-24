@@ -69,6 +69,14 @@ class SampleModifiersTests:
         assert all(["file_path" in s for s in p.samples])
         assert all(["file_path" in s["_derived_cols_done"] for s in p.samples])
 
+    @pytest.mark.parametrize('example_pep_cfg_path', ["remove"], indirect=True)
+    def test_remove(self, example_pep_cfg_path):
+        """
+        Verify that the declared attr was eliminated from every sample
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert all(["protocol" not in s for s in p.samples])
+
     @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)
     def test_amendments(self, example_pep_cfg_path):
         """
