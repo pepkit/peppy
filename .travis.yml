@@ -5,6 +5,8 @@ python:
   - "3.6"
 os:
   - linux
+before_install:
+  - pip install git+https://github.com/pepkit/ubiquerg.git@dev
 install:
   - pip install --upgrade six
   - pip install .
