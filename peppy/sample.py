@@ -185,7 +185,8 @@ class Sample(PathExAttMap):
         """
         Get value corresponding to each given attribute.
 
-        :param str attrlist: name of an attribute storing a list of attr names
+        :param str | Iterable[str] attrlist: names of attributes to
+            retrieve values for
         :return list | NoneType: value (or empty string) corresponding to
             each named attribute; null if this Sample's value for the
             attribute given by the argument to the "attrlist" parameter is
