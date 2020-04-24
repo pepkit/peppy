@@ -1,3 +1,4 @@
+pipeline_name: TEST
 sample_pipeline:
     name: PIPELINE1
     path: pipelines/pipeline1.py

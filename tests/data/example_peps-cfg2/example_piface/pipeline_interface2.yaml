@@ -1,3 +1,4 @@
+pipeline_name: TEST2
 sample_pipeline:
   name: OTHER_PIPELINE2
   path: pipelines/other_pipeline2.py

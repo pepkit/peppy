@@ -4,6 +4,7 @@ from peppy import Project
 from peppy.exceptions import MissingAmendmentError
 from pandas import DataFrame
 import pytest
+import os
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal@virginia.edu"
@@ -36,6 +37,16 @@ class ProjectConstructorTests:
         """
         p = Project(cfg=example_pep_cfg_path, amendments="newLib")
         assert all([s["protocol"] == "ABCD" for s in p.samples])
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["old"], indirect=True)
+    def test_old_format_support(self, example_pep_cfg_path):
+        """
+        Verify that old format (without implications and subprojects)
+        is still supported
+        """
+        os.environ["DATA"] = "data"
+        p = Project(cfg=example_pep_cfg_path)
+        assert all(["read1" in s for s in p.samples])
 
 
 class ProjectManipulationTests:
