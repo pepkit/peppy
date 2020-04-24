@@ -374,7 +374,7 @@ class Sample(PathExAttMap):
 
     def _excl_from_repr(self, k, cls):
         """ Exclude the Project reference from representation. """
-        return k == PRJ_REF or super(Sample, self)._excl_from_repr(k, cls)
+        return k.startswith("_") or super(Sample, self)._excl_from_repr(k, cls)
 
     def _try_touch_samples(self):
         """
