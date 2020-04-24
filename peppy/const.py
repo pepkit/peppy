@@ -69,7 +69,7 @@ PKG_NAME = "peppy"
 MAX_PROJECT_SAMPLES_REPR = 20
 MODIFIERS_MOVE_PAIRS = {
     "derived_attributes": [DERIVED_KEY, DERIVED_ATTRS_KEY],
-    "derived_columns": DERIVED_KEY,
+    "derived_columns": [DERIVED_KEY, DERIVED_ATTRS_KEY],
     "constant_attributes": CONSTANT_KEY,
     "implied_attributes": IMPLIED_KEY,
     "implied_columns": IMPLIED_KEY,
