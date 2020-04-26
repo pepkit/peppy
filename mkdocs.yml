@@ -11,9 +11,6 @@ nav:
     - How to use peppy: tutorial.md
     - How to use append sample modifier: feature1_append.md
     - How to use imply sample modifier: feature2_imply.md
-    - How to use sample subannotation: subannotation.md
-    - Subprojects tutorial: subprojects.md
-    - How to use project models: models.md
   - Reference:
     - API: autodoc_build/peppy.md
     - Support: support.md
