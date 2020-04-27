@@ -486,7 +486,11 @@ class Project(PathExAttMap):
         if CONFIG_KEY not in self:
             return
         if hasattr(self[CONFIG_KEY], "name"):
-            return self[CONFIG_KEY].name
+            if " " in self[CONFIG_KEY].name:
+                raise InvalidConfigFileException(
+                    "Specified Project name ({}) contains whitespace".
+                        format(self[CONFIG_KEY].name))
+            return self[CONFIG_KEY].name.replace(" ", "_")
         if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError("Project name inference isn't supported "
                                       "on a project that lacks a config file.")
@@ -494,7 +498,7 @@ class Project(PathExAttMap):
         project_name = os.path.basename(config_folder)
         if project_name == METADATA_KEY:
             project_name = os.path.basename(os.path.dirname(config_folder))
-        return project_name
+        return project_name.replace(" ", "_")
 
     def __str__(self):
         """ Representation in interpreter. """
