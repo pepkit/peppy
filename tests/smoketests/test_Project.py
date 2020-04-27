@@ -48,6 +48,15 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_cfg_path)
         assert all(["read1" in s for s in p.samples])
 
+    @pytest.mark.parametrize('example_pep_cfg_path', ["subtable1"], indirect=True)
+    def test_subsample_table_works_when_no_sample_mods(self, example_pep_cfg_path):
+        """
+        Verify that subsample table functionality is not
+        dependant on sample modifiers
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert any([s["file"] != "multi" for s in p.samples])
+
 
 class ProjectManipulationTests:
     @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)

@@ -163,13 +163,13 @@ class Project(PathExAttMap):
         return samples_list
 
     def modify_samples(self):
-        if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
-            return
-        mod_diff = set(self[CONFIG_KEY][SAMPLE_MODS_KEY].keys()) - \
-                   set(SAMPLE_MODIFIERS)
-        if len(mod_diff) > 0:
-            _LOGGER.warning("Config '{}' section contains unrecognized "
-                            "subsections: {}".format(SAMPLE_MODS_KEY, mod_diff))
+        if self._modifier_exists():
+            mod_diff = set(self[CONFIG_KEY][SAMPLE_MODS_KEY].keys()) - \
+                       set(SAMPLE_MODIFIERS)
+            if len(mod_diff) > 0:
+                _LOGGER.warning("Config '{}' section contains unrecognized "
+                                "subsections: {}".
+                                format(SAMPLE_MODS_KEY, mod_diff))
         self.attr_remove()
         self.attr_constants()
         self.attr_synonyms()
@@ -178,6 +178,24 @@ class Project(PathExAttMap):
         self.attr_merge()
         self.attr_derive()
 
+    def _modifier_exists(self, modifier_key=None):
+        """
+        Check whether a specified sample modifier is defined and can be applied
+
+        If no modifier is specified, only the sample_modifiers section's
+        existence is checked
+
+        :param str modifier_key: modifier key to be checked
+        :return bool: whether the requirements are met
+        """
+        _LOGGER.debug("Checking existence: {}".format(modifier_key))
+        if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
+            return False
+        if modifier_key is not None \
+                and modifier_key not in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+            return False
+        return True
+
     def attr_remove(self):
         """
         Remove declared attributes from all samples that have them defined
@@ -185,7 +203,7 @@ class Project(PathExAttMap):
         def _del_if_in(obj, attr):
             if attr in obj:
                 del obj[attr]
-        if REMOVE_KEY in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+        if self._modifier_exists(REMOVE_KEY):
             to_remove = self[CONFIG_KEY][SAMPLE_MODS_KEY][REMOVE_KEY]
             _LOGGER.debug("Removing attributes: {}".format(to_remove))
             for attr in to_remove:
@@ -196,7 +214,7 @@ class Project(PathExAttMap):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if CONSTANT_KEY in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+        if self._modifier_exists(CONSTANT_KEY):
             to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][CONSTANT_KEY]
             _LOGGER.debug("Applying constant attributes: {}".format(to_append))
             for attr, val in to_append.items():
@@ -206,7 +224,7 @@ class Project(PathExAttMap):
         """
         Copy attribute values for all samples to a new one
         """
-        if DUPLICATED_KEY in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+        if self._modifier_exists(DUPLICATED_KEY):
             synonyms = self[CONFIG_KEY][SAMPLE_MODS_KEY][DUPLICATED_KEY]
             _LOGGER.debug("Applying synonyms: {}".format(synonyms))
             for sample in self.samples:
@@ -242,6 +260,7 @@ class Project(PathExAttMap):
         Merge sample subannotations (from subsample table) with
         sample annotations (from sample_table)
         """
+        _LOGGER.debug("In merge")
         if SUBSAMPLE_DF_KEY not in self or self[SUBSAMPLE_DF_KEY] is None:
             _LOGGER.debug("No {} found, skpping merge".
                           format(CFG_SUBSAMPLE_TABLE_KEY))
@@ -310,7 +329,7 @@ class Project(PathExAttMap):
         that the sample's project defines as indicative of implications for
         additional data elements for the sample.
         """
-        if IMPLIED_KEY not in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+        if not self._modifier_exists(IMPLIED_KEY):
             return
         implications = self[CONFIG_KEY][SAMPLE_MODS_KEY][IMPLIED_KEY]
         if not isinstance(implications, list):
@@ -355,7 +374,7 @@ class Project(PathExAttMap):
         """
         Set derived attributes for all Samples tied to this Project instance
         """
-        if DERIVED_KEY not in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+        if not self._modifier_exists(DERIVED_KEY):
             return
         da = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
         ds = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
