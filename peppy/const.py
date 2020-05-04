@@ -6,6 +6,7 @@ __email__ = "michal@virginia.edu"
 # Project-related
 NAME_KEY = "name"
 CONFIG_VERSION_KEY = "pep_version"
+DESC_KEY = "description"
 CONFIG_FILE_KEY = "_config_file"
 CONFIG_KEY = "_config"
 PROJECT_TYPENAME = "Project"
@@ -39,7 +40,7 @@ PROJECT_CONSTANTS = [
     "CONFIG_VERSION_KEY", "DUPLICATED_KEY", "SAMPLE_EDIT_FLAG_KEY",
     "CFG_IMPORTS_KEY", "ACTIVE_AMENDMENTS_KEY", "DERIVED_ATTRS_KEY",
     "IMPLIED_COND_KEYS", "IMPLIED_IF_KEY", "IMPLIED_THEN_KEY",
-    "PROJ_MODS_KEY", "PROJECT_MODIFIERS"]
+    "PROJ_MODS_KEY", "PROJECT_MODIFIERS", "DESC_KEY"]
 
 # Sample-related
 SAMPLE_YAML_FILE_KEY = "yaml_file"
