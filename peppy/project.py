@@ -53,6 +53,7 @@ class Project(PathExAttMap):
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self._sample_table = self._get_table_from_samples(index=self.st_index)
         self.name = self.infer_name()
+        self.description = self.get_description()
 
     def _reinit(self):
         """
@@ -476,12 +477,15 @@ class Project(PathExAttMap):
     def infer_name(self):
         """
         Infer project name from config file path.
+
         First assume the name is the folder in which the config file resides,
         unless that folder is named "metadata", in which case the project name
         is the parent of that folder.
+
         :return str: inferred name for project.
-        :raise NotImplementedError: if the project lacks both a name and a
-            configuration file (no basis, then, for inference)
+        :raise InvalidConfigFileException: if the project lacks both a name and
+            a configuration file (no basis, then, for inference)
+        :rasie InvalidConfigFileException: if specified Project name is invalid
         """
         if CONFIG_KEY not in self:
             return
@@ -499,6 +503,30 @@ class Project(PathExAttMap):
         if project_name == METADATA_KEY:
             project_name = os.path.basename(os.path.dirname(config_folder))
         return project_name.replace(" ", "_")
+
+    def get_description(self):
+        """
+        Infer project description from config file.
+
+        The provided description has to be of class coercible to string
+
+        :return str: inferred name for project.
+        :raise InvalidConfigFileException: if description is not of class
+            coercible to string
+        """
+        if CONFIG_KEY not in self:
+            return
+        if hasattr(self[CONFIG_KEY], "description"):
+            desc_str = str(self[CONFIG_KEY].description)
+            if not isinstance(desc_str, str):
+                try:
+                    desc_str = str(desc_str)
+                except Exception as e:
+                    raise InvalidConfigFileException(
+                        "Could not convert the specified Project description "
+                        "({}) to string. Caught exception: {}".
+                            format(desc_str, getattr(e, 'message', repr(e))))
+            return desc_str
 
     def __str__(self):
         """ Representation in interpreter. """

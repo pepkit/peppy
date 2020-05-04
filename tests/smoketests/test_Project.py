@@ -3,8 +3,10 @@
 from peppy import Project
 from peppy.exceptions import MissingAmendmentError
 from pandas import DataFrame
+from yaml import safe_load, dump
 import pytest
 import os
+import tempfile
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal@virginia.edu"
@@ -56,6 +58,37 @@ class ProjectConstructorTests:
         """
         p = Project(cfg=example_pep_cfg_path)
         assert any([s["file"] != "multi" for s in p.samples])
+
+    @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
+    def test_no_description(self, example_pep_cfg_path):
+        """
+        Verify that Project object is successfully created when no description
+         is specified in the config
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert isinstance(p, Project)
+        assert "description" in p and p.description is None
+
+    @pytest.mark.parametrize('desc', ["desc1",
+                                      "desc 2 <test> 123$!@#;11",
+                                      11,
+                                      None])
+    @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
+    def test_description(self, example_pep_cfg_path, desc):
+        """
+        Verify that Project object contains description specified in the config
+        """
+        td = tempfile.mkdtemp()
+        temp_path_cfg = os.path.join(td, "config.yaml")
+        with open(example_pep_cfg_path, 'r') as f:
+            data = safe_load(f)
+        data["description"] = desc
+        del data["sample_table"]
+        with open(temp_path_cfg, 'w') as f:
+            dump(data, f)
+        p = Project(cfg=temp_path_cfg)
+        assert isinstance(p, Project)
+        assert "description" in p and p.description == str(desc)
 
 
 class ProjectManipulationTests:
