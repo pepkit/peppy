@@ -538,7 +538,7 @@ class Project(PathExAttMap):
         if CONFIG_FILE_KEY in self:
             msg += " ({})".format(self[CONFIG_FILE_KEY])
         if DESC_KEY in self and self[DESC_KEY] is not None:
-            msg += "\ndescription: {}".format(self[DESC_KEY])
+            msg += "\n{}: {}".format(DESC_KEY, self[DESC_KEY])
         try:
             num_samples = len(self._samples)
         except (AttributeError, TypeError):
