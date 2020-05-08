@@ -2,12 +2,9 @@ from collections import Mapping, OrderedDict
 from string import Formatter
 from logging import getLogger
 from copy import copy as cp
-from warnings import catch_warnings as cw
 import glob
 import yaml
-import os
 
-from ubiquerg import size
 from attmap import PathExAttMap
 
 from .const import *
@@ -23,15 +20,6 @@ class Sample(PathExAttMap):
     Class to model Samples based on a pandas Series.
 
     :param Mapping | pandas.core.series.Series series: Sample's data.
-
-    :Example:
-
-    .. code-block:: python
-
-        from models import Project, SampleSheet, Sample
-        prj = Project("ngs")
-        sheet = SampleSheet("~/projects/example/sheet.csv", prj)
-        s1 = Sample(sheet.iloc[0])
     """
     def __init__(self, series, prj=None):
 
@@ -143,43 +131,6 @@ class Sample(PathExAttMap):
             outfile.write(yaml_data)
             _LOGGER.debug(
                 "Sample data written to: {}".format(self[SAMPLE_YAML_FILE_KEY]))
-
-    def validate_inputs(self, schema):
-        """
-        Determine which of this Sample's required attributes/files are missing
-        and calculate sizes of the inputs
-
-        The names of the attributes that are required and/or deemed as inputs
-        are sourced from the schema,more specifically from required_input_attrs
-        and input_attrs sections in samples section
-
-        :param dict schema: schema dict to validate against
-        :return (type, str, Iterable[str]): hypothetical exception type along
-            with message about what's missing; null and empty if nothing
-            exceptional is detected
-        """
-        self.all_inputs = set()
-        self.required_inputs = set()
-        schema = schema[-1]  # use only first schema, in case there are imports
-        sample_schema_dict = schema["properties"]["samples"]["items"]
-        if INPUTS_ATTR_NAME in sample_schema_dict:
-            self[INPUTS_ATTR_NAME] = sample_schema_dict[INPUTS_ATTR_NAME]
-            self.all_inputs.update(self.get_attr_values(self[INPUTS_ATTR_NAME]))
-        if REQ_INPUTS_ATTR_NAME in sample_schema_dict:
-            self[REQ_INPUTS_ATTR_NAME] = sample_schema_dict[REQ_INPUTS_ATTR_NAME]
-            self.required_inputs = self.get_attr_values(self[REQ_INPUTS_ATTR_NAME])
-            self.all_inputs.update(self.required_inputs)
-        with cw(record=True) as w:
-            self.input_file_size = \
-                sum([size(f, size_str=False) or 0.0
-                     for f in self.all_inputs if f != ""])/(1024 ** 3)
-            if w:
-                _LOGGER.warning("{} input files missing, job input size was not"
-                                " calculated accurately".format(len(w)))
-        missing = [i for i in self.required_inputs if not os.path.exists(i)]
-        if not missing:
-            return None, "", ""
-        return IOError, "Missing files", ", ".join(missing)
 
     def get_attr_values(self, attrlist):
         """

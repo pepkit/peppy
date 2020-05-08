@@ -31,6 +31,14 @@ class Project(PathExAttMap):
         the subsample_table index to
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
+
+    :Example:
+
+    .. code-block:: python
+
+        from peppy import Project
+        prj = Project("ngs")
+        samples = prj.samples
     """
     def __init__(self, cfg=None, amendments=None, sample_table_index=None,
                  subsample_table_index=None):
