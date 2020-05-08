@@ -1,8 +1,18 @@
 # Changelog
 
-## [0.22.4] - unreleased
+## [0.30.0] - unreleased
+
+**This version introduced backwards-incompatible changes.**  
+
+### Added
+- attribute duplication functionality
+- config importing functionality
+- attribute removal functionality
+- possibility to define multi-attribute rules in attribute implication
+  
 ### Changed
-- Reduced duplicated message verbosity
+- Project configuration file to follow [PEP2.0.0](http://pep.databio.org/en/2.0.0/specification/) specification. Browse the specification for changes related to config format
+- Do not require `sample_name` attribute in the sample table
 
 ## [0.22.3] - 2019-12-13
 ### Changed
