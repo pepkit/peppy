@@ -89,9 +89,10 @@ class Project(PathExAttMap):
             df = df.append(ser, ignore_index=True)
         index = [index] if isinstance(index, str) else index
         if not all([i in df.columns for i in index]):
-            _LOGGER.warning(
-                "Could not set sample_table index. At least one of the "
-                "requested columns does not exist: {}".format(index))
+            _LOGGER.debug(
+                "Could not set {} index. At least one of the "
+                "requested columns does not exist: {}".
+                    format(CFG_SAMPLE_TABLE_KEY, index))
             return df
         _LOGGER.debug("Setting sample_table index to: {}".format(index))
         df.set_index(keys=index, drop=False, inplace=True)
@@ -107,6 +108,9 @@ class Project(PathExAttMap):
         """
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = PathExAttMap()
+        if not os.path.exists(cfg_path):
+            raise OSError("Project config file path does not exist: {}".
+                             format(cfg_path))
         with open(cfg_path, 'r') as conf_file:
             config = yaml.safe_load(conf_file)
 
@@ -165,7 +169,6 @@ class Project(PathExAttMap):
         self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
-            _LOGGER.warning("sample_table was not loaded, can't create Samples")
             return []
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
@@ -662,9 +665,9 @@ class Project(PathExAttMap):
         index = self.sst_index
         if isinstance(sdf, pd.DataFrame):
             if not all([i in sdf.columns for i in index]):
-                _LOGGER.warning(
-                    "Could not set subsample_table index. At least one of the "
-                    "requested columns does not exist: {}".format(index))
+                _LOGGER.debug("Could not set {} index. At least one of the "
+                              "requested columns does not exist: {}"
+                              .format(CFG_SUBSAMPLE_TABLE_KEY, index))
                 return sdf
             sdf.set_index(keys=index, drop=False, inplace=True)
             _LOGGER.debug("Setting subsample_table index to: {}".format(index))
@@ -684,11 +687,7 @@ class Project(PathExAttMap):
             _LOGGER.warning("No config key in Project")
             return
         if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
-            _LOGGER.warning(
-                "sample_table is not linked to the Project. Use '{}' key "
-                "in configuration file to specify a path to the sample "
-                "annotation sheet".format(CFG_SAMPLE_TABLE_KEY)
-            )
+            _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
             return
         st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
         try:
