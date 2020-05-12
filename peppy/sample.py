@@ -4,6 +4,7 @@ from logging import getLogger
 from copy import copy as cp
 import glob
 import yaml
+import warnings
 
 from attmap import PathExAttMap
 
@@ -13,6 +14,10 @@ from .exceptions import InvalidSampleTableFileException
 
 _LOGGER = getLogger(PKG_NAME)
 
+
+class SafeDict(dict):
+    def __missing__(self, key):
+        return '{' + key + '}'
 
 @copy
 class Sample(PathExAttMap):
@@ -183,11 +188,12 @@ class Sample(PathExAttMap):
             if not keys:
                 return [regex]
             if "$" in regex:
-                raise OSError("Not all environment variables were populated")
+                _LOGGER.warning("Not all environment variables were populated "
+                                "in derived attribute source: {}".format(regex))
             attr_lens = [len(v) for k, v in items.items()
                          if (isinstance(v, list) and k in keys)]
             if not bool(attr_lens):
-                return [regex.format(**items)]
+                return [_safe_format(regex, items)]
             if len(set(attr_lens)) != 1:
                 msg = "All attributes to format the {} ({}) have to be the " \
                       "same length, got: {}. Correct your {}".\
@@ -200,8 +206,23 @@ class Sample(PathExAttMap):
                 for k in keys:
                     if isinstance(items_cpy[k], list):
                         items_cpy[k] = items_cpy[k][i]
-                vals.append(regex.format(**items_cpy))
+                vals.append(_safe_format(regex, items_cpy))
             return vals
+
+        def _safe_format(s, values):
+            """
+            Safely format string.
+
+            If the values are missing the key is wrapped in curly braces.
+            This is intended to preserve the environment variables specified
+            using curly braces notation, for example: "${ENVVAR}/{sample_attr}"
+            would result in "${ENVVAR}/populated" rather than a KeyError.
+
+            :param str s: string with curly braces placeholders to populate
+            :param Mapping values: key-value pairs to pupulate string with
+            :return str: populated string
+            """
+            return Formatter().vformat(s, (), SafeDict(values))
 
         def _glob_regex(patterns):
             """
