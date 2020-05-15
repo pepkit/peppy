@@ -2,4 +2,4 @@ attmap>=0.12.5
 pandas>=0.24.2
 pyyaml>=5
 logmuse>=0.2
-ubiquerg>=0.5.2-dev
+ubiquerg>=0.5.2
