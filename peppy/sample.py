@@ -4,6 +4,7 @@ from logging import getLogger
 from copy import copy as cp
 import glob
 import yaml
+import os
 import warnings
 
 from attmap import PathExAttMap
@@ -127,6 +128,10 @@ class Sample(PathExAttMap):
             OSError("Sample must be saved to a YAML file. Got: {}".format(path))
         self[SAMPLE_YAML_FILE_KEY] = path
         serial = _obj2dict(self)
+        if not os.path.exists(os.path.dirname(self[SAMPLE_YAML_FILE_KEY])):
+            _LOGGER.warning("Could no write sample data to: {}. Directory does "
+                            "not exist".format(self[SAMPLE_YAML_FILE_KEY]))
+            return
         with open(self[SAMPLE_YAML_FILE_KEY], 'w') as outfile:
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
