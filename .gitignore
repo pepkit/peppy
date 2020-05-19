@@ -72,3 +72,5 @@ build/
 dist/
 peppy.egg-info/
 
+.ipynb_checkpoints/
+
