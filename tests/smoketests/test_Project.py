@@ -17,6 +17,36 @@ EXAMPLE_TYPES = \
      "subtable3", "subtable4", "subtable5", "remove"]
 
 
+def _get_pair_to_post_init_test(cfg_path):
+    """
+
+    :param cfg_path: path to the project config file
+    :type cfg_path: str
+    :return: list of two project objects to compare
+    :rtype: list[peppy.Project]
+    """
+    p = Project(cfg=cfg_path)
+    pd = Project(cfg=cfg_path, defer_samples_creation=True)
+    pd.create_samples()
+    return [p, pd]
+
+
+def _cmp_all_samples_attr(p1, p2, attr):
+    """
+    Compare a selected attribute values for all samples in two Projects
+
+    :param p1: project to comapre
+    :type p1: peppy.Project
+    :param p2: project to comapre
+    :type p2: peppy.Project
+    :param attr: attribute name to compare
+    :type attr: str
+    """
+
+    assert [getattr(s, attr, None) for s in p1.samples] == \
+           [getattr(s, attr, None) for s in p2.samples]
+
+
 class ProjectConstructorTests:
     def test_empty(self):
         """ Verify that an empty Project instance can be created """
@@ -24,30 +54,33 @@ class ProjectConstructorTests:
         assert isinstance(p, Project)
         assert len(p.samples) == 0
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
-    def test_instantiaion(self, example_pep_cfg_path):
+    def test_instantiaion(self, example_pep_cfg_path, defer):
         """
         Verify that Project object is successfully created for every example PEP
         """
-        p = Project(cfg=example_pep_cfg_path)
+        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p, Project)
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)
-    def test_amendments(self, example_pep_cfg_path):
+    def test_amendments(self, example_pep_cfg_path, defer):
         """
         Verify that the amendment is activate at object instantiation
         """
-        p = Project(cfg=example_pep_cfg_path, amendments="newLib")
+        p = Project(cfg=example_pep_cfg_path, amendments="newLib", defer_samples_creation=defer)
         assert all([s["protocol"] == "ABCD" for s in p.samples])
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', ["old"], indirect=True)
-    def test_old_format_support(self, example_pep_cfg_path):
+    def test_old_format_support(self, example_pep_cfg_path, defer):
         """
         Verify that old format (without implications and subprojects)
         is still supported
         """
         os.environ["DATA"] = "data"
-        p = Project(cfg=example_pep_cfg_path)
+        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert all(["read1" in s for s in p.samples])
 
     @pytest.mark.parametrize('example_pep_cfg_path', ["subtable1"], indirect=True)
@@ -59,22 +92,24 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_cfg_path)
         assert any([s["file"] != "multi" for s in p.samples])
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
-    def test_no_description(self, example_pep_cfg_path):
+    def test_no_description(self, example_pep_cfg_path, defer):
         """
         Verify that Project object is successfully created when no description
          is specified in the config
         """
-        p = Project(cfg=example_pep_cfg_path)
+        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p, Project)
         assert "description" in p and p.description is None
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('desc', ["desc1",
                                       "desc 2 <test> 123$!@#;11",
                                       11,
                                       None])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
-    def test_description(self, example_pep_cfg_path, desc):
+    def test_description(self, example_pep_cfg_path, desc, defer):
         """
         Verify that Project object contains description specified in the config
         """
@@ -86,7 +121,7 @@ class ProjectConstructorTests:
         del data["sample_table"]
         with open(temp_path_cfg, 'w') as f:
             dump(data, f)
-        p = Project(cfg=temp_path_cfg)
+        p = Project(cfg=temp_path_cfg, defer_samples_creation=defer)
         assert isinstance(p, Project)
         assert "description" in p and p.description == str(desc)
 
@@ -115,39 +150,31 @@ class ProjectManipulationTests:
         assert all([s["protocol"] != "ABCD" for s in p.samples])
         assert p.amendments is None
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)
-    def test_missing_amendment_raises_error(self, example_pep_cfg_path):
+    def test_missing_amendment_raises_error(self, example_pep_cfg_path, defer):
         """
         Verify that the missing amendment request raises correct exception
         """
         with pytest.raises(MissingAmendmentError):
-            Project(cfg=example_pep_cfg_path, amendments="nieznany")
+            Project(cfg=example_pep_cfg_path, amendments="nieznany", defer_samples_creation=defer)
 
-    @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)
-    def test_missing_amendment_raises_error(self, example_pep_cfg_path):
-        """
-        Verify that the missing amendment request raises correct exception
-        """
-        with pytest.raises(MissingAmendmentError):
-            Project(cfg=example_pep_cfg_path, amendments="nieznany")
-
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
-    def test_str_repr_correctness(self, example_pep_cfg_path):
+    def test_str_repr_correctness(self, example_pep_cfg_path, defer):
         """
-        Verify that the missing amendment request raises correct exception
+        Verify string representation correctness
         """
-        p = Project(cfg=example_pep_cfg_path)
+        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         str_repr = p.__str__()
         assert example_pep_cfg_path in str_repr
         assert "{} samples".format(str(len(p.samples))) in str_repr
         assert p.name in str_repr
 
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)
-    def test_amendments_listing(self, example_pep_cfg_path):
-        """
-        Verify that the missing amendment request raises correct exception
-        """
-        p = Project(cfg=example_pep_cfg_path)
+    def test_amendments_listing(self, example_pep_cfg_path, defer):
+        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p.list_amendments, list)
 
     @pytest.mark.parametrize('example_pep_cfg_path', ["basic"], indirect=True)
@@ -226,3 +253,50 @@ class SampleModifiersTests:
         p = Project(cfg=example_pep_cfg_path)
         assert all([isinstance(s["file"], list) for s in p.samples
                     if s["sample_name"] in ["frog_1", "frog2"]])
+
+
+class PostInitSampleCreationTests:
+    @pytest.mark.parametrize('example_pep_cfg_path', ["append"], indirect=True)
+    def test_append(self, example_pep_cfg_path):
+        """
+        Verify that the appending works the same way in a post init
+        sample creation scenario
+        """
+        p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
+        _cmp_all_samples_attr(p, pd, "read_type")
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["imports"], indirect=True)
+    def test_imports(self, example_pep_cfg_path):
+        """
+        Verify that the importing works the same way in a post init
+        sample creation scenario
+        """
+        p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
+        _cmp_all_samples_attr(p, pd, "imported_attr")
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["imply"], indirect=True)
+    def test_imply(self, example_pep_cfg_path):
+        """
+        Verify that the implication the same way in a post init
+        sample creation scenario
+        """
+        p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
+        _cmp_all_samples_attr(p, pd, "genome")
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["duplicate"], indirect=True)
+    def test_duplicate(self, example_pep_cfg_path):
+        """
+        Verify that the duplication the same way in a post init
+        sample creation scenario
+        """
+        p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
+        _cmp_all_samples_attr(p, pd, "organism")
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["derive"], indirect=True)
+    def test_derive(self, example_pep_cfg_path):
+        """
+        Verify that the derivation the same way in a post init
+        sample creation scenario
+        """
+        p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
+        _cmp_all_samples_attr(p, pd, "file_path")

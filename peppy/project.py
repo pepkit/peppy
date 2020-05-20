@@ -41,7 +41,7 @@ class Project(PathExAttMap):
         samples = prj.samples
     """
     def __init__(self, cfg=None, amendments=None, sample_table_index=None,
-                 subsample_table_index=None):
+                 subsample_table_index=None, defer_samples_creation=False):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
             " from file {}".format(cfg) if cfg else "")
@@ -53,15 +53,24 @@ class Project(PathExAttMap):
             self.parse_config_file(cfg_pth, amendments)
         else:
             self[CONFIG_FILE_KEY] = None
-        self._samples = self.load_samples()
-        self.st_index = sample_table_index or SAMPLE_NAME_ATTR
-        self.sst_index = subsample_table_index or \
-                         [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
-        self.modify_samples()
+        self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self._sample_table = self._get_table_from_samples(index=self.st_index)
+        self.st_index = sample_table_index \
+                        or SAMPLE_NAME_ATTR
+        self.sst_index = subsample_table_index \
+                         or [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
         self.name = self.infer_name()
         self.description = self.get_description()
+        if not defer_samples_creation:
+            self.create_samples()
+        self._sample_table = self._get_table_from_samples(index=self.st_index)
+
+    def create_samples(self):
+        """
+        Populate Project with Sample objects
+        """
+        self._samples = self.load_samples()
+        self.modify_samples()
 
     def _reinit(self):
         """
@@ -563,7 +572,7 @@ class Project(PathExAttMap):
                 if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
             msg = "{}{}: {}".format(msg, context, ", ".join(repr_names))
         else:
-            msg = "{} {}".format(msg, "no samples")
+            msg = "{} {}".format(msg, "0 samples")
         if CONFIG_KEY not in self:
             return msg
         msg = "{}\nSections: {}".\
