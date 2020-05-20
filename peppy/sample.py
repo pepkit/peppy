@@ -129,7 +129,7 @@ class Sample(PathExAttMap):
         self[SAMPLE_YAML_FILE_KEY] = path
         serial = _obj2dict(self)
         if not os.path.exists(os.path.dirname(self[SAMPLE_YAML_FILE_KEY])):
-            _LOGGER.warning("Could no write sample data to: {}. Directory does "
+            _LOGGER.warning("Could not write sample data to: {}. Directory does "
                             "not exist".format(self[SAMPLE_YAML_FILE_KEY]))
             return
         with open(self[SAMPLE_YAML_FILE_KEY], 'w') as outfile:
