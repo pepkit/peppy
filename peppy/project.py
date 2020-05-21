@@ -65,6 +65,11 @@ class Project(PathExAttMap):
             self.create_samples()
         self._sample_table = self._get_table_from_samples(index=self.st_index)
 
+    @property
+    def sample_name_colname(self):
+        return SAMPLE_NAME_ATTR \
+            if SAMPLE_NAME_ATTR == self.st_index else self.st_index
+
     def create_samples(self):
         """
         Populate Project with Sample objects
@@ -271,10 +276,20 @@ class Project(PathExAttMap):
             pass
         for sample in self.samples:
             if SAMPLE_NAME_ATTR not in sample:
-                msg = "{st} is missing '{sn}' column;" \
-                      " you must specify {sn}s in {st} or derive them".\
+                msg_base = "{st} is missing '{sn}' column; ".\
                     format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
-                raise InvalidSampleTableFileException(msg)
+                msg = msg_base + \
+                      "you must specify {sn}s in {st} or derive them".\
+                          format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
+                if self.st_index != SAMPLE_NAME_ATTR:
+                    setattr(sample, SAMPLE_NAME_ATTR, getattr(sample, self.st_index))
+                    _LOGGER.warning(
+                        msg_base +
+                        "using specified {} index ({}) instead. Setting name: {}".
+                        format(CFG_SAMPLE_TABLE_KEY, self.st_index,
+                               getattr(sample, self.st_index)))
+                else:
+                    raise InvalidSampleTableFileException(msg)
 
     def attr_merge(self):
         """
@@ -289,7 +304,7 @@ class Project(PathExAttMap):
         self._check_subann_name_overlap()
         subsample_table = self[SUBSAMPLE_DF_KEY]
         for sample in self.samples:
-            sample_colname = SAMPLE_NAME_ATTR
+            sample_colname = self.sample_name_colname
             if sample_colname not in subsample_table.columns:
                 raise KeyError("Subannotation requires column '{}'."
                                .format(sample_colname))
@@ -566,7 +581,7 @@ class Project(PathExAttMap):
             num_samples = 0
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            sample_names = list(self[SAMPLE_DF_KEY][SAMPLE_NAME_ATTR])
+            sample_names = list(self[SAMPLE_DF_KEY][self.sample_name_colname])
             repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR) \
                 if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
@@ -853,7 +868,8 @@ class Project(PathExAttMap):
         """
         Check if all subannotations have a matching sample, and warn if not
         """
-        subsample_names = list(self[SUBSAMPLE_DF_KEY][SAMPLE_NAME_ATTR])
+
+        subsample_names = list(self[SUBSAMPLE_DF_KEY][self.sample_name_colname])
         sample_names_list = [s[SAMPLE_NAME_ATTR] for s in self.samples]
         for n in subsample_names:
             if n not in sample_names_list:
