@@ -313,7 +313,7 @@ class Project(PathExAttMap):
             sample_indexer = \
                 subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
             this_sample_rows = subsample_table[sample_indexer].\
-                dropna(how="any", axis=1)
+                dropna(how="all", axis=1)
             if len(this_sample_rows) == 0:
                 _LOGGER.debug("No merge rows for sample '%s', skipping",
                               sample[SAMPLE_NAME_ATTR])
