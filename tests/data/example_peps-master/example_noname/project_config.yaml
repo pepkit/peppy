@@ -1,0 +1,10 @@
+pep_version: "2.0.0"
+sample_table: sample_table.csv
+
+sample_modifiers:
+  append:
+    sample_name: SN
+  derive:
+    attributes: [sample_name]
+    sources:
+      SN: "{organism}_{time}h"

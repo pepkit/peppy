@@ -65,11 +65,6 @@ class Project(PathExAttMap):
             self.create_samples()
         self._sample_table = self._get_table_from_samples(index=self.st_index)
 
-    @property
-    def sample_name_colname(self):
-        return SAMPLE_NAME_ATTR \
-            if SAMPLE_NAME_ATTR == self.st_index else self.st_index
-
     def create_samples(self):
         """
         Populate Project with Sample objects
@@ -604,6 +599,30 @@ class Project(PathExAttMap):
         return msg
 
     @property
+    def amendments(self):
+        """
+        Return currently active list of amendments or None if none was activated
+
+        :return Iterable[str]: a list of currently active amendment names
+        """
+        return self[ACTIVE_AMENDMENTS_KEY] if ACTIVE_AMENDMENTS_KEY in self \
+            else None
+
+    @property
+    def list_amendments(self):
+        """
+        Return a list of available amendments or None if not declared
+
+        :return Iterable[str]: a list of available amendment names
+        """
+        try:
+            return self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys()
+        except Exception as e:
+            _LOGGER.debug("Could not retrieve available amendments: {}".
+                          format(getattr(e, 'message', repr(e))))
+            return None
+
+    @property
     def config(self):
         """
         Get the config mapping
@@ -637,28 +656,18 @@ class Project(PathExAttMap):
             return []
 
     @property
-    def list_amendments(self):
+    def sample_name_colname(self):
         """
-        Return a list of available amendments or None if not declared
+        Name of the effective sample name containing column in the sample table.
 
-        :return Iterable[str]: a list of available amendment names
-        """
-        try:
-            return self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys()
-        except Exception as e:
-            _LOGGER.debug("Could not retrieve available amendments: {}".
-                          format(getattr(e, 'message', repr(e))))
-            return None
+        It is "sample_name" bu default, but when it's missing it could be
+        replaced by the selected sample table index, defined on the
+        object instantiation stage.
 
-    @property
-    def amendments(self):
+        :return str: name of the column that consist of sample identifiers
         """
-        Return currently active list of amendments or None if none was activated
-
-        :return Iterable[str]: a list of currently active amendment names
-        """
-        return self[ACTIVE_AMENDMENTS_KEY] if ACTIVE_AMENDMENTS_KEY in self \
-            else None
+        return SAMPLE_NAME_ATTR \
+            if SAMPLE_NAME_ATTR == self.st_index else self.st_index
 
     @property
     def sample_table(self):

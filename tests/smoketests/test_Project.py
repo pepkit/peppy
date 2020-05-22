@@ -1,7 +1,8 @@
 """ Classes for peppy.Project smoketesting """
 
 from peppy import Project
-from peppy.exceptions import MissingAmendmentError
+from peppy.exceptions import MissingAmendmentError, InvalidSampleTableFileException
+from peppy.const import SAMPLE_NAME_ATTR
 from pandas import DataFrame
 from yaml import safe_load, dump
 import pytest
@@ -124,6 +125,45 @@ class ProjectConstructorTests:
         p = Project(cfg=temp_path_cfg, defer_samples_creation=defer)
         assert isinstance(p, Project)
         assert "description" in p and p.description == str(desc)
+
+    @pytest.mark.parametrize('example_pep_cfg_noname_path',
+                             ["project_config.yaml"], indirect=True)
+    def test_missing_sample_name_derive(self, example_pep_cfg_noname_path):
+        """
+        Verify that even if sample_name column is missing in the sample table,
+        it can be derived and no error is issued
+        """
+        p = Project(cfg=example_pep_cfg_noname_path)
+        assert SAMPLE_NAME_ATTR in p.sample_table.columns
+
+    @pytest.mark.parametrize('example_pep_cfg_noname_path',
+                             ["project_config_noname.yaml"], indirect=True)
+    def test_missing_sample_name(self, example_pep_cfg_noname_path):
+        """
+        Verify that if sample_name column is missing in the sample table an
+        error is issued
+        """
+        with pytest.raises(InvalidSampleTableFileException):
+            Project(cfg=example_pep_cfg_noname_path)
+
+    @pytest.mark.parametrize('example_pep_cfg_noname_path',
+                             ["project_config_noname.yaml"], indirect=True)
+    def test_missing_sample_name_defer(self, example_pep_cfg_noname_path):
+        """
+        Verify that if sample_name column is missing in the sample table an
+        error is not issued if sample creation is deferred
+        """
+        Project(cfg=example_pep_cfg_noname_path, defer_samples_creation=True)
+
+    @pytest.mark.parametrize('example_pep_cfg_noname_path',
+                             ["project_config_noname.yaml"], indirect=True)
+    def test_missing_sample_name_custom_index(self, example_pep_cfg_noname_path):
+        """
+        Verify that if sample_name column is missing in the sample table an
+        error is not issued if a custom sample_table index is set
+        """
+        p = Project(cfg=example_pep_cfg_noname_path, sample_table_index="id")
+        assert p.sample_name_colname == "id"
 
 
 class ProjectManipulationTests:

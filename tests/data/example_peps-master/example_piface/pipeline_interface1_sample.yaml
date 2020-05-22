@@ -1,0 +1,11 @@
+pipeline_name: PIPELINE1
+pipeline_type: sample
+path: pipelines/pipeline1.py
+input_schema: https://schema.databio.org/pep/2.0.0.yaml
+output_schema: output_schema.yaml
+command_template: >
+  {pipeline.path} --sample-name {sample.sample_name} --req-attr {sample.attr}
+
+bioconductor:
+  readFunName: readData
+  readFunPath: readData.R

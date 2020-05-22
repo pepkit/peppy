@@ -18,3 +18,11 @@ def example_pep_cfg_path(request):
                         "example_{}".format(request.param),
                         "project_config.yaml")
 
+@pytest.fixture
+def example_pep_cfg_noname_path(request):
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data",
+                        "example_peps-{}".format(EPB),
+                        "example_noname",
+                        request.param)
+
