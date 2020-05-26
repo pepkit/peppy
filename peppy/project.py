@@ -1,143 +1,21 @@
 """
-Model a project with individual samples and associated data.
-
-Project Models
-=======================
-
-Workflow explained:
-    - Create a Project object
-        - Samples are created and added to project (automatically)
-
-In the process, Models will check:
-    - Project structure (created if not existing)
-    - Existence of csv sample sheet with minimal fields
-    - Constructing a path to a sample's input file and checking for its existence
-    - Read type/length of samples (optionally)
-
-Example:
-
-.. code-block:: python
-
-    from models import Project
-    prj = Project("config.yaml")
-    # that's it!
-
-Explore:
-
-.. code-block:: python
-
-    # see all samples
-    prj.samples
-    # get fastq file of first sample
-    prj.samples[0].fastq
-    # get all bam files of WGBS samples
-    [s.mapped for s in prj.samples if s.protocol == "WGBS"]
-
-    prj.metadata.results  # results directory of project
-    # export again the project's annotation
-    prj.sample_table.write(os.path.join(prj.metadata.output_dir, "sample_annotation.csv"))
-
-    # project options are read from the config file
-    # but can be changed on the fly:
-    prj = Project("test.yaml")
-    # change options on the fly
-    prj.config["merge_technical"] = False
-    # annotation sheet not specified initially in config file
-    prj.add_sample_sheet("sample_annotation.csv")
-
+Build a Project object.
 """
-
-from collections import defaultdict, Iterable, Mapping, namedtuple
-import os
-import warnings
-
-import pandas as pd
-import yaml
+from .const import *
+from .utils import copy
+from .exceptions import *
+from .sample import Sample
 
 from attmap import PathExAttMap
-from divvy import DEFAULT_COMPUTE_RESOURCES_NAME, ComputingConfiguration
-from .const import *
-from .exceptions import *
-from .sample import merge_sample, Sample
-from .utils import \
-    add_project_sample_constants, copy, fetch_samples, get_logger, \
-    get_name_depr_msg, infer_delimiter, prep_uniq_sample_names, \
-    non_null_value, repeat_values, type_check_strict
 from ubiquerg import is_url
 
+import os
+import yaml
+import pandas as pd
+from collections import Mapping
+from logging import getLogger
 
-MAX_PROJECT_SAMPLES_REPR = 20
-NEW_PIPES_KEY = "pipeline_interfaces"
-OLD_PIPES_KEY = "pipelines_dir"
-OLD_ANNS_META_KEY = "sample_annotation"
-OLD_SUBS_META_KEY = "sample_subannotation"
-
-READ_CSV_KWARGS = {"engine": "python", "dtype": str, "index_col": False,
-                   "keep_default_na": False, "na_values": [""]}
-
-GENOMES_KEY = "genomes"
-TRANSCRIPTOMES_KEY = "transcriptomes"
-IDEALLY_IMPLIED = [GENOMES_KEY, TRANSCRIPTOMES_KEY]
-
-_OLD_CONSTANTS_KEY = "constants"
-_OLD_DERIVATIONS_KEY = "derived_columns"
-_OLD_IMPLICATIONS_KEY = "implied_columns"
-
-DEPRECATIONS = {_OLD_CONSTANTS_KEY: CONSTANTS_DECLARATION,
-                _OLD_DERIVATIONS_KEY: DERIVATIONS_DECLARATION,
-                _OLD_IMPLICATIONS_KEY: IMPLICATIONS_DECLARATION}
-
-RESULTS_FOLDER_VALUE = "results_pipeline"
-SUBMISSION_FOLDER_VALUE = "submission"
-
-MAIN_INDEX_KEY = "main_index_cols"
-SUBS_INDEX_KEY = "subs_index_cols"
-
-
-_LOGGER = get_logger(__name__)
-
-
-class ProjectContext(object):
-    """ Wrap a Project to provide protocol-specific Sample selection. """
-
-    def __init__(self, prj, selector_attribute=ASSAY_KEY,
-                 selector_include=None, selector_exclude=None):
-        """ Project and what to include/exclude defines the context. """
-        if not isinstance(selector_attribute, str):
-            raise TypeError(
-                "Name of attribute for sample selection isn't a string: {} "
-                "({})".format(selector_attribute, type(selector_attribute)))
-        self.prj = prj
-        self.include = selector_include
-        self.exclude = selector_exclude
-        self.attribute = selector_attribute
-
-    def __getattr__(self, item):
-        """ Samples are context-specific; other requests are handled
-        locally or dispatched to Project. """
-        if item == "samples":
-            return fetch_samples(
-                self.prj, selector_attribute=self.attribute,
-                selector_include=self.include, selector_exclude=self.exclude)
-        if item in ["prj", "include", "exclude"]:
-            # Attributes requests that this context/wrapper handles
-            return self.__dict__[item]
-        else:
-            # Dispatch attribute request to Project.
-            return getattr(self.prj, item)
-
-    def __getitem__(self, item):
-        """ Provide the Mapping-like item access to the instance's Project. """
-        return self.prj[item]
-
-    def __enter__(self):
-        """ References pass through this instance as needed, so the context
-         provided is the instance itself. """
-        return self
-
-    def __exit__(self, *args):
-        """ Context teardown. """
-        pass
+_LOGGER = getLogger(PKG_NAME)
 
 
 @copy
@@ -147,365 +25,621 @@ class Project(PathExAttMap):
 
     :param str | Mapping cfg: Project config file (YAML), or appropriate
         key-value mapping of data to constitute project
-    :param str subproject: Subproject to use within configuration file, optional
-    :param bool dry: If dry mode is activated, no directories
-        will be created upon project instantiation.
-    :param bool permissive: Whether a error should be thrown if
-        a sample input file(s) do not exist or cannot be open.
-    :param bool file_checks: Whether sample input files should be checked
-        for their  attributes (read type, read length)
-        if this is not set in sample metadata.
-    :param str compute_env_file: Environment configuration YAML file specifying
-        compute settings.
-    :param type no_environment_exception: type of exception to raise if environment
-        settings can't be established, optional; if null (the default),
-        a warning message will be logged, and no exception will be raised.
-    :param type no_compute_exception: type of exception to raise if compute
-        settings can't be established, optional; if null (the default),
-        a warning message will be logged, and no exception will be raised.
-    :param bool defer_sample_construction: whether to wait to build this Project's
-        Sample objects until they're needed, optional; by default, the basic
-        Sample is created during Project construction
+    :param str | Iterable[str] sample_table_index: name of the columns to set
+        the sample_table index to
+    :param str | Iterable[str] subsample_table_index: name of the columns to set
+        the subsample_table index to
+    :param str | Iterable[str] amendments: names of the amendments to activate
+    :param Iterable[str] amendments: amendments to use within configuration file
 
     :Example:
 
     .. code-block:: python
 
-        from models import Project
-        prj = Project("config.yaml")
-
+        from peppy import Project
+        prj = Project("ngs")
+        samples = prj.samples
     """
-
-    # Hook for Project's declaration of how it identifies samples.
-    # Used for validation and for merge_sample (derived cols and such)
-    SAMPLE_NAME_IDENTIFIER = SAMPLE_NAME_COLNAME
-
-    DERIVED_ATTRIBUTES_DEFAULT = [DATA_SOURCE_COLNAME]
-
-    def __init__(self, cfg, subproject=None, dry=False,
-                 permissive=True, file_checks=False, compute_env_file=None,
-                 no_environment_exception=None, no_compute_exception=None,
-                 defer_sample_construction=False, **kwargs):
-
+    def __init__(self, cfg=None, amendments=None, sample_table_index=None,
+                 subsample_table_index=None, defer_samples_creation=False):
         _LOGGER.debug("Creating {}{}".format(
             self.__class__.__name__,
-            " from file {}".format(cfg) if cfg else ""))
-        super(Project, self).__init__()
-
-        self.dcc = ComputingConfiguration(
-            config_file=compute_env_file, no_env_error=no_environment_exception,
-            no_compute_exception=no_compute_exception)
-        self.permissive = permissive
-        self.file_checks = file_checks
-
-        self._subproject = None
-
-        if isinstance(cfg, str):
-            self.config_file = os.path.abspath(cfg)
-            _LOGGER.debug("Parsing %s config file", self.__class__.__name__)
-            sections = self.parse_config_file(subproject)
-        else:
-            self.config_file = None
-            sections = cfg.keys()
-        self._sections = set(DEPRECATIONS.get(n, n) for n in sections)
-
-        _LOGGER.debug("Raw config data: {}".format(self))
-
-        if self.non_null("data_sources"):
-            if self.config_file:
-                cfgdir = os.path.dirname(self.config_file)
-                getabs = lambda p: os.path.join(cfgdir, p)
-            else:
-                getabs = lambda p: p
-            # Expand paths now, so that it's not done for every sample.
-            for src_key, src_val in self.data_sources.items():
-                src_val = os.path.expandvars(src_val)
-                # if not (os.path.isabs(src_val) or is_url(src_val)):
-                #     src_val = getabs(src_val)
-                self.data_sources[src_key] = src_val
-                _LOGGER.debug("Data source '{}' set to '{}'".format(src_key, src_val))
-        else:
-            # Ensure data_sources is at least set if it wasn't parsed.
-            self["data_sources"] = None
-
-        self.name = self.infer_name()
-
-        # Set project's directory structure
-        if not dry:
-            _LOGGER.debug("Ensuring project directories exist")
-            self.make_project_dirs()
-
-        # Establish derived columns.
-        try:
-            # Do not duplicate derived column names.
-            self.derived_attributes.extend(
-                [colname for colname in self.DERIVED_ATTRIBUTES_DEFAULT
-                 if colname not in self.derived_attributes])
-        except AttributeError:
-            self.derived_attributes = self.DERIVED_ATTRIBUTES_DEFAULT
-
-        self.finalize_pipelines_directory()
-
-        # Set labels by which to index annotation data frames.
-        self["_" + MAIN_INDEX_KEY] = \
-            kwargs.get(MAIN_INDEX_KEY, SAMPLE_NAME_COLNAME)
-        self["_" + SUBS_INDEX_KEY] = \
-            kwargs.get(SUBS_INDEX_KEY, (SAMPLE_NAME_COLNAME, "subsample_name"))
-
-        self["_" + SAMPLE_SUBANNOTATIONS_KEY] = None
-        path_anns_file = self[METADATA_KEY].get(NAME_TABLE_ATTR)
-        self_table_attr = "_" + NAME_TABLE_ATTR
-        if path_anns_file:
-            self[self_table_attr] = self.parse_sample_sheet(path_anns_file)
-        else:
-            _LOGGER.warning("No sample annotations sheet in config")
-            self[self_table_attr] = None
-
-        # Basic sample maker
-        if defer_sample_construction or self._sample_table is None:
-            self._samples = None
-        else:
-            self._set_basic_samples()
-            self._handle_repeat_names()
-
-    # The __reduce__ function provides an interface for
-    # correct object serialization with the pickle module.
-    # In this case, only the required "cfg" argument is given
-    # and kwargs used for class initialization are ignored.
-    def __reduce__(self):
-        return (
-            self.__class__,
-            (self.config_file,)
+            " from file {}".format(cfg) if cfg else "")
         )
+        super(Project, self).__init__()
+        if isinstance(cfg, str):
+            cfg_pth = os.path.abspath(cfg)
+            self[CONFIG_FILE_KEY] = cfg_pth
+            self.parse_config_file(cfg_pth, amendments)
+        else:
+            self[CONFIG_FILE_KEY] = None
+        self._samples = []
+        self[SAMPLE_EDIT_FLAG_KEY] = False
+        self.st_index = sample_table_index \
+                        or SAMPLE_NAME_ATTR
+        self.sst_index = subsample_table_index \
+                         or [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
+        self.name = self.infer_name()
+        self.description = self.get_description()
+        if not defer_samples_creation:
+            self.create_samples()
+        self._sample_table = self._get_table_from_samples(index=self.st_index)
 
-    def _handle_repeat_names(self):
-        """ Make duplicate sample names unique and save the originals """
-        sample_names = [i.name for i in self.samples]
-        repeats = repeat_values(sample_names)
-        if repeats:
-            _LOGGER.warning("Repeated sample name counts: {}".format(", ".join(["{}={}".format(n, k)
-                                                                                for n, k in repeats.items()])))
-            non_unique_names = prep_uniq_sample_names(sample_names)
-            for s in self.samples:
-                n = s.name
-                if n in non_unique_names:
-                    new_name = non_unique_names[n].pop(0)
-                    setattr(s, "name", new_name)
-                    setattr(s, "sample_name", new_name)
-                    setattr(s, SAMPLE_NAME_BACKUP_COLNAME, n)
-                    _LOGGER.warning("Duplicated sample name '{}' changed to '{}'".format(n, new_name))
+    def create_samples(self):
+        """
+        Populate Project with Sample objects
+        """
+        self._samples = self.load_samples()
+        self.modify_samples()
 
-    def _index_main_table(self, t):
-        """ Index column(s) of the subannotation table. """
-        return None if t is None else t.set_index(self["_" + MAIN_INDEX_KEY], drop=False)
+    def _reinit(self):
+        """
+        Clear all object attributes and initialize again
+        """
+        cfg_path = self[CONFIG_FILE_KEY] if CONFIG_FILE_KEY in self else None
+        for attr in self.keys():
+            del self[attr]
+        self.__init__(cfg=cfg_path)
 
-    def _index_subs_table(self, t):
-        """ Index column(s) of the subannotation table. """
-        if t is None:
+    def _get_table_from_samples(self, index):
+        """
+        Generate a data frame from samples. Excludes private
+        attrs (prepended with an underscore)
+
+        :param str | Iterable[str] index: name of the columns to set the index to
+        :return pandas.DataFrame: a data frame with current samples attributes
+        """
+        df = pd.DataFrame()
+        for sample in self.samples:
+            sd = sample.to_dict()
+            ser = pd.Series(
+                {k: v for (k, v) in sd.items() if not k.startswith("_")}
+            )
+            df = df.append(ser, ignore_index=True)
+        index = [index] if isinstance(index, str) else index
+        if not all([i in df.columns for i in index]):
+            _LOGGER.debug(
+                "Could not set {} index. At least one of the "
+                "requested columns does not exist: {}".
+                    format(CFG_SAMPLE_TABLE_KEY, index))
+            return df
+        _LOGGER.debug("Setting sample_table index to: {}".format(index))
+        df.set_index(keys=index, drop=False, inplace=True)
+        return df
+
+    def parse_config_file(self, cfg_path, amendments=None):
+        """
+        Parse provided yaml config file and check required fields exist.
+
+        :param str cfg_path: path to the config file to read and parse
+        :param Iterable[str] amendments: Name of amendments to activate
+        :raises KeyError: if config file lacks required section(s)
+        """
+        if CONFIG_KEY not in self:
+            self[CONFIG_KEY] = PathExAttMap()
+        if not os.path.exists(cfg_path):
+            raise OSError("Project config file path does not exist: {}".
+                             format(cfg_path))
+        with open(cfg_path, 'r') as conf_file:
+            config = yaml.safe_load(conf_file)
+
+        assert isinstance(config, Mapping), \
+            "Config file parse did not yield a Mapping; got {} ({})".\
+            format(config, type(config))
+
+        _LOGGER.debug("Raw ({}) config data: {}".format(cfg_path, config))
+
+        # recursively import configs
+        if PROJ_MODS_KEY in config and CFG_IMPORTS_KEY in config[PROJ_MODS_KEY]\
+                and config[PROJ_MODS_KEY][CFG_IMPORTS_KEY]:
+            _make_sections_absolute(
+                config[PROJ_MODS_KEY], [CFG_IMPORTS_KEY], cfg_path)
+            _LOGGER.info("Importing external Project configurations: {}".format
+                         (", ".join(config[PROJ_MODS_KEY][CFG_IMPORTS_KEY])))
+            for i in config[PROJ_MODS_KEY][CFG_IMPORTS_KEY]:
+                _LOGGER.debug("Processing external config: {}".format(i))
+                if os.path.exists(i):
+                    self.parse_config_file(cfg_path=i)
+                else:
+                    _LOGGER.warning("External Project configuration does not"
+                                    " exist: {}".format(i))
+
+        self[CONFIG_KEY].add_entries(config)
+        # Parse yaml into the project.config attributes
+        _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
+        # Overwrite any config entries with entries in the amendments
+        amendments = [amendments] if isinstance(amendments, str) else amendments
+        if amendments:
+            for amendment in amendments:
+                c = self[CONFIG_KEY]
+                if PROJ_MODS_KEY in c and AMENDMENTS_KEY in c[PROJ_MODS_KEY] \
+                        and c[PROJ_MODS_KEY][AMENDMENTS_KEY] is not None:
+                    _LOGGER.debug("Adding entries for amendment '{}'".
+                                  format(amendment))
+                    try:
+                        amends = c[PROJ_MODS_KEY][AMENDMENTS_KEY][amendment]
+                    except KeyError:
+                        raise MissingAmendmentError(
+                            amendment, c[PROJ_MODS_KEY][AMENDMENTS_KEY])
+                    _LOGGER.debug("Updating with: {}".format(amends))
+                    self[CONFIG_KEY].add_entries(amends)
+                    _LOGGER.info("Using amendments: {}".format(amendment))
+                else:
+                    raise MissingAmendmentError(amendment)
+            self[ACTIVE_AMENDMENTS_KEY] = amendments
+
+        # determine config version and reformat it, if needed
+        self[CONFIG_KEY][CONFIG_VERSION_KEY] = ".".join(self._get_cfg_v())
+        # here specify cfg sections that may need expansion
+        relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
+        _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
+
+    def load_samples(self):
+        self._read_sample_data()
+        samples_list = []
+        if SAMPLE_DF_KEY not in self:
+            return []
+        for _, r in self[SAMPLE_DF_KEY].iterrows():
+            samples_list.append(Sample(r.dropna(), prj=self))
+        return samples_list
+
+    def modify_samples(self):
+        if self._modifier_exists():
+            mod_diff = set(self[CONFIG_KEY][SAMPLE_MODS_KEY].keys()) - \
+                       set(SAMPLE_MODIFIERS)
+            if len(mod_diff) > 0:
+                _LOGGER.warning("Config '{}' section contains unrecognized "
+                                "subsections: {}".
+                                format(SAMPLE_MODS_KEY, mod_diff))
+        self.attr_remove()
+        self.attr_constants()
+        self.attr_synonyms()
+        self.attr_imply()
+        self._assert_samples_have_names()
+        self.attr_merge()
+        self.attr_derive()
+
+    def _modifier_exists(self, modifier_key=None):
+        """
+        Check whether a specified sample modifier is defined and can be applied
+
+        If no modifier is specified, only the sample_modifiers section's
+        existence is checked
+
+        :param str modifier_key: modifier key to be checked
+        :return bool: whether the requirements are met
+        """
+        _LOGGER.debug("Checking existence: {}".format(modifier_key))
+        if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
+            return False
+        if modifier_key is not None \
+                and modifier_key not in self[CONFIG_KEY][SAMPLE_MODS_KEY]:
+            return False
+        return True
+
+    def attr_remove(self):
+        """
+        Remove declared attributes from all samples that have them defined
+        """
+        def _del_if_in(obj, attr):
+            if attr in obj:
+                del obj[attr]
+        if self._modifier_exists(REMOVE_KEY):
+            to_remove = self[CONFIG_KEY][SAMPLE_MODS_KEY][REMOVE_KEY]
+            _LOGGER.debug("Removing attributes: {}".format(to_remove))
+            for attr in to_remove:
+                [_del_if_in(s, attr) for s in self.samples]
+
+    def attr_constants(self):
+        """
+        Update each Sample with constants declared by a Project.
+        If Project does not declare constants, no update occurs.
+        """
+        if self._modifier_exists(CONSTANT_KEY):
+            to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][CONSTANT_KEY]
+            _LOGGER.debug("Applying constant attributes: {}".format(to_append))
+            for attr, val in to_append.items():
+                [s.update({attr: val}) for s in self.samples if attr not in s]
+
+    def attr_synonyms(self):
+        """
+        Copy attribute values for all samples to a new one
+        """
+        if self._modifier_exists(DUPLICATED_KEY):
+            synonyms = self[CONFIG_KEY][SAMPLE_MODS_KEY][DUPLICATED_KEY]
+            _LOGGER.debug("Applying synonyms: {}".format(synonyms))
+            for sample in self.samples:
+                for attr, new in synonyms.items():
+                    if attr in sample:
+                        setattr(sample, new, getattr(sample, attr))
+
+    def _assert_samples_have_names(self):
+        """
+        Make sure samples have sample_name attribute specified.
+        Try to derive this attribute first.
+
+        :raise InvalidSampleTableFileException: if names are not specified
+        """
+        try:
+            # before merging, which is requires sample_name attribute to map
+            # sample_table rows to subsample_table rows,
+            # perform only sample_name attr derivation
+            if SAMPLE_NAME_ATTR in self[CONFIG_KEY][SAMPLE_MODS_KEY]\
+                    [DERIVED_KEY][DERIVED_ATTRS_KEY]:
+                self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
+        except KeyError:
+            pass
+        for sample in self.samples:
+            if SAMPLE_NAME_ATTR not in sample:
+                msg_base = "{st} is missing '{sn}' column; ".\
+                    format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
+                msg = msg_base + \
+                      "you must specify {sn}s in {st} or derive them".\
+                          format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
+                if self.st_index != SAMPLE_NAME_ATTR:
+                    setattr(sample, SAMPLE_NAME_ATTR, getattr(sample, self.st_index))
+                    _LOGGER.warning(
+                        msg_base +
+                        "using specified {} index ({}) instead. Setting name: {}".
+                        format(CFG_SAMPLE_TABLE_KEY, self.st_index,
+                               getattr(sample, self.st_index)))
+                else:
+                    raise InvalidSampleTableFileException(msg)
+
+    def attr_merge(self):
+        """
+        Merge sample subannotations (from subsample table) with
+        sample annotations (from sample_table)
+        """
+        _LOGGER.debug("In merge")
+        if SUBSAMPLE_DF_KEY not in self or self[SUBSAMPLE_DF_KEY] is None:
+            _LOGGER.debug("No {} found, skpping merge".
+                          format(CFG_SUBSAMPLE_TABLE_KEY))
             return
-        ideal_labels = self["_" + SUBS_INDEX_KEY]
-        ideal_labels = [ideal_labels] if isinstance(ideal_labels, str) else ideal_labels
-        labels, missing = [], []
-        for l in ideal_labels:
-            (labels if l in t.columns else missing).append(l)
-        if missing:
-            _LOGGER.warning("Missing subtable index labels: {}".
-                            format(", ".join(missing)))
-        return t.set_index(labels, drop=False)
+        self._check_subann_name_overlap()
+        subsample_table = self[SUBSAMPLE_DF_KEY]
+        for sample in self.samples:
+            sample_colname = self.sample_name_colname
+            if sample_colname not in subsample_table.columns:
+                raise KeyError("Subannotation requires column '{}'."
+                               .format(sample_colname))
+            _LOGGER.debug("Using '{}' as sample name column from "
+                          "subannotation table".format(sample_colname))
+            sample_indexer = \
+                subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
+            this_sample_rows = subsample_table[sample_indexer].\
+                dropna(how="all", axis=1)
+            if len(this_sample_rows) == 0:
+                _LOGGER.debug("No merge rows for sample '%s', skipping",
+                              sample[SAMPLE_NAME_ATTR])
+                continue
+            _LOGGER.debug("%d rows to merge", len(this_sample_rows))
+            _LOGGER.debug("Merge rows dict: "
+                          "{}".format(this_sample_rows.to_dict()))
 
-    def __repr__(self):
+            merged_attrs = {key: list() for key in this_sample_rows.columns}
+            _LOGGER.debug(this_sample_rows)
+            for subsample_row_id, row in this_sample_rows.iterrows():
+                try:
+                    row[SUBSAMPLE_NAME_ATTR]
+                except KeyError:
+                    row[SUBSAMPLE_NAME_ATTR] = str(subsample_row_id)
+                rowdata = row.to_dict()
+
+                def _select_new_attval(merged_attrs, attname, attval):
+                    """ Select new attribute value for the merged columns
+                    dictionary """
+                    if attname in merged_attrs:
+                        return merged_attrs[attname] + [attval]
+                    return [str(attval).rstrip()]
+
+                for attname, attval in rowdata.items():
+                    if attname == sample_colname or not attval:
+                        _LOGGER.debug("Skipping KV: {}={}".
+                                      format(attname, attval))
+                        continue
+                    _LOGGER.debug("merge: sample '{}'; "
+                                  "'{}'='{}'".format(sample[SAMPLE_NAME_ATTR],
+                                                     attname, attval))
+                    merged_attrs[attname] = _select_new_attval(merged_attrs,
+                                                               attname, attval)
+
+            # If present, remove sample name from the data with which to update
+            # sample.
+            merged_attrs.pop(sample_colname, None)
+
+            _LOGGER.debug("Updating Sample {}: {}".
+                          format(sample[SAMPLE_NAME_ATTR], merged_attrs))
+            sample.update(merged_attrs)
+
+    def attr_imply(self):
+        """
+        Infer value for additional field(s) from other field(s).
+
+        Add columns/fields to the sample based on values in those already-set
+        that the sample's project defines as indicative of implications for
+        additional data elements for the sample.
+        """
+        if not self._modifier_exists(IMPLIED_KEY):
+            return
+        implications = self[CONFIG_KEY][SAMPLE_MODS_KEY][IMPLIED_KEY]
+        if not isinstance(implications, list):
+            raise InvalidConfigFileException(
+                "{}.{} has to be a list of key-value pairs".
+                    format(SAMPLE_MODS_KEY, IMPLIED_KEY)
+            )
+        _LOGGER.debug("Sample attribute implications: {}".format(implications))
+        for implication in implications:
+            if not all([key in implication for key in IMPLIED_COND_KEYS]):
+                raise InvalidConfigFileException(
+                    "{}.{} section is invalid: {}".
+                        format(SAMPLE_MODS_KEY, IMPLIED_KEY, implication)
+                )
+            implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
+            implied_attrs = list(implication[IMPLIED_THEN_KEY].keys())
+            for sample in self.samples:
+                _LOGGER.debug("Setting Sample attributes implied by '{}'".
+                              format(implier_attrs))
+                for implier_attr in implier_attrs:
+                    implier_val = implication[IMPLIED_IF_KEY][implier_attr]
+                    if implier_attr not in sample:
+                        _LOGGER.debug("Sample lacks implier attr ({}), "
+                                      "skipping:".format(implier_attr))
+                        break
+                    sample_val = sample[implier_attr]
+                    if sample_val not in implier_val:
+                        _LOGGER.debug(
+                            "Sample attr value does not match any of implier "
+                            "requirements ({} not in {}), skipping".
+                                format(sample_val, implier_val))
+                        break
+                else:
+                    # only executed if the inner loop did NOT break
+                    for implied_attr in implied_attrs:
+                        imp_val = implication[IMPLIED_THEN_KEY][implied_attr]
+                        _LOGGER.debug("Setting implied attr: '{}={}'".
+                                      format(implied_attr, imp_val))
+                        sample.__setitem__(implied_attr, imp_val)
+
+    def attr_derive(self, attrs=None):
+        """
+        Set derived attributes for all Samples tied to this Project instance
+        """
+        if not self._modifier_exists(DERIVED_KEY):
+            return
+        da = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
+        ds = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
+        derivations = attrs or (da if isinstance(da, list) else [da])
+        _LOGGER.debug("Derivations to be done: {}".format(derivations))
+        for sample in self.samples:
+            for attr in derivations:
+                if not hasattr(sample, attr):
+                    _LOGGER.debug("sample lacks '{}' attribute".format(attr))
+                    continue
+                elif attr in sample._derived_cols_done:
+                    _LOGGER.debug("'{}' has been derived".format(attr))
+                    continue
+                _LOGGER.debug("Deriving '{}' attribute for '{}'".
+                              format(attr, sample.sample_name))
+
+                # Set {atr}_key, so the original source can also be retrieved
+                setattr(sample, ATTR_KEY_PREFIX + attr, getattr(sample, attr))
+
+                derived_attr = sample.derive_attribute(ds, attr)
+                if derived_attr:
+                    _LOGGER.debug(
+                        "Setting '{}' to '{}'".format(attr, derived_attr))
+                    setattr(sample, attr, derived_attr)
+                else:
+                    _LOGGER.debug("Not setting null/empty value for data source"
+                                  " '{}': {}".format(attr, type(derived_attr)))
+                sample._derived_cols_done.append(attr)
+
+    def activate_amendments(self, amendments):
+        """
+        Update settings based on amendment-specific values.
+
+        This method will update Project attributes, adding new values
+        associated with the amendments indicated, and in case of collision with
+        an existing key/attribute the amendments' values will be favored.
+
+        :param Iterable[str] amendments: A string with amendment
+            names to be activated
+        :return peppy.Project: Updated Project instance
+        :raise TypeError: if argument to amendment parameter is null
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
+        """
+        amendments = [amendments] if isinstance(amendments, str) else amendments
+        if amendments is None:
+            raise TypeError(
+                "The amendment argument can not be null. To deactivate a "
+                "amendment use the deactivate_amendments method.")
+        if not self[CONFIG_FILE_KEY]:
+            raise NotImplementedError(
+                "amendment activation isn't supported on a project not "
+                "created from a config file")
+        prev = [(k, v) for k, v in self.items() if not k.startswith("_")]
+        conf_file = self[CONFIG_FILE_KEY]
+        self.__init__(cfg=conf_file, amendments=amendments)
+        for k, v in prev:
+            if k.startswith("_"):
+                continue
+            if k not in self or (self.is_null(k) and v is not None):
+                _LOGGER.debug("Restoring {}: {}".format(k, v))
+                self[k] = v
+        self[ACTIVE_AMENDMENTS_KEY] = amendments
+        return self
+
+    def deactivate_amendments(self):
+        """
+        Bring the original project settings back.
+
+        :return peppy.Project: Updated Project instance
+        :raise NotImplementedError: if this call is made on a project not
+            created from a config file
+        """
+        if ACTIVE_AMENDMENTS_KEY not in self \
+                or self[ACTIVE_AMENDMENTS_KEY] is None:
+            _LOGGER.warning("No amendments have been activated.")
+            return self
+        if not self[CONFIG_FILE_KEY]:
+            raise NotImplementedError(
+                "amendments deactivation isn't supported on a project that "
+                "lacks a config file.")
+        self._reinit()
+        return self
+
+    def add_samples(self, samples):
+        """
+        Add list of Sample objects
+
+        :param peppy.Sample | Iterable[peppy.Sample] samples: samples to add
+        """
+        samples = [samples] if isinstance(samples, Sample) else samples
+        for sample in samples:
+            if isinstance(sample, Sample):
+                self._samples.append(sample)
+                self[SAMPLE_EDIT_FLAG_KEY] = True
+            else:
+                _LOGGER.warning("not a peppy.Sample object, not adding")
+
+    def infer_name(self):
+        """
+        Infer project name from config file path.
+
+        First assume the name is the folder in which the config file resides,
+        unless that folder is named "metadata", in which case the project name
+        is the parent of that folder.
+
+        :return str: inferred name for project.
+        :raise InvalidConfigFileException: if the project lacks both a name and
+            a configuration file (no basis, then, for inference)
+        :rasie InvalidConfigFileException: if specified Project name is invalid
+        """
+        if CONFIG_KEY not in self:
+            return
+        if hasattr(self[CONFIG_KEY], "name"):
+            if " " in self[CONFIG_KEY].name:
+                raise InvalidConfigFileException(
+                    "Specified Project name ({}) contains whitespace".
+                        format(self[CONFIG_KEY].name))
+            return self[CONFIG_KEY].name.replace(" ", "_")
+        if not self[CONFIG_FILE_KEY]:
+            raise NotImplementedError("Project name inference isn't supported "
+                                      "on a project that lacks a config file.")
+        config_folder = os.path.dirname(self[CONFIG_FILE_KEY])
+        project_name = os.path.basename(config_folder)
+        if project_name == METADATA_KEY:
+            project_name = os.path.basename(os.path.dirname(config_folder))
+        return project_name.replace(" ", "_")
+
+    def get_description(self):
+        """
+        Infer project description from config file.
+
+        The provided description has to be of class coercible to string
+
+        :return str: inferred name for project.
+        :raise InvalidConfigFileException: if description is not of class
+            coercible to string
+        """
+        if CONFIG_KEY not in self:
+            return
+        if hasattr(self[CONFIG_KEY], DESC_KEY):
+            desc_str = str(self[CONFIG_KEY][DESC_KEY])
+            if not isinstance(desc_str, str):
+                try:
+                    desc_str = str(desc_str)
+                except Exception as e:
+                    raise InvalidConfigFileException(
+                        "Could not convert the specified Project description "
+                        "({}) to string. Caught exception: {}".
+                            format(desc_str, getattr(e, 'message', repr(e))))
+            return desc_str
+
+    def __str__(self):
         """ Representation in interpreter. """
         if len(self) == 0:
             return "{}"
-        msg = "Project ({})".format(self.config_file) \
-            if self.config_file else "Project:"
+        msg = "Project"
+        if NAME_KEY in self:
+            msg += " '{}'".format(self[NAME_KEY])
+        if CONFIG_FILE_KEY in self:
+            msg += " ({})".format(self[CONFIG_FILE_KEY])
+        if DESC_KEY in self and self[DESC_KEY] is not None:
+            msg += "\n{}: {}".format(DESC_KEY, self[DESC_KEY])
         try:
             num_samples = len(self._samples)
         except (AttributeError, TypeError):
             _LOGGER.debug("No samples established on project")
             num_samples = 0
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            msg = "{}\nSections: {}".format(msg, ", ".join(self._sections))
         if num_samples > 0:
             msg = "{}\n{} samples".format(msg, num_samples)
-            names = self.repr_sample_names[:MAX_PROJECT_SAMPLES_REPR]
-            context = " (showing first {})".format(len(names)) \
-                if len(names) < num_samples else ""
-            msg = "{}{}: {}".format(msg, context, ", ".join(names))
-        subs = self.get(SUBPROJECTS_SECTION)
-        return "{}\nSubprojects: {}".\
-            format(msg, ", ".join(subs.keys())) if subs else msg
-
-    def __setitem__(self, key, value):
-        """
-        Override here to handle deprecated special-meaning keys.
-
-        :param str key: Key to map to given value
-        :param object value: Arbitrary value to bind to given key
-        """
-        if key == _OLD_DERIVATIONS_KEY:
-            warnings.warn(get_name_depr_msg(
-                _OLD_DERIVATIONS_KEY, "derived_attributes", self.__class__),
-                DeprecationWarning)
-            key = DERIVATIONS_DECLARATION
-        elif key == _OLD_IMPLICATIONS_KEY:
-            warnings.warn(get_name_depr_msg(
-                _OLD_IMPLICATIONS_KEY, "implied_attributes", self.__class__),
-                DeprecationWarning)
-            key = IMPLICATIONS_DECLARATION
-        elif key == METADATA_KEY:
-            value = _Metadata(value)
-        super(Project, self).__setitem__(key, value)
+            sample_names = list(self[SAMPLE_DF_KEY][self.sample_name_colname])
+            repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
+            context = " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR) \
+                if num_samples > MAX_PROJECT_SAMPLES_REPR else ""
+            msg = "{}{}: {}".format(msg, context, ", ".join(repr_names))
+        else:
+            msg = "{} {}".format(msg, "0 samples")
+        if CONFIG_KEY not in self:
+            return msg
+        msg = "{}\nSections: {}".\
+            format(msg, ", ".join([s for s in self[CONFIG_KEY].keys()]))
+        if PROJ_MODS_KEY in self[CONFIG_KEY] \
+                and AMENDMENTS_KEY in self[CONFIG_KEY][PROJ_MODS_KEY]:
+            msg = "{}\nAmendments: {}".\
+                format(msg, ", ".
+                       join(self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].
+                            keys()))
+        if self.amendments:
+            msg = "{}\nActivated amendments: {}".\
+                format(msg, ", ".join(self[ACTIVE_AMENDMENTS_KEY]))
+        return msg
 
     @property
-    def constants(self):
+    def amendments(self):
         """
-        Return key-value pairs of pan-Sample constants for this Project.
+        Return currently active list of amendments or None if none was activated
 
-        :return Mapping: collection of KV pairs, each representing a pairing
-            of attribute name and attribute value
+        :return Iterable[str]: a list of currently active amendment names
         """
-        from copy import deepcopy
-        warnings.warn(get_name_depr_msg(
-            _OLD_CONSTANTS_KEY, CONSTANTS_DECLARATION, self.__class__),
-            DeprecationWarning)
-        return deepcopy(self[CONSTANTS_DECLARATION])
+        return self[ACTIVE_AMENDMENTS_KEY] if ACTIVE_AMENDMENTS_KEY in self \
+            else None
 
     @property
-    def derived_columns(self):
+    def list_amendments(self):
         """
-        Collection of sample attributes for which value of each is derived from elsewhere
+        Return a list of available amendments or None if not declared
 
-        :return list[str]: sample attribute names for which value is derived
-        """
-        msg = get_name_depr_msg(
-            _OLD_DERIVATIONS_KEY, "derived_attributes", self.__class__)
-        warnings.warn(msg, DeprecationWarning)
-        try:
-            return self.derived_attributes
-        except AttributeError:
-            return []
-
-    @property
-    def implied_columns(self):
-        """
-        Collection of sample attributes for which value of each is implied by other(s)
-
-        :return list[str]: sample attribute names for which value is implied by other(s)
-        """
-        msg = get_name_depr_msg(
-            _OLD_IMPLICATIONS_KEY, "implied_attributes", self.__class__)
-        warnings.warn(msg, DeprecationWarning)
-        try:
-            return self.implied_attributes
-        except AttributeError:
-            return PathExAttMap()
-
-    @property
-    def num_samples(self):
-        """
-        Count the number of samples available in this Project.
-
-        :return int: number of samples available in this Project.
-        """
-        return sum(1 for _ in self.sample_names)
-
-    @property
-    def output_dir(self):
-        """
-        Directory in which to place results and submissions folders.
-
-        By default, assume that the project's configuration file specifies
-        an output directory, and that this is therefore available within
-        the project metadata. If that assumption does not hold, though,
-        consider the folder in which the project configuration file lives
-        to be the project's output directory.
-
-        :return str: path to the project's output directory, either as
-            specified in the configuration file or the folder that contains
-            the project's configuration file.
-        :raise Exception: if this property is requested on a project that
-            was not created from a config file and lacks output folder
-            declaration in its metadata section
+        :return Iterable[str]: a list of available amendment names
         """
         try:
-            return self.metadata[OUTDIR_KEY]
-        except KeyError:
-            if not self.config_file:
-                raise Exception("Project lacks both a config file and an "
-                                "output folder in metadata; using ")
-            return os.path.dirname(self.config_file)
-
-    @property
-    def project_folders(self):
-        """
-        Names of folders to nest within a project output directory.
-
-        :return Mapping[str, str]: names of output-nested folders
-        """
-        return {
-            RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
-            SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE
-        }
-        #return ["results_subdir", "submission_subdir"]
-
-    @property
-    def protocols(self):
-        """
-        Determine this Project's unique protocol names.
-
-        :return Set[str]: collection of this Project's unique protocol names
-        """
-        protos = set()
-        for s in self.samples:
-            try:
-                protos.add(s.protocol)
-            except AttributeError:
-                _LOGGER.debug("Sample '%s' lacks protocol", s.name)
-        return protos
-
-    @property
-    def required_metadata(self):
-        """
-        Names of metadata fields that must be present for a valid project.
-
-        Make a base project as unconstrained as possible by requiring no
-        specific metadata attributes. It's likely that some common-sense
-        requirements may arise in domain-specific client applications, in
-        which case this can be redefined in a subclass.
-
-        :return Iterable[str]: names of metadata fields required by a project
-        """
-        return []
-
-    @property
-    def sample_names(self):
-        """ Names of samples of which this Project is aware. """
-        dt = getattr(self, NAME_TABLE_ATTR)
-        try:
-            return iter(self._get_sample_ids(dt))
-        except KeyError:
-            cols = list(dt.columns)
-            _LOGGER.error("(For context) Table columns: {}".
-                          format(", ".join(cols)))
-            if 1 == len(cols):
-                _LOGGER.error("Does delimiter used in the sample sheet match "
-                              "file extension?")
-            raise
-
-    @property
-    def repr_sample_names(self):
-        """
-        Additional property that returns sample names as defined in the name attribute in the Sample object.
-        Names of the samples my be different from the ones declared in the sample_table after the derivation
-        """
-        try:
-            return [s.name for s in self.samples]
+            return self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys()
         except Exception as e:
-            _LOGGER.debug("Caught '{}'. Returning the original sample names, defined in the sample_table".
-                            format(e.__class__))
-            return self.sample_names
+            _LOGGER.debug("Could not retrieve available amendments: {}".
+                          format(getattr(e, 'message', repr(e))))
+            return None
+
+    @property
+    def config(self):
+        """
+        Get the config mapping
+
+        :return Mapping: config. May be formatted to comply with the most
+            recent version specifications
+        """
+        return self[CONFIG_KEY]
+
+    @property
+    def config_file(self):
+        """
+        Get the config file path
+
+        :return str: path to the config file
+        """
+        return self[CONFIG_FILE_KEY]
 
     @property
     def samples(self):
@@ -517,787 +651,290 @@ class Project(PathExAttMap):
         """
         if self._samples:
             return self._samples
-        if self.sample_table is None:
-            _LOGGER.warning("No samples are defined")
+        if SAMPLE_DF_KEY not in self or self[SAMPLE_DF_KEY] is None:
+            _LOGGER.debug("No samples are defined")
             return []
-        self._samples = self._prep_samples()
-        return self._samples
 
     @property
-    def sample_annotation(self):
+    def sample_name_colname(self):
         """
-        Get the path to the project's sample annotations sheet.
+        Name of the effective sample name containing column in the sample table.
 
-        :return str: path to the project's sample annotations sheet
-        """
-        warnings.warn("{} is deprecated; please instead use {}".
-                      format(OLD_ANNS_META_KEY, NAME_TABLE_ATTR),
-                      DeprecationWarning)
-        return getattr(self, NAME_TABLE_ATTR)
+        It is "sample_name" bu default, but when it's missing it could be
+        replaced by the selected sample table index, defined on the
+        object instantiation stage.
 
-    @property
-    def sample_subannotation(self):
+        :return str: name of the column that consist of sample identifiers
         """
-        Return the data table that stores metadata for subsamples/units.
-
-        :return pandas.core.frame.DataFrame | NoneType: table of
-            subsamples/units metadata
-        """
-        warnings.warn("{} is deprecated; use {}".
-                      format(OLD_SUBS_META_KEY, SAMPLE_SUBANNOTATIONS_KEY),
-                      DeprecationWarning)
-        return getattr(self, SAMPLE_SUBANNOTATIONS_KEY)
+        return SAMPLE_NAME_ATTR \
+            if SAMPLE_NAME_ATTR == self.st_index else self.st_index
 
     @property
     def sample_table(self):
         """
-        Return (possibly first parsing/building) the table of samples.
+        Get sample table. If any sample edits were performed,
+        it will be re-generated
 
-        :return pandas.core.frame.DataFrame | NoneType: table of samples'
-            metadata, if one is defined
+        :return pandas.DataFrame: a data frame with current samples attributes
         """
-        return self._index_main_table(sample_table(self))
+        if self[SAMPLE_EDIT_FLAG_KEY]:
+            _LOGGER.debug("Generating new sample_table DataFrame")
+            self[SAMPLE_EDIT_FLAG_KEY] = False
+            new_df = self._get_table_from_samples(index=self.st_index)
+            self._sample_table = new_df
+            return new_df
 
-    @property
-    def sheet(self):
-        """
-        Annotations/metadata sheet describing this Project's samples.
-
-        :return pandas.core.frame.DataFrame: table of samples in this Project
-        """
-        warnings.warn("sheet is deprecated; instead use {}".
-                      format(NAME_TABLE_ATTR), DeprecationWarning)
-        return getattr(self, NAME_TABLE_ATTR)
-
-    @property
-    def subproject(self):
-        """
-        Return currently active subproject or None if none was activated
-
-        :return str: name of currently active subproject
-        """
-        return self._subproject
+        _LOGGER.debug("Returning stashed sample_table DataFrame")
+        return self._sample_table
 
     @property
     def subsample_table(self):
         """
-        Return (possibly first parsing/building) the table of subsamples.
+        Get subsample table
 
-        :return pandas.core.frame.DataFrame | NoneType: table of subsamples'
-            metadata, if the project defines such a table
+        :return pandas.DataFrame: a data frame with subsample attributes
         """
-        return self._finalize_subsample_table(subsample_table(self))
+        sdf = self[SUBSAMPLE_DF_KEY]
+        index = self.sst_index
+        if isinstance(sdf, pd.DataFrame):
+            if not all([i in sdf.columns for i in index]):
+                _LOGGER.debug("Could not set {} index. At least one of the "
+                              "requested columns does not exist: {}"
+                              .format(CFG_SUBSAMPLE_TABLE_KEY, index))
+                return sdf
+            sdf.set_index(keys=index, drop=False, inplace=True)
+            _LOGGER.debug("Setting subsample_table index to: {}".format(index))
+            sdf.index = sdf.index.set_levels([i.astype(str)
+                                              for i in sdf.index.levels])
+        return sdf
 
-    def _finalize_subsample_table(self, t):
-        return self._index_subs_table(t)
-
-    @property
-    def templates_folder(self):
+    def _read_sample_data(self):
         """
-        Path to folder with default submission templates.
-
-        :return str: path to folder with default submission templates
+        Read the sample_table and subsample_table into dataframes
+        and store in the object root
         """
-        return self.dcc.templates_folder
+        read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
+                           "keep_default_na": False, "na_values": [""]}
+        no_metadata_msg = "No {} specified"
+        if CONFIG_KEY not in self:
+            _LOGGER.warning("No config key in Project")
+            return
+        if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
+            _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
+            return
+        st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
+        try:
+            sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
+        except KeyError:
+            sst = None
+        if st:
+            self[SAMPLE_DF_KEY] = \
+                pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
+        else:
+            _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
+            self[SAMPLE_DF_KEY] = None
+        if sst:
+            self[SUBSAMPLE_DF_KEY] = \
+                pd.read_csv(sst, sep=infer_delimiter(sst), **read_csv_kwargs)
+        else:
+            _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
+            self[SUBSAMPLE_DF_KEY] = None
 
-    def activate_subproject(self, subproject):
+    def _get_cfg_v(self):
         """
-        Update settings based on subproject-specific values.
+        Get config file version number
 
-        This method will update Project attributes, adding new values
-        associated with the subproject indicated, and in case of collision with
-        an existing key/attribute the subproject's value will be favored.
-
-        :param str subproject: A string with a subproject name to be activated
-        :return peppy.Project: Updated Project instance
-        :raise TypeError: if argument to subroject parameter is null
-        :raise NotImplementedError: if this call is made on a project not
-            created from a config file
+        :raise InvalidConfigFileException: if new v2 section is used,
+            but version<2
+        :return list[str] | None: config version bundle if >=2.0.0
+            or None if older
         """
-        if subproject is None:
-            raise TypeError(
-                "The subproject argument can not be null. To deactivate a "
-                "subproject use the deactivate_subproject method.")
-        if not self.config_file:
-            raise NotImplementedError(
-                "Subproject activation isn't supported on a project not "
-                "created from a config file")
-        previous = [(k, v) for k, v in self.items() if not k.startswith("_")]
-        conf_file = self.config_file
-        self.__init__(conf_file, subproject)
-        for k, v in previous:
-            if k.startswith("_"):
-                continue
-            if k not in self or (self.is_null(k) and v is not None):
-                _LOGGER.debug("Restoring {}: {}".format(k, v))
-                self[k] = v
-        self._subproject = subproject
-        return self
-
-    def build_sheet(self, *protocols):
-        """
-        Create table of subset of samples matching one of given protocols.
-
-        :return pandas.core.frame.DataFrame: DataFrame with from base version
-            of each of this Project's samples, for indicated protocol(s) if
-            given, else all of this Project's samples
-        """
-        # Use all protocols if none are explicitly specified.
-        known = set(protocols or self.protocols)
-        selector_include = []
-        skipped = []
-        for s in self.samples:
+        if CONFIG_VERSION_KEY in self[CONFIG_KEY]:
+            v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
+            if not isinstance(v_str, str):
+                raise InvalidConfigFileException("{} must be a string".
+                                                 format(CONFIG_VERSION_KEY))
+            v_bundle = v_str.split(".")
+            assert len(v_bundle) == 3, \
+                InvalidConfigFileException("Version string is not tripartite")
             try:
-                p = s.protocol
-            except AttributeError:
-                selector_include.append(s)
-            else:
-                if p in known:
-                    selector_include.append(s)
+                v_bundle = list(map(int, v_bundle))
+            except ValueError:
+                raise InvalidConfigFileException("Version string elements are "
+                                                 "not coercible to integers")
+            if v_bundle[0] < 2:
+                if SAMPLE_MODS_KEY in self[CONFIG_KEY]:
+                    raise InvalidConfigFileException(
+                        "Project configuration file ({p}) subscribes to {c} "
+                        ">= 2.0.0, since '{m}' section is defined. Set {c} to "
+                        "2.0.0 in your config".format(p=self[CONFIG_FILE_KEY],
+                                                      c=CONFIG_VERSION_KEY,
+                                                      m=SAMPLE_MODS_KEY))
                 else:
-                    skipped.append(s)
-        if skipped:
-            msg_data = "\n".join(["{} ({})".format(s, s.protocol)
-                                  for s in skipped])
-            _LOGGER.debug("Skipped %d sample(s) for protocol. Known: %s\n%s",
-                          len(skipped), ", ".join(known), msg_data)
-        return pd.DataFrame(selector_include)
-
-    def deactivate_subproject(self):
-        """
-        Bring the original project settings back
-
-        This method will bring the original project settings back after the subproject activation.
-
-        :return peppy.Project: Updated Project instance
-        :raise NotImplementedError: if this call is made on a project not
-            created from a config file
-        """
-        if self.subproject is None:
-            _LOGGER.warning("No subproject has been activated.")
-        if not self.config_file:
-            raise NotImplementedError(
-                "Subproject deactivation isn't yet supported on a project that "
-                "lacks a config file.")
-        self.__init__(self.config_file)
-        return self
-
-    def finalize_pipelines_directory(self, pipe_path=""):
-        """
-        Finalize the establishment of a path to this project's pipelines.
-
-        With the passed argument, override anything already set.
-        Otherwise, prefer path provided in this project's config, then
-        local pipelines folder, then a location set in project environment.
-
-        :param str pipe_path: (absolute) path to pipelines
-        :raises PipelinesException: if (prioritized) search in attempt to
-            confirm or set pipelines directory failed
-        :raises TypeError: if pipeline(s) path(s) argument is provided and
-            can't be interpreted as a single path or as a flat collection
-            of path(s)
-        """
-        # Pass pipeline(s) dirpath(s) or use one already set.
-        if not pipe_path:
-            try:
-                pipe_path = self.metadata[NEW_PIPES_KEY]
-            except KeyError:
-                pipe_path = []
-        # Ensure we're working with a flattened list.
-        if isinstance(pipe_path, str):
-            pipe_path = [pipe_path]
-        elif isinstance(pipe_path, Iterable) and \
-                not isinstance(pipe_path, Mapping):
-            pipe_path = list(pipe_path)
+                    self._format_cfg()
+                    return ["2", "0", "0"]
+            return list(map(str, v_bundle))
         else:
-            _LOGGER.debug("Got {} as pipelines path(s) ({})".
-                          format(pipe_path, type(pipe_path)))
-            pipe_path = []
-        self[METADATA_KEY][NEW_PIPES_KEY] = pipe_path
+            self._format_cfg()
+            return ["2", "0", "0"]
 
-    def get_arg_string(self, pipeline_name, yield_precedence=None):
+    def _format_cfg(self, mod_move_pairs=MODIFIERS_MOVE_PAIRS):
         """
-        Build argstring from opts/args in project config file for given pipeline.
-
-        :param str pipeline_name: identifier for the relevant pipeline
-        :param Iterable[str] yield_precedence: collection of opts/args to
-            yield to, i.e. to omit from the argstring (e.g., CLI-specified
-            extra arguments that take priority over those in project config)
+        Format Project object to comply with the new config v2.0 specifications.
+        All keys from metadata section will be moved to the root of config.
+        mod_move_pairs will be used to move and rename sections
+        to sample_modifiers section
         """
 
-        def make_optarg_text(opt, arg):
-            """ Transform flag/option into CLI-ready text version. """
-            if arg:
-                try:
-                    arg = os.path.expandvars(arg)
-                except TypeError:
-                    # Rely on direct string formatting of arg.
-                    pass
-                return "{} {}".format(opt, arg)
-            else:
-                return opt
+        def _mv_to_modifiers(map, k_from, k_to):
+            """
+            Move the sections from the root of the mapping
+            to the sample_modifiers section. Some of the target sections
+            may be multi-layer (encoded as list in the reference mapping)
 
-        def create_argtext(name):
-            """ Create command-line argstring text from config section. """
-            try:
-                optargs = getattr(self.pipeline_args, name)
-            except AttributeError:
-                return ""
-            # NS using __dict__ will add in the metadata from AttrDict (doh!)
-            _LOGGER.debug("optargs.items(): {}".format(optargs.items()))
-            optargs_texts = [make_optarg_text(opt, arg)
-                             for opt, arg in optargs.items() if opt not in (yield_precedence or set())]
-            _LOGGER.debug("optargs_texts: {}".format(optargs_texts))
-            # TODO: may need to fix some spacing issues here.
-            return " ".join(optargs_texts)
+            :param Mapping map: object to move sections within
+            :param str k_from: key of the section to move
+            :param str k_to: key of the sample_modifiers subsection to move to
+            """
+            mv_msg = "Section '{}' moved to sample_modifiers.{}"
+            if k_from in map:
+                # TODO: determine whether we want to support the implications
+                #  reformatting or drop the old cfg format altogether
+                if k_from in ["implied_attributes", "implied_columns"]:
+                    raise NotImplementedError(
+                        "Implications reformatting is not yet implemented. "
+                        "Edit the config file manually to comply with "
+                        "PEP 2.0.0 specification: http://pep.databio.org")
+                map.setdefault(SAMPLE_MODS_KEY, PathExAttMap())
+                if isinstance(k_to, list):
+                    if k_to[0] in map[SAMPLE_MODS_KEY]:
+                        if k_to[1] not in map[SAMPLE_MODS_KEY][k_to[0]]:
+                            map[SAMPLE_MODS_KEY][k_to[0]].\
+                                setdefault(k_to[1], PathExAttMap())
+                        else:
+                            return
+                    else:
+                        map[SAMPLE_MODS_KEY].setdefault(k_to[0], PathExAttMap())
+                    map[SAMPLE_MODS_KEY][k_to[0]][k_to[1]] = map[k_from]
+                    del map[k_from]
+                    _LOGGER.debug(mv_msg.format(k_from, ".".join(k_to)))
+                else:
+                    if k_to not in map[SAMPLE_MODS_KEY]:
+                        map[SAMPLE_MODS_KEY][k_to] = map[k_from]
+                        del map[k_from]
+                        _LOGGER.debug(mv_msg.format(k_from, k_to))
 
-        default_argtext = create_argtext(DEFAULT_COMPUTE_RESOURCES_NAME)
-        _LOGGER.debug("Creating additional argstring text for pipeline '%s'",
-                      pipeline_name)
-        pipeline_argtext = create_argtext(pipeline_name)
+        def _mv_to_root(map):
+            """
+            Move the sections in the metadata section to the root of the mapping
 
-        if not pipeline_argtext:
-            # The project config may not have an entry for this pipeline;
-            # no problem! There are no pipeline-specific args. Return text
-            # from default arguments, whether empty or not.
-            return default_argtext
-        elif default_argtext:
-            # Non-empty pipeline-specific and default argtext
-            return " ".join([default_argtext, pipeline_argtext])
-        else:
-            # No default argtext, but non-empty pipeline-specific argtext
-            return pipeline_argtext
+            :param Mapping map: object to move sections within
+            """
+            if METADATA_KEY in map:
+                for mk in map[METADATA_KEY].keys():
+                    if mk not in map:
+                        map[mk] = map[METADATA_KEY][mk]
+                        del map[METADATA_KEY][mk]
+                        _LOGGER.debug("Section {m}.{k} moved to {k}".
+                                      format(m=METADATA_KEY, k=mk))
+                del self[CONFIG_KEY][METADATA_KEY]
+
+        for k, v in mod_move_pairs.items():
+            _mv_to_modifiers(self[CONFIG_KEY], k, v)
+        _mv_to_root(self[CONFIG_KEY])
 
     def get_sample(self, sample_name):
         """
         Get an individual sample object from the project.
 
-        Will raise a ValueError if the sample is not found. In the case of multiple
-        samples with the same name (which is not typically allowed), a warning is
-        raised and the first sample is returned.
+        Will raise a ValueError if the sample is not found.
+        In the case of multiple samples with the same name (which is not
+        typically allowed), a warning is raised and the first sample is returned
 
         :param str sample_name: The name of a sample to retrieve
-        :return Sample: The requested Sample object
+        :return peppy.Sample: The requested Sample object
         """
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
-            _LOGGER.warning("More than one sample was detected; returning the first")
+            _LOGGER.warning("More than one sample was detected; "
+                            "returning the first")
         try:
             return samples[0]
         except IndexError:
-            raise ValueError("Project has no sample named {}.".format(sample_name))
+            raise ValueError("Project has no sample named {}."
+                             .format(sample_name))
 
     def get_samples(self, sample_names):
         """
         Returns a list of sample objects given a list of sample names
 
         :param list sample_names: A list of sample names to retrieve
-        :return list[Sample]: A list of Sample objects
+        :return list[peppy.Sample]: A list of Sample objects
         """
-        return [s for s in self.samples if s.name in sample_names]
+        return [s for s in self.samples if s[SAMPLE_NAME_ATTR] in sample_names]
 
-    def get_subsample(self, sample_name, subsample_name):
+    def _check_subann_name_overlap(self):
         """
-        From indicated sample get particular subsample.
-
-        :param str sample_name: Name of Sample from which to get subsample
-        :param str subsample_name: Name of Subsample to get
-        :return peppy.Subsample: The Subsample of requested name from indicated
-            sample matching given name
-        """
-        s = self.get_sample(sample_name)
-        return s.get_subsample(subsample_name)
-
-    def infer_name(self):
-        """
-        Infer project name from config file path.
-
-        First assume the name is the folder in which the config file resides,
-        unless that folder is named "metadata", in which case the project name
-        is the parent of that folder.
-
-        :return str: inferred name for project.
-        :raise NotImplementedError: if the project lacks both a name and a
-            configuration file (no basis, then, for inference)
-        """
-        if hasattr(self, "name"):
-            return self.name
-        if not self.config_file:
-            raise NotImplementedError("Project name inference isn't supported "
-                                      "on a project that lacks a config file.")
-        config_folder = os.path.dirname(self.config_file)
-        project_name = os.path.basename(config_folder)
-        if project_name == METADATA_KEY:
-            project_name = os.path.basename(os.path.dirname(config_folder))
-        return project_name
-
-    def make_project_dirs(self):
-        """
-        Creates project directory structure if it doesn't exist.
-        """
-        for folder_key, folder_val in self.project_folders.items():
-            try:
-                folder_path = self.metadata[folder_key]
-            except KeyError:
-                folder_path = os.path.join(self.output_dir, folder_val)
-            _LOGGER.debug("Ensuring project dir exists: '%s'", folder_path)
-            if not os.path.exists(folder_path):
-                _LOGGER.debug("Attempting to create project folder: '%s'",
-                              folder_path)
-                try:
-                    os.makedirs(folder_path)
-                except OSError as e:
-                    _LOGGER.warning("Could not create project folder: '%s'",
-                                 str(e))
-
-    @property
-    def results_folder(self):
-        return self._relpath(RESULTS_FOLDER_KEY)
-
-    @property
-    def submission_folder(self):
-        return self._relpath(SUBMISSION_FOLDER_KEY)
-
-    def _relpath(self, key):
-        return os.path.join(
-            self.output_dir, self.metadata.get(key, self.project_folders[key]))
-
-    def parse_config_file(self, subproject=None):
-        """
-        Parse provided yaml config file and check required fields exist.
-
-        :param str subproject: Name of subproject to activate, optional
-        :raises KeyError: if config file lacks required section(s)
+        Check if all subannotations have a matching sample, and warn if not
         """
 
-        _LOGGER.debug("Setting %s data from '%s'",
-                      self.__class__.__name__, self.config_file)
-        with open(self.config_file, 'r') as conf_file:
-            config = yaml.safe_load(conf_file)
+        subsample_names = list(self[SUBSAMPLE_DF_KEY][self.sample_name_colname])
+        sample_names_list = [s[SAMPLE_NAME_ATTR] for s in self.samples]
+        for n in subsample_names:
+            if n not in sample_names_list:
+                _LOGGER.warning(("Couldn't find matching sample for "
+                                 "subsample: {}").format(n))
 
-        assert isinstance(config, Mapping), \
-            "Config file parse did not yield a Mapping; got {} ({})".\
-            format(config, type(config))
 
-        for msg in suggest_implied_attributes(config):
-            warnings.warn(msg, DeprecationWarning)
-
-        _LOGGER.debug("Raw config data: {}".format(config))
-
-        # Parse yaml into the project's attributes.
-        _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
-        try:
-            _LOGGER.debug("Config metadata: {}".format(config[METADATA_KEY]))
-        except KeyError:
-            _LOGGER.warning("No metadata ('{}')".format(METADATA_KEY))
-        self.add_entries(config)
-
-        # Overwrite any config entries with entries in the subproject.
-        if subproject:
-            if non_null_value(SUBPROJECTS_SECTION, config):
-                _LOGGER.debug("Adding entries for subproject '{}'".
-                              format(subproject))
-                try:
-                    subproj_updates = config[SUBPROJECTS_SECTION][subproject]
-                except KeyError:
-                    raise MissingSubprojectError(subproject, config[SUBPROJECTS_SECTION])
-                _LOGGER.debug("Updating with: {}".format(subproj_updates))
-                self.add_entries(subproj_updates)
-                self._subproject = subproject
-                _LOGGER.info("Using subproject: '{}'".format(subproject))
-            else:
-                raise MissingSubprojectError(subproject)
-        else:
-            _LOGGER.debug("No subproject requested")
-
-        self.setdefault(CONSTANTS_DECLARATION, {})
-
-        # In looper 0.4, for simplicity the paths section was eliminated.
-        # For backwards compatibility, mirror the paths section into metadata.
-        if "paths" in config:
-            _LOGGER.warning(
-                "Paths section in project config is deprecated. "
-                "Please move all paths attributes to metadata section. "
-                "This option will be removed in future versions.")
-            self.metadata.add_entries(self.paths)
-            _LOGGER.debug("Metadata: %s", str(self.metadata))
-            del self["paths"]
-
-        # Ensure required absolute paths are present and absolute.
-        for var in self.required_metadata:
-            if var not in self.metadata:
-                raise ValueError("Missing required metadata item: '{}'".format(var))
-            self[METADATA_KEY][var] = os.path.expandvars(self.metadata.get(var))
-
-        _LOGGER.debug("Project metadata: {}".format(self.metadata))
-
-        # Variables which are relative to the config file
-        # All variables in these sections should be relative to project config.
-        relative_sections = [METADATA_KEY, "pipeline_config"]
-
-        _LOGGER.debug("Parsing relative sections")
-        for sect in relative_sections:
-            try:
-                relative_vars = self[sect]
-            except KeyError:
-                _LOGGER.whisper("Project lacks relative section '%s', skipping", sect)
-                continue
-            if not relative_vars:
-                _LOGGER.whisper("No relative variables, continuing")
-                continue
-            for var in relative_vars.keys():
-                relpath = relative_vars[var]
-                if relpath is None:
-                    continue
-                _LOGGER.debug("Ensuring absolute path(s) for '%s'", var)
-                # Parsed from YAML, so small space of possible datatypes.
-                if isinstance(relpath, list):
-                    absolute = [self._ensure_absolute(maybe_relpath)
-                                for maybe_relpath in relpath]
-                elif var in self.project_folders:
-                    _LOGGER.whisper("Skipping absolute assurance for key: %s", var)
-                    absolute = relpath
-                else:
-                    absolute = self._ensure_absolute(relpath)
-                _LOGGER.debug("Setting '%s' to '%s'", var, absolute)
-                relative_vars[var] = absolute
-
-        if self.dcc.compute is None:
-            _LOGGER.whisper("No compute, so no submission template")
-
-        old_table_keys = [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY]
-        new_table_keys = [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY]
-        metadata = self[METADATA_KEY]
-        for k_old, k_new in zip(old_table_keys, new_table_keys):
-            try:
-                v = metadata[k_old]
-            except KeyError:
-                continue
-            metadata[k_new] = v
-            del metadata[k_old]
-        self[METADATA_KEY] = metadata
-
-        if NAME_TABLE_ATTR not in self[METADATA_KEY]:
-            self[METADATA_KEY][NAME_TABLE_ATTR] = None
-
-        return set(config.keys())
-
-    def parse_sample_sheet(self, sample_file):
-        """
-        Check if csv file exists and has all required columns.
-
-        :param str sample_file: path to sample annotations file.
-        :return pandas.core.frame.DataFrame: table populated by the project's
-            sample annotations data
-        :raises IOError: if given annotations file can't be read.
-        :raises ValueError: if required column(s) is/are missing.
-        """
-        # Although no null value replacements or supplements are being passed,
-        # toggling the keep_default_na value to False solved an issue with 'nan'
-        # and/or 'None' as an argument for an option in the pipeline command
-        # that's generated from a Sample's attributes.
-        #
-        # See https://github.com/pepkit/peppy/issues/159 for the original issue
-        # and https://github.com/pepkit/peppy/pull/160 for the pull request
-        # that resolved it.
-        _LOGGER.info("Reading sample annotations sheet: '%s'", sample_file)
-        sep = infer_delimiter(sample_file)
-        _LOGGER.debug("Inferred delimiter: {}".format(sep))
-        try:
-            df = pd.read_csv(sample_file, sep=sep, **READ_CSV_KWARGS)
-        except IOError:
-            raise Project.MissingSampleSheetError(sample_file)
-        _LOGGER.info("Storing sample table from file '%s'", sample_file)
-        missing = self._missing_columns(set(df.columns))
-        if len(missing) != 0:
-            raise InvalidSampleTableFileException(
-                "Annotation sheet ({f}) is missing {n} column(s): {miss}; "
-                "It has {ncol}: {has}".format(
-                    f=sample_file, n=len(missing), miss=", ".join(missing),
-                    ncol=len(df.columns), has=", ".join(list(df.columns))))
-        return df
-
-    def _read_names_from_table(self, df):
-        """ Read the sample names from the given annotations table. """
-        return list(df[self.SAMPLE_NAME_IDENTIFIER]), self.SAMPLE_NAME_IDENTIFIER
-
-    def _missing_columns(self, cs):
-        """ Determine names of missing, important columns. """
-        return {self.SAMPLE_NAME_IDENTIFIER} - set(cs)
-
-    def _apply_parse_strat(self, filepath, spec):
-        """ For the given filepath, apply the given parse strategy. """
-        from copy import copy as cp
-        kwds = cp(spec.kwargs)
-        if spec.make_extra_kwargs:
-            kwds.update(spec.make_extra_kwargs(filepath))
-        return spec.get_parse_fun(self)(filepath, **kwds)
-
-    def _check_subann_name_overlap(self, subs):
-        """
-        Check if all subannotations have a matching sample, and warn if not. """
-        if subs is not None:
-            sample_subann_names = self._get_sample_ids(subs).tolist()
-            sample_names_list = list(self.sample_names)
-            info = " matching sample name for subannotation '{}'"
-            for n in sample_subann_names:
-                if n not in sample_names_list:
-                    _LOGGER.warning(("Couldn't find" + info).format(n))
-                else:
-                    _LOGGER.debug(("Found" + info).format(n))
-        else:
-            _LOGGER.debug("No sample subannotations found for this Project.")
-
-    @staticmethod
-    def _get_sample_ids(df):
-        """ Return the sample identifiers in the given table. """
-        type_check_strict(df, pd.DataFrame)
-        return df[SAMPLE_NAME_COLNAME]
-
-    def _meta_from_file_set_if_needed(self, spec, attr=lambda k: "_" + k):
-        """ Build attribute value if needed and return it. """
-        from copy import copy as cp
-        if not isinstance(spec, _MakeTableSpec):
-            raise TypeError("Invalid specification type: {}".format(type(spec)))
-        if hasattr(attr, "__call__"):
-            attr = attr(spec.key)
-        elif not isinstance(attr, str):
-            raise TypeError("Attr name must be string or function to call on "
-                            "key to make attr name; got {}".format(type(attr)))
-        if self.get(attr) is None:
-            filepath = self[METADATA_KEY].get(spec.key)
-            if filepath is None:
-                _LOGGER.warning("No filepath for '{}' in project metadata".
-                                format(spec.key))
-                return None
-            self[attr] = self._apply_parse_strat(filepath, spec)
-        return cp(self[attr])
-
-    def _prep_samples(self):
-        """
-        Merge this Project's Sample object and set file paths.
-
-        :return list[Sample]: collection of this Project's Sample objects
-        """
-
-        samples = []
-
-        for _, row in getattr(self, NAME_TABLE_ATTR).iterrows():
-            sample = Sample(row.dropna(), prj=self)
-
-            # Add values that are constant across this Project's samples.
-            sample = add_project_sample_constants(sample, self)
-
-            sample.set_genome(self.get("genomes"))
-            sample.set_transcriptome(self.get("transcriptomes"))
-
-            _LOGGER.debug("Merging sample '%s'", sample.name)
-            sample.infer_attributes(self.get(IMPLICATIONS_DECLARATION))
-            merge_sample(sample, self["_" + SAMPLE_SUBANNOTATIONS_KEY],
-                         self.data_sources, self.derived_attributes,
-                         sample_colname=self.SAMPLE_NAME_IDENTIFIER)
-            _LOGGER.debug("Setting sample file paths")
-            sample.set_file_paths(self)
-            # Hack for backwards-compatibility
-            # Pipelines should now use `data_source`)
-            _LOGGER.debug("Setting sample data path")
-            try:
-                sample.data_path = sample.data_source
-            except AttributeError:
-                _LOGGER.whisper("Sample '%s' lacks data source; skipping data "
-                                "path assignment", sample.name)
-            else:
-                _LOGGER.whisper("Path to sample data: '%s'", sample.data_source)
-            samples.append(sample)
-            sample.name = sample.sample_name
-
-        return samples
-
-    def _set_basic_samples(self):
-        """ Build the base Sample objects from the annotations sheet data. """
-
-        # This should be executed just once, establishing the Project's
-        # base Sample objects if they don't already exist.
-        sub_ann = None
-        try:
-            sub_ann = self.metadata[SAMPLE_SUBANNOTATIONS_KEY]
-        except KeyError:
-            try:
-                # Backwards compatibility
-                sub_ann = self.metadata["merge_table"]
-            except KeyError:
-                _LOGGER.debug("No sample subannotations")
-            else:
-                warnings.warn("merge_table is deprecated; please instead use {}".
-                              format(SAMPLE_SUBANNOTATIONS_KEY), DeprecationWarning)
-
-        if sub_ann and os.path.isfile(sub_ann):
-            _LOGGER.info("Reading subannotations: %s", sub_ann)
-            subann_table = self._apply_parse_strat(sub_ann, _SUBS_TABLE_SPEC)
-            self["_" + SAMPLE_SUBANNOTATIONS_KEY] = subann_table
-            _LOGGER.debug("Subannotations shape: {}".format(subann_table.shape))
-            self._check_subann_name_overlap(subann_table)
-        else:
-            _LOGGER.debug("Alleged path to sample subannotations data is "
-                          "not a file: '%s'", str(sub_ann))
-
-        # Set samples and handle non-unique names situation.
-        self._samples = self._prep_samples()
-
-    def set_project_permissions(self):
-        """ Make the project's public_html folder executable. """
-        try:
-            os.chmod(self.trackhubs.trackhub_dir, 0o0755)
-        except OSError:
-            # This currently does not fail now
-            # ("cannot change folder's mode: %s" % d)
-            pass
-
-    def _ensure_absolute(self, maybe_relpath):
-        """ Ensure that a possibly relative path is absolute. """
-
-        if not isinstance(maybe_relpath, str):
-            raise TypeError(
-                "Attempting to ensure non-text value is absolute path: {} ({})".
+def _ensure_path_absolute(maybe_relpath, cfg_path):
+    """ Ensure that a possibly relative path is absolute. """
+    if not isinstance(maybe_relpath, str):
+        raise TypeError(
+            "Attempting to ensure non-text value is absolute path: {} ({})".
                 format(maybe_relpath, type(maybe_relpath)))
-        _LOGGER.whisper("Ensuring absolute: '%s'", maybe_relpath)
-        if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-            _LOGGER.whisper("Already absolute")
-            return maybe_relpath
-        # Maybe we have env vars that make the path absolute?
-        expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
-        _LOGGER.whisper("Expanded: '%s'", expanded)
-        if os.path.isabs(expanded):
-            _LOGGER.whisper("Expanded is absolute")
-            return expanded
-        _LOGGER.whisper("Making non-absolute path '%s' be absolute", maybe_relpath)
-        
-        # Set path to an absolute path, relative to project config.
-        config_dirpath = os.path.dirname(self.config_file)
-        _LOGGER.whisper("config_dirpath: %s", config_dirpath)
-        abs_path = os.path.join(config_dirpath, maybe_relpath)
-        return abs_path
-
-    class MissingMetadataException(PeppyError):
-        """ Project needs certain metadata. """
-        def __init__(self, missing_section, path_config_file=None):
-            reason = "Project configuration lacks required metadata section {}".\
-                    format(missing_section)
-            if path_config_file:
-                reason += "; used config file '{}'".format(path_config_file)
-            super(Project.MissingMetadataException, self).__init__(reason)
-
-    class MissingSampleSheetError(PeppyError):
-        """ Represent case in which sample sheet is specified but nonexistent. """
-        def __init__(self, sheetfile):
-            parent_folder = os.path.dirname(sheetfile)
-            contents = os.listdir(parent_folder) \
-                if os.path.isdir(parent_folder) else []
-            msg = "Missing sample annotation sheet ({}); a project need not use " \
-                  "a sample sheet, but if it does the file must exist.".\
-                format(sheetfile)
-            if contents:
-                msg += " Contents of parent folder: {}".format(", ".join(contents))
-            super(Project.MissingSampleSheetError, self).__init__(msg)
-
-    def _excl_from_repr(self, k, cls):
-        """
-        Hook for exclusion of particular value from a representation
-
-        :param hashable k: key to consider for omission
-        :param type cls: data type on which to base the exclusion
-        :return bool: whether the given key k should be omitted from
-            text representation
-        """
-        exclusions_by_class = {
-            "Project": [
-                "samples", "_samples", "interfaces_by_protocol",
-                "_" + SAMPLE_SUBANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY,
-                NAME_TABLE_ATTR, "_" + NAME_TABLE_ATTR],
-            "Subsample": [NAME_TABLE_ATTR, "sample", "merged_cols"],
-            "Sample": [NAME_TABLE_ATTR, "prj", "merged_cols"]
-        }
-        return super(Project, self)._excl_from_repr(k, cls) or \
-            k in exclusions_by_class.get(
-                cls.__name__ if isinstance(cls, type) else cls, [])
+    if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+        _LOGGER.debug("Already absolute")
+        return maybe_relpath
+    # Maybe we have env vars that make the path absolute?
+    expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
+    if os.path.isabs(expanded):
+        _LOGGER.debug("Expanded: {}".format(expanded))
+        return expanded
+    # Set path to an absolute path, relative to project config.
+    config_dirpath = os.path.dirname(cfg_path)
+    _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
+    abs_path = os.path.join(config_dirpath, maybe_relpath)
+    _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
+    return abs_path
 
 
-def suggest_implied_attributes(prj):
+def infer_delimiter(filepath):
     """
-    If given project contains what could be implied attributes, suggest that.
+    From extension infer delimiter used in a separated values file.
 
-    :param Iterable prj: Intent is a Project, but this could be any iterable
-        of strings to check for suitability of declaration as implied attr
-    :return list[str]: (likely empty) list of warning messages about project
-        config keys that could be implied attributes
+    :param str filepath: path to file about which to make inference
+    :return str | NoneType: extension if inference succeeded; else null
     """
-    def suggest(key):
-        return "To declare {}, consider using {}".format(
-            key, IMPLICATIONS_DECLARATION)
-    return [suggest(k) for k in prj if k in IDEALLY_IMPLIED]
+    ext = os.path.splitext(filepath)[1][1:].lower()
+    return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)
 
 
-class _Metadata(PathExAttMap):
-    """ Project section with important information """
-
-    def __getattr__(self, item, default=None, expand=True):
-        """ Reference the new attribute and warn about deprecation. """
-        if item == OLD_PIPES_KEY:
-            _warn_pipes_deprecation()
-            item = NEW_PIPES_KEY
-        return super(_Metadata, self).__getattr__(item, default, expand)
-
-    def __setitem__(self, key, value):
-        """ Store the new key and warn about deprecation. """
-        if key == OLD_PIPES_KEY:
-            _warn_pipes_deprecation()
-            key = NEW_PIPES_KEY
-        return super(_Metadata, self).__setitem__(key, value)
-
-
-def _warn_pipes_deprecation():
-    """ Handle messaging regarding pipelines pointer deprecation. """
-    msg = "Use of {} is deprecated; favor {}".\
-        format(OLD_PIPES_KEY, NEW_PIPES_KEY)
-    warnings.warn(msg, DeprecationWarning)
-
-
-def sample_table(p):
-    """
-    Provide (building as needed) a Project's main samples (metadata) table.
-
-    :param peppy.Project p: Project instance from which to get table
-    :return pandas.core.frame.DataFrame: the Project's sample table
-    """
-    if not isinstance(p, Project):
-        raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
-    return p._meta_from_file_set_if_needed(_MAIN_TABLE_SPEC)
-
-
-def subsample_table(p):
-    """
-    Provide (building as needed) a Project's subsample (metadata) table.
-
-    :param peppy.Project p: Project instance from which to get subsample table
-    :return pandas.core.frame.DataFrame: the Project's subsample table
-    :raise peppy.InvalidSampleTableFileException: if the subannotation
-    """
-    parse_strat = _SUBS_TABLE_SPEC
-    if not isinstance(p, Project):
-        raise TypeError("Not a {}: {} ({})".format(Project.__name__, p, type(p)))
-    return p._meta_from_file_set_if_needed(parse_strat)
-
-
-# Specification of strategy for parsing a sheet-like file (sample table, subsample table)
-# An instance specifies:
-# 1. The Project key associated with the file to parse / table to make,
-# 2. How to get the parsing function from the project
-# 3. How to generate for the parse function extra keyword arguments based on the filepath
-# 4. Constant keyword arguments to pass to the parse function
-_MakeTableSpec = namedtuple(
-    "_MakeTableSpec", ["key", "get_parse_fun", "make_extra_kwargs", "kwargs"])
-_MAIN_TABLE_SPEC = _MakeTableSpec(
-    NAME_TABLE_ATTR, lambda p: p.parse_sample_sheet, None, {})
-_SUBS_TABLE_SPEC = _MakeTableSpec(
-    SAMPLE_SUBANNOTATIONS_KEY, lambda _: pd.read_csv,
-    lambda f: {"sep": infer_delimiter(f)}, READ_CSV_KWARGS)
+def _make_sections_absolute(object, sections, cfg_path):
+    for key in sections:
+        try:
+            relpath = object[key]
+        except KeyError:
+            _LOGGER.debug("No '{}' section in configuration file: {}".
+                          format(key, cfg_path))
+            continue
+        if relpath is None:
+            continue
+        _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
+        # Parsed from YAML, so small space of possible datatypes
+        if isinstance(relpath, list):
+            absolute = [_ensure_path_absolute(maybe_relpath, cfg_path)
+                        for maybe_relpath in relpath]
+        else:
+            absolute = _ensure_path_absolute(relpath, cfg_path)
+        _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
+        object[key] = absolute

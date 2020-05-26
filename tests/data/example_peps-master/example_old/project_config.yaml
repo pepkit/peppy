@@ -1,0 +1,25 @@
+name: test_pipeline
+
+metadata:
+  sample_table: "sample_table.csv"
+  output_dir: "$HOME"
+  pipeline_interfaces: "$HOME/pipeline_interface.yaml" 
+  
+derived_columns: [read1, read2]
+
+data_sources:
+  R: "$DATA/sra_fastq/{srr}.fastq.gz"
+  S1: "$DATA/test/fastq/{srr}.fastq.gz"
+  H1: "$DATA/test/fastq/{srr}_PE1.fastq.gz"
+  H2: "$DATA/test/fastq/{srr}_PE2.fastq.gz"
+  
+# implied_columns:
+#   organism:
+#     human:
+#       genome: hg38
+#       prealignments: human_rDNA
+#   umi_status:
+#     true_8:
+#       umi_len: 8
+#     true_6:
+#       umi_len: 6

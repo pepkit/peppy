@@ -1,6 +1,5 @@
 attmap>=0.12.5
 pandas>=0.24.2
 pyyaml>=5
-divvy>=0.3.2
 logmuse>=0.2
-ubiquerg>=0.4.5
+ubiquerg>=0.5.2

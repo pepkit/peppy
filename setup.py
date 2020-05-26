@@ -87,6 +87,7 @@ setup(
     url='https://github.com/pepkit/peppy/',
     author=u"Nathan Sheffield, Vince Reuter, Andre Rendeiro",
     license="BSD2",
+    entry_points={"console_scripts": ['peppy = peppy.__main__:main']},
     scripts=scripts,
     include_package_data=True,
     test_suite="tests",

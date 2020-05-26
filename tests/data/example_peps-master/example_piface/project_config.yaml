@@ -1,0 +1,17 @@
+pep_version: "2.0.0"
+name: test
+
+sample_table: annotation_sheet.csv
+looper:
+  output_dir: ../output
+  pipeline_interfaces: ["pipeline_interface1_project.yaml", "pipeline_interface2_project.yaml"]
+
+sample_modifiers: 
+  append:
+    attr: "val"
+    pipeline_interfaces: ["pipeline_interface1_sample.yaml", "pipeline_interface2_sample.yaml"]
+  derive:
+    attributes: [read1, read2]
+    sources:
+      SRA_1: "{SRR}_1.fastq.gz"
+      SRA_2: "{SRR}_2.fastq.gz"

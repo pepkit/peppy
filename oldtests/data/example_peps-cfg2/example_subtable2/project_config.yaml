@@ -1,0 +1,12 @@
+pep_version: "2.0.0"
+sample_table: sample_table.csv
+subsample_table: subsample_table.csv
+output_dir: $HOME/hello_looper_results
+pipeline_interfaces: [../pipeline/pipeline_interface.yaml]
+
+sample_modifiers:
+  derive:
+    attributes: [file]
+    sources:
+      local_files: "../data/{identifier}{file_id}_data.txt"
+      local_files_unmerged: "../data/{identifier}_data.txt"

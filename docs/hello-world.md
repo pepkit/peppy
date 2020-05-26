@@ -36,11 +36,11 @@ Then, from within the `example_peps` folder, enter the following commands in a P
 ```python
 import peppy
 
-proj1 = peppy.Project("example1/project_config.yaml")
-samp = proj1.samples
+project = peppy.Project("example_basic/project_config.yaml") # instantiate in-memory Project representation
+samples = project.samples # grab the list of Sample objects defined in this Project
 
 # Find the input file for the first sample in the project
-samp[0].file
+samples[0].file
 ```
 
 That's it! You've got `peppy` running on an example project. 

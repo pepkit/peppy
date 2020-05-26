@@ -2,7 +2,6 @@
 tests/test/*
 
 # toy/experimental files
-*.csv
 *.tsv
 *.pkl
 
@@ -72,4 +71,6 @@ open_pipelines/
 build/
 dist/
 peppy.egg-info/
+
+.ipynb_checkpoints/
 

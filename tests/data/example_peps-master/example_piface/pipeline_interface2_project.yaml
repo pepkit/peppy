@@ -1,0 +1,12 @@
+pipeline_name: OTHER_PIPELINE2
+pipeline_type: project
+path: pipelines/col_pipeline2.py
+output_schema: output_schema.yaml
+command_template: >
+  {pipeline.path} --project-name {project.name}
+compute:
+  size_dependent_variables: resources-project.tsv
+
+bioconductor:
+  readFunName: readData
+  readFunPath: readData.R
