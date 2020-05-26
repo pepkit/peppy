@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.30.1] - 2020-05-26
+
+### Changed 
+- Package authors list
+
 ## [0.30.0] - 2020-05-26
 
 **This version introduced backwards-incompatible changes.**  
