@@ -515,7 +515,7 @@ class Project(PathExAttMap):
         :return str: inferred name for project.
         :raise InvalidConfigFileException: if the project lacks both a name and
             a configuration file (no basis, then, for inference)
-        :rasie InvalidConfigFileException: if specified Project name is invalid
+        :raise InvalidConfigFileException: if specified Project name is invalid
         """
         if CONFIG_KEY not in self:
             return
