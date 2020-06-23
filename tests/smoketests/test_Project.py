@@ -233,7 +233,8 @@ class ProjectManipulationTests:
         Verify that Sample modifications cause sample_table regeneration
         """
         p = Project(cfg=example_pep_cfg_path)
-        assert isinstance(p.subsample_table, DataFrame)
+        assert isinstance(p.subsample_table, DataFrame) \
+               or isinstance(p.subsample_table, list)
 
 
 class SampleModifiersTests:

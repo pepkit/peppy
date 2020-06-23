@@ -277,12 +277,13 @@ class Project(PathExAttMap):
                       "you must specify {sn}s in {st} or derive them".\
                           format(st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR)
                 if self.st_index != SAMPLE_NAME_ATTR:
-                    setattr(sample, SAMPLE_NAME_ATTR, getattr(sample, self.st_index))
-                    _LOGGER.warning(
-                        msg_base +
-                        "using specified {} index ({}) instead. Setting name: {}".
-                        format(CFG_SAMPLE_TABLE_KEY, self.st_index,
-                               getattr(sample, self.st_index)))
+                    setattr(sample, SAMPLE_NAME_ATTR,
+                            getattr(sample, self.st_index))
+                    _LOGGER.warning(msg_base +
+                                    "using specified {} index ({}) instead. "
+                                    "Setting name: {}".
+                                    format(CFG_SAMPLE_TABLE_KEY, self.st_index,
+                                           getattr(sample, self.st_index)))
                 else:
                     raise InvalidSampleTableFileException(msg)
 
@@ -291,66 +292,67 @@ class Project(PathExAttMap):
         Merge sample subannotations (from subsample table) with
         sample annotations (from sample_table)
         """
-        _LOGGER.debug("In merge")
         if SUBSAMPLE_DF_KEY not in self or self[SUBSAMPLE_DF_KEY] is None:
-            _LOGGER.debug("No {} found, skpping merge".
+            _LOGGER.debug("No {} found, skipping merge".
                           format(CFG_SUBSAMPLE_TABLE_KEY))
             return
-        self._check_subann_name_overlap()
-        subsample_table = self[SUBSAMPLE_DF_KEY]
-        for sample in self.samples:
-            sample_colname = self.sample_name_colname
-            if sample_colname not in subsample_table.columns:
-                raise KeyError("Subannotation requires column '{}'."
-                               .format(sample_colname))
-            _LOGGER.debug("Using '{}' as sample name column from "
-                          "subannotation table".format(sample_colname))
-            sample_indexer = \
-                subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
-            this_sample_rows = subsample_table[sample_indexer].\
-                dropna(how="all", axis=1)
-            if len(this_sample_rows) == 0:
-                _LOGGER.debug("No merge rows for sample '%s', skipping",
-                              sample[SAMPLE_NAME_ATTR])
-                continue
-            _LOGGER.debug("%d rows to merge", len(this_sample_rows))
-            _LOGGER.debug("Merge rows dict: "
-                          "{}".format(this_sample_rows.to_dict()))
+        for subsample_table in self[SUBSAMPLE_DF_KEY]:
+            for n in list(subsample_table[self.sample_name_colname]):
+                if n not in [s[SAMPLE_NAME_ATTR] for s in self.samples]:
+                    _LOGGER.warning(("Couldn't find matching sample for "
+                                     "subsample: {}").format(n))
+            for sample in self.samples:
+                sample_colname = self.sample_name_colname
+                if sample_colname not in subsample_table.columns:
+                    raise KeyError("Subannotation requires column '{}'."
+                                   .format(sample_colname))
+                _LOGGER.debug("Using '{}' as sample name column from "
+                              "subannotation table".format(sample_colname))
+                sample_indexer = \
+                    subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
+                this_sample_rows = subsample_table[sample_indexer].\
+                    dropna(how="all", axis=1)
+                if len(this_sample_rows) == 0:
+                    _LOGGER.debug("No merge rows for sample '%s', skipping",
+                                  sample[SAMPLE_NAME_ATTR])
+                    continue
+                _LOGGER.debug("%d rows to merge", len(this_sample_rows))
+                _LOGGER.debug("Merge rows dict: "
+                              "{}".format(this_sample_rows.to_dict()))
 
-            merged_attrs = {key: list() for key in this_sample_rows.columns}
-            _LOGGER.debug(this_sample_rows)
-            for subsample_row_id, row in this_sample_rows.iterrows():
-                try:
-                    row[SUBSAMPLE_NAME_ATTR]
-                except KeyError:
-                    row[SUBSAMPLE_NAME_ATTR] = str(subsample_row_id)
-                rowdata = row.to_dict()
+                merged_attrs = {key: list() for key in this_sample_rows.columns}
+                _LOGGER.debug(this_sample_rows)
+                for subsample_row_id, row in this_sample_rows.iterrows():
+                    try:
+                        row[SUBSAMPLE_NAME_ATTR]
+                    except KeyError:
+                        row[SUBSAMPLE_NAME_ATTR] = str(subsample_row_id)
+                    rowdata = row.to_dict()
 
-                def _select_new_attval(merged_attrs, attname, attval):
-                    """ Select new attribute value for the merged columns
-                    dictionary """
-                    if attname in merged_attrs:
-                        return merged_attrs[attname] + [attval]
-                    return [str(attval).rstrip()]
+                    def _select_new_attval(merged_attrs, attname, attval):
+                        """ Select new attribute value for the merged columns
+                        dictionary """
+                        if attname in merged_attrs:
+                            return merged_attrs[attname] + [attval]
+                        return [str(attval).rstrip()]
 
-                for attname, attval in rowdata.items():
-                    if attname == sample_colname or not attval:
-                        _LOGGER.debug("Skipping KV: {}={}".
-                                      format(attname, attval))
-                        continue
-                    _LOGGER.debug("merge: sample '{}'; "
-                                  "'{}'='{}'".format(sample[SAMPLE_NAME_ATTR],
-                                                     attname, attval))
-                    merged_attrs[attname] = _select_new_attval(merged_attrs,
-                                                               attname, attval)
+                    for attname, attval in rowdata.items():
+                        if attname == sample_colname or not attval:
+                            _LOGGER.debug("Skipping KV: {}={}".
+                                          format(attname, attval))
+                            continue
+                        _LOGGER.debug("merge: sample '{}'; '{}'='{}'".
+                                      format(sample[SAMPLE_NAME_ATTR], attname,
+                                             attval))
+                        merged_attrs[attname] = \
+                            _select_new_attval(merged_attrs, attname, attval)
 
-            # If present, remove sample name from the data with which to update
-            # sample.
-            merged_attrs.pop(sample_colname, None)
+                # remove sample name from the data with which to update sample
+                merged_attrs.pop(sample_colname, None)
 
-            _LOGGER.debug("Updating Sample {}: {}".
-                          format(sample[SAMPLE_NAME_ATTR], merged_attrs))
-            sample.update(merged_attrs)
+                _LOGGER.debug("Updating Sample {}: {}".
+                              format(sample[SAMPLE_NAME_ATTR], merged_attrs))
+                sample.update(merged_attrs)
 
     def attr_imply(self):
         """
@@ -515,7 +517,7 @@ class Project(PathExAttMap):
         :return str: inferred name for project.
         :raise InvalidConfigFileException: if the project lacks both a name and
             a configuration file (no basis, then, for inference)
-        :raise InvalidConfigFileException: if specified Project name is invalid
+        :rasie InvalidConfigFileException: if specified Project name is invalid
         """
         if CONFIG_KEY not in self:
             return
@@ -713,8 +715,21 @@ class Project(PathExAttMap):
         Read the sample_table and subsample_table into dataframes
         and store in the object root
         """
-        read_csv_kwargs = {"engine": "python", "dtype": str, "index_col": False,
-                           "keep_default_na": False, "na_values": [""]}
+        def _read_tab(pth):
+            """
+            Internal read table function
+
+            :param str pth: absolute path to the file to read
+            :return pandas.DataFrame: table object
+            """
+            if not os.path.exists(pth):
+                raise SampleTableFileException(
+                    "File does not exist: {}".format(pth))
+            read_csv_kwargs = {"engine": "python", "dtype": str,
+                               "index_col": False, "keep_default_na": False,
+                               "na_values": [""]}
+            return pd.read_csv(pth, sep=infer_delimiter(pth), **read_csv_kwargs)
+
         no_metadata_msg = "No {} specified"
         if CONFIG_KEY not in self:
             _LOGGER.warning("No config key in Project")
@@ -723,19 +738,17 @@ class Project(PathExAttMap):
             _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
             return
         st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
-        try:
-            sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
-        except KeyError:
-            sst = None
         if st:
-            self[SAMPLE_DF_KEY] = \
-                pd.read_csv(st, sep=infer_delimiter(st), **read_csv_kwargs)
+            self[SAMPLE_DF_KEY] = _read_tab(st)
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None
-        if sst:
-            self[SUBSAMPLE_DF_KEY] = \
-                pd.read_csv(sst, sep=infer_delimiter(sst), **read_csv_kwargs)
+        if CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
+            sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
+            if not isinstance(sst, list) and isinstance(sst, str):
+                sst = [sst]
+            self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
+            # self[SUBSAMPLE_DF_KEY] = _read_tab(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY])
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
             self[SUBSAMPLE_DF_KEY] = None
@@ -872,19 +885,6 @@ class Project(PathExAttMap):
         :return list[peppy.Sample]: A list of Sample objects
         """
         return [s for s in self.samples if s[SAMPLE_NAME_ATTR] in sample_names]
-
-    def _check_subann_name_overlap(self):
-        """
-        Check if all subannotations have a matching sample, and warn if not
-        """
-
-        subsample_names = list(self[SUBSAMPLE_DF_KEY][self.sample_name_colname])
-        sample_names_list = [s[SAMPLE_NAME_ATTR] for s in self.samples]
-        for n in subsample_names:
-            if n not in sample_names_list:
-                _LOGGER.warning(("Couldn't find matching sample for "
-                                 "subsample: {}").format(n))
-
 
 def _ensure_path_absolute(maybe_relpath, cfg_path):
     """ Ensure that a possibly relative path is absolute. """
