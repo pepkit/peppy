@@ -699,15 +699,19 @@ class Project(PathExAttMap):
         sdf = self[SUBSAMPLE_DF_KEY]
         index = self.sst_index
         if isinstance(sdf, pd.DataFrame):
-            if not all([i in sdf.columns for i in index]):
-                _LOGGER.debug("Could not set {} index. At least one of the "
-                              "requested columns does not exist: {}"
-                              .format(CFG_SUBSAMPLE_TABLE_KEY, index))
-                return sdf
-            sdf.set_index(keys=index, drop=False, inplace=True)
-            _LOGGER.debug("Setting subsample_table index to: {}".format(index))
-            sdf.index = sdf.index.set_levels([i.astype(str)
-                                              for i in sdf.index.levels])
+            sdf = [sdf]
+        for sst in sdf:
+            if isinstance(sst, pd.DataFrame):
+                if not all([i in sst.columns for i in index]):
+                    _LOGGER.info("Could not set {} index. At least one of the"
+                                 " requested columns does not exist: {}"
+                                 .format(CFG_SUBSAMPLE_TABLE_KEY, index))
+                    return sst
+                sst.set_index(keys=index, drop=False, inplace=True)
+                _LOGGER.info("Setting subsample_table index to: {}"
+                             .format(index))
+                sst.index = sst.index.set_levels([i.astype(str)
+                                                  for i in sst.index.levels])
         return sdf
 
     def _read_sample_data(self):
