@@ -1,7 +1,7 @@
 # peppy python package
 
-[![Build Status](https://travis-ci.org/pepkit/peppy.svg?branch=master)](https://travis-ci.org/pepkit/peppy)
-[![Coverage Status](https://coveralls.io/repos/github/pepkit/peppy/badge.svg?branch=master)](https://coveralls.io/github/pepkit/peppy?branch=master)
+![Run pytests](https://github.com/pepkit/peppy/workflows/Run%20pytests/badge.svg)
+[![codecov](https://codecov.io/gh/pepkit/peppy/branch/master/graph/badge.svg)](https://codecov.io/gh/pepkit/peppy)
 [![PEP compatible](http://pepkit.github.io/img/PEP-compatible-green.svg)](http://pepkit.github.io)
 
 `peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in `python`. 
