@@ -1,3 +1,4 @@
 include peppy/submit_templates/*
 include requirements/*
 include README.md
+include LICENSE.txt
