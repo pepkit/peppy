@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 - Support for multiple subsample tables
-- license file to the package source distribution
+- License file to the package source distribution
 
 
 ## [0.30.1] - 2020-05-26
