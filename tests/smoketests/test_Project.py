@@ -55,6 +55,11 @@ class ProjectConstructorTests:
         assert isinstance(p, Project)
         assert len(p.samples) == 0
 
+    def test_nonexistent(self):
+        """ Verify that OSError is thrown when config does not exist """
+        with pytest.raises(OSError):
+            Project(cfg="nonexistentfile.yaml")
+
     @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
     def test_instantiaion(self, example_pep_cfg_path, defer):
@@ -92,6 +97,14 @@ class ProjectConstructorTests:
         """
         p = Project(cfg=example_pep_cfg_path)
         assert any([s["file"] != "multi" for s in p.samples])
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["subtables"], indirect=True)
+    def test_subsample_table_multiple(self, example_pep_cfg_path):
+        """
+        Verify that subsample table functionality in multi subsample context
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert any(["desc" in s for s in p.samples])
 
     @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
@@ -200,6 +213,16 @@ class ProjectManipulationTests:
             Project(cfg=example_pep_cfg_path, amendments="nieznany", defer_samples_creation=defer)
 
     @pytest.mark.parametrize('defer', [False, True])
+    @pytest.mark.parametrize('example_pep_cfg_path', ["amendments1"], indirect=True)
+    def test_missing_amendment_raises_error(self, example_pep_cfg_path, defer):
+        """
+        Verify that the amendments argument cannot be null
+        """
+        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
+        with pytest.raises(TypeError):
+            p.activate_amendments(amendments=None)
+
+    @pytest.mark.parametrize('defer', [False, True])
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
     def test_str_repr_correctness(self, example_pep_cfg_path, defer):
         """
@@ -233,7 +256,22 @@ class ProjectManipulationTests:
         Verify that Sample modifications cause sample_table regeneration
         """
         p = Project(cfg=example_pep_cfg_path)
-        assert isinstance(p.subsample_table, DataFrame)
+        assert isinstance(p.subsample_table, DataFrame) \
+               or isinstance(p.subsample_table, list)
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["basic"], indirect=True)
+    def test_get_sample(self, example_pep_cfg_path):
+        """ Verify that sample getting method works """
+        p = Project(cfg=example_pep_cfg_path)
+        p.get_sample(sample_name=p.samples[0]["sample_name"])
+
+    @pytest.mark.parametrize('example_pep_cfg_path', ["basic"], indirect=True)
+    def test_get_sample_nonexistent(self, example_pep_cfg_path):
+        """ Verify that sample getting returns ValueError if not sample found """
+        p = Project(cfg=example_pep_cfg_path)
+        with pytest.raises(ValueError):
+
+            p.get_sample(sample_name="kdkdkdk")
 
 
 class SampleModifiersTests:

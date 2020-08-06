@@ -1,0 +1,6 @@
+sample_name,subsample_name,file
+frog_1,sub_a,data/frog1a_data.txt
+frog_1,sub_b,data/frog1b_data.txt
+frog_1,sub_c,data/frog1c_data.txt
+frog_2,sub_a,data/frog2a_data.txt
+frog_2,sub_b,data/frog2b_data.txt
