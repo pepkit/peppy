@@ -749,10 +749,10 @@ class Project(PathExAttMap):
             self[SAMPLE_DF_KEY] = None
         if CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
             sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
-            if not isinstance(sst, list) and isinstance(sst, str):
-                sst = [sst]
-            self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
-            # self[SUBSAMPLE_DF_KEY] = _read_tab(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY])
+            if sst is not None:
+                if not isinstance(sst, list) and isinstance(sst, str):
+                    sst = [sst]
+                self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
             self[SUBSAMPLE_DF_KEY] = None
