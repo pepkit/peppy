@@ -819,9 +819,12 @@ class Project(PathExAttMap):
                 #  reformatting or drop the old cfg format altogether
                 if k_from in ["implied_attributes", "implied_columns"]:
                     raise NotImplementedError(
-                        "Implications reformatting is not yet implemented. "
-                        "Edit the config file manually to comply with "
-                        "PEP 2.0.0 specification: http://pep.databio.org")
+                        "The attribute implications section ({}) follows the "
+                        "old format. Reformatting is not implemented. Edit the "
+                        "config file manually (add '{}.{}') to comply with PEP "
+                        "2.0.0 specification: http://pep.databio.org/en/latest/"
+                        "specification/#sample-modifier-imply".format(
+                            k_from, SAMPLE_MODS_KEY, IMPLIED_KEY))
                 map.setdefault(SAMPLE_MODS_KEY, PathExAttMap())
                 if isinstance(k_to, list):
                     if k_to[0] in map[SAMPLE_MODS_KEY]:
