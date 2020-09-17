@@ -142,25 +142,6 @@ class Sample(PathExAttMap):
             _LOGGER.debug(
                 "Sample data written to: {}".format(self[SAMPLE_YAML_FILE_KEY]))
 
-    def get_attr_values(self, attrlist):
-        """
-        Get value corresponding to each given attribute.
-
-        :param str | Iterable[str] attrlist: names of attributes to
-            retrieve values for
-        :return list | NoneType: value (or empty string) corresponding to
-            each named attribute; null if this Sample's value for the
-            attribute given by the argument to the "attrlist" parameter is
-            empty/null, or if this Sample lacks the indicated attribute
-        """
-        from pandas.core.common import flatten
-        # If attribute is None, then value is also None.
-        if not attrlist:
-            return None
-        if not isinstance(attrlist, list):
-            attrlist = [attrlist]
-        # Strings contained here are appended later so shouldn't be null.
-        return list(flatten([getattr(self, attr, "") for attr in attrlist]))
 
     def derive_attribute(self, data_sources, attr_name):
         """
