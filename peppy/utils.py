@@ -38,4 +38,4 @@ def grab_project_data(prj):
     try:
         return prj[CONFIG_KEY].to_dict()
     except KeyError:
-        raise KeyError(f"Project lacks section '{CONFIG_KEY}'")
+        raise KeyError("Project lacks section '{}'".format(CONFIG_KEY))
