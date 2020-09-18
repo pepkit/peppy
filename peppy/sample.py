@@ -76,14 +76,16 @@ class Sample(PathExAttMap):
         """
         return OrderedDict([[k, getattr(self, k)] for k in self._attributes])
 
-    def to_yaml(self, path):
+    def to_yaml(self, path, add_prj_ref=False):
         """
         Serializes itself in YAML format.
 
         :param str path: A file path to write yaml to; provide this or
             the subs_folder_path
+        :pram bool add_prj_ref: whether the project reference bound do the
+            Sample object should be included in the YAML representation
         """
-        def _obj2dict(obj, name=None, to_skip=(SUBSAMPLE_DF_KEY, SAMPLE_DF_KEY)):
+        def _obj2dict(obj, name=None):
             """
             Build representation of object as a dict, recursively
             for all objects that might be attributes of self.
@@ -97,19 +99,14 @@ class Sample(PathExAttMap):
             from attmap import AttMap
             if name:
                 _LOGGER.log(5, "Converting to dict: {}".format(name))
-            if name == PRJ_REF:
-                _LOGGER.debug("Attempting to store Samples's project data")
-                prj_data = grab_project_data(obj)
-                _LOGGER.debug("Sample's project data: {}".format(prj_data))
-                return {k: _obj2dict(v, name=k) for k, v in prj_data.items()}
             if isinstance(obj, list):
                 return [_obj2dict(i) for i in obj]
             if isinstance(obj, AttMap):
                 return {k: _obj2dict(v, name=k) for k, v in obj.items()
-                        if k not in to_skip and not k.startswith("_")}
+                        if not k.startswith("_")}
             elif isinstance(obj, Mapping):
                 return {k: _obj2dict(v, name=k) for k, v in obj.items()
-                        if k not in to_skip and not k.startswith("_")}
+                        if not k.startswith("_")}
             if isinstance(obj, set):
                 return [_obj2dict(i) for i in obj]
             elif isinstance(obj, Series):
@@ -126,22 +123,22 @@ class Sample(PathExAttMap):
                 return obj
         assert path.lower().endswith(SAMPLE_YAML_EXT), \
             OSError("Sample must be saved to a YAML file. Got: {}".format(path))
-        self[SAMPLE_YAML_FILE_KEY] = path
+        path = os.path.expandvars(path)
         serial = _obj2dict(self)
-        if not os.path.exists(os.path.dirname(self[SAMPLE_YAML_FILE_KEY])):
-            _LOGGER.warning("Could not write sample data to: {}. Directory does "
-                            "not exist".format(self[SAMPLE_YAML_FILE_KEY]))
+        if add_prj_ref:
+            serial.update({"prj": grab_project_data(self[PRJ_REF])})
+        if not os.path.exists(os.path.dirname(path)):
+            _LOGGER.warning("Could not write sample data to: {}. "
+                            "Directory does not exist".format(path))
             return
-        with open(self[SAMPLE_YAML_FILE_KEY], 'w') as outfile:
+        with open(path, 'w') as outfile:
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             except yaml.representer.RepresenterError:
                 _LOGGER.error("Serialized sample data: {}".format(serial))
                 raise
             outfile.write(yaml_data)
-            _LOGGER.debug(
-                "Sample data written to: {}".format(self[SAMPLE_YAML_FILE_KEY]))
-
+            _LOGGER.debug("Sample data written to: {}".format(path))
 
     def derive_attribute(self, data_sources, attr_name):
         """

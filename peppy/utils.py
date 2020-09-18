@@ -36,7 +36,6 @@ def grab_project_data(prj):
         return {}
 
     try:
-        data = prj[CONFIG_KEY]
+        return prj[CONFIG_KEY].to_dict()
     except KeyError:
-        _LOGGER.debug("Project lacks section {}, skipping".format(CONFIG_KEY))
-    return data
+        raise KeyError(f"Project lacks section '{CONFIG_KEY}'")
