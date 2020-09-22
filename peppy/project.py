@@ -2,7 +2,7 @@
 Build a Project object.
 """
 from .const import *
-from .utils import copy
+from .utils import copy, make_list
 from .exceptions import *
 from .sample import Sample
 
@@ -698,21 +698,19 @@ class Project(PathExAttMap):
         """
         sdf = self[SUBSAMPLE_DF_KEY]
         index = self.sst_index
-        if isinstance(sdf, pd.DataFrame):
-            sdf = [sdf]
+        sdf = make_list(sdf, pd.DataFrame)
         for sst in sdf:
-            if isinstance(sst, pd.DataFrame):
-                if not all([i in sst.columns for i in index]):
-                    _LOGGER.info("Could not set {} index. At least one of the"
-                                 " requested columns does not exist: {}"
-                                 .format(CFG_SUBSAMPLE_TABLE_KEY, index))
-                    return sst
-                sst.set_index(keys=index, drop=False, inplace=True)
-                _LOGGER.info("Setting subsample_table index to: {}"
-                             .format(index))
-                sst.index = sst.index.set_levels([i.astype(str)
-                                                  for i in sst.index.levels])
-        return sdf
+            if not all([i in sst.columns for i in index]):
+                _LOGGER.info("Could not set {} index. At least one of the"
+                             " requested columns does not exist: {}"
+                             .format(CFG_SUBSAMPLE_TABLE_KEY, index))
+                return sst
+            sst.set_index(keys=index, drop=False, inplace=True)
+            _LOGGER.info("Setting subsample_table index to: {}"
+                         .format(index))
+            sst.index = sst.index.set_levels([i.astype(str)
+                                              for i in sst.index.levels])
+        return sdf if len(sdf) > 1 else sdf[0]
 
     def _read_sample_data(self):
         """
@@ -748,11 +746,8 @@ class Project(PathExAttMap):
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None
         if CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
-            sst = self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY]
-            if not isinstance(sst, list) and isinstance(sst, str):
-                sst = [sst]
+            sst = make_list(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY], str)
             self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
-            # self[SUBSAMPLE_DF_KEY] = _read_tab(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY])
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
             self[SUBSAMPLE_DF_KEY] = None
