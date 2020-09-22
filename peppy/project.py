@@ -746,7 +746,7 @@ class Project(PathExAttMap):
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None
         if CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
-            if sst is not None:
+            if self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY] is not None:
                 sst = make_list(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY], str)
                 self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
         else:
