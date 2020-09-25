@@ -76,14 +76,13 @@ class Sample(PathExAttMap):
         """
         return OrderedDict([[k, getattr(self, k)] for k in self._attributes])
 
-    def to_yaml(self, path, add_prj_ref=False):
+    def to_dict(self, add_prj_ref=False):
         """
-        Serializes itself in YAML format.
+        Serializes itself as dict object.
 
-        :param str path: A file path to write yaml to; provide this or
-            the subs_folder_path
         :pram bool add_prj_ref: whether the project reference bound do the
             Sample object should be included in the YAML representation
+        :return dict: dict representation of this Sample
         """
         def _obj2dict(obj, name=None):
             """
@@ -121,12 +120,22 @@ class Sample(PathExAttMap):
                 return "NaN"
             else:
                 return obj
-        assert path.lower().endswith(SAMPLE_YAML_EXT), \
-            OSError("Sample must be saved to a YAML file. Got: {}".format(path))
-        path = os.path.expandvars(path)
         serial = _obj2dict(self)
         if add_prj_ref:
             serial.update({"prj": grab_project_data(self[PRJ_REF])})
+        return serial
+
+    def to_yaml(self, path, add_prj_ref=False):
+        """
+        Serializes itself in YAML format.
+
+        :param str path: A file path to write yaml to; provide this or
+            the subs_folder_path
+        :pram bool add_prj_ref: whether the project reference bound do the
+            Sample object should be included in the YAML representation
+        """
+        serial = self.to_dict(add_prj_ref=add_prj_ref)
+        path = os.path.expandvars(path)
         if not os.path.exists(os.path.dirname(path)):
             _LOGGER.warning("Could not write sample data to: {}. "
                             "Directory does not exist".format(path))
