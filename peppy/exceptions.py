@@ -1,7 +1,11 @@
 """ Custom error types """
 
 from abc import ABCMeta
-from collections.abc import Iterable
+try:
+    from collections.abc import Iterable
+except ImportError:
+    # for py2
+    from collections import Iterable
 
 __all__ = ["IllegalStateException", "InvalidSampleTableFileException",
            "PeppyError", "MissingAmendmentError", "InvalidConfigFileException",
