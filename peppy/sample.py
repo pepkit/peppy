@@ -1,4 +1,5 @@
-from collections import Mapping, OrderedDict
+from collections.abc import Mapping
+from collections import OrderedDict
 from string import Formatter
 from logging import getLogger
 from copy import copy as cp
