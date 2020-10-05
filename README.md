@@ -2,7 +2,7 @@
 
 ![Run pytests](https://github.com/pepkit/peppy/workflows/Run%20pytests/badge.svg)
 [![codecov](https://codecov.io/gh/pepkit/peppy/branch/master/graph/badge.svg)](https://codecov.io/gh/pepkit/peppy)
-[![PEP compatible](http://pepkit.github.io/img/PEP-compatible-green.svg)](http://pepkit.github.io)
+[![PEP compatible](http://pepkit.github.io/img/PEP-compatible-green.svg)](http://pep.databio.org)
 
 `peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in `python`. 
 
