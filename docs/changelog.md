@@ -2,7 +2,7 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
-## [0.31.0] - 2020-10-05
+## [0.31.0] - 2020-10-06
 
 ### Added
 - `to_dict` method in `Sample` class that can include or exclude `Project` reference
