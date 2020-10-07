@@ -2,10 +2,18 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
 
+## [0.31.0] - 2020-10-07
+
+### Added
+- `to_dict` method in `Sample` class that can include or exclude `Project` reference
+
 ## [0.30.3] - 2020-09-22
 
 ### Changed
 - If there's just one `subsample_table` specified, `Project.subsample_table` property will return an object of `pandas.DataFrame` class rather than a `list` of ones
+
+### Fixed
+- `TypeError` when `subsample_table` is set to `null`
 
 ## [0.30.2] - 2020-08-06
 

@@ -32,18 +32,6 @@ class SampleTests:
         assert "dict" in contents
         assert "list" in contents
 
-    @pytest.mark.parametrize('example_pep_cfg_path', ["basic"], indirect=True)
-    def test_attr_values_getter(self, example_pep_cfg_path):
-        """
-        Verify that Project object is successfully created for every example PEP
-        """
-        p = Project(cfg=example_pep_cfg_path)
-        sample = p.samples[0]
-        assert len(sample.get_attr_values(["sample_name", "protocol"])) == 2
-        assert len(sample.get_attr_values("sample_name")) == 1
-        assert isinstance(sample.get_attr_values("sample_name"), list)
-        assert sample.get_attr_values(None) is None
-
     @pytest.mark.parametrize('example_pep_cfg_path', EXAMPLE_TYPES, indirect=True)
     def test_str_repr_correctness(self, example_pep_cfg_path):
         """
