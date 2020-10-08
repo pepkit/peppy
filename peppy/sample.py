@@ -85,7 +85,7 @@ class Sample(PathExAttMap):
         """
         Serializes itself as dict object.
 
-        :pram bool add_prj_ref: whether the project reference bound do the
+        :param bool add_prj_ref: whether the project reference bound do the
             Sample object should be included in the YAML representation
         :return dict: dict representation of this Sample
         """
@@ -136,7 +136,7 @@ class Sample(PathExAttMap):
 
         :param str path: A file path to write yaml to; provide this or
             the subs_folder_path
-        :pram bool add_prj_ref: whether the project reference bound do the
+        :param bool add_prj_ref: whether the project reference bound do the
             Sample object should be included in the YAML representation
         """
         serial = self.to_dict(add_prj_ref=add_prj_ref)
