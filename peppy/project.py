@@ -517,7 +517,7 @@ class Project(PathExAttMap):
         :return str: inferred name for project.
         :raise InvalidConfigFileException: if the project lacks both a name and
             a configuration file (no basis, then, for inference)
-        :rasie InvalidConfigFileException: if specified Project name is invalid
+        :raise InvalidConfigFileException: if specified Project name is invalid
         """
         if CONFIG_KEY not in self:
             return
@@ -727,9 +727,10 @@ class Project(PathExAttMap):
             if not os.path.exists(pth):
                 raise SampleTableFileException(
                     "File does not exist: {}".format(pth))
-            read_csv_kwargs = {"engine": "python", "dtype": str,
-                               "index_col": False, "keep_default_na": False,
-                               "na_values": [""]}
+            read_csv_kwargs = {
+                "dtype": str, "index_col": False, "keep_default_na": False,
+                "na_values": [""]
+            }
             return pd.read_csv(pth, sep=infer_delimiter(pth), **read_csv_kwargs)
 
         no_metadata_msg = "No {} specified"
