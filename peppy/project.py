@@ -724,14 +724,15 @@ class Project(PathExAttMap):
             :param str pth: absolute path to the file to read
             :return pandas.DataFrame: table object
             """
-            if not os.path.exists(pth):
+            csv_kwargs = {"dtype": str, "index_col": False,
+                          "keep_default_na": False, "na_values": [""]}
+            try:
+                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
+            except Exception as e:
                 raise SampleTableFileException(
-                    "File does not exist: {}".format(pth))
-            read_csv_kwargs = {
-                "dtype": str, "index_col": False, "keep_default_na": False,
-                "na_values": [""]
-            }
-            return pd.read_csv(pth, sep=infer_delimiter(pth), **read_csv_kwargs)
+                    f"Could not read table: {pth}. "
+                    f"Caught exception: {getattr(e, 'message', repr(e))}"
+                )
 
         no_metadata_msg = "No {} specified"
         if CONFIG_KEY not in self:
