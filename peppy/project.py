@@ -2,7 +2,7 @@
 Build a Project object.
 """
 from .const import *
-from .utils import copy, make_list
+from .utils import copy, make_list, make_abs_via_cfg
 from .exceptions import *
 from .sample import Sample
 
@@ -455,7 +455,7 @@ class Project(PathExAttMap):
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments is None:
             raise TypeError(
-                "The amendment argument can not be null. To deactivate a "
+                "The amendment argument can not be null. To deactivate an "
                 "amendment use the deactivate_amendments method.")
         if not self[CONFIG_FILE_KEY]:
             raise NotImplementedError(
@@ -891,27 +891,6 @@ class Project(PathExAttMap):
         """
         return [s for s in self.samples if s[SAMPLE_NAME_ATTR] in sample_names]
 
-def _ensure_path_absolute(maybe_relpath, cfg_path):
-    """ Ensure that a possibly relative path is absolute. """
-    if not isinstance(maybe_relpath, str):
-        raise TypeError(
-            "Attempting to ensure non-text value is absolute path: {} ({})".
-                format(maybe_relpath, type(maybe_relpath)))
-    if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
-        _LOGGER.debug("Already absolute")
-        return maybe_relpath
-    # Maybe we have env vars that make the path absolute?
-    expanded = os.path.expanduser(os.path.expandvars(maybe_relpath))
-    if os.path.isabs(expanded):
-        _LOGGER.debug("Expanded: {}".format(expanded))
-        return expanded
-    # Set path to an absolute path, relative to project config.
-    config_dirpath = os.path.dirname(cfg_path)
-    _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
-    abs_path = os.path.join(config_dirpath, maybe_relpath)
-    _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
-    return abs_path
-
 
 def infer_delimiter(filepath):
     """
@@ -937,9 +916,9 @@ def _make_sections_absolute(object, sections, cfg_path):
         _LOGGER.debug("Ensuring absolute path for '{}'".format(relpath))
         # Parsed from YAML, so small space of possible datatypes
         if isinstance(relpath, list):
-            absolute = [_ensure_path_absolute(maybe_relpath, cfg_path)
+            absolute = [make_abs_via_cfg(maybe_relpath, cfg_path)
                         for maybe_relpath in relpath]
         else:
-            absolute = _ensure_path_absolute(relpath, cfg_path)
+            absolute = make_abs_via_cfg(relpath, cfg_path)
         _LOGGER.debug("Setting '{}' to '{}'".format(key, absolute))
         object[key] = absolute
