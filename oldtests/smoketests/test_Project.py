@@ -1,8 +1,10 @@
 """ Classes for peppy.Project testing """
 
-from peppy import Project
-import pytest
 import os
+
+import pytest
+
+from peppy import Project
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal@virginia.edu"

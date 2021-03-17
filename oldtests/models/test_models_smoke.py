@@ -1,10 +1,11 @@
 """ Basic smoketests for models """
 
 import logging
+
 import pytest
+
 import peppy
 from peppy import Project
-
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virgnia.edu"
@@ -16,8 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 def pytest_generate_tests(metafunc):
     """ Dynamic test case parameterization. """
     if "funcname" in metafunc.fixturenames:
-        metafunc.parametrize(
-                argnames="funcname", argvalues=["__repr__", "__str__"])
+        metafunc.parametrize(argnames="funcname", argvalues=["__repr__", "__str__"])
 
 
 @pytest.mark.usefixtures("write_project_files")
@@ -43,11 +43,12 @@ class ModelRepresentationSmokeTests:
     """ Tests for the text representation of important ADTs. """
 
     @pytest.mark.parametrize(
-            argnames="class_name",
-            argvalues=[cn for cn in peppy.__classes__
-                       if cn not in ["Project", "SnakeProject"]])
-    def test_repr_smoke(
-            self, tmpdir, class_name, basic_instance_data, funcname):
+        argnames="class_name",
+        argvalues=[
+            cn for cn in peppy.__classes__ if cn not in ["Project", "SnakeProject"]
+        ],
+    )
+    def test_repr_smoke(self, tmpdir, class_name, basic_instance_data, funcname):
         """ Object representation method successfully returns string. """
         # Note that tmpdir is used when config file needs to be written.
         cls = getattr(peppy, class_name)
@@ -59,5 +60,4 @@ class ModelRepresentationSmokeTests:
         elif funcname == "__repr__":
             assert type(result) is str
         else:
-            raise ValueError("Unexpected representation method: {}".
-                             format(funcname))
+            raise ValueError("Unexpected representation method: {}".format(funcname))

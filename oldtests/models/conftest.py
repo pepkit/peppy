@@ -1,13 +1,14 @@
 """ Configuration for modules with independent tests of models. """
 
-from collections import OrderedDict
 import copy
 import os
+from collections import OrderedDict
+
 import pandas as pd
 import pytest
 import yaml
-from peppy import SAMPLE_NAME_COLNAME
 
+from peppy import SAMPLE_NAME_COLNAME
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -40,10 +41,13 @@ BASIC_PROTOMAP = {"ATAC": "ATACSeq.py"}
 @pytest.fixture(scope="function")
 def basic_data_raw():
     """ Provide minimal collection of data for a constructor, by type. """
-    return copy.deepcopy({
+    return copy.deepcopy(
+        {
             "AttMap": {},
             "ProtocolMapper": BASIC_PROTOMAP,
-            "Sample": {SAMPLE_NAME_COLNAME: "arbitrary-sample"}})
+            "Sample": {SAMPLE_NAME_COLNAME: "arbitrary-sample"},
+        }
+    )
 
 
 @pytest.fixture(scope="function")
@@ -58,8 +62,9 @@ def basic_instance_data(request, instance_raw_data):
     :return object: basic instance data in a form accepted by its constructor
     """
     transformation_by_class = {
-            "AttMap": lambda data: data,
-            "Sample": lambda data: pd.Series(data)}
+        "AttMap": lambda data: data,
+        "Sample": lambda data: pd.Series(data),
+    }
     which_class = request.getfixturevalue("class_name")
     return transformation_by_class[which_class](instance_raw_data)
 
@@ -83,13 +88,13 @@ def instance_raw_data(request, basic_data_raw):
 def minimal_project_conf_path(tmpdir):
     """ Write minimal sample annotations and project configuration. """
     anns_file = tmpdir.join(ANNOTATIONS_FILENAME).strpath
-    df = pd.DataFrame(OrderedDict([
-        (SAMPLE_NAME_COLNAME, SAMPLE_NAMES), ("data", DATA_VALUES)]))
-    with open(anns_file, 'w') as annotations:
+    df = pd.DataFrame(
+        OrderedDict([(SAMPLE_NAME_COLNAME, SAMPLE_NAMES), ("data", DATA_VALUES)])
+    )
+    with open(anns_file, "w") as annotations:
         df.to_csv(annotations, sep=",", index=False)
     conf_file = tmpdir.join(CONFIG_FILENAME)
-    config_lines = \
-            "metadata:\n  sample_annotation: {}".format(anns_file)
+    config_lines = "metadata:\n  sample_annotation: {}".format(anns_file)
     conf_file.write(config_lines)
     return conf_file.strpath
 
@@ -98,7 +103,7 @@ def minimal_project_conf_path(tmpdir):
 def path_proj_conf_file(tmpdir, proj_conf):
     """ Write basic project configuration data and provide filepath. """
     conf_path = os.path.join(tmpdir.strpath, "project_config.yaml")
-    with open(conf_path, 'w') as conf:
+    with open(conf_path, "w") as conf:
         yaml.safe_dump(proj_conf, conf)
     return conf_path
 
@@ -111,6 +116,6 @@ def path_anns_file(request, tmpdir, sample_sheet):
         delimiter = request.getfixturevalue("delimiter")
     else:
         delimiter = ","
-    with open(filepath, 'w') as anns_file:
+    with open(filepath, "w") as anns_file:
         sample_sheet.to_csv(anns_file, sep=delimiter, index=False)
     return filepath

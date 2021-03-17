@@ -11,9 +11,22 @@ class PathsTests:
     """ Tests for the `Paths` ADT. """
 
     @pytest.mark.parametrize(
-            argnames="attr",
-            argvalues=[None, set(), [], {}, {"abc": 123},
-                       (1, 'a'), "", "str", -1, 0, 1.0, np.nan])
+        argnames="attr",
+        argvalues=[
+            None,
+            set(),
+            [],
+            {},
+            {"abc": 123},
+            (1, "a"),
+            "",
+            "str",
+            -1,
+            0,
+            1.0,
+            np.nan,
+        ],
+    )
     def test_Paths(self, attr):
         """ Check that Paths attribute can be set and returned as expected. """
         paths = Paths()

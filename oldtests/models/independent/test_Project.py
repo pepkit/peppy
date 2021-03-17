@@ -1,26 +1,28 @@
 """ Tests for the NGS Project model. """
 
 import copy
+import os
 import pickle
 import tempfile
-import os
 import warnings
 
 import mock
-from numpy import random as nprand
 import pytest
 import yaml
+from numpy import random as nprand
 
 from peppy import Project, Sample
 from peppy.const import *
-from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY
 from peppy.exceptions import MissingSubprojectError
+from peppy.project import GENOMES_KEY, NEW_PIPES_KEY, TRANSCRIPTOMES_KEY
 from peppy.sample import COL_KEY_SUFFIX
-from tests.conftest import \
-    DERIVED_COLNAMES, EXPECTED_MERGED_SAMPLE_FILES, \
-    MERGED_SAMPLE_INDICES, NUM_SAMPLES
+from tests.conftest import (
+    DERIVED_COLNAMES,
+    EXPECTED_MERGED_SAMPLE_FILES,
+    MERGED_SAMPLE_INDICES,
+    NUM_SAMPLES,
+)
 from tests.helpers import named_param
-
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -37,7 +39,8 @@ def project_config_data():
         METADATA_KEY: {
             NAME_TABLE_ATTR: "samples.csv",
             OUTDIR_KEY: "$HOME/sequencing/output",
-            NEW_PIPES_KEY: "${CODE}/pipelines"},
+            NEW_PIPES_KEY: "${CODE}/pipelines",
+        },
         DATA_SOURCES_SECTION: {"arbitrary": "placeholder/data/{filename}"},
     }
 
@@ -48,9 +51,10 @@ def pytest_generate_tests(metafunc):
         # Parameterize derived attribute tests over whether the specification
         # is explicit (vs. implied), and which default attribute to validate.
         metafunc.parametrize(
-                argnames="case_type",
-                argvalues=DerivedAttributesTests.DERIVED_ATTRIBUTES_CASE_TYPES,
-                ids=lambda case_type: "case_type={}".format(case_type))
+            argnames="case_type",
+            argvalues=DerivedAttributesTests.DERIVED_ATTRIBUTES_CASE_TYPES,
+            ids=lambda case_type: "case_type={}".format(case_type),
+        )
 
 
 class ProjectConstructorTests:
@@ -63,19 +67,26 @@ class ProjectConstructorTests:
         assert [] == list(p.samples)
 
     @pytest.mark.parametrize(
-            argnames="spec_type", argvalues=["as_null", "missing"],
-            ids=lambda spec: "spec_type={}".format(spec))
+        argnames="spec_type",
+        argvalues=["as_null", "missing"],
+        ids=lambda spec: "spec_type={}".format(spec),
+    )
     @pytest.mark.parametrize(
-            argnames="lazy", argvalues=[False, True],
-            ids=lambda lazy: "lazy={}".format(lazy))
+        argnames="lazy",
+        argvalues=[False, True],
+        ids=lambda lazy: "lazy={}".format(lazy),
+    )
     def test_no_sample_subannotation_in_config(
-            self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns):
+        self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns
+    ):
         """ Subannotation attribute remains null if config lacks subannotation. """
         metadata = proj_conf_data[METADATA_KEY]
         try:
             assert SAMPLE_SUBANNOTATIONS_KEY in metadata
         except AssertionError:
-            print("Project metadata section lacks '{}'".format(SAMPLE_SUBANNOTATIONS_KEY))
+            print(
+                "Project metadata section lacks '{}'".format(SAMPLE_SUBANNOTATIONS_KEY)
+            )
             print("All config data: {}".format(proj_conf_data))
             print("Config metadata section: {}".format(metadata))
             raise
@@ -84,17 +95,18 @@ class ProjectConstructorTests:
         elif spec_type == "missing":
             del metadata[SAMPLE_SUBANNOTATIONS_KEY]
         else:
-            raise ValueError("Unknown way to specify no merge table: {}".
-                             format(spec_type))
+            raise ValueError(
+                "Unknown way to specify no merge table: {}".format(spec_type)
+            )
         path_config_file = os.path.join(tmpdir.strpath, "project_config.yaml")
-        with open(path_config_file, 'w') as conf_file:
+        with open(path_config_file, "w") as conf_file:
             yaml.safe_dump(proj_conf_data, conf_file)
         p = Project(path_config_file, defer_sample_construction=lazy)
         assert getattr(p, SAMPLE_SUBANNOTATIONS_KEY) is None
 
     def test_counting_samples_doesnt_create_samples(
-            self, sample_annotation_lines,
-            path_project_conf, path_sample_anns):
+        self, sample_annotation_lines, path_project_conf, path_sample_anns
+    ):
         """ User can ask about sample count without creating samples. """
         # We're not parameterized in terms of Sample creation laziness here
         # because a piece of the test's essence is Sample collection absence.
@@ -105,8 +117,7 @@ class ProjectConstructorTests:
         assert p._samples is None
 
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
-    def test_sample_creation_laziness(
-            self, path_project_conf, path_sample_anns, lazy):
+    def test_sample_creation_laziness(self, path_project_conf, path_sample_anns, lazy):
         """ Project offers control over whether to create base Sample(s). """
         p = Project(path_project_conf, defer_sample_construction=lazy)
         if lazy:
@@ -115,7 +126,7 @@ class ProjectConstructorTests:
         else:
             # Eager Project construction builds Sample objects.
             assert p._samples is not None
-            with open(path_sample_anns, 'r') as anns_file:
+            with open(path_sample_anns, "r") as anns_file:
                 anns_file_lines = anns_file.readlines()
 
             # Sum excludes the header line.
@@ -124,12 +135,12 @@ class ProjectConstructorTests:
             assert all([Sample == type(s) for s in p._samples])
 
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
-    def test_sample_name_availability(
-            self, path_project_conf, path_sample_anns, lazy):
+    def test_sample_name_availability(self, path_project_conf, path_sample_anns, lazy):
         """ Sample names always available on Project. """
-        with open(path_sample_anns, 'r') as anns_file:
-            expected_sample_names = \
-                [l.split(",")[0] for l in anns_file.readlines()[1:] if l]
+        with open(path_sample_anns, "r") as anns_file:
+            expected_sample_names = [
+                l.split(",")[0] for l in anns_file.readlines()[1:] if l
+            ]
         p = Project(path_project_conf, defer_sample_construction=lazy)
         assert expected_sample_names == list(p.sample_names)
 
@@ -138,30 +149,33 @@ class ProjectRequirementsTests:
     """ Tests for a Project's set of requirements. """
 
     def test_lacks_sample_annotation(
-            self, project_config_data, env_config_filepath, tmpdir):
+        self, project_config_data, env_config_filepath, tmpdir
+    ):
         """ Project can be built without sample annotations. """
         # Remove sample annotations KV pair from config data for this test.
         del project_config_data[METADATA_KEY][NAME_TABLE_ATTR]
         # Write the (sans-annotations) config and assert Project is created.
-        conf_path = _write_project_config(
-            project_config_data, dirpath=tmpdir.strpath)
+        conf_path = _write_project_config(project_config_data, dirpath=tmpdir.strpath)
         prj = Project(conf_path)
         assert isinstance(prj, Project)
 
     def test_minimal_configuration_doesnt_fail(
-            self, minimal_project_conf_path, env_config_filepath):
+        self, minimal_project_conf_path, env_config_filepath
+    ):
         """ Project ctor requires minimal config and default environment. """
         Project(minimal_project_conf_path)
 
     def test_minimal_configuration_name_inference(
-            self, tmpdir, minimal_project_conf_path, env_config_filepath):
+        self, tmpdir, minimal_project_conf_path, env_config_filepath
+    ):
         """ Project infers name from where its configuration lives. """
         project = Project(minimal_project_conf_path)
         _, expected_name = os.path.split(tmpdir.strpath)
         assert expected_name == project.name
 
     def test_minimal_configuration_output_dir(
-            self, tmpdir, minimal_project_conf_path, env_config_filepath):
+        self, tmpdir, minimal_project_conf_path, env_config_filepath
+    ):
         """ Project infers output path from its configuration location. """
         project = Project(minimal_project_conf_path)
         assert tmpdir.strpath == project.output_dir
@@ -173,27 +187,28 @@ class DerivedAttributesTests:
     ADDITIONAL_DERIVED_ATTRIBUTES = ["arbitrary1", "filler2", "placeholder3"]
     DERIVED_ATTRIBUTES_CASE_TYPES = ["implicit", "disjoint", "intersection"]
 
-    def create_project(
-            self, project_config_data, case_type, dirpath):
+    def create_project(self, project_config_data, case_type, dirpath):
         """
         For a test case, determine expectations and create Project instance.
-        
-        :param dict project_config_data: the actual data to write to the 
+
+        :param dict project_config_data: the actual data to write to the
             Project configuration file
-        :param str default_env_path: path to the default environment config 
+        :param str default_env_path: path to the default environment config
             file to pass to Project constructor
-        :param str case_type: type of test case to execute; this determines 
+        :param str case_type: type of test case to execute; this determines
             how to specify the derived attribute in the config file
         :param str dirpath: path in which to write config file
-        :return (Iterable[str], Project): collection of names of derived 
+        :return (Iterable[str], Project): collection of names of derived
             attribute to expect, along with Project instance with which to test
         """
 
         # Ensure valid parameterization.
         if case_type not in self.DERIVED_ATTRIBUTES_CASE_TYPES:
             raise ValueError(
-                "Unexpected derived_attributes case type: '{}' (known={})".
-                format(case_type, self.DERIVED_ATTRIBUTES_CASE_TYPES))
+                "Unexpected derived_attributes case type: '{}' (known={})".format(
+                    case_type, self.DERIVED_ATTRIBUTES_CASE_TYPES
+                )
+            )
 
         # Parameterization specifies expectation and explicit specification.
         expected_derived_attributes = copy.copy(Project.DERIVED_ATTRIBUTES_DEFAULT)
@@ -201,42 +216,46 @@ class DerivedAttributesTests:
             # Negative control; ensure config data lacks derived attributes.
             assert "derived_attributes" not in project_config_data
         else:
-            explicit_derived_attributes = \
-                    copy.copy(self.ADDITIONAL_DERIVED_ATTRIBUTES)
+            explicit_derived_attributes = copy.copy(self.ADDITIONAL_DERIVED_ATTRIBUTES)
             expected_derived_attributes.extend(self.ADDITIONAL_DERIVED_ATTRIBUTES)
             # Determine explicit inclusion of default derived attributes.
             if case_type == "intersection":
-                explicit_derived_attributes.extend(
-                        Project.DERIVED_ATTRIBUTES_DEFAULT)
+                explicit_derived_attributes.extend(Project.DERIVED_ATTRIBUTES_DEFAULT)
             project_config_data["derived_attributes"] = explicit_derived_attributes
 
         # Write the config and build the Project.
-        conf_file_path = _write_project_config(
-                project_config_data, dirpath=dirpath)
+        conf_file_path = _write_project_config(project_config_data, dirpath=dirpath)
         with mock.patch("peppy.project.Project.parse_sample_sheet"):
             project = Project(conf_file_path)
         return expected_derived_attributes, project
 
-    def test_default_derived_attributes_always_present(self,
-            env_config_filepath, project_config_data, case_type, tmpdir):
+    def test_default_derived_attributes_always_present(
+        self, env_config_filepath, project_config_data, case_type, tmpdir
+    ):
         """ Explicit or implicit, default derived attributes are always there. """
 
         expected_derived_attributes, project = self.create_project(
-                project_config_data=project_config_data,
-                case_type=case_type, dirpath=tmpdir.strpath)
+            project_config_data=project_config_data,
+            case_type=case_type,
+            dirpath=tmpdir.strpath,
+        )
 
         # Rough approximation of order-agnostic validation of
         # presence and number agreement for all elements.
         assert len(expected_derived_attributes) == len(project.derived_attributes)
         assert set(expected_derived_attributes) == set(project.derived_attributes)
 
-    def test_default_derived_attributes_not_duplicated(self,
-            env_config_filepath, project_config_data, case_type, tmpdir):
+    def test_default_derived_attributes_not_duplicated(
+        self, env_config_filepath, project_config_data, case_type, tmpdir
+    ):
         """ Default derived attributes are not added if already present. """
         from collections import Counter
+
         _, project = self.create_project(
-                project_config_data=project_config_data,
-                case_type=case_type, dirpath=tmpdir.strpath)
+            project_config_data=project_config_data,
+            case_type=case_type,
+            dirpath=tmpdir.strpath,
+        )
         num_occ_by_derived_attribute = Counter(project.derived_attributes)
         for default_derived_colname in Project.DERIVED_ATTRIBUTES_DEFAULT:
             assert 1 == num_occ_by_derived_attribute[default_derived_colname]
@@ -248,162 +267,194 @@ class ProjectPipelineArgstringTests:
     # Data to add to project config based on test case parameterization
     PIPELINE_ARGS_FLAGS_ONLY = {
         "ATACSeq.py": {"-D": None},
-        "rrbs.py": {"--epilog": None, "--use-strand": None}
+        "rrbs.py": {"--epilog": None, "--use-strand": None},
     }
     PIPELINE_ARGS_OPTIONS_ONLY = {
         "ATACSeq.py": {"--frip-peaks": "/atac/metadata/CD4_hotSpot.bed"},
-        "rrbs.py": {"--rrbs-fill": "4", "--quality-threshold": "30"}
+        "rrbs.py": {"--rrbs-fill": "4", "--quality-threshold": "30"},
     }
     # Combine the flags- and options-only argument maps.
     PIPELINE_ARGS_MIXED = copy.deepcopy(PIPELINE_ARGS_FLAGS_ONLY)
     for pipeline, args_data in PIPELINE_ARGS_OPTIONS_ONLY.items():
         PIPELINE_ARGS_MIXED[pipeline].update(**args_data)
-    
-    # Map heterogeneity keyword argument for test parameterization 
+
+    # Map heterogeneity keyword argument for test parameterization
     # to project config data and expected argstring components.
     DATA_BY_CASE_TYPE = {
-        "flags": PIPELINE_ARGS_FLAGS_ONLY, 
-        "options": PIPELINE_ARGS_OPTIONS_ONLY, 
-        "mixed": PIPELINE_ARGS_MIXED}
+        "flags": PIPELINE_ARGS_FLAGS_ONLY,
+        "options": PIPELINE_ARGS_OPTIONS_ONLY,
+        "mixed": PIPELINE_ARGS_MIXED,
+    }
     EXPECTATIONS_BY_CASE_TYPE = {
         # Just the flags themselves are components.
-        "flags": {pipe: set(flags_encoding.keys())
-                  for pipe, flags_encoding
-                  in PIPELINE_ARGS_FLAGS_ONLY.items()},
+        "flags": {
+            pipe: set(flags_encoding.keys())
+            for pipe, flags_encoding in PIPELINE_ARGS_FLAGS_ONLY.items()
+        },
         # Pair option with argument for non-flag command components.
-        "options": {pipe: set(opts_encoding.items())
-                    for pipe, opts_encoding
-                    in PIPELINE_ARGS_OPTIONS_ONLY.items()},
+        "options": {
+            pipe: set(opts_encoding.items())
+            for pipe, opts_encoding in PIPELINE_ARGS_OPTIONS_ONLY.items()
+        },
         # Null-valued KV pairs represent flags, not options.
-        "mixed": {pipe: {opt if arg is None else (opt, arg)
-                         for opt, arg in mixed_encoding.items()}
-                  for pipe, mixed_encoding in PIPELINE_ARGS_MIXED.items()}}
+        "mixed": {
+            pipe: {
+                opt if arg is None else (opt, arg)
+                for opt, arg in mixed_encoding.items()
+            }
+            for pipe, mixed_encoding in PIPELINE_ARGS_MIXED.items()
+        },
+    }
 
-    @pytest.mark.parametrize(argnames="pipeline",
-                             argvalues=["arb-pipe-1", "dummy_pipeline_2"])
-    def test_no_pipeline_args(self, tmpdir, pipeline,
-                              env_config_filepath, project_config_data):
+    @pytest.mark.parametrize(
+        argnames="pipeline", argvalues=["arb-pipe-1", "dummy_pipeline_2"]
+    )
+    def test_no_pipeline_args(
+        self, tmpdir, pipeline, env_config_filepath, project_config_data
+    ):
         """ Project need not specify pipeline arguments. """
         # Project-level argstring is empty if pipeline_args section is absent.
         assert [""] == self.observed_argstring_elements(
-                project_config_data, pipeline, 
-                confpath=tmpdir.strpath, envpath=env_config_filepath)
+            project_config_data,
+            pipeline,
+            confpath=tmpdir.strpath,
+            envpath=env_config_filepath,
+        )
 
     @pytest.mark.parametrize(
-            argnames="pipeline", argvalues=["not-mapped-1", "unmapped_2"])
+        argnames="pipeline", argvalues=["not-mapped-1", "unmapped_2"]
+    )
     @pytest.mark.parametrize(
-            argnames=PIPE_ARGS_SECTION,
-            argvalues=[PIPELINE_ARGS_FLAGS_ONLY,
-                       PIPELINE_ARGS_OPTIONS_ONLY, PIPELINE_ARGS_MIXED],
-            ids=lambda pipe_args: "pipeline_args: {}".format(pipe_args))
+        argnames=PIPE_ARGS_SECTION,
+        argvalues=[
+            PIPELINE_ARGS_FLAGS_ONLY,
+            PIPELINE_ARGS_OPTIONS_ONLY,
+            PIPELINE_ARGS_MIXED,
+        ],
+        ids=lambda pipe_args: "pipeline_args: {}".format(pipe_args),
+    )
     def test_pipeline_args_different_pipeline(
-            self, tmpdir, pipeline, pipeline_args,
-            env_config_filepath, project_config_data):
+        self, tmpdir, pipeline, pipeline_args, env_config_filepath, project_config_data
+    ):
         """ Project-level argstring is empty for unmapped pipeline name. """
         # Project-level argstring is empty if pipeline_args section is absent.
         project_config_data[PIPE_ARGS_SECTION] = pipeline_args
         observed_argstring_elements = self.observed_argstring_elements(
-                project_config_data, pipeline, 
-                confpath=tmpdir.strpath, envpath=env_config_filepath)
+            project_config_data,
+            pipeline,
+            confpath=tmpdir.strpath,
+            envpath=env_config_filepath,
+        )
         assert [""] == observed_argstring_elements
 
+    @pytest.mark.parametrize(argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
     @pytest.mark.parametrize(
-            argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
-    @pytest.mark.parametrize(
-            argnames="optargs", argvalues=EXPECTATIONS_BY_CASE_TYPE.keys())
+        argnames="optargs", argvalues=EXPECTATIONS_BY_CASE_TYPE.keys()
+    )
     def test_pipeline_args_pipeline_match(
-            self, pipeline, optargs, tmpdir, 
-            project_config_data, env_config_filepath):
+        self, pipeline, optargs, tmpdir, project_config_data, env_config_filepath
+    ):
         """ Project does flags-only, options-only, or mixed pipeline_args. """
 
         # Allow parameterization to determine pipeline_args section content.
         project_config_data[PIPE_ARGS_SECTION] = self.DATA_BY_CASE_TYPE[optargs]
 
         # Expectation arises from section content and requested pipeline.
-        expected_argstring_components = \
-                self.EXPECTATIONS_BY_CASE_TYPE[optargs][pipeline]
+        expected_argstring_components = self.EXPECTATIONS_BY_CASE_TYPE[optargs][
+            pipeline
+        ]
 
         # Write config, make Project, and request argstring.
         observed_argstring_elements = self.observed_argstring_elements(
-                project_config_data, pipeline,
-                confpath=tmpdir.strpath, envpath=env_config_filepath)
+            project_config_data,
+            pipeline,
+            confpath=tmpdir.strpath,
+            envpath=env_config_filepath,
+        )
 
         # Format the flags/opt-arg pairs for validation.
         observed_argstring_elements = self._parse_flags_and_options(
-                observed_argstring_elements)
+            observed_argstring_elements
+        )
 
         assert expected_argstring_components == observed_argstring_elements
 
     @pytest.mark.parametrize(
-            argnames="default", 
-            argvalues=[{"-D": None},
-                       {"--verbosity": "1", "-D": None, "--dirty": None}])
+        argnames="default",
+        argvalues=[{"-D": None}, {"--verbosity": "1", "-D": None, "--dirty": None}],
+    )
     @pytest.mark.parametrize(
-            argnames="pipeline", 
-            argvalues=["missing1", "arbitrary2"] + 
-                      list(PIPELINE_ARGS_MIXED.keys()))
+        argnames="pipeline",
+        argvalues=["missing1", "arbitrary2"] + list(PIPELINE_ARGS_MIXED.keys()),
+    )
     def test_default_only(
-            self, default, pipeline, tmpdir, 
-            project_config_data, env_config_filepath):
+        self, default, pipeline, tmpdir, project_config_data, env_config_filepath
+    ):
         """ Project always adds any default pipeline arguments. """
         project_config_data[PIPE_ARGS_SECTION] = {"default": default}
-        expected_components = {opt if arg is None else (opt, arg)
-                               for opt, arg in default.items()}
+        expected_components = {
+            opt if arg is None else (opt, arg) for opt, arg in default.items()
+        }
         observed_argstring_elements = self.observed_argstring_elements(
-                project_config_data, pipeline, 
-                confpath=tmpdir.strpath, envpath=env_config_filepath)
-        observed_argstring_elements = \
-                self._parse_flags_and_options(observed_argstring_elements)
+            project_config_data,
+            pipeline,
+            confpath=tmpdir.strpath,
+            envpath=env_config_filepath,
+        )
+        observed_argstring_elements = self._parse_flags_and_options(
+            observed_argstring_elements
+        )
         assert expected_components == observed_argstring_elements
 
     @pytest.mark.parametrize(
-            argnames="default", 
-            argvalues=[{"-D": None},
-                       {"--verbosity": "1", "-D": None, "--dirty": None}])
-    @pytest.mark.parametrize(
-            argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
+        argnames="default",
+        argvalues=[{"-D": None}, {"--verbosity": "1", "-D": None, "--dirty": None}],
+    )
+    @pytest.mark.parametrize(argnames="pipeline", argvalues=PIPELINE_ARGS_MIXED.keys())
     def test_default_plus_non_default(
-            self, default, pipeline, tmpdir,
-            project_config_data, env_config_filepath):
+        self, default, pipeline, tmpdir, project_config_data, env_config_filepath
+    ):
         """ Default arguments apply to all pipelines; others are specific. """
         case_type = "mixed"
         pipeline_args = copy.deepcopy(self.DATA_BY_CASE_TYPE[case_type])
         pipeline_args["default"] = default
         project_config_data[PIPE_ARGS_SECTION] = pipeline_args
         observed_components = self.observed_argstring_elements(
-                project_config_data, pipeline,
-                confpath=tmpdir.strpath, envpath=env_config_filepath)
-        observed_components = \
-                self._parse_flags_and_options(observed_components)
-        expected_from_default = \
-                {opt if arg is None else (opt, arg)
-                 for opt, arg in default.items()}
-        expected_from_pipeline = \
-                self.EXPECTATIONS_BY_CASE_TYPE[case_type][pipeline]
+            project_config_data,
+            pipeline,
+            confpath=tmpdir.strpath,
+            envpath=env_config_filepath,
+        )
+        observed_components = self._parse_flags_and_options(observed_components)
+        expected_from_default = {
+            opt if arg is None else (opt, arg) for opt, arg in default.items()
+        }
+        expected_from_pipeline = self.EXPECTATIONS_BY_CASE_TYPE[case_type][pipeline]
         expected_components = expected_from_default | expected_from_pipeline
         assert expected_components == observed_components
 
-    def test_path_expansion(
-            self, tmpdir, project_config_data, env_config_filepath):
+    def test_path_expansion(self, tmpdir, project_config_data, env_config_filepath):
         """ Path values in pipeline_args expand environment variables. """
         pipeline = "wgbs.py"
         genomes_extension = "mm10/indexed_epilog/mm10_cg.tsv.gz"
         genomes_substitution = os.path.expandvars("$HOME")
-        pipeline_args = {pipeline: {
-                "--positions": "$HOME/{}".format(genomes_extension)}}
+        pipeline_args = {
+            pipeline: {"--positions": "$HOME/{}".format(genomes_extension)}
+        }
         project_config_data[PIPE_ARGS_SECTION] = pipeline_args
-        expected = "--positions {}/{}".format(genomes_substitution, 
-                                              genomes_extension)
+        expected = "--positions {}/{}".format(genomes_substitution, genomes_extension)
         observed = self.observed_argstring_elements(
-                project_config_data, pipeline, 
-                confpath=tmpdir.strpath, envpath=env_config_filepath)
+            project_config_data,
+            pipeline,
+            confpath=tmpdir.strpath,
+            envpath=env_config_filepath,
+        )
         assert expected.split(" ") == observed
 
-    def observed_argstring_elements(
-            self, confdata, pipeline, confpath, envpath):
+    def observed_argstring_elements(self, confdata, pipeline, confpath, envpath):
         """
         Write config, build project, and validate argstring for pipeline.
-        
+
         :param dict confdata: project configuration data
         :param str pipeline: name of pipeline for which to build argstring
         :param str confpath: where to write project config file
@@ -418,32 +469,31 @@ class ProjectPipelineArgstringTests:
 
         argstring = project.get_arg_string(pipeline)
         return argstring.split(" ")
-    
+
     @staticmethod
     def _parse_flags_and_options(command_elements):
         """
         Differentiate flags and option/argument pairs for validation.
-        
-        We need a way to assert that each option is adjacent to and precedes 
-        its argument. This creates some difficulty since we want to be 
-        disregard order of the flags/option-argument pairs with respect to one 
-        another when we validate. The desire to validate a mixture of flags 
-        and option/argument pairs precludes some indexing-based approaches to 
-        the problem. Two strategies are most apparent, each with a minor 
-        pitfall. We can regard any command element starting with a hyphen as 
-        a flag or an option, and all others as arguments, but this excludes 
-        the possibility of negative integers as arguments. Or we could assume 
-        that each element with a double-hyphen prefix takes and argument, but 
+
+        We need a way to assert that each option is adjacent to and precedes
+        its argument. This creates some difficulty since we want to be
+        disregard order of the flags/option-argument pairs with respect to one
+        another when we validate. The desire to validate a mixture of flags
+        and option/argument pairs precludes some indexing-based approaches to
+        the problem. Two strategies are most apparent, each with a minor
+        pitfall. We can regard any command element starting with a hyphen as
+        a flag or an option, and all others as arguments, but this excludes
+        the possibility of negative integers as arguments. Or we could assume
+        that each element with a double-hyphen prefix takes and argument, but
         this seems even less reasonable. Let's settle on the first strategy.
 
         :param Iterable[str] command_elements: components of a command
-        :return Iterable[str | (str, str)]: collection of flags or pairs 
+        :return Iterable[str | (str, str)]: collection of flags or pairs
             of option and argument
         """
         # Determine which positions appear to hold an argument
         # rather than a flag or an option name.
-        is_arg = [not cmd_elem.startswith("-")
-                  for cmd_elem in command_elements]
+        is_arg = [not cmd_elem.startswith("-") for cmd_elem in command_elements]
 
         parsed_command_elements = set()
 
@@ -456,8 +506,7 @@ class ProjectPipelineArgstringTests:
                 # Could be in final position
                 if is_arg[i + 1]:
                     # Pair option with argument.
-                    parsed_command_elements.add(
-                            (cmd_elem, command_elements[i + 1]))
+                    parsed_command_elements.add((cmd_elem, command_elements[i + 1]))
                 else:
                     # Add the flag.
                     parsed_command_elements.add(cmd_elem)
@@ -470,50 +519,52 @@ class ProjectPipelineArgstringTests:
 
 @pytest.mark.usefixtures("write_project_files")
 class ProjCtorTest:
-
-    @pytest.mark.parametrize(argnames="attr_name",
-                             argvalues=["required_inputs", "all_input_attr"])
+    @pytest.mark.parametrize(
+        argnames="attr_name", argvalues=["required_inputs", "all_input_attr"]
+    )
     def test_sample_required_inputs_not_set(self, proj, attr_name):
         """ Samples' inputs are not set in `Project` ctor. """
         with pytest.raises(AttributeError):
             getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
 
-    @pytest.mark.parametrize(argnames="sample_index",
-                             argvalues=MERGED_SAMPLE_INDICES)
+    @pytest.mark.parametrize(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
     def test_merge_samples_positive(self, proj, sample_index):
         """ Samples annotation lines say only sample 'b' should be merged. """
         assert proj.samples[sample_index].merged
 
-    @pytest.mark.parametrize(argnames="sample_index",
-                             argvalues=set(range(NUM_SAMPLES)) -
-                                       MERGED_SAMPLE_INDICES)
+    @pytest.mark.parametrize(
+        argnames="sample_index",
+        argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES,
+    )
     def test_merge_samples_negative(self, proj, sample_index):
         assert not proj.samples[sample_index].merged
 
-    @pytest.mark.parametrize(argnames="sample_index",
-                             argvalues=MERGED_SAMPLE_INDICES)
+    @pytest.mark.parametrize(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
     def test_data_sources_derivation(self, proj, sample_index):
         """ Samples in merge file, check data_sources --> derived_attributes. """
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
         required = set(DERIVED_COLNAMES)
-        observed = {k for k in proj.samples[sample_index].merged_cols.keys()
-                    if k != "col_modifier" and not k.endswith(COL_KEY_SUFFIX)}
+        observed = {
+            k
+            for k in proj.samples[sample_index].merged_cols.keys()
+            if k != "col_modifier" and not k.endswith(COL_KEY_SUFFIX)
+        }
         # Observed may include additional things (like auto-added subsample_name)
         assert required == (required & observed)
 
     @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
-    def test_derived_attributes_sample_subannotation_sample(
-            self, proj, sample_index):
+    def test_derived_attributes_sample_subannotation_sample(self, proj, sample_index):
         """ Make sure derived attributes works on merged table. """
-        observed_merged_sample_filepaths = \
-            [os.path.basename(f) for f in
-             proj.samples[sample_index].file2.split(" ")]
-        assert EXPECTED_MERGED_SAMPLE_FILES == \
-               observed_merged_sample_filepaths
+        observed_merged_sample_filepaths = [
+            os.path.basename(f) for f in proj.samples[sample_index].file2.split(" ")
+        ]
+        assert EXPECTED_MERGED_SAMPLE_FILES == observed_merged_sample_filepaths
 
-    @named_param(argnames="sample_index",
-                 argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES)
+    @named_param(
+        argnames="sample_index",
+        argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES,
+    )
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
         """ Samples not in the `subsample_table` lack merged columns. """
         # Assert the negative to cover empty dict/AttMap/None/etc.
@@ -522,15 +573,17 @@ class ProjCtorTest:
     def test_duplicate_derived_attributes_still_derived(self, proj):
         """ Duplicated derived attributes can still be derived. """
         sample_index = 2
-        observed_nonmerged_col_basename = \
-            os.path.basename(proj.samples[sample_index].nonmerged_col)
+        observed_nonmerged_col_basename = os.path.basename(
+            proj.samples[sample_index].nonmerged_col
+        )
 
         # DEBUG
         print("TABLE:\n{}".format(proj.sample_table))
 
         assert "c.txt" == observed_nonmerged_col_basename
         assert "" == proj.samples[sample_index].locate_data_source(
-                proj.data_sources, 'file')
+            proj.data_sources, "file"
+        )
 
 
 class SubprojectActivationDeactivationTest:
@@ -538,8 +591,10 @@ class SubprojectActivationDeactivationTest:
 
     MARK_NAME = "marker"
     SUBPROJ_SECTION = {
-        "neurons": {MARK_NAME: "NeuN"}, "astrocytes": {MARK_NAME: "GFAP"},
-        "oligodendrocytes": {MARK_NAME: "NG2"}, "microglia": {MARK_NAME: "Iba1"}
+        "neurons": {MARK_NAME: "NeuN"},
+        "astrocytes": {MARK_NAME: "GFAP"},
+        "oligodendrocytes": {MARK_NAME: "NG2"},
+        "microglia": {MARK_NAME: "Iba1"},
     }
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
@@ -589,18 +644,23 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize(
         ["super_data", "sub_data", "preserved"],
-        [({"a": "1", "b": "2"}, {"c": "3"}, ["a", "b"]),
-         ({"a": "1", "b": "2"}, {"b": "1"}, ["a"])]
+        [
+            ({"a": "1", "b": "2"}, {"c": "3"}, ["a", "b"]),
+            ({"a": "1", "b": "2"}, {"b": "1"}, ["a"]),
+        ],
     )
     def test_sp_act_preserves_nonoverlapping_entries(
-            self, tmpdir, super_data, sub_data, preserved):
+        self, tmpdir, super_data, sub_data, preserved
+    ):
         """ Existing entries not in subproject should be kept as-is. """
         sp = "sub"
         meta_key = METADATA_KEY
-        conf_data = {meta_key: super_data,
-                     SUBPROJECTS_SECTION: {sp: {meta_key: sub_data}}}
+        conf_data = {
+            meta_key: super_data,
+            SUBPROJECTS_SECTION: {sp: {meta_key: sub_data}},
+        }
         conf_file = tmpdir.join("conf.yaml").strpath
-        with open(conf_file, 'w') as f:
+        with open(conf_file, "w") as f:
             yaml.dump(conf_data, f)
         p = Project(conf_file)
         originals = [(k, p[meta_key][k]) for k in preserved]
@@ -649,7 +709,7 @@ class SubprojectActivationDeactivationTest:
         conf_data = {METADATA_KEY: {}}
         if incl_subs:
             conf_data.update(**{SUBPROJECTS_SECTION: cls.SUBPROJ_SECTION})
-        with open(conf_file_path, 'w') as f:
+        with open(conf_file_path, "w") as f:
             yaml.safe_dump(conf_data, f)
         return Project(conf_file_path)
 
@@ -660,11 +720,21 @@ class ProjectWarningTests:
 
     @pytest.mark.parametrize(
         "ideally_implied_mappings",
-        [{}, {GENOMES_KEY: _GENOMES}, {TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES},
-         {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES}])
+        [
+            {},
+            {GENOMES_KEY: _GENOMES},
+            {TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES},
+            {GENOMES_KEY: _GENOMES, TRANSCRIPTOMES_KEY: _TRANSCRIPTOMES},
+        ],
+    )
     def test_suggests_implied_attributes(
-        self, recwarn, tmpdir, path_sample_anns,
-        project_config_data, ideally_implied_mappings):
+        self,
+        recwarn,
+        tmpdir,
+        path_sample_anns,
+        project_config_data,
+        ideally_implied_mappings,
+    ):
         """ Assemblies directly in proj conf (not implied) is deprecated. """
 
         # Add the mappings parameterization to the config data.
@@ -673,34 +743,48 @@ class ProjectWarningTests:
 
         # Write the config file.
         conf_file = tmpdir.join("proj_conf.yaml").strpath
-        assert not os.path.isfile(conf_file), \
-            "Test project temp config file already exists: {}".format(conf_file)
-        with open(conf_file, 'w') as cf:
+        assert not os.path.isfile(
+            conf_file
+        ), "Test project temp config file already exists: {}".format(conf_file)
+        with open(conf_file, "w") as cf:
             yaml.safe_dump(conf_data, cf)
 
         # (Hopefully) generate the warnings.
-        assert 0 == len(recwarn)           # Ensure a fresh start.
-        warnings.simplefilter('always')    # Allow DeprecationWarning capture.
-        Project(conf_file)                 # Generate the warning(s).
-        msgs = [str(w.message) for w in recwarn    # Grab deprecation messages.
-                if isinstance(w.message, DeprecationWarning)]
-        assert len(ideally_implied_mappings) == len(msgs)    # 1:1 warnings
+        assert 0 == len(recwarn)  # Ensure a fresh start.
+        warnings.simplefilter("always")  # Allow DeprecationWarning capture.
+        Project(conf_file)  # Generate the warning(s).
+        msgs = [
+            str(w.message)
+            for w in recwarn  # Grab deprecation messages.
+            if isinstance(w.message, DeprecationWarning)
+        ]
+        assert len(ideally_implied_mappings) == len(msgs)  # 1:1 warnings
         for k in ideally_implied_mappings:
             # Each section that should be implied should generate exactly 1
             # warning; check message for content then remove it from the pool.
-            matched = [m for m in msgs if k in m and
-                       IMPLICATIONS_DECLARATION in m]
+            matched = [m for m in msgs if k in m and IMPLICATIONS_DECLARATION in m]
             assert 1 == len(matched)
             msgs.remove(matched[0])
 
-    @pytest.mark.parametrize("assembly_implications",
-        [{"genome": {"organism": _GENOMES}},
-         {"transcriptome": {"organism": _TRANSCRIPTOMES}},
-         {"genome": {"organism": _GENOMES},
-           "transcriptome": {"organism": _TRANSCRIPTOMES}}])
+    @pytest.mark.parametrize(
+        "assembly_implications",
+        [
+            {"genome": {"organism": _GENOMES}},
+            {"transcriptome": {"organism": _TRANSCRIPTOMES}},
+            {
+                "genome": {"organism": _GENOMES},
+                "transcriptome": {"organism": _TRANSCRIPTOMES},
+            },
+        ],
+    )
     def test_no_warning_if_assemblies_are_implied(
-        self, recwarn, tmpdir, path_sample_anns,
-        project_config_data, assembly_implications):
+        self,
+        recwarn,
+        tmpdir,
+        path_sample_anns,
+        project_config_data,
+        assembly_implications,
+    ):
         """ Assemblies declaration within implied columns is not deprecated. """
 
         # Add the mappings parameterization to the config data.
@@ -709,17 +793,19 @@ class ProjectWarningTests:
 
         # Write the config file.
         conf_file = tmpdir.join("proj_conf.yaml").strpath
-        assert not os.path.isfile(conf_file), \
-            "Test project temp config file already exists: {}".format(conf_file)
-        with open(conf_file, 'w') as cf:
+        assert not os.path.isfile(
+            conf_file
+        ), "Test project temp config file already exists: {}".format(conf_file)
+        with open(conf_file, "w") as cf:
             yaml.safe_dump(conf_data, cf)
 
         # Check that there are no warnings before or after test.
         assert 0 == len(recwarn)
-        warnings.simplefilter('always')
+        warnings.simplefilter("always")
         Project(conf_file)
-        num_yaml_warns = sum(1 for w in recwarn if
-                             issubclass(w.category, yaml.YAMLLoadWarning))
+        num_yaml_warns = sum(
+            1 for w in recwarn if issubclass(w.category, yaml.YAMLLoadWarning)
+        )
         assert 0 == (len(recwarn) - num_yaml_warns)
 
 
@@ -747,7 +833,7 @@ def _write_project_config(config_data, dirpath, filename="proj-conf.yaml"):
     :return str: path to config file written
     """
     conf_file_path = os.path.join(dirpath, filename)
-    with open(conf_file_path, 'w') as conf_file:
+    with open(conf_file_path, "w") as conf_file:
         yaml.safe_dump(config_data, conf_file)
     return conf_file_path
 

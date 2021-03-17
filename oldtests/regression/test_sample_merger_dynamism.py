@@ -1,13 +1,14 @@
 """ Tests of responsiveness of sample merger """
 
-from collections import Iterable, Mapping
 import os
+from collections import Iterable, Mapping
+
 import pytest
 import yaml
+
 from peppy import *
 from peppy.const import *
 from peppy.project import NEW_PIPES_KEY
-
 
 ANNS_NAME = "ann.csv"
 PLIF_NAME = "plif.yaml"
@@ -19,7 +20,7 @@ def pl_iface(tmpdir):
     """ Provide test case with path to written pipeline interface file. """
     data = {}
     fp = tmpdir.join(PLIF_NAME).strpath
-    with open(fp, 'w') as f:
+    with open(fp, "w") as f:
         yaml.dump(data, f)
     return fp
 
@@ -35,7 +36,9 @@ ChIP-seq_human_CTCF_SE,ChIP-seq,chip-seq_SE.bam,microtest,single
 ChIP-seq_human_H3K27ac_PE,ChIP-seq,chip-seq_PE.bam,microtest,paired
 ChIP-seq_human_H3K27ac_SE,ChIP-seq,chip-seq_SE.bam,microtest,single
 ChIPmentation_human_CTCF_PE,ChIPmentation,chipmentation_PE.bam,microtest,paired
-ChIPmentation_human_CTCF_SE,ChIPmentation,chipmentation_SE.bam,microtest,single""".splitlines(True)
+ChIPmentation_human_CTCF_SE,ChIPmentation,chipmentation_SE.bam,microtest,single""".splitlines(
+        True
+    )
     return _makefile(tmpdir, ANNS_NAME, lines, newline=False)
 
 
@@ -50,18 +53,21 @@ def conf_file(tmpdir, annsdata, pl_iface):
         METADATA_KEY: {
             OUTDIR_KEY: mainout,
             SAMPLE_ANNOTATIONS_KEY: annsdata,
-            NEW_PIPES_KEY: pl_iface
+            NEW_PIPES_KEY: pl_iface,
         },
         DERIVATIONS_DECLARATION: "data_source",
         CONSTANTS_DECLARATION: {constant: 0.1},
-        DATA_SOURCES_SECTION: {"microtest": os.path.join(
-            "..", "..", "microtest-master", "data", "{filename}")},
+        DATA_SOURCES_SECTION: {
+            "microtest": os.path.join(
+                "..", "..", "microtest-master", "data", "{filename}"
+            )
+        },
         SUBPROJECTS_SECTION: {
             SUBPROJECT_NAME: {
                 METADATA_KEY: {OUTDIR_KEY: subout},
-                CONSTANTS_DECLARATION: {constant: 0.5}
+                CONSTANTS_DECLARATION: {constant: 0.5},
             }
-        }
+        },
     }
     return _makefile(tmpdir, "conf.yaml", data)
 
@@ -85,17 +91,23 @@ def _infer_write(data, newline=False):
         a file stream, possibly returning a value
     """
     if isinstance(data, Mapping):
+
         def write(d, f):
             yaml.dump(d, f)
+
     else:
         make_line = (lambda l: l + "\n") if newline else (lambda l: l)
         if isinstance(data, str):
+
             def write(d, f):
                 f.write(make_line(d))
+
         elif isinstance(data, Iterable):
+
             def write(d, f):
                 for l in d:
                     f.write(make_line(l))
+
         else:
             raise TypeError("Unexpected data structure type: {}".format(type(data)))
     return write
@@ -113,6 +125,6 @@ def _makefile(tmp, filename, data, newline=False):
     """
     fp = tmp.join(filename).strpath
     write = _infer_write(data, newline)
-    with open(fp, 'w') as f:
+    with open(fp, "w") as f:
         write(data, f)
     return fp

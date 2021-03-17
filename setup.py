@@ -1,20 +1,20 @@
 #! /usr/bin/env python
 
 import os
-from setuptools import setup
 import sys
 
+from setuptools import setup
 
 REQDIR = "requirements"
 
 
 def read_reqs(reqs_name):
     deps = []
-    with open(os.path.join(REQDIR, "requirements-{}.txt".format(reqs_name)), 'r') as f:
+    with open(os.path.join(REQDIR, "requirements-{}.txt".format(reqs_name)), "r") as f:
         for l in f:
             if not l.strip():
                 continue
-            #deps.append(l.split("=")[0].rstrip("<>"))
+            # deps.append(l.split("=")[0].rstrip("<>"))
             deps.append(l)
     return deps
 
@@ -36,15 +36,19 @@ else:
     DEPENDENCIES.append("numexpr>=2.6.2")
 
 # 2to3
-if sys.version_info >= (3, ):
+if sys.version_info >= (3,):
     extra["use_2to3"] = True
 extra["install_requires"] = DEPENDENCIES
 
 
 # Additional files to include with package
 def get_static(name, condition=None):
-    static = [os.path.join(name, f) for f in os.listdir(
-            os.path.join(os.path.dirname(os.path.realpath(__file__)), name))]
+    static = [
+        os.path.join(name, f)
+        for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), name)
+        )
+    ]
     if condition is None:
         return static
     else:
@@ -55,17 +59,18 @@ def get_static(name, condition=None):
 # scripts = get_static("scripts", condition="'.' in x")
 scripts = None
 
-with open("peppy/_version.py", 'r') as versionfile:
+with open("peppy/_version.py", "r") as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
 # Handle the pypi README formatting.
 try:
     import pypandoc
-    long_description = pypandoc.convert_file('README.md', 'rst')
+
+    long_description = pypandoc.convert_file("README.md", "rst")
     print("Pandoc conversion succeeded")
-except(IOError, ImportError, OSError):
+except (IOError, ImportError, OSError):
     print("Warning: pandoc conversion failed!")
-    long_description = open('README.md').read()
+    long_description = open("README.md").read()
 
 
 setup(
@@ -74,7 +79,7 @@ setup(
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
-    long_description_content_type='text/markdown', 
+    long_description_content_type="text/markdown",
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: BSD License",
@@ -83,16 +88,18 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Topic :: Scientific/Engineering :: Bio-Informatics"
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
-    url='https://github.com/pepkit/peppy/',
+    url="https://github.com/pepkit/peppy/",
     author=u"Michal Stolarczyk, Nathan Sheffield, Vince Reuter, Andre Rendeiro",
     license="BSD2",
     scripts=scripts,
     include_package_data=True,
     test_suite="tests",
     tests_require=read_reqs("dev"),
-    setup_requires=(["pytest-runner"] if {"test", "pytest", "ptr"} & set(sys.argv) else []),
+    setup_requires=(
+        ["pytest-runner"] if {"test", "pytest", "ptr"} & set(sys.argv) else []
+    ),
     **extra
 )

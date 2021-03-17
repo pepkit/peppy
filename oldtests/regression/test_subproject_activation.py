@@ -1,13 +1,14 @@
 """ Regression tests related to subproject activation behavior """
 
-import mock
 import os
+
+import mock
 import pytest
 import yaml
+
 from peppy import Project
 from peppy.const import *
-from peppy.project import NEW_PIPES_KEY, RESULTS_FOLDER_VALUE, \
-    SUBMISSION_FOLDER_VALUE
+from peppy.project import NEW_PIPES_KEY, RESULTS_FOLDER_VALUE, SUBMISSION_FOLDER_VALUE
 from tests.helpers import randomize_filename
 
 __author__ = "Vince Reuter"
@@ -23,7 +24,7 @@ SHEET_PARSE_FUNCPATH = "peppy.project.Project.parse_sample_sheet"
 def touch(folder, name):
     """ In provided folder, create empty file with given name. """
     fp = os.path.join(folder, name)
-    with open(fp, 'w'):
+    with open(fp, "w"):
         return fp
 
 
@@ -37,11 +38,11 @@ def conf_data(tmpdir):
         METADATA_KEY: {
             NAME_TABLE_ATTR: parent_sheet_file,
             OUTDIR_KEY: tmpdir.strpath,
-            NEW_PIPES_KEY: tmpdir.strpath
+            NEW_PIPES_KEY: tmpdir.strpath,
         },
         SUBPROJECTS_SECTION: {
             _SP_NAME: {METADATA_KEY: {NAME_TABLE_ATTR: child_sheet_file}}
-        }
+        },
     }
 
 
@@ -49,7 +50,7 @@ def conf_data(tmpdir):
 def conf_file(tmpdir, conf_data):
     """ Write project config data to a tempfile and provide the filepath. """
     conf = tmpdir.join(randomize_filename(n_char=20)).strpath
-    with open(conf, 'w') as f:
+    with open(conf, "w") as f:
         yaml.dump(conf_data, f)
     return conf
 
@@ -88,17 +89,20 @@ class SubprojectMetadataPathTests:
         assert suboutpath != conf_data[METADATA_KEY][OUTDIR_KEY]
         conf_data[SUBPROJECTS_SECTION][_SP_NAME][METADATA_KEY][OUTDIR_KEY] = suboutpath
         conf_path = tmpdir.join("conf.yaml").strpath
-        with open(conf_path, 'w') as f:
+        with open(conf_path, "w") as f:
             yaml.dump(conf_data, f)
         with mock.patch(SHEET_PARSE_FUNCPATH):
             return Project(conf_path)
 
-    @pytest.mark.parametrize("check", [
-        lambda sub: sub.results_folder ==
-                    os.path.join(sub.output_dir, RESULTS_FOLDER_VALUE),
-        lambda sub: sub.submission_folder ==
-                    os.path.join(sub.output_dir, SUBMISSION_FOLDER_VALUE)
-    ])
+    @pytest.mark.parametrize(
+        "check",
+        [
+            lambda sub: sub.results_folder
+            == os.path.join(sub.output_dir, RESULTS_FOLDER_VALUE),
+            lambda sub: sub.submission_folder
+            == os.path.join(sub.output_dir, SUBMISSION_FOLDER_VALUE),
+        ],
+    )
     def test_relative_path_metadata_dynamism(self, prj, check):
         """ Results and submission paths are relative to whatever output_dir is. """
         main_out = prj.output_dir
@@ -108,7 +112,8 @@ class SubprojectMetadataPathTests:
         assert check(sub)
 
     @pytest.mark.parametrize(
-        "eq_attr", ["output_dir", "results_folder", "submission_folder"])
+        "eq_attr", ["output_dir", "results_folder", "submission_folder"]
+    )
     def test_relative_path_metadata_stasis(self, conf_file, eq_attr):
         """ Key metadata paths are preserved with subproject that doesn't alter them. """
         with mock.patch(SHEET_PARSE_FUNCPATH):

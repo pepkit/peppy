@@ -2,11 +2,11 @@
 
 import logging
 import os
-from urllib.request import urlopen
 from urllib.error import HTTPError
-import oyaml
+from urllib.request import urlopen
 
-from ubiquerg import is_url, expandpath
+import oyaml
+from ubiquerg import expandpath, is_url
 
 from .const import CONFIG_KEY
 
@@ -21,6 +21,7 @@ def copy(obj):
         from copy import deepcopy
 
         return deepcopy(self)
+
     obj.copy = copy
     return obj
 
@@ -29,8 +30,10 @@ def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
     """ Ensure that a possibly relative path is absolute. """
     if not isinstance(maybe_relpath, str):
         raise TypeError(
-            "Attempting to ensure non-text value is absolute path: {} ({})".
-                format(maybe_relpath, type(maybe_relpath)))
+            "Attempting to ensure non-text value is absolute path: {} ({})".format(
+                maybe_relpath, type(maybe_relpath)
+            )
+        )
     if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
         _LOGGER.debug("Already absolute")
         return maybe_relpath
@@ -83,10 +86,12 @@ def make_list(arg, obj_class):
     :return list: list of objects of the predefined class
     :raise TypeError: if a faulty argument was provided
     """
+
     def _raise_faulty_arg():
-        raise TypeError("Provided argument has to be a list[{o}] or a {o}, "
-                        "got '{a}'".format(o=obj_class.__name__,
-                                           a=arg.__class__.__name__))
+        raise TypeError(
+            "Provided argument has to be a list[{o}] or a {o}, "
+            "got '{a}'".format(o=obj_class.__name__, a=arg.__class__.__name__)
+        )
 
     if isinstance(arg, obj_class):
         return [arg]
@@ -125,6 +130,7 @@ def load_yaml(filepath):
         return oyaml.safe_load(text)
     else:
         return read_yaml_file(filepath)
+
 
 # Hack for string indexes of both ordered and unordered yaml representations
 # Credit: Anthon

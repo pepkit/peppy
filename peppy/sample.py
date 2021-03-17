@@ -3,27 +3,29 @@ try:
 except ImportError:
     # for py2
     from collections import Mapping
-from collections import OrderedDict
-from string import Formatter
-from logging import getLogger
-from copy import copy as cp
+
 import glob
-import yaml
 import os
 import warnings
+from collections import OrderedDict
+from copy import copy as cp
+from logging import getLogger
+from string import Formatter
 
+import yaml
 from attmap import PathExAttMap
 
 from .const import *
-from .utils import copy, grab_project_data
 from .exceptions import InvalidSampleTableFileException
+from .utils import copy, grab_project_data
 
 _LOGGER = getLogger(PKG_NAME)
 
 
 class SafeDict(dict):
     def __missing__(self, key):
-        return '{' + key + '}'
+        return "{" + key + "}"
+
 
 @copy
 class Sample(PathExAttMap):
@@ -32,6 +34,7 @@ class Sample(PathExAttMap):
 
     :param Mapping | pandas.core.series.Series series: Sample's data.
     """
+
     def __init__(self, series, prj=None):
 
         super(Sample, self).__init__()
@@ -52,8 +55,10 @@ class Sample(PathExAttMap):
 
         typefam = PathExAttMap
         if PRJ_REF in self and prj:
-            _LOGGER.warning("Project data provided both in data and as separate"
-                            " constructor argument; using direct argument")
+            _LOGGER.warning(
+                "Project data provided both in data and as separate"
+                " constructor argument; using direct argument"
+            )
         if prj:
             self[PRJ_REF] = prj
         if not self.get(PRJ_REF):
@@ -61,11 +66,13 @@ class Sample(PathExAttMap):
             self[PRJ_REF] = None
             _LOGGER.debug("No project reference for sample")
         else:
-            prefix = "Project reference on a sample must be an instance of {}".\
-                format(typefam.__name__)
+            prefix = "Project reference on a sample must be an instance of {}".format(
+                typefam.__name__
+            )
             if not isinstance(self[PRJ_REF], Mapping):
                 raise TypeError(
-                    prefix + "; got {}".format(type(self[PRJ_REF]).__name__))
+                    prefix + "; got {}".format(type(self[PRJ_REF]).__name__)
+                )
         self._derived_cols_done = []
         self._attributes = list(series.keys())
 
@@ -89,6 +96,7 @@ class Sample(PathExAttMap):
             Sample object should be included in the YAML representation
         :return dict: dict representation of this Sample
         """
+
         def _obj2dict(obj, name=None):
             """
             Build representation of object as a dict, recursively
@@ -98,25 +106,33 @@ class Sample(PathExAttMap):
             :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
-            from pandas import isnull, Series
             from collections import Mapping
+
             from attmap import AttMap
+            from pandas import Series, isnull
+
             if name:
                 _LOGGER.log(5, "Converting to dict: {}".format(name))
             if isinstance(obj, list):
                 return [_obj2dict(i) for i in obj]
             if isinstance(obj, AttMap):
-                return {k: _obj2dict(v, name=k) for k, v in obj.items()
-                        if not k.startswith("_")}
+                return {
+                    k: _obj2dict(v, name=k)
+                    for k, v in obj.items()
+                    if not k.startswith("_")
+                }
             elif isinstance(obj, Mapping):
-                return {k: _obj2dict(v, name=k) for k, v in obj.items()
-                        if not k.startswith("_")}
+                return {
+                    k: _obj2dict(v, name=k)
+                    for k, v in obj.items()
+                    if not k.startswith("_")
+                }
             if isinstance(obj, set):
                 return [_obj2dict(i) for i in obj]
             elif isinstance(obj, Series):
                 _LOGGER.warning("Serializing series as mapping, not array-like")
                 return obj.to_dict()
-            elif hasattr(obj, 'dtype'):  # numpy data types
+            elif hasattr(obj, "dtype"):  # numpy data types
                 # TODO: this fails with ValueError for multi-element array.
                 return obj.item()
             elif isnull(obj):
@@ -125,6 +141,7 @@ class Sample(PathExAttMap):
                 return "NaN"
             else:
                 return obj
+
         serial = _obj2dict(self)
         if add_prj_ref:
             serial.update({"prj": grab_project_data(self[PRJ_REF])})
@@ -142,10 +159,12 @@ class Sample(PathExAttMap):
         serial = self.to_dict(add_prj_ref=add_prj_ref)
         path = os.path.expandvars(path)
         if not os.path.exists(os.path.dirname(path)):
-            _LOGGER.warning("Could not write sample data to: {}. "
-                            "Directory does not exist".format(path))
+            _LOGGER.warning(
+                "Could not write sample data to: {}. "
+                "Directory does not exist".format(path)
+            )
             return
-        with open(path, 'w') as outfile:
+        with open(path, "w") as outfile:
             try:
                 yaml_data = yaml.safe_dump(serial, default_flow_style=False)
             except yaml.representer.RepresenterError:
@@ -185,17 +204,22 @@ class Sample(PathExAttMap):
             if not keys:
                 return [regex]
             if "$" in regex:
-                _LOGGER.warning("Not all environment variables were populated "
-                                "in derived attribute source: {}".format(regex))
-            attr_lens = [len(v) for k, v in items.items()
-                         if (isinstance(v, list) and k in keys)]
+                _LOGGER.warning(
+                    "Not all environment variables were populated "
+                    "in derived attribute source: {}".format(regex)
+                )
+            attr_lens = [
+                len(v) for k, v in items.items() if (isinstance(v, list) and k in keys)
+            ]
             if not bool(attr_lens):
                 return [_safe_format(regex, items)]
             if len(set(attr_lens)) != 1:
-                msg = "All attributes to format the {} ({}) have to be the " \
-                      "same length, got: {}. Correct your {}".\
-                    format(DERIVED_SOURCES_KEY, regex, attr_lens,
-                           SUBSAMPLE_SHEET_KEY)
+                msg = (
+                    "All attributes to format the {} ({}) have to be the "
+                    "same length, got: {}. Correct your {}".format(
+                        DERIVED_SOURCES_KEY, regex, attr_lens, SUBSAMPLE_SHEET_KEY
+                    )
+                )
                 raise InvalidSampleTableFileException(msg)
             vals = []
             for i in range(0, attr_lens[0]):
@@ -230,7 +254,7 @@ class Sample(PathExAttMap):
             """
             outputs = []
             for p in patterns:
-                if '*' in p or '[' in p:
+                if "*" in p or "[" in p:
                     _LOGGER.debug("Pre-glob: {}".format(p))
                     val_globbed = sorted(glob.glob(p))
                     if not val_globbed:
@@ -244,37 +268,46 @@ class Sample(PathExAttMap):
 
         if not data_sources:
             return None
-        sn = self[SAMPLE_NAME_ATTR] \
-            if SAMPLE_NAME_ATTR in self else "this sample"
+        sn = self[SAMPLE_NAME_ATTR] if SAMPLE_NAME_ATTR in self else "this sample"
         try:
             source_key = getattr(self, attr_name)
         except AttributeError:
-            reason = "'{attr}': to locate sample's derived attribute source, " \
-                     "provide the name of a key from '{sources}' or ensure " \
-                     "sample has attribute '{attr}'".\
-                format(attr=attr_name, sources=DERIVED_SOURCES_KEY)
+            reason = (
+                "'{attr}': to locate sample's derived attribute source, "
+                "provide the name of a key from '{sources}' or ensure "
+                "sample has attribute '{attr}'".format(
+                    attr=attr_name, sources=DERIVED_SOURCES_KEY
+                )
+            )
             raise AttributeError(reason)
 
         try:
             regex = data_sources[source_key]
             _LOGGER.debug("Data sources: {}".format(data_sources))
         except KeyError:
-            _LOGGER.debug("{}: config lacks entry for {} key: "
-                          "'{}' in column '{}'; known: {}".
-                          format(sn, DERIVED_SOURCES_KEY, source_key, attr_name,
-                                 data_sources.keys()))
+            _LOGGER.debug(
+                "{}: config lacks entry for {} key: "
+                "'{}' in column '{}'; known: {}".format(
+                    sn, DERIVED_SOURCES_KEY, source_key, attr_name, data_sources.keys()
+                )
+            )
             return ""
-        deriv_exc_base = "In sample '{sn}' cannot correctly parse derived " \
-                         "attribute source: {r}.".format(sn=sn, r=regex)
+        deriv_exc_base = (
+            "In sample '{sn}' cannot correctly parse derived "
+            "attribute source: {r}.".format(sn=sn, r=regex)
+        )
         try:
             vals = _format_regex(regex, dict(self.items()))
             _LOGGER.debug("Formatted regex: {}".format(vals))
         except KeyError as ke:
-            _LOGGER.warning(deriv_exc_base + " Can't access {ke} attribute".
-                            format(ke=str(ke)))
+            _LOGGER.warning(
+                deriv_exc_base + " Can't access {ke} attribute".format(ke=str(ke))
+            )
         except Exception as e:
-            _LOGGER.warning(deriv_exc_base + " Caught exception: {e}".
-                            format(e=getattr(e, 'message', repr(e))))
+            _LOGGER.warning(
+                deriv_exc_base
+                + " Caught exception: {e}".format(e=getattr(e, "message", repr(e)))
+            )
         else:
             return _glob_regex(vals)
         return None
@@ -308,7 +341,7 @@ class Sample(PathExAttMap):
             (self.as_series(),),
             (None, {}),
             iter([]),
-            iter({PRJ_REF: self[PRJ_REF]}.items())
+            iter({PRJ_REF: self[PRJ_REF]}.items()),
         )
 
     def __str__(self, max_attr=10):
@@ -327,12 +360,11 @@ class Sample(PathExAttMap):
         attrs = ""
         counter = 0
         for k, v in pub_attrs.items():
-            attrs += "\n{}{}".\
-                format((k + ":").ljust(maxlen),
-                       v if not isinstance(v, list) else ", ".join(v))
+            attrs += "\n{}{}".format(
+                (k + ":").ljust(maxlen), v if not isinstance(v, list) else ", ".join(v)
+            )
             if counter == max_attr:
-                attrs += "\n\n...".ljust(maxlen) + \
-                         "(showing first {})".format(max_attr)
+                attrs += "\n\n...".ljust(maxlen) + "(showing first {})".format(max_attr)
                 break
             counter += 1
         return head + "\n" + attrs

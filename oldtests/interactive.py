@@ -10,8 +10,10 @@ print("Establishing Project for testing and exploration")
 proj = conftest.interactive()
 
 
-import peppy
 import os
+
+import peppy
+
 reload(peppy)
 peppy._LOGGER.setLevel(50)
 p = peppy.Project(os.path.expandvars("$CODE/example_peps/example2/project_config.yaml"))
@@ -31,9 +33,9 @@ p.get_subsample(sample_name="frog_1", subsample_name="2")
 subsamples = []
 type(subsamples)
 for n, row in p.subsample_table.iterrows():
-	print(n)
-	print(row)
-	subsamples.append(peppy.Subsample(row))
+    print(n)
+    print(row)
+    subsamples.append(peppy.Subsample(row))
 
 subsamples
 
