@@ -2,6 +2,9 @@
 
 import logging
 import os
+from urllib.request import urlopen
+from urllib.error import HTTPError
+import oyaml
 
 from ubiquerg import is_url, expandpath
 
@@ -94,3 +97,65 @@ def make_list(arg, obj_class):
             return arg
     else:
         _raise_faulty_arg()
+
+
+def load_yaml(filepath):
+    """ Load a yaml file into a python dict """
+
+    def read_yaml_file(filepath):
+        """
+        Read a YAML file
+
+        :param str filepath: path to the file to read
+        :return dict: read data
+        """
+        filepath = os.path.abspath(filepath)
+        with open(filepath, "r") as f:
+            data = oyaml.safe_load(f)
+        return data
+
+    if is_url(filepath):
+        _LOGGER.debug(f"Got URL: {filepath}")
+        try:
+            response = urlopen(filepath)
+        except HTTPError as e:
+            raise e
+        data = response.read()  # a `bytes` object
+        text = data.decode("utf-8")
+        return oyaml.safe_load(text)
+    else:
+        return read_yaml_file(filepath)
+
+# Hack for string indexes of both ordered and unordered yaml representations
+# Credit: Anthon
+# https://stackoverflow.com/questions/50045617
+# https://stackoverflow.com/questions/5121931
+# The idea is: if you have yaml keys that can be interpreted as an int or a float,
+# then the yaml loader will convert them into an int or a float, and you would
+# need to access them with dict[2] instead of dict['2']. But since we always
+# expect the keys to be strings, this doesn't work. So, here we are adjusting
+# the loader to keep everything as a string. This happens in 2 ways, so that
+# it's compatible with both yaml and oyaml, which is the orderedDict version.
+# this will go away in python 3.7, because the dict representations will be
+# ordered by default.
+def my_construct_mapping(self, node, deep=False):
+    data = self.construct_mapping_org(node, deep)
+    return {
+        (str(key) if isinstance(key, float) or isinstance(key, int) else key): data[key]
+        for key in data
+    }
+
+
+def my_construct_pairs(self, node, deep=False):
+    pairs = []
+    for key_node, value_node in node.value:
+        key = str(self.construct_object(key_node, deep=deep))
+        value = self.construct_object(value_node, deep=deep)
+        pairs.append((key, value))
+    return pairs
+
+
+yaml.SafeLoader.construct_mapping_org = yaml.SafeLoader.construct_mapping
+yaml.SafeLoader.construct_mapping = my_construct_mapping
+yaml.SafeLoader.construct_pairs = my_construct_pairs
+# End hack

@@ -2,7 +2,7 @@
 Build a Project object.
 """
 from .const import *
-from .utils import copy, make_list, make_abs_via_cfg
+from .utils import copy, make_list, make_abs_via_cfg, load_yaml
 from .exceptions import *
 from .sample import Sample
 
@@ -10,7 +10,6 @@ from attmap import PathExAttMap
 from ubiquerg import is_url
 
 import os
-import yaml
 import pandas as pd
 from collections import Mapping
 from logging import getLogger
@@ -48,9 +47,8 @@ class Project(PathExAttMap):
         )
         super(Project, self).__init__()
         if isinstance(cfg, str):
-            cfg_pth = os.path.abspath(cfg)
-            self[CONFIG_FILE_KEY] = cfg_pth
-            self.parse_config_file(cfg_pth, amendments)
+            self[CONFIG_FILE_KEY] = cfg
+            self.parse_config_file(cfg, amendments)
         else:
             self[CONFIG_FILE_KEY] = None
         self._samples = []
@@ -117,12 +115,9 @@ class Project(PathExAttMap):
         """
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = PathExAttMap()
-        if not os.path.exists(cfg_path):
-            raise OSError("Project config file path does not exist: {}".
-                             format(cfg_path))
-        with open(cfg_path, 'r') as conf_file:
-            config = yaml.safe_load(conf_file)
-
+        if not os.path.exists(cfg_path) and not is_url(cfg_path):
+            raise OSError(f"Project config file path does not exist: {cfg_path}")
+        config = load_yaml(cfg_path)
         assert isinstance(config, Mapping), \
             "Config file parse did not yield a Mapping; got {} ({})".\
             format(config, type(config))

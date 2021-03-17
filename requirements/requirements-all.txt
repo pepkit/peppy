@@ -1,5 +1,5 @@
 attmap>=0.12.5
 pandas>=0.24.2
-pyyaml>=5
+oyaml
 logmuse>=0.2
 ubiquerg>=0.5.2
