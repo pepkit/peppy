@@ -155,7 +155,7 @@ def my_construct_pairs(self, node, deep=False):
     return pairs
 
 
-yaml.SafeLoader.construct_mapping_org = yaml.SafeLoader.construct_mapping
-yaml.SafeLoader.construct_mapping = my_construct_mapping
-yaml.SafeLoader.construct_pairs = my_construct_pairs
+oyaml.SafeLoader.construct_mapping_org = oyaml.SafeLoader.construct_mapping
+oyaml.SafeLoader.construct_mapping = my_construct_mapping
+oyaml.SafeLoader.construct_pairs = my_construct_pairs
 # End hack
