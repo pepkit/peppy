@@ -144,24 +144,21 @@ def load_yaml(filepath):
 # it's compatible with both yaml and oyaml, which is the orderedDict version.
 # this will go away in python 3.7, because the dict representations will be
 # ordered by default.
-def my_construct_mapping(self, node, deep=False):
-    data = self.construct_mapping_org(node, deep)
-    return {
-        (str(key) if isinstance(key, float) or isinstance(key, int) else key): data[key]
-        for key in data
-    }
 
+# Only do once?
+if not hasattr(oyaml.SafeLoader, "patched_yaml_loader"):
 
-def my_construct_pairs(self, node, deep=False):
-    pairs = []
-    for key_node, value_node in node.value:
-        key = str(self.construct_object(key_node, deep=deep))
-        value = self.construct_object(value_node, deep=deep)
-        pairs.append((key, value))
-    return pairs
+    _LOGGER.debug("Patching yaml loader")
 
+    def my_construct_mapping(self, node, deep=False):
+        data = self.construct_mapping_org(node, deep)
+        return {
+            (str(key) if isinstance(key, float) or isinstance(key, int) else key): data[
+                key
+            ]
+            for key in data
+        }
 
-oyaml.SafeLoader.construct_mapping_org = oyaml.SafeLoader.construct_mapping
-oyaml.SafeLoader.construct_mapping = my_construct_mapping
-oyaml.SafeLoader.construct_pairs = my_construct_pairs
-# End hack
+    oyaml.SafeLoader.construct_mapping_org = oyaml.SafeLoader.construct_mapping
+    oyaml.SafeLoader.construct_mapping = my_construct_mapping
+    oyaml.SafeLoader.patched_yaml_loader = True
