@@ -763,6 +763,8 @@ class Project(PathExAttMap):
         :return pandas.DataFrame: a data frame with subsample attributes
         """
         sdf = self[SUBSAMPLE_DF_KEY]
+        if sdf is None:
+            return
         index = self.sst_index
         sdf = make_list(sdf, pd.DataFrame)
         for sst in sdf:
