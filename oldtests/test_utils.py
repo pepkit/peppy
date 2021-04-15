@@ -4,18 +4,16 @@ import copy
 
 import mock
 import pytest
-
 from attmap import PathExAttMap
-from peppy import Sample
-from peppy.const import *
-from peppy.project import NEW_PIPES_KEY, RESULTS_FOLDER_VALUE, \
-    SUBMISSION_FOLDER_VALUE
-from peppy.utils import \
-    add_project_sample_constants, copy as pepcopy, \
-    grab_project_data, has_null_value, non_null_value
-from tests.helpers import compare_mappings, named_param
 from ubiquerg import powerset
 
+from peppy import Sample
+from peppy.const import *
+from peppy.project import NEW_PIPES_KEY, RESULTS_FOLDER_VALUE, SUBMISSION_FOLDER_VALUE
+from peppy.utils import add_project_sample_constants
+from peppy.utils import copy as pepcopy
+from peppy.utils import grab_project_data, has_null_value, non_null_value
+from tests.helpers import compare_mappings, named_param
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -34,11 +32,13 @@ def basic_project_data():
             NAME_TABLE_ATTR: "anns.csv",
             OUTDIR_KEY: "outdir",
             RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
-            SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE},
+            SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE,
+        },
         DERIVATIONS_DECLARATION: [DATA_SOURCE_COLNAME],
-        IMPLICATIONS_DECLARATION: {"organism": {"genomes": {
-            "mouse": "mm10", "rat": "rn6", "human": "hg38"}}},
-        "trackhubs": []
+        IMPLICATIONS_DECLARATION: {
+            "organism": {"genomes": {"mouse": "mm10", "rat": "rn6", "human": "hg38"}}
+        },
+        "trackhubs": [],
     }
 
 
@@ -72,13 +72,14 @@ class GrabProjectDataTests:
 
     @named_param(
         argnames="sections",
-        argvalues=powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS, nonempty=True))
+        argvalues=powerset(SAMPLE_INDEPENDENT_PROJECT_SECTIONS, nonempty=True),
+    )
     def test_does_not_need_all_sample_independent_data(
-            self, sections, basic_project_data, sample_independent_data):
+        self, sections, basic_project_data, sample_independent_data
+    ):
         """ Subset of all known independent data that's present is grabbed. """
         p = PathExAttMap(sample_independent_data)
-        expected = {s: data for s, data in basic_project_data.items()
-                    if s in sections}
+        expected = {s: data for s, data in basic_project_data.items() if s in sections}
         observed = grab_project_data(p)
         compare_mappings(expected, observed)
 
@@ -86,9 +87,12 @@ class GrabProjectDataTests:
         argnames="extra_data",
         argvalues=powerset(
             [{NEW_PIPES_KEY: [{"b": 1}, {"c": 2}]}, {"pipeline_config": {}}],
-            nonempty=True))
+            nonempty=True,
+        ),
+    )
     def test_grabs_only_sample_independent_data(
-            self, sample_independent_data, extra_data):
+        self, sample_independent_data, extra_data
+    ):
         """ Only Project data defined as Sample-independent is retrieved. """
 
         # Create the data to pass the the argument to the call under test.
@@ -122,8 +126,8 @@ class AddProjectSampleConstantsTests:
         assert basic_sample == sample
 
     @named_param(
-        argnames="const",
-        argvalues=[{"new_attr": 45}, {"a1": 0, "b2": "filepath"}])
+        argnames="const", argvalues=[{"new_attr": 45}, {"a1": 0, "b2": "filepath"}]
+    )
     def test_add_project_sample_constants(self, basic_sample, const):
         """ New attribute is added by the update. """
         mock_prj = mock.MagicMock(constant_attributes=const)
@@ -135,8 +139,10 @@ class AddProjectSampleConstantsTests:
             assert attr_value == basic_sample[attr_name]
             assert attr_value == getattr(basic_sample, attr_name)
 
-    @named_param(argnames=["collision", "old_val", "new_val"],
-                 argvalues=[("coll_attr_1", 1, 2), ("coll_attr_2", 3, 4)])
+    @named_param(
+        argnames=["collision", "old_val", "new_val"],
+        argvalues=[("coll_attr_1", 1, 2), ("coll_attr_2", 3, 4)],
+    )
     def test_name_collision(self, basic_sample, collision, old_val, new_val):
         """ New value overwrites old value (no guarantee for null, though.) """
         basic_sample[collision] = old_val
@@ -151,9 +157,7 @@ class NullValueHelperTests:
 
     _DATA = {"a": 1, "b": [2]}
 
-    @pytest.fixture(
-        params=[lambda d: dict(d),
-                lambda d: PathExAttMap().add_entries(d)])
+    @pytest.fixture(params=[lambda d: dict(d), lambda d: PathExAttMap().add_entries(d)])
     def kvs(self, request):
         """ For test cases provide KV pair map of parameterized type."""
         return request.param(self._DATA)
@@ -191,8 +195,10 @@ class NullValueHelperTests:
 
 def test_copy():
     """ Test reference and equivalence comparison operators. """
+
     class ExampleObject:
         pass
+
     obj = ExampleObject()
     new_obj = pepcopy(obj)
     assert obj is new_obj

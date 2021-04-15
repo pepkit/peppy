@@ -1,13 +1,14 @@
 """ Test utilities. """
 
-from functools import partial
 import random
 import string
+from functools import partial
+
 import numpy as np
 import pytest
-import peppy
 from attmap import AttMap
 
+import peppy
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -44,8 +45,11 @@ def named_param(argnames, argvalues):
     :return functools.partial: Wrapped version of the call to the pytest
         test case parameterization function, for use as decorator.
     """
-    return partial(pytest.mark.parametrize(argnames, argvalues,
-                   ids=lambda arg: "{}={}".format(argnames, arg)))
+    return partial(
+        pytest.mark.parametrize(
+            argnames, argvalues, ids=lambda arg: "{}={}".format(argnames, arg)
+        )
+    )
 
 
 def randomize_filename(ext=None, n_char=25):
@@ -71,7 +75,7 @@ def randomize_filename(ext=None, n_char=25):
 class TempLogFileHandler(object):
     """ Context manager for temporary file handler logging attachment """
 
-    def __init__(self, filepath, level, mode='w'):
+    def __init__(self, filepath, level, mode="w"):
         """
         Create the temporary file handler by providing path and level
 
@@ -87,9 +91,10 @@ class TempLogFileHandler(object):
     def __enter__(self):
         """ Add the handler to project module's logger, and update state. """
         import logging
+
         if self._used:
             raise Exception("Cannot reuse a {}".format(self.__class__.__name__))
-        handler = logging.FileHandler(self.logfile, mode='w')
+        handler = logging.FileHandler(self.logfile, mode="w")
         handler.setLevel(self._level)
         peppy.project._LOGGER.handlers.append(handler)
         self._used = True
@@ -103,7 +108,7 @@ class TempLogFileHandler(object):
         """ Open the handler's underlying file and read the messages. """
         if not self._used:
             raise Exception(
-                "Attempted to read messages from unused logfile: "
-                "{}", self.logfile)
-        with open(self.logfile, 'r') as f:
+                "Attempted to read messages from unused logfile: " "{}", self.logfile
+            )
+        with open(self.logfile, "r") as f:
             return f.readlines()

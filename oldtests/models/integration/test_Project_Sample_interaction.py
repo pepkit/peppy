@@ -1,10 +1,10 @@
 """ Tests for interaction between a Project and a Sample. """
 
-from collections import Mapping, OrderedDict
 import copy
 import itertools
 import os
 import random
+from collections import Mapping, OrderedDict
 
 import pandas as pd
 import pytest
@@ -27,7 +27,8 @@ PATH_BY_TYPE = {
     RESULTS_FOLDER_KEY: "results",
     SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE,
     "input_dir": "dummy/sequencing/data",
-    "tools_folder": "arbitrary-seq-tools-folder"}
+    "tools_folder": "arbitrary-seq-tools-folder",
+}
 
 NAME_ANNOTATIONS_FILE = "annotations.csv"
 SAMPLE_NAMES = ["WGBS_mm10", "ATAC_mm10", "WGBS_rn6", "ATAC_rn6"]
@@ -38,7 +39,10 @@ PROTOCOLS = ["WGBS", "ATAC", "WGBS", "ATAC"]
 DATA = list(zip(SAMPLE_NAMES, VALUES1, VALUES2, PROTOCOLS))
 DATA_FOR_SAMPLES = [
     {SAMPLE_NAME_COLNAME: SAMPLE_NAMES},
-    {"val1": VALUES1}, {"val2": VALUES2}, {ASSAY_KEY: PROTOCOLS}]
+    {"val1": VALUES1},
+    {"val2": VALUES2},
+    {ASSAY_KEY: PROTOCOLS},
+]
 PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: NAME_ANNOTATIONS_FILE}}
 
 
@@ -50,11 +54,15 @@ def pytest_generate_tests(metafunc):
             # Apply the test case to each of the possible combinations of
             # protocols, from none at all up to all of them.
             metafunc.parametrize(
-                    argnames="protocols",
-                    argvalues=list(itertools.chain.from_iterable(
-                            itertools.combinations(protos, x)
-                            for x in range(1 + len(protos)))),
-                    ids=lambda ps: " protocols = {} ".format(",".join(ps)))
+                argnames="protocols",
+                argvalues=list(
+                    itertools.chain.from_iterable(
+                        itertools.combinations(protos, x)
+                        for x in range(1 + len(protos))
+                    )
+                ),
+                ids=lambda ps: " protocols = {} ".format(",".join(ps)),
+            )
         if "delimiter" in metafunc.fixturenames:
             metafunc.parametrize(argnames="delimiter", argvalues=[",", "\t"])
 
@@ -69,7 +77,7 @@ def proj_conf():
 def path_proj_conf_file(tmpdir, proj_conf):
     """ Write basic project configuration data and provide filepath. """
     conf_path = os.path.join(tmpdir.strpath, "project_config.yaml")
-    with open(conf_path, 'w') as conf:
+    with open(conf_path, "w") as conf:
         yaml.safe_dump(proj_conf, conf)
     return conf_path
 
@@ -82,7 +90,7 @@ def path_anns_file(request, tmpdir, sample_sheet):
         delimiter = request.getfixturevalue("delimiter")
     else:
         delimiter = ","
-    with open(filepath, 'w') as anns_file:
+    with open(filepath, "w") as anns_file:
         sample_sheet.to_csv(anns_file, sep=delimiter, index=False)
     return filepath
 
@@ -104,6 +112,7 @@ def sample_sheet(samples_rawdata):
 @pytest.mark.usefixtures("write_project_files")
 class SampleSheetAttrTests:
     """ Tests of properties of sample sheet attributes on a sample """
+
     def test_sheet_attr_order(self, proj):
         """ The sample's sheet attributes are ordered. """
         s = Sample(getattr(proj, NAME_TABLE_ATTR).iloc[0])
@@ -137,9 +146,9 @@ class BuildSheetTests:
         assert sheet.empty
 
     @pytest.mark.parametrize(
-            argnames="which_sample_index", argvalues=range(len(SAMPLE_NAMES)))
-    def test_single_sample(
-            self, tmpdir, path_proj_conf_file, which_sample_index):
+        argnames="which_sample_index", argvalues=range(len(SAMPLE_NAMES))
+    )
+    def test_single_sample(self, tmpdir, path_proj_conf_file, which_sample_index):
         """ Single Sample is perfectly valid for Project and sheet. """
 
         # Pull out the values for the current sample.
@@ -147,7 +156,7 @@ class BuildSheetTests:
 
         # Write the annotations.
         anns_path = os.path.join(tmpdir.strpath, NAME_ANNOTATIONS_FILE)
-        with open(anns_path, 'w') as anns_file:
+        with open(anns_path, "w") as anns_file:
             anns_file.write("{}\n".format(",".join(COLUMNS)))
             anns_file.write("{}\n".format(",".join([str(v) for v in values])))
 
@@ -173,8 +182,7 @@ class BuildSheetTests:
                 except AssertionError:
                     raise e
 
-    def test_multiple_samples(
-            self, protocols, path_anns_file, path_proj_conf_file):
+    def test_multiple_samples(self, protocols, path_anns_file, path_proj_conf_file):
         """ Project also processes multiple Sample fine. """
 
         p = Project(path_proj_conf_file)
@@ -183,15 +191,21 @@ class BuildSheetTests:
         assert len(SAMPLE_NAMES) == sum(1 for _ in p.samples)
 
         # But the sheet permits filtering to specific protocol(s).
-        exp_num_samples = len(SAMPLE_NAMES) if not protocols else \
-            sum(sum(1 for p2 in PROTOCOLS if p2 == p1) for p1 in protocols)
+        exp_num_samples = (
+            len(SAMPLE_NAMES)
+            if not protocols
+            else sum(sum(1 for p2 in PROTOCOLS if p2 == p1) for p1 in protocols)
+        )
         sheet = p.build_sheet(*protocols)
         assert exp_num_samples == len(sheet)
 
         if protocols:
+
             def as_expected(sd):
                 return sd.protocol in set(protocols)
+
         else:
+
             def as_expected(sd):
                 return sd.protocol not in set(protocols)
 
@@ -204,25 +218,31 @@ class SampleFolderCreationTests:
 
     CONFIG_DATA_PATHS_HOOK = "uses_paths_section"
     EXPECTED_PATHS = {
-            os.path.join(PATH_BY_TYPE[name], path) 
-            if name in ["results_subdir", "submission_subdir"] 
-            else path for name, path in PATH_BY_TYPE.items()}
+        os.path.join(PATH_BY_TYPE[name], path)
+        if name in ["results_subdir", "submission_subdir"]
+        else path
+        for name, path in PATH_BY_TYPE.items()
+    }
 
     @pytest.mark.parametrize(
-            argnames=CONFIG_DATA_PATHS_HOOK, argvalues=[False, True],
-            ids=lambda has_paths: "paths_section={}".format(has_paths))
+        argnames=CONFIG_DATA_PATHS_HOOK,
+        argvalues=[False, True],
+        ids=lambda has_paths: "paths_section={}".format(has_paths),
+    )
     @pytest.mark.parametrize(
-            argnames="num_samples", argvalues=range(1, 4), 
-            ids=lambda n_samples: "samples={}".format(n_samples))
-    def test_sample_folders_creation(
-            self, uses_paths_section, num_samples, project):
+        argnames="num_samples",
+        argvalues=range(1, 4),
+        ids=lambda n_samples: "samples={}".format(n_samples),
+    )
+    def test_sample_folders_creation(self, uses_paths_section, num_samples, project):
         """ Sample folders can be created regardless of declaration style. """
 
         # Not that the paths section usage flag and the sample count
         # are used by the project configuration fixture.
 
-        assert not any([os.path.exists(path)
-                        for s in project.samples for path in s.paths])
+        assert not any(
+            [os.path.exists(path) for s in project.samples for path in s.paths]
+        )
         for s in project.samples:
             s.make_sample_dirs()
             assert all([os.path.exists(path) for path in s.paths])
@@ -236,10 +256,18 @@ def project(request, tmpdir, env_config_filepath):
     annotations_filename = "anns-fill.tsv"
     anns_path = tmpdir.join(annotations_filename).strpath
     num_samples = request.getfixturevalue("num_samples")
-    df = pd.DataFrame(OrderedDict(
-        [(SAMPLE_NAME_COLNAME, ["sample{}".format(i) for i in range(num_samples)]),
-         ("data", range(num_samples))]))
-    with open(anns_path, 'w') as anns_file:
+    df = pd.DataFrame(
+        OrderedDict(
+            [
+                (
+                    SAMPLE_NAME_COLNAME,
+                    ["sample{}".format(i) for i in range(num_samples)],
+                ),
+                ("data", range(num_samples)),
+            ]
+        )
+    )
+    with open(anns_path, "w") as anns_file:
         df.to_csv(anns_file, sep="\t", index=False)
 
     # Create the Project config data.
@@ -252,13 +280,15 @@ def project(request, tmpdir, env_config_filepath):
 
     # Add the paths data to the Project config.
     for path_name, path in PATH_BY_TYPE.items():
-        paths_dest[path_name] = path \
-            if path_name in [RESULTS_FOLDER_KEY, SUBMISSION_FOLDER_KEY] \
+        paths_dest[path_name] = (
+            path
+            if path_name in [RESULTS_FOLDER_KEY, SUBMISSION_FOLDER_KEY]
             else os.path.join(tmpdir.strpath, path)
+        )
 
     # Write the Project config file.
     conf_path = tmpdir.join("proj-conf.yaml").strpath
-    with open(conf_path, 'w') as conf_file:
+    with open(conf_path, "w") as conf_file:
         yaml.safe_dump(config_data, conf_file)
 
     return Project(conf_path)
@@ -272,7 +302,7 @@ class SampleTextTests:
         "frog_1,anySampleType,frog1_data.txt",
         "frog_2,anySampleType,frog2_data.txt",
         "frog_3,anySampleType,frog3_data.txt",
-        "frog_4,anySampleType,frog4_data.txt"
+        "frog_4,anySampleType,frog4_data.txt",
     ]
 
     _ANNS_NAME = "sample_annotation.csv"
@@ -281,7 +311,7 @@ class SampleTextTests:
         METADATA_KEY: {
             NAME_TABLE_ATTR: _ANNS_NAME,
             OUTDIR_KEY: os.path.join("$HOME", "hello_looper_results"),
-            NEW_PIPES_KEY: "$HOME/pipelines/pipeline_interface.yaml"
+            NEW_PIPES_KEY: "$HOME/pipelines/pipeline_interface.yaml",
         }
     }
 
@@ -297,14 +327,14 @@ class SampleTextTests:
 
     @staticmethod
     def _write_lines(fp, lines):
-        with open(fp, 'w') as f:
+        with open(fp, "w") as f:
             f.write(os.linesep.join(lines))
 
     @pytest.fixture(scope="function")
     def prj(self, tmpdir, prj_data, sample_lines):
         conf = tmpdir.join(randomize_filename()).strpath
         anns = tmpdir.join(self._ANNS_NAME).strpath
-        with open(conf, 'w') as f:
+        with open(conf, "w") as f:
             yaml.dump(prj_data, f)
         self._write_lines(anns, sample_lines)
         assert os.path.isfile(conf), "Missing proj conf: {}".format(conf)
@@ -314,7 +344,7 @@ class SampleTextTests:
     @pytest.mark.parametrize("func", [repr, str])
     def test_sample_text_excludes_project_reference(self, func, prj):
         """ Text representation of a Sample does not include its Project ref. """
-        assert len(prj.samples) > 0, "No samples"    # precondition
+        assert len(prj.samples) > 0, "No samples"  # precondition
         for s in prj.samples:
             assert isinstance(getattr(s, PRJ_REF), Mapping)
             assert PRJ_REF not in func(s)

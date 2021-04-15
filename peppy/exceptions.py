@@ -1,15 +1,21 @@
 """ Custom error types """
 
 from abc import ABCMeta
+
 try:
     from collections.abc import Iterable
 except ImportError:
     # for py2
     from collections import Iterable
 
-__all__ = ["IllegalStateException", "InvalidSampleTableFileException",
-           "PeppyError", "MissingAmendmentError", "InvalidConfigFileException",
-           "SampleTableFileException"]
+__all__ = [
+    "IllegalStateException",
+    "InvalidSampleTableFileException",
+    "PeppyError",
+    "MissingAmendmentError",
+    "InvalidConfigFileException",
+    "SampleTableFileException",
+]
 
 
 class PeppyError(Exception):
@@ -23,16 +29,19 @@ class PeppyError(Exception):
 
 class IllegalStateException(PeppyError):
     """ Occurrence of some illogical/prohibited state within an object. """
+
     pass
 
 
 class SampleTableFileException(PeppyError):
     """ Error type for invalid sample annotations file. """
+
     pass
 
 
 class InvalidSampleTableFileException(SampleTableFileException):
     """ Error type for invalid sample annotations file. """
+
     pass
 
 
@@ -48,12 +57,12 @@ class MissingAmendmentError(PeppyError):
         """
         msg = "Amendment '{}' not found".format(amendment)
         if isinstance(defined, Iterable):
-            ctx = "defined amendments(s): {}".\
-                format(", ".join(map(str, defined)))
+            ctx = "defined amendments(s): {}".format(", ".join(map(str, defined)))
             msg = "{}; {}".format(msg, ctx)
         super(MissingAmendmentError, self).__init__(msg)
 
 
 class InvalidConfigFileException(PeppyError):
     """ Error type for invalid project config file """
+
     pass

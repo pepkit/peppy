@@ -1,20 +1,20 @@
 """ Tests for the Sample. """
 
-from collections import Mapping
 import copy
+import os
 import pickle
 import tempfile
-import os
-
+from collections import Mapping
 
 import mock
 import numpy as np
-from pandas import Series
 import pytest
 import yaml
+from attmap import AttMap, EchoAttMap
+from attmap import PathExAttMap as PXAM
+from pandas import Series
 from yaml import SafeLoader
 
-from attmap import AttMap, EchoAttMap, PathExAttMap as PXAM
 import peppy
 from peppy import Project, Sample, SnakeProject
 from peppy.const import *
@@ -22,7 +22,6 @@ from peppy.const import SNAKEMAKE_SAMPLE_COL
 from peppy.project import RESULTS_FOLDER_VALUE, SUBMISSION_FOLDER_VALUE
 from peppy.sample import PRJ_REF
 from tests.helpers import named_param
-
 
 __author__ = "Vince Reuter"
 __email__ = "vreuter@virginia.edu"
@@ -59,10 +58,11 @@ class ParseSampleImplicationsTests:
         assert before_inference == sample.__dict__
 
     @pytest.mark.parametrize(
-        argnames=["implier_value", "implications"],
-        argvalues=IMPLICATIONS.items())
+        argnames=["implier_value", "implications"], argvalues=IMPLICATIONS.items()
+    )
     def test_intersection_between_sample_and_implications(
-            self, sample, implier_value, implications):
+        self, sample, implier_value, implications
+    ):
         """ Intersection between implications and sample fields --> append. """
 
         # Negative control pretest
@@ -79,15 +79,21 @@ class ParseSampleImplicationsTests:
 
     @pytest.mark.parametrize(
         argnames="unmapped_implier_value",
-        argvalues=["totally-wacky-value", 62, None, np.nan])
+        argvalues=["totally-wacky-value", 62, None, np.nan],
+    )
     def test_sample_has_unmapped_value_for_implication(
-            self, sample, unmapped_implier_value):
+        self, sample, unmapped_implier_value
+    ):
         """ Unknown value in implier field --> null inference. """
 
         # Negative control pre-/post-test.
         def no_implied_values():
-            assert all([not hasattr(sample, implied_field_name)
-                        for implied_field_name in self.IMPLICATIONS.keys()])
+            assert all(
+                [
+                    not hasattr(sample, implied_field_name)
+                    for implied_field_name in self.IMPLICATIONS.keys()
+                ]
+            )
 
         no_implied_values()
         setattr(sample, self.IMPLIER_NAME, unmapped_implier_value)
@@ -99,10 +105,10 @@ class ParseSampleImplicationsTests:
         """
         Provide a Sample test case, with always-true validation.
 
-        :param _pytest.fixtures.SubRequest request: test case requesting 
+        :param _pytest.fixtures.SubRequest request: test case requesting
             a Sample instance.
         :return peppy.Sample: basic Sample instance for a test case,
-            with the constructor's required attributes validator mocked 
+            with the constructor's required attributes validator mocked
             to ensure that an exception isn't raised.
         """
 
@@ -116,8 +122,7 @@ class ParseSampleImplicationsTests:
 
         # Mock the validation and return a new Sample.
         rubber_stamper = mock.MagicMock(return_value=[])
-        with mock.patch(
-                "peppy.sample.Sample.check_valid", new=rubber_stamper):
+        with mock.patch("peppy.sample.Sample.check_valid", new=rubber_stamper):
             mocked_sample = peppy.sample.Sample(data)
         return mocked_sample
 
@@ -126,11 +131,15 @@ class SampleRequirementsTests:
     """ Test what a Sample requires. """
 
     @pytest.mark.parametrize(
-        argnames="data_type", argvalues=[dict, Series],
-        ids=lambda data_type: "data_type={}".format(data_type.__name__))
+        argnames="data_type",
+        argvalues=[dict, Series],
+        ids=lambda data_type: "data_type={}".format(data_type.__name__),
+    )
     @pytest.mark.parametrize(
-        argnames="has_name", argvalues=[False, True],
-        ids=lambda has_name: "has_name: {}".format(has_name))
+        argnames="has_name",
+        argvalues=[False, True],
+        ids=lambda has_name: "has_name: {}".format(has_name),
+    )
     def test_requires_sample_name(self, has_name, data_type):
         """ Construction of sample requires data with sample name. """
         data = {}
@@ -145,8 +154,10 @@ class SampleRequirementsTests:
 
 
 @pytest.mark.parametrize(
-    argnames="accessor", argvalues=["attr", "item"],
-    ids=lambda access_mode: "accessor={}".format(access_mode))
+    argnames="accessor",
+    argvalues=["attr", "item"],
+    ids=lambda access_mode: "accessor={}".format(access_mode),
+)
 @pytest.mark.parametrize(argnames="data_type", argvalues=[dict, Series])
 def test_exception_type_matches_access_mode(data_type, accessor):
     """ Exception for attribute access failure reflects access mode. """
@@ -160,17 +171,21 @@ def test_exception_type_matches_access_mode(data_type, accessor):
             sample["not-set"]
     else:
         # Personal safeguard against unexpected behavior
-        pytest.fail("Unknown access mode for exception type test: {}".
-                    format(accessor))
+        pytest.fail("Unknown access mode for exception type test: {}".format(accessor))
 
 
 @pytest.mark.parametrize(
-        argnames="paths",
-        argvalues=[["subfolder0a", "subfolder0b"],
-                   [os.path.join("subfolder1", "subfolder2")]])
+    argnames="paths",
+    argvalues=[
+        ["subfolder0a", "subfolder0b"],
+        [os.path.join("subfolder1", "subfolder2")],
+    ],
+)
 @pytest.mark.parametrize(
-        argnames="preexists", argvalues=[False, True],
-        ids=lambda exists: "preexists={}".format(exists))
+    argnames="preexists",
+    argvalues=[False, True],
+    ids=lambda exists: "preexists={}".format(exists),
+)
 def test_make_sample_dirs(paths, preexists, tmpdir):
     """ Existence guarantee Sample instance's folders is safe and valid. """
 
@@ -189,11 +204,15 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
 
     # Base the test's initial condition on the parameterization.
     if preexists:
+
         def precheck(flags):
             return all(flags)
+
     else:
+
         def precheck(flags):
             return not any(flags)
+
     assert precheck([os.path.exists(p) for p in s.paths])
 
     # The sample folders creation call should do nothing.
@@ -203,16 +222,13 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
 
 @pytest.mark.parametrize(
     argnames="files",
-    argvalues=[[],
-               ["dummy-input-file.bam"],
-               ["input1_R1.fastq", "input1_R2.fastq"]])
-@pytest.mark.parametrize(
-    argnames="test_type", argvalues=["in_memory", "to_disk"])
+    argvalues=[[], ["dummy-input-file.bam"], ["input1_R1.fastq", "input1_R2.fastq"]],
+)
+@pytest.mark.parametrize(argnames="test_type", argvalues=["in_memory", "to_disk"])
 def test_input_files(files, test_type, tmpdir):
     """ Test for access to Sample input files. """
     file_text = " ".join(files)
-    sample_data = {SAMPLE_NAME_COLNAME: "test-sample",
-                   DATA_SOURCE_COLNAME: file_text}
+    sample_data = {SAMPLE_NAME_COLNAME: "test-sample", DATA_SOURCE_COLNAME: file_text}
     s = Sample(sample_data)
     assert file_text == s.data_source
     assert files == s.input_file_paths
@@ -247,33 +263,43 @@ class SetFilePathsTests:
             data_src = DATA_SOURCE_COLNAME
         return {
             METADATA_KEY: {
-                NAME_TABLE_ATTR: "anns.csv", OUTDIR_KEY: "outdir",
+                NAME_TABLE_ATTR: "anns.csv",
+                OUTDIR_KEY: "outdir",
                 RESULTS_FOLDER_KEY: RESULTS_FOLDER_VALUE,
-                SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE},
+                SUBMISSION_FOLDER_KEY: SUBMISSION_FOLDER_VALUE,
+            },
             DATA_SOURCES_SECTION: self.DATA_SOURCES,
-            DERIVATIONS_DECLARATION: [data_src]}
+            DERIVATIONS_DECLARATION: [data_src],
+        }
 
     @named_param(
         argnames="data_src_attr",
-        argvalues=[DATA_SOURCE_COLNAME, "src", "filepath", "data"])
+        argvalues=[DATA_SOURCE_COLNAME, "src", "filepath", "data"],
+    )
     @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
     @named_param(argnames="explicit", argvalues=[False, True])
     def test_equivalence_between_implicit_and_explicit_prj(
-            self, prj_data, data_src_attr, src_key, explicit):
+        self, prj_data, data_src_attr, src_key, explicit
+    ):
         """ Passing Sample's project is equivalent to its inference. """
-        
+
         # Explicitly-passed object needs to at least be an AttMap.
         sample_data = AttMap(
-                {SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
-                 data_src_attr: src_key, "derived_attributes": [data_src_attr]})
-        
+            {
+                SAMPLE_NAME_COLNAME: "arbitrary_sample",
+                "prj": prj_data,
+                data_src_attr: src_key,
+                "derived_attributes": [data_src_attr],
+            }
+        )
+
         # Create the samples and make the calls under test.
         s = Sample(sample_data)
         if explicit:
             s.set_file_paths(sample_data.prj)
         else:
             s.set_file_paths()
-        
+
         # Check results.
         expected = self.DATA_SOURCES[src_key]
         observed = getattr(s, data_src_attr)
@@ -287,8 +313,12 @@ class SetFilePathsTests:
         assert new_src not in prj_data[DATA_SOURCES_SECTION]
         prj_data_modified[DATA_SOURCES_SECTION][new_src] = new_src_val
         sample_data = AttMap(
-            {SAMPLE_NAME_COLNAME: "random-sample",
-             "prj": prj_data, DATA_SOURCE_COLNAME: new_src})
+            {
+                SAMPLE_NAME_COLNAME: "random-sample",
+                "prj": prj_data,
+                DATA_SOURCE_COLNAME: new_src,
+            }
+        )
         s = Sample(sample_data)
         s.set_file_paths(prj_data_modified)
         assert new_src_val == getattr(s, DATA_SOURCE_COLNAME)
@@ -305,8 +335,10 @@ class SetFilePathsTests:
         if exclude_derived_attributes:
             prj_data.pop("derived_attributes")
         sample_data = {
-                SAMPLE_NAME_COLNAME: "arbitrary_sample", "prj": prj_data,
-                DATA_SOURCE_COLNAME: src_key}
+            SAMPLE_NAME_COLNAME: "arbitrary_sample",
+            "prj": prj_data,
+            DATA_SOURCE_COLNAME: src_key,
+        }
         sample_data = AttMap(sample_data)
         s = Sample(sample_data)
 
@@ -337,7 +369,7 @@ class LocateDataSourceTests:
 
     def prj(self, tmpdir):
         fp = tmpdir.join("simple-prj-cfg.yaml").strpath
-        with open(fp, 'w') as f:
+        with open(fp, "w") as f:
             yaml.dump({METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}, f)
         return Project(fp)
 
@@ -350,21 +382,24 @@ class LocateDataSourceTests:
 
     @named_param(
         argnames="colname",
-        argvalues=[DATA_SOURCE_COLNAME, "data", "src", "input", "filepath"])
+        argvalues=[DATA_SOURCE_COLNAME, "data", "src", "input", "filepath"],
+    )
     @named_param(argnames="src_key", argvalues=SOURCE_KEYS)
     @named_param(argnames="data_type", argvalues=[dict, AttMap])
     @named_param(argnames="include_data_sources", argvalues=[False, True])
     def test_accuracy_and_allows_empty_data_sources(
-            self, colname, src_key, prj_data, data_type, include_data_sources):
+        self, colname, src_key, prj_data, data_type, include_data_sources
+    ):
         """ Locator is accurate and does not require data source map. """
         sample_data = data_type(
-            {SAMPLE_NAME_COLNAME: "random-sample",
-             "prj": prj_data, colname: src_key})
+            {SAMPLE_NAME_COLNAME: "random-sample", "prj": prj_data, colname: src_key}
+        )
         s = Sample(sample_data)
         assert isinstance(s.prj, AttMap)
         data_sources = s.prj.data_sources if include_data_sources else None
         path = s.locate_data_source(
-                data_sources, column_name=colname, source_key=src_key)
+            data_sources, column_name=colname, source_key=src_key
+        )
         if include_data_sources:
             assert self.PATH_BY_KEY[src_key] == path
         else:
@@ -383,8 +418,9 @@ class SampleConstructorTests:
         assert name == fetch(s, name_attr)
 
     @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
-    @pytest.mark.parametrize(["fetch", "exp_err"], [
-        (getattr, AttributeError), (lambda s, k: s[k], KeyError)])
+    @pytest.mark.parametrize(
+        ["fetch", "exp_err"], [(getattr, AttributeError), (lambda s, k: s[k], KeyError)]
+    )
     def test_only_snakemake_name(self, fetch, name_attr, exp_err):
         """ Snakemake --> peppy <--> sample --> sample_name. """
         name = "testsample"
@@ -395,16 +431,22 @@ class SampleConstructorTests:
         assert name == fetch(s, name_attr)
 
     @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
-    @pytest.mark.parametrize(["fetch", "exp_err"], [
-        (getattr, AttributeError), (lambda s, k: s[k], KeyError)])
-    @pytest.mark.parametrize(["data", "expect_result"], [
-        ({SNAKEMAKE_SAMPLE_COL: "testsample", SAMPLE_NAME_COLNAME: "testsample"},
-         "testsample"),
-        ({SNAKEMAKE_SAMPLE_COL: "nameA", SAMPLE_NAME_COLNAME: "nameB"},
-         Exception)
-    ])
+    @pytest.mark.parametrize(
+        ["fetch", "exp_err"], [(getattr, AttributeError), (lambda s, k: s[k], KeyError)]
+    )
+    @pytest.mark.parametrize(
+        ["data", "expect_result"],
+        [
+            (
+                {SNAKEMAKE_SAMPLE_COL: "testsample", SAMPLE_NAME_COLNAME: "testsample"},
+                "testsample",
+            ),
+            ({SNAKEMAKE_SAMPLE_COL: "nameA", SAMPLE_NAME_COLNAME: "nameB"}, Exception),
+        ],
+    )
     def test_peppy_and_snakemake_names(
-            self, fetch, name_attr, data, expect_result, exp_err):
+        self, fetch, name_attr, data, expect_result, exp_err
+    ):
         """ Original peppy naming of sample name is favored; exception iff values differ. """
         if isinstance(expect_result, type) and issubclass(expect_result, Exception):
             with pytest.raises(expect_result):
@@ -415,9 +457,13 @@ class SampleConstructorTests:
             with pytest.raises(exp_err):
                 fetch(s, SNAKEMAKE_SAMPLE_COL)
 
-    @pytest.mark.parametrize(["has_ref", "get_ref"], [
-        (lambda s: hasattr(s, PRJ_REF), lambda s: getattr(s, PRJ_REF)),
-        (lambda s: PRJ_REF in s, lambda s: s[PRJ_REF])])
+    @pytest.mark.parametrize(
+        ["has_ref", "get_ref"],
+        [
+            (lambda s: hasattr(s, PRJ_REF), lambda s: getattr(s, PRJ_REF)),
+            (lambda s: PRJ_REF in s, lambda s: s[PRJ_REF]),
+        ],
+    )
     def test_no_prj_ref(self, has_ref, get_ref):
         """ Construction of a Sample without project ref --> null value """
         s = Sample({SAMPLE_NAME_COLNAME: "test-sample"})
@@ -425,47 +471,65 @@ class SampleConstructorTests:
         assert get_ref(s) is None
 
     @pytest.mark.parametrize(
-        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]])
-    @pytest.mark.parametrize(["prj_ref_val", "expect"], [
-        (None, None), ({}, None), (AttMap(), None), (EchoAttMap(), None),
-        ({"a": 1}, PXAM({"a": 1})), (AttMap({"b": 2}), PXAM({"b": 2})),
-        (PXAM({"c": 3}), PXAM({"c": 3})), (EchoAttMap({"d": 4}), EchoAttMap({"d": 4}))])
+        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]]
+    )
+    @pytest.mark.parametrize(
+        ["prj_ref_val", "expect"],
+        [
+            (None, None),
+            ({}, None),
+            (AttMap(), None),
+            (EchoAttMap(), None),
+            ({"a": 1}, PXAM({"a": 1})),
+            (AttMap({"b": 2}), PXAM({"b": 2})),
+            (PXAM({"c": 3}), PXAM({"c": 3})),
+            (EchoAttMap({"d": 4}), EchoAttMap({"d": 4})),
+        ],
+    )
     def test_non_project_prj_ref(self, fetch, prj_ref_val, expect):
         """ Project reference is null, or a PathExAttMap. """
         s = Sample({SAMPLE_NAME_COLNAME: "testsample", PRJ_REF: prj_ref_val})
         assert expect == fetch(s)
 
     @pytest.mark.parametrize(
-        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]])
-    @pytest.mark.parametrize(["prj_ref_val", "expect"], [
-        (None, None), ({}, None), (AttMap(), None), (EchoAttMap(), None),
-        ({"a": 1}, PXAM({"a": 1})), (AttMap({"b": 2}), PXAM({"b": 2})),
-        (PXAM({"c": 3}), PXAM({"c": 3})), (EchoAttMap({"d": 4}), EchoAttMap({"d": 4}))])
+        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]]
+    )
+    @pytest.mark.parametrize(
+        ["prj_ref_val", "expect"],
+        [
+            (None, None),
+            ({}, None),
+            (AttMap(), None),
+            (EchoAttMap(), None),
+            ({"a": 1}, PXAM({"a": 1})),
+            (AttMap({"b": 2}), PXAM({"b": 2})),
+            (PXAM({"c": 3}), PXAM({"c": 3})),
+            (EchoAttMap({"d": 4}), EchoAttMap({"d": 4})),
+        ],
+    )
     def test_non_project_prj_ref_as_arg(self, fetch, prj_ref_val, expect):
         """ Project reference must be null, or an attmap bounded above by PathExAttMap. """
         s = Sample({SAMPLE_NAME_COLNAME: "testsample"}, prj=prj_ref_val)
         assert expect == fetch(s)
 
     @pytest.mark.parametrize(
-        "fetch", [#lambda s: getattr(s, PRJ_REF),
-                  lambda s: s[PRJ_REF]
-                  ])
+        "fetch", [lambda s: s[PRJ_REF]]  # lambda s: getattr(s, PRJ_REF),
+    )
     def test_project_prj_ref_in_data(self, proj_type, fetch, tmpdir):
         """ Project is converted to PathExAttMap of sample-independent data. """
         proj_data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
-        prj = _get_prj(
-            tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
+        prj = _get_prj(tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
         assert isinstance(prj, Project)
         s = Sample({SAMPLE_NAME_COLNAME: "testsample", PRJ_REF: prj})
         self._assert_prj_dat(proj_data, s, fetch)
 
     @pytest.mark.parametrize(
-        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]])
+        "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]]
+    )
     def test_project_prj_ref_as_arg(self, proj_type, fetch, tmpdir):
         """ Project is converted to PathExAttMap of sample-independent data. """
         proj_data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
-        prj = _get_prj(
-            tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
+        prj = _get_prj(tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
         assert isinstance(prj, Project)
         s = Sample({SAMPLE_NAME_COLNAME: "testsample"}, prj=prj)
         self._assert_prj_dat(proj_data, s, fetch)
@@ -481,9 +545,11 @@ class SampleConstructorTests:
         exp_meta, obs_meta = base_data[METADATA_KEY], obs[METADATA_KEY]
         missing = {k: v for k, v in exp_meta.items() if k not in obs_meta}
         assert {} == missing
-        diff = {k: (exp_meta[k], obs_meta[k])
-                for k in set(exp_meta.keys()) & set(obs_meta.keys())
-                if exp_meta[k] != obs_meta[k]}
+        diff = {
+            k: (exp_meta[k], obs_meta[k])
+            for k in set(exp_meta.keys()) & set(obs_meta.keys())
+            if exp_meta[k] != obs_meta[k]
+        }
         assert {} == diff
         extra = [v for k, v in obs_meta.items() if k not in exp_meta]
         assert not any(extra)
@@ -503,6 +569,6 @@ class SampleSerializationTests:
 
 
 def _get_prj(conf_file, data, proj_type):
-    with open(conf_file, 'w') as f:
+    with open(conf_file, "w") as f:
         yaml.dump(data, f)
     return proj_type(conf_file)

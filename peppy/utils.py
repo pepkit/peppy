@@ -1,6 +1,13 @@
 """ Helpers without an obvious logical home. """
 
 import logging
+import os
+from urllib.error import HTTPError
+from urllib.request import urlopen
+
+import yaml
+from ubiquerg import expandpath, is_url
+
 from .const import CONFIG_KEY
 
 _LOGGER = logging.getLogger(__name__)
@@ -14,8 +21,35 @@ def copy(obj):
         from copy import deepcopy
 
         return deepcopy(self)
+
     obj.copy = copy
     return obj
+
+
+def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
+    """ Ensure that a possibly relative path is absolute. """
+    if not isinstance(maybe_relpath, str):
+        raise TypeError(
+            "Attempting to ensure non-text value is absolute path: {} ({})".format(
+                maybe_relpath, type(maybe_relpath)
+            )
+        )
+    if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
+        _LOGGER.debug("Already absolute")
+        return maybe_relpath
+    # Maybe we have env vars that make the path absolute?
+    expanded = expandpath(maybe_relpath)
+    if os.path.isabs(expanded):
+        _LOGGER.debug("Expanded: {}".format(expanded))
+        return expanded
+    # Set path to an absolute path, relative to project config.
+    config_dirpath = os.path.dirname(cfg_path)
+    _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
+    abs_path = os.path.join(config_dirpath, maybe_relpath)
+    _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
+    if check_exists and not os.path.exists(abs_path):
+        raise OSError(f"Path made absolute does not exist: {abs_path}")
+    return abs_path
 
 
 def grab_project_data(prj):
@@ -52,10 +86,12 @@ def make_list(arg, obj_class):
     :return list: list of objects of the predefined class
     :raise TypeError: if a faulty argument was provided
     """
+
     def _raise_faulty_arg():
-        raise TypeError("Provided argument has to be a list[{o}] or a {o}, "
-                        "got '{a}'".format(o=obj_class.__name__,
-                                           a=arg.__class__.__name__))
+        raise TypeError(
+            "Provided argument has to be a list[{o}] or a {o}, "
+            "got '{a}'".format(o=obj_class.__name__, a=arg.__class__.__name__)
+        )
 
     if isinstance(arg, obj_class):
         return [arg]
@@ -66,3 +102,31 @@ def make_list(arg, obj_class):
             return arg
     else:
         _raise_faulty_arg()
+
+
+def load_yaml(filepath):
+    """ Load a yaml file into a Python dict """
+
+    def read_yaml_file(filepath):
+        """
+        Read a YAML file
+
+        :param str filepath: path to the file to read
+        :return dict: read data
+        """
+        filepath = os.path.abspath(filepath)
+        with open(filepath, "r") as f:
+            data = yaml.safe_load(f)
+        return data
+
+    if is_url(filepath):
+        _LOGGER.debug(f"Got URL: {filepath}")
+        try:
+            response = urlopen(filepath)
+        except HTTPError as e:
+            raise e
+        data = response.read()  # a `bytes` object
+        text = data.decode("utf-8")
+        return yaml.safe_load(text)
+    else:
+        return read_yaml_file(filepath)

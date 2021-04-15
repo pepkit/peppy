@@ -15,14 +15,13 @@ import string
 import subprocess
 import tempfile
 
-from pandas.io.parsers import EmptyDataError
 import pytest
 import yaml
-
 from logmuse import init_logger
-from peppy import Project, SAMPLE_NAME_COLNAME
-from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
+from pandas.io.parsers import EmptyDataError
 
+from peppy import SAMPLE_NAME_COLNAME, Project
+from peppy.const import METADATA_KEY, NAME_TABLE_ATTR, SAMPLE_SUBANNOTATIONS_KEY
 
 _LOGGER = logging.getLogger("peppy")
 
@@ -54,12 +53,24 @@ implied_attributes:
     b:
       genome: hg38
 """.format(
-    md_key=METADATA_KEY, tab_key=NAME_TABLE_ATTR,
-    main_table=ANNOTATIONS_FILENAME, subtable=SUBSAMPLES_FILENAME,
-    subtab_key=SAMPLE_SUBANNOTATIONS_KEY).splitlines(True)
+    md_key=METADATA_KEY,
+    tab_key=NAME_TABLE_ATTR,
+    main_table=ANNOTATIONS_FILENAME,
+    subtable=SUBSAMPLES_FILENAME,
+    subtab_key=SAMPLE_SUBANNOTATIONS_KEY,
+).splitlines(
+    True
+)
 # Will populate the corresponding string format entry in project config lines.
-DERIVED_COLNAMES = ["file", "file2", "dcol1", "dcol2",
-                    "nonmerged_col", "nonmerged_col", "data_source"]
+DERIVED_COLNAMES = [
+    "file",
+    "file2",
+    "dcol1",
+    "dcol2",
+    "nonmerged_col",
+    "nonmerged_col",
+    "data_source",
+]
 
 # Connected with project config lines & should match; separate for clarity.
 SRC1_TEMPLATE = "data/{sample_name}{col_modifier}.txt"
@@ -103,33 +114,32 @@ testngs.sh:
       mem: "32000"
       time: "2-00:00:00"
       partition: "longq"
-""".splitlines(True)
+""".splitlines(
+    True
+)
 
 # Determined by "looper_args" in pipeline interface lines.
-LOOPER_ARGS_BY_PIPELINE = {
-    "testpipeline.sh": False,
-    "testngs.sh": True
-}
+LOOPER_ARGS_BY_PIPELINE = {"testpipeline.sh": False, "testngs.sh": True}
 
 # These per-sample file lists pertain to the expected required inputs.
 # These map to required_input_files in the pipeline interface config files.
 _FILE_FILE2_BY_SAMPLE = [
-        ["a.txt", "a.txt"],
-        ["b3.txt", "b3.txt"],
-        ["c.txt", "c.txt"],
-        ["d-bamfile.bam", "d.txt"]
+    ["a.txt", "a.txt"],
+    ["b3.txt", "b3.txt"],
+    ["c.txt", "c.txt"],
+    ["d-bamfile.bam", "d.txt"],
 ]
 # Values expected when accessing a proj.samples[<index>].file
 # file is mapped to data_source by sample annotations and subannotations.
 FILE_BY_SAMPLE = [
-        ["a.txt"],
-        ["b1.txt", "b2.txt", "b3.txt"],
-        ["c.txt"],
-        ["d-bamfile.bam"]
+    ["a.txt"],
+    ["b1.txt", "b2.txt", "b3.txt"],
+    ["c.txt"],
+    ["d-bamfile.bam"],
 ]
 PIPELINE_TO_REQD_INFILES_BY_SAMPLE = {
     "testpipeline.sh": _FILE_FILE2_BY_SAMPLE,
-    "testngs.sh": FILE_BY_SAMPLE
+    "testngs.sh": FILE_BY_SAMPLE,
 }
 
 SAMPLE_ANNOTATION_LINES = """sample_name,protocol,file,file2,organism,nonmerged_col,data_source,dcol2
@@ -137,7 +147,9 @@ a,testlib,src3,src3,,src3,src3,
 b,testlib,,,,src3,src3,src1
 c,testlib,src3,src3,,src3,src3,
 d,testngs,src2,src3,human,,src3,
-""".splitlines(True)
+""".splitlines(
+    True
+)
 
 # Derived from sample annotation lines
 NUM_SAMPLES = len(SAMPLE_ANNOTATION_LINES) - 1
@@ -147,7 +159,9 @@ SAMPLE_SUBANNOTATION_LINES = """sample_name,file,file2,dcol1,col_modifier
 b,src1,src1,src1,1
 b,src1,src1,src1,2
 b,src1,src1,src1,3
-""".splitlines(True)
+""".splitlines(
+    True
+)
 
 # Only sample 'b' is merged, and it's in index-1 in the annotation lines.
 MERGED_SAMPLE_INDICES = {1}
@@ -175,9 +189,11 @@ def update_project_conf_data(extension):
 
 def pytest_addoption(parser):
     """ Facilitate command-line test behavior adjustment. """
-    parser.addoption("--logging-level",
-                     default="WARN",
-                     help="Project root logger level to use for tests")
+    parser.addoption(
+        "--logging-level",
+        default="WARN",
+        help="Project root logger level to use for tests",
+    )
 
 
 def pytest_generate_tests(metafunc):
@@ -186,9 +202,10 @@ def pytest_generate_tests(metafunc):
         # Test case strives to validate expected behavior on empty container.
         collection_types = [tuple, list, set, dict]
         metafunc.parametrize(
-                "empty_collection",
-                argvalues=[ctype() for ctype in collection_types],
-                ids=[ctype.__name__ for ctype in collection_types])
+            "empty_collection",
+            argvalues=[ctype() for ctype in collection_types],
+            ids=[ctype.__name__ for ctype in collection_types],
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -199,7 +216,9 @@ def conf_logs(request):
     init_logger(name=logname, level=level, devmode=True)
     logging.getLogger(logname).info(
         "Configured pep logger at level %s; attaching tests' logger %s",
-        str(level), __name__)
+        str(level),
+        __name__,
+    )
     global _LOGGER
     _LOGGER = logging.getLogger("peppy.{}".format(__name__))
 
@@ -219,31 +238,36 @@ def path_empty_project(request, tmpdir):
     """ Provide path to Project config file with empty annotations. """
 
     # Determine how to write the data and how to name a file.
-    delimiter = request.getfixturevalue("delimiter") if "delimiter" in request.fixturenames else ","
+    delimiter = (
+        request.getfixturevalue("delimiter")
+        if "delimiter" in request.fixturenames
+        else ","
+    )
     extension = "csv" if delimiter == "," else "txt"
 
     # Update the Project configuration data.
     conf_data = update_project_conf_data(extension)
 
     # Write the needed files.
-    anns_path = os.path.join(
-            tmpdir.strpath, conf_data[METADATA_KEY][NAME_TABLE_ATTR])
+    anns_path = os.path.join(tmpdir.strpath, conf_data[METADATA_KEY][NAME_TABLE_ATTR])
 
-    with open(anns_path, 'w') as anns_file:
+    with open(anns_path, "w") as anns_file:
         anns_file.write(delimiter.join(COLUMNS))
     conf_path = os.path.join(tmpdir.strpath, "proj-conf.yaml")
-    with open(conf_path, 'w') as conf_file:
+    with open(conf_path, "w") as conf_file:
         yaml.dump(conf_data, conf_file)
 
     return conf_path
 
 
 def interactive(
-        prj_lines=PROJECT_CONFIG_LINES, 
-        iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
-        sample_subannotation_lines=SAMPLE_SUBANNOTATION_LINES,
-        annotation_lines=SAMPLE_ANNOTATION_LINES,
-        project_kwargs=None, logger_kwargs=None):
+    prj_lines=PROJECT_CONFIG_LINES,
+    iface_lines=PIPELINE_INTERFACE_CONFIG_LINES,
+    sample_subannotation_lines=SAMPLE_SUBANNOTATION_LINES,
+    annotation_lines=SAMPLE_ANNOTATION_LINES,
+    project_kwargs=None,
+    logger_kwargs=None,
+):
     """
     Create Project instance from default or given data.
 
@@ -268,24 +292,24 @@ def interactive(
 
     # TODO: don't work with tempfiles once ctors tolerate Iterable.
     dirpath = tempfile.mkdtemp()
-    path_conf_file = _write_temp(
-        prj_lines,
-        dirpath=dirpath, fname=P_CONFIG_FILENAME)
+    path_conf_file = _write_temp(prj_lines, dirpath=dirpath, fname=P_CONFIG_FILENAME)
     path_iface_file = _write_temp(
-        iface_lines,
-        dirpath=dirpath, fname="pipeline_interface.yaml")
+        iface_lines, dirpath=dirpath, fname="pipeline_interface.yaml"
+    )
     path_sample_subannotation_file = _write_temp(
-        sample_subannotation_lines,
-        dirpath=dirpath, fname=SUBSAMPLES_FILENAME
+        sample_subannotation_lines, dirpath=dirpath, fname=SUBSAMPLES_FILENAME
     )
     path_sample_annotation_file = _write_temp(
-        annotation_lines,
-        dirpath=dirpath, fname=ANNOTATIONS_FILENAME
+        annotation_lines, dirpath=dirpath, fname=ANNOTATIONS_FILENAME
     )
 
     prj = Project(path_conf_file, **(project_kwargs or {}))
-    for path in [path_conf_file, path_iface_file,
-                 path_sample_subannotation_file, path_sample_annotation_file]:
+    for path in [
+        path_conf_file,
+        path_iface_file,
+        path_sample_subannotation_file,
+        path_sample_annotation_file,
+    ]:
         os.unlink(path)
     return prj
 
@@ -296,6 +320,7 @@ class _DataSourceFormatMapping(dict):
     mechanism that pep uses to derive columns, but it's also the
     core string formatting mechanism.
     """
+
     def __missing__(self, derived_attribute):
         return "{" + derived_attribute + "}"
 
@@ -317,19 +342,19 @@ def _write_temp(lines, dirpath, fname):
     """
     basedir_replacement = _DataSourceFormatMapping(basedir=dirpath)
     derived_attributes_replacement = _DataSourceFormatMapping(
-            **{"derived_attribute_names": ", ".join(DERIVED_COLNAMES)}
+        **{"derived_attribute_names": ", ".join(DERIVED_COLNAMES)}
     )
     filepath = os.path.join(dirpath, fname)
     data_source_formatter = string.Formatter()
     num_lines = 0
-    with open(filepath, 'w') as tmpf:
+    with open(filepath, "w") as tmpf:
         for l in lines:
             if "{basedir}" in l:
-                out = data_source_formatter.vformat(
-                    l, (), basedir_replacement)
+                out = data_source_formatter.vformat(l, (), basedir_replacement)
             elif "{derived_attribute_names}" in l:
                 out = data_source_formatter.vformat(
-                    l, (), derived_attributes_replacement)
+                    l, (), derived_attributes_replacement
+                )
             else:
                 out = l
             tmpf.write(out)
@@ -354,11 +379,10 @@ def path_project_conf(tmpdir, project_config_lines):
         Project configuration file
     :return str: path to file with Project configuration data
     """
-    with open(os.path.join(tmpdir.strpath, SUBSAMPLES_FILENAME), 'w') as f:
+    with open(os.path.join(tmpdir.strpath, SUBSAMPLES_FILENAME), "w") as f:
         for l in SAMPLE_SUBANNOTATION_LINES:
             f.write(l)
-    return _write_temp(
-        project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
+    return _write_temp(project_config_lines, tmpdir.strpath, P_CONFIG_FILENAME)
 
 
 @pytest.fixture(scope="function")
@@ -370,7 +394,7 @@ def proj_conf_data(path_project_conf):
     :return Mapping: the data parsed from the configuration file written,
         a Mapping form of the raw Project config text lines
     """
-    with open(path_project_conf, 'r') as conf_file:
+    with open(path_project_conf, "r") as conf_file:
         return yaml.safe_load(conf_file)
 
 
@@ -385,7 +409,8 @@ def path_sample_anns(tmpdir, sample_annotation_lines):
     :return str: path to the sample annotations file that was written
     """
     filepath = _write_temp(
-        sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME)
+        sample_annotation_lines, tmpdir.strpath, ANNOTATIONS_FILENAME
+    )
     return filepath
 
 
@@ -409,43 +434,41 @@ def write_project_files(request):
     :return str: path to the temporary file with configuration data
     """
     dirpath = tempfile.mkdtemp()
-    path_conf_file = _write_temp(PROJECT_CONFIG_LINES,
-                                 dirpath=dirpath, fname=P_CONFIG_FILENAME)
+    path_conf_file = _write_temp(
+        PROJECT_CONFIG_LINES, dirpath=dirpath, fname=P_CONFIG_FILENAME
+    )
     path_sample_subannotation_file = _write_temp(
-            SAMPLE_SUBANNOTATION_LINES,
-            dirpath=dirpath, fname=SUBSAMPLES_FILENAME
+        SAMPLE_SUBANNOTATION_LINES, dirpath=dirpath, fname=SUBSAMPLES_FILENAME
     )
     path_sample_annotation_file = _write_temp(
-            SAMPLE_ANNOTATION_LINES,
-            dirpath=dirpath, fname=ANNOTATIONS_FILENAME
+        SAMPLE_ANNOTATION_LINES, dirpath=dirpath, fname=ANNOTATIONS_FILENAME
     )
     request.cls.project_config_file = path_conf_file
     request.cls.sample_subannotation_file = path_sample_subannotation_file
     request.cls.sample_annotation_file = path_sample_annotation_file
     _write_test_data_files(tempdir=dirpath)
-    yield path_conf_file, path_sample_subannotation_file, \
-          path_sample_annotation_file
+    yield path_conf_file, path_sample_subannotation_file, path_sample_annotation_file
     shutil.rmtree(dirpath)
-
 
 
 @pytest.fixture(scope="function")
 def subannotation_filepath(tmpdir):
     """ Write sample subannotations (temp) file and return path to it. """
-    return _write_temp(SAMPLE_SUBANNOTATION_LINES,
-                       dirpath=tmpdir.strpath, fname=SUBSAMPLES_FILENAME)
-
+    return _write_temp(
+        SAMPLE_SUBANNOTATION_LINES, dirpath=tmpdir.strpath, fname=SUBSAMPLES_FILENAME
+    )
 
 
 # Placed here (rather than near top of file) for data/use locality.
 _TEST_DATA_FOLDER = "data"
-_BAMFILE_PATH = os.path.join(os.path.dirname(__file__),
-                             _TEST_DATA_FOLDER, "d-bamfile.bam")
+_BAMFILE_PATH = os.path.join(
+    os.path.dirname(__file__), _TEST_DATA_FOLDER, "d-bamfile.bam"
+)
 _TEST_DATA_FILE_BASENAMES = ["a", "b1", "b2", "b3", "c", "d"]
-_TEST_DATA = {"{}.txt".format(name):
-              "This is the content of test file {}.".format(name)
-              for name in _TEST_DATA_FILE_BASENAMES}
-
+_TEST_DATA = {
+    "{}.txt".format(name): "This is the content of test file {}.".format(name)
+    for name in _TEST_DATA_FILE_BASENAMES
+}
 
 
 def _write_test_data_files(tempdir):
@@ -457,11 +480,11 @@ def _write_test_data_files(tempdir):
         subdirectory/ies.
     """
     data_files_subdir = os.path.join(tempdir, _TEST_DATA_FOLDER)
-    os.makedirs(data_files_subdir)    # Called 1x/tempdir, so should not exist.
+    os.makedirs(data_files_subdir)  # Called 1x/tempdir, so should not exist.
     subprocess.check_call(["cp", _BAMFILE_PATH, data_files_subdir])
     for fname, data in _TEST_DATA.items():
         filepath = os.path.join(tempdir, _TEST_DATA_FOLDER, fname)
-        with open(filepath, 'w') as testfile:
+        with open(filepath, "w") as testfile:
             _LOGGER.debug("Writing test data file to '%s'", filepath)
             testfile.write(data)
 
@@ -481,12 +504,15 @@ def _create(request, data_type, **kwargs):
     """
     request_class_attr_name = _ATTR_BY_TYPE[data_type]
     data_source = request_class_attribute(request, request_class_attr_name)
-    _LOGGER.debug("Using %s as source of data to build %s",
-                  data_source, data_type.__class__.__name__)
+    _LOGGER.debug(
+        "Using %s as source of data to build %s",
+        data_source,
+        data_type.__class__.__name__,
+    )
     try:
         return data_type(data_source, **kwargs)
     except EmptyDataError:
-        with open(data_source, 'r') as datafile:
+        with open(data_source, "r") as datafile:
             _LOGGER.error("File contents:\n{}".format(datafile.readlines()))
         raise
 
