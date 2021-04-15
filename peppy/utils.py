@@ -5,7 +5,7 @@ import os
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-import oyaml
+import yaml
 from ubiquerg import expandpath, is_url
 
 from .const import CONFIG_KEY
@@ -105,7 +105,7 @@ def make_list(arg, obj_class):
 
 
 def load_yaml(filepath):
-    """ Load a yaml file into a python dict """
+    """ Load a yaml file into a Python dict """
 
     def read_yaml_file(filepath):
         """
@@ -116,7 +116,7 @@ def load_yaml(filepath):
         """
         filepath = os.path.abspath(filepath)
         with open(filepath, "r") as f:
-            data = oyaml.safe_load(f)
+            data = yaml.safe_load(f)
         return data
 
     if is_url(filepath):
@@ -127,38 +127,6 @@ def load_yaml(filepath):
             raise e
         data = response.read()  # a `bytes` object
         text = data.decode("utf-8")
-        return oyaml.safe_load(text)
+        return yaml.safe_load(text)
     else:
         return read_yaml_file(filepath)
-
-
-# Hack for string indexes of both ordered and unordered yaml representations
-# Credit: Anthon
-# https://stackoverflow.com/questions/50045617
-# https://stackoverflow.com/questions/5121931
-# The idea is: if you have yaml keys that can be interpreted as an int or a float,
-# then the yaml loader will convert them into an int or a float, and you would
-# need to access them with dict[2] instead of dict['2']. But since we always
-# expect the keys to be strings, this doesn't work. So, here we are adjusting
-# the loader to keep everything as a string. This happens in 2 ways, so that
-# it's compatible with both yaml and oyaml, which is the orderedDict version.
-# this will go away in python 3.7, because the dict representations will be
-# ordered by default.
-
-# Only do once?
-if not hasattr(oyaml.SafeLoader, "patched_yaml_loader"):
-
-    _LOGGER.debug("Patching yaml loader")
-
-    def my_construct_mapping(self, node, deep=False):
-        data = self.construct_mapping_org(node, deep)
-        return {
-            (str(key) if isinstance(key, float) or isinstance(key, int) else key): data[
-                key
-            ]
-            for key in data
-        }
-
-    oyaml.SafeLoader.construct_mapping_org = oyaml.SafeLoader.construct_mapping
-    oyaml.SafeLoader.construct_mapping = my_construct_mapping
-    oyaml.SafeLoader.patched_yaml_loader = True

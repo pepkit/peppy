@@ -85,6 +85,22 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p, Project)
 
+    @pytest.mark.parametrize(
+        "config_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_derive/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imply/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imports/project_config.yaml",
+        ],
+    )
+    def test_remote(self, config_path):
+        """
+        Verify that remote project configs are supported
+        """
+        p = Project(cfg=config_path)
+        assert isinstance(p, Project)
+
     @pytest.mark.parametrize("defer", [False, True])
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
     def test_amendments(self, example_pep_cfg_path, defer):
