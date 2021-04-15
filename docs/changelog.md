@@ -1,10 +1,14 @@
 # Changelog
 
-This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. 
+This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
-## [0.31.1] -- Unreleased
+## [0.31.1] -- 2021-04-15
 
-- Adds support for remote URL config files.
+### Added
+- Support for remote URL config files
+
+### Fixed
+- Error when accessing `Project.subsample_table` property when no subsample tables were defined
 
 ## [0.31.0] - 2020-10-07
 
@@ -28,19 +32,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [0.30.1] - 2020-05-26
 
-### Changed 
+### Changed
 - Package authors list
 
 ## [0.30.0] - 2020-05-26
 
-**This version introduced backwards-incompatible changes.**  
+**This version introduced backwards-incompatible changes.**
 
 ### Added
 - attribute duplication functionality
 - config importing functionality
 - attribute removal functionality
 - possibility to define multi-attribute rules in attribute implication
-  
+
 ### Changed
 - Project configuration file to follow [PEP2.0.0](http://pep.databio.org/en/2.0.0/specification/) specification. Browse the specification for changes related to config format
 - Do not require `sample_name` attribute in the sample table
@@ -90,19 +94,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - `subsample_table` on a `Project` gives the table of sample subannotation / "units" if applicable.
 ### Changed
-- Add `attribute` parameter to `fetch_samples` function to enable more general applicability. 
+- Add `attribute` parameter to `fetch_samples` function to enable more general applicability.
 Additionally, the attribute value matching is more strict now -- requires perfect match.
 - Remove Python 3.4 support.
 - Use `attmap` for implementation of attribute-style access into a key-value collection.
 - Deprecate `sample_annotation` and `sample_subannotation` in favor of `sample_table` and `subsample_table`, respectively.
 
 ## [0.19.0] -- (2019-01-16)
-### New  
+### New
 - Added `activate_subproject` method to `Project`.
 ### Changed
 - `Project` construction no longer requires sample annotations sheet.
 - Specification of assembly/ies in project config outside of `implied_attributes`  is deprecated.
-- `implied_columns` and `derived_columns` are deprecated in favor of `implied_attributes` and `derived_attributes`.  
+- `implied_columns` and `derived_columns` are deprecated in favor of `implied_attributes` and `derived_attributes`.
 
 ## [0.18.2] -- (2018-07-23)
 ### Fixed
@@ -152,10 +156,10 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 ### New
 - Add `--lump` and `--lumpn` options
 - Catch submission errors from cluster resource managers
-- Implied columns can now be derived  
-- Now protocols can be specified on the command-line `--include-protocols`  
-- Add rudimentary figure summaries    
-- Allow wildcard protocol_mapping for catch-all pipeline assignment  
+- Implied columns can now be derived
+- Now protocols can be specified on the command-line `--include-protocols`
+- Add rudimentary figure summaries
+- Allow wildcard protocol_mapping for catch-all pipeline assignment
 - New sample_subtypes section in pipeline_interface
 ### Changed
 - Sample child classes are now defined explicitly in the pipeline interface. Previously, they were guessed based on presence of a class extending Sample in a pipeline script.
@@ -170,7 +174,7 @@ Additionally, the attribute value matching is more strict now -- requires perfec
 - Merges pipeline interface and protocol mappings. This means we now allow direct pointers to `pipeline_interface.yaml` files, increasing flexibility, so this relaxes the specified folder structure that was previously used for `pipelines_dir` (with `config` subfolder).
 - Allow URLs as paths to sample sheets.
 - Allow tsv format for sample sheets.
-- Checks that the path to a pipeline actually exists before writing the submission script. 
+- Checks that the path to a pipeline actually exists before writing the submission script.
 ### Changed
 - Changed LOOPERENV environment variable to PEPENV, generalizing it to generic models
 - Changed name of `pipelines_dir` to `pipeline_interfaces` (but maintained backwards compatibility for now).
