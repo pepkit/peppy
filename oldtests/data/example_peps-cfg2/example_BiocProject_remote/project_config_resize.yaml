@@ -1,6 +1,0 @@
-pep_version: "2.0.0"
-sample_table: sample_table.csv
-
-bioconductor:
-  read_fun_name: readRemoteData_resize
-  read_fun_path: readRemoteData_resize.R

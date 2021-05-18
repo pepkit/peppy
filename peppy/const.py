@@ -8,6 +8,8 @@ NAME_KEY = "name"
 CONFIG_VERSION_KEY = "pep_version"
 DESC_KEY = "description"
 CONFIG_FILE_KEY = "_config_file"
+SAMPLE_TABLE_FILE_KEY = "_sample_table_path"
+SUBSAMPLE_TABLES_FILE_KEY = "_subsample_tables_path"
 CONFIG_KEY = "_config"
 PROJECT_TYPENAME = "Project"
 SAMPLE_MODS_KEY = "sample_modifiers"
@@ -41,6 +43,8 @@ PROJECT_CONSTANTS = [
     "NAME_TABLE_ATTR",
     "OUTDIR_KEY",
     "CONFIG_FILE_KEY",
+    "SAMPLE_TABLE_FILE_KEY",
+    "SUBSAMPLE_TABLES_FILE_KEY",
     "CONFIG_KEY",
     "NAME_KEY",
     "REMOVE_KEY",

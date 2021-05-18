@@ -8,7 +8,7 @@ from pandas import DataFrame
 from yaml import dump, safe_load
 
 from peppy import Project
-from peppy.const import SAMPLE_NAME_ATTR
+from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
 from peppy.exceptions import InvalidSampleTableFileException, MissingAmendmentError
 
 __author__ = "Michal Stolarczyk"
@@ -43,7 +43,7 @@ def _get_pair_to_post_init_test(cfg_path):
     """
     p = Project(cfg=cfg_path)
     pd = Project(cfg=cfg_path, defer_samples_creation=True)
-    pd.create_samples()
+    pd.create_samples(modify=False if pd[SAMPLE_TABLE_FILE_KEY] is not None else True)
     return [p, pd]
 
 
@@ -66,13 +66,13 @@ def _cmp_all_samples_attr(p1, p2, attr):
 
 class ProjectConstructorTests:
     def test_empty(self):
-        """ Verify that an empty Project instance can be created """
+        """Verify that an empty Project instance can be created"""
         p = Project()
         assert isinstance(p, Project)
         assert len(p.samples) == 0
 
     def test_nonexistent(self):
-        """ Verify that OSError is thrown when config does not exist """
+        """Verify that OSError is thrown when config does not exist"""
         with pytest.raises(OSError):
             Project(cfg="nonexistentfile.yaml")
 
@@ -301,13 +301,13 @@ class ProjectManipulationTests:
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_get_sample(self, example_pep_cfg_path):
-        """ Verify that sample getting method works """
+        """Verify that sample getting method works"""
         p = Project(cfg=example_pep_cfg_path)
         p.get_sample(sample_name=p.samples[0]["sample_name"])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_get_sample_nonexistent(self, example_pep_cfg_path):
-        """ Verify that sample getting returns ValueError if not sample found """
+        """Verify that sample getting returns ValueError if not sample found"""
         p = Project(cfg=example_pep_cfg_path)
         with pytest.raises(ValueError):
 
@@ -317,13 +317,13 @@ class ProjectManipulationTests:
 class SampleModifiersTests:
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
     def test_append(self, example_pep_cfg_path):
-        """ Verify that the appended attribute is added to the samples """
+        """Verify that the appended attribute is added to the samples"""
         p = Project(cfg=example_pep_cfg_path)
         assert all([s["read_type"] == "SINGLE" for s in p.samples])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["imports"], indirect=True)
     def test_imports(self, example_pep_cfg_path):
-        """ Verify that the imported attribute is added to the samples """
+        """Verify that the imported attribute is added to the samples"""
         p = Project(cfg=example_pep_cfg_path)
         assert all([s["imported_attr"] == "imported_val" for s in p.samples])
 

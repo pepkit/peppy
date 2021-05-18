@@ -345,7 +345,7 @@ class Sample(PathExAttMap):
         )
 
     def __str__(self, max_attr=10):
-        """ Representation in interpreter. """
+        """Representation in interpreter."""
         if len(self) == 0:
             return ""
         head = "Sample '{}'".format(self[SAMPLE_NAME_ATTR])
@@ -370,11 +370,11 @@ class Sample(PathExAttMap):
         return head + "\n" + attrs
 
     def _excl_from_eq(self, k):
-        """ Exclude the Project reference from object comparison. """
+        """Exclude the Project reference from object comparison."""
         return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)
 
     def _excl_from_repr(self, k, cls):
-        """ Exclude the Project reference from representation. """
+        """Exclude the Project reference from representation."""
         return k.startswith("_") or super(Sample, self)._excl_from_repr(k, cls)
 
     def _try_touch_samples(self):

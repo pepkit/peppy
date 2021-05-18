@@ -43,6 +43,8 @@ class Project(PathExAttMap):
     def __init__(
         self,
         cfg=None,
+        sample_table=None,
+        subsample_tables=None,
         amendments=None,
         sample_table_index=None,
         subsample_table_index=None,
@@ -59,6 +61,17 @@ class Project(PathExAttMap):
             self.parse_config_file(cfg, amendments)
         else:
             self[CONFIG_FILE_KEY] = None
+
+        if isinstance(sample_table, str):
+            self[SAMPLE_TABLE_FILE_KEY] = sample_table
+        else:
+            self[SAMPLE_TABLE_FILE_KEY] = None
+
+        if subsample_tables is not None:
+            self[SUBSAMPLE_TABLES_FILE_KEY] = make_list(subsample_tables, str)
+        else:
+            self[SUBSAMPLE_TABLES_FILE_KEY] = None
+
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self.st_index = sample_table_index or SAMPLE_NAME_ATTR
@@ -68,16 +81,23 @@ class Project(PathExAttMap):
         ]
         self.name = self.infer_name()
         self.description = self.get_description()
+        if self[SUBSAMPLE_TABLES_FILE_KEY] and not self[SAMPLE_TABLE_FILE_KEY]:
+            raise IllegalStateException(
+                "You must specify a sample_table when the subsample_tables are provided."
+            )
         if not defer_samples_creation:
-            self.create_samples()
+            self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(index=self.st_index)
 
-    def create_samples(self):
+    def create_samples(self, modify=False):
         """
         Populate Project with Sample objects
         """
         self._samples = self.load_samples()
-        self.modify_samples()
+        if modify:
+            self.modify_samples()
+        else:
+            self._assert_samples_have_names()
 
     def _reinit(self):
         """
@@ -190,6 +210,14 @@ class Project(PathExAttMap):
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
     def load_samples(self):
+        """
+        Read the sample_table and subsample_tables into dataframes
+        and store in the object root. The values sourced from the
+        project config can be overwritten by the optional arguments.
+
+        :param str sample_table: a path to a sample table
+        :param List[str] sample_table: a list of paths to sample tables
+        """
         self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
@@ -199,6 +227,9 @@ class Project(PathExAttMap):
         return samples_list
 
     def modify_samples(self):
+        """
+        Perform any sample modifications defined in the config.
+        """
         if self._modifier_exists():
             mod_diff = set(self[CONFIG_KEY][SAMPLE_MODS_KEY].keys()) - set(
                 SAMPLE_MODIFIERS
@@ -620,7 +651,7 @@ class Project(PathExAttMap):
             return desc_str
 
     def __str__(self):
-        """ Representation in interpreter. """
+        """Representation in interpreter."""
         if len(self) == 0:
             return "{}"
         msg = "Project"
@@ -784,7 +815,11 @@ class Project(PathExAttMap):
     def _read_sample_data(self):
         """
         Read the sample_table and subsample_table into dataframes
-        and store in the object root
+        and store in the object root. The values sourced from the
+        project config can be overwritten by the optional arguments
+
+        :param str sample_table: a path to a sample table
+        :param List[str] sample_table: a list of paths to sample tables
         """
 
         def _read_tab(pth):
@@ -809,22 +844,32 @@ class Project(PathExAttMap):
                 )
 
         no_metadata_msg = "No {} specified"
-        if CONFIG_KEY not in self:
-            _LOGGER.warning("No config key in Project")
-            return
-        if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
-            _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
-            return
-        st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
-        if st:
+        if self[SAMPLE_TABLE_FILE_KEY] is not None:
+            st = self[SAMPLE_TABLE_FILE_KEY]
+        else:
+            if CONFIG_KEY not in self:
+                _LOGGER.warning("No config key in Project")
+                return
+            if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
+                _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
+                return
+            st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
+
+        if self[SUBSAMPLE_TABLES_FILE_KEY] is not None:
+            sst = self[SUBSAMPLE_TABLES_FILE_KEY]
+        else:
+            if CONFIG_KEY in self and CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
+                sst = make_list(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY], str)
+            else:
+                sst = None
+
+        if st is not None:
             self[SAMPLE_DF_KEY] = _read_tab(st)
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None
-        if CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
-            if self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY] is not None:
-                sst = make_list(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY], str)
-                self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
+        if sst is not None:
+            self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
             self[SUBSAMPLE_DF_KEY] = None

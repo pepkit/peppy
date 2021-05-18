@@ -1,4 +1,0 @@
-sample_name,protocol,data_source,SRR,Sample_geo_accession,read1,read2
-sample1,PROTO1,SRA,SRR5210416,GSM2471255,SRA_1,SRA_2
-sample2,PROTO1,SRA,SRR5210450,GSM2471300,SRA_1,SRA_2
-sample3,PROTO2,SRA,SRR5210398,GSM2471249,SRA_1,SRA_2
