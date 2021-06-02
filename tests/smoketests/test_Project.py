@@ -1,6 +1,7 @@
 """ Classes for peppy.Project smoketesting """
 
 import os
+import socket
 import tempfile
 
 import pytest
@@ -9,7 +10,11 @@ from yaml import dump, safe_load
 
 from peppy import Project
 from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
-from peppy.exceptions import InvalidSampleTableFileException, MissingAmendmentError
+from peppy.exceptions import (
+    InvalidSampleTableFileException,
+    MissingAmendmentError,
+    RemoteYAMLError,
+)
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal@virginia.edu"
@@ -100,6 +105,27 @@ class ProjectConstructorTests:
         """
         p = Project(cfg=config_path)
         assert isinstance(p, Project)
+
+    @pytest.mark.parametrize(
+        "config_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_derive/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imply/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imports/project_config.yaml",
+        ],
+    )
+    def test_remote_simulate_no_network(self, config_path):
+        """
+        Verify correctness of the remote config reading behavior with no network
+        """
+
+        def guard(*args, **kwargs):
+            raise Exception("Block internet connection")
+
+        socket.socket = guard
+        with pytest.raises(RemoteYAMLError):
+            Project(cfg=config_path)
 
     @pytest.mark.parametrize("defer", [False, True])
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
