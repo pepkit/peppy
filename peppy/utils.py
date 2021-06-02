@@ -2,11 +2,12 @@
 
 import logging
 import os
-from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import yaml
 from ubiquerg import expandpath, is_url
+
+from peppy import exceptions
 
 from .const import CONFIG_KEY
 
@@ -105,28 +106,26 @@ def make_list(arg, obj_class):
 
 
 def load_yaml(filepath):
-    """Load a yaml file into a Python dict"""
+    """
+    Load a local or remote YAML file into a Python dict
 
-    def read_yaml_file(filepath):
-        """
-        Read a YAML file
-
-        :param str filepath: path to the file to read
-        :return dict: read data
-        """
-        filepath = os.path.abspath(filepath)
-        with open(filepath, "r") as f:
-            data = yaml.safe_load(f)
-        return data
-
+    :param str filepath: path to the file to read
+    :raises RemoteYAMLError: if the remote YAML file reading fails
+    :return dict: read data
+    """
     if is_url(filepath):
         _LOGGER.debug(f"Got URL: {filepath}")
         try:
             response = urlopen(filepath)
-        except HTTPError as e:
-            raise e
-        data = response.read()  # a `bytes` object
-        text = data.decode("utf-8")
-        return yaml.safe_load(text)
+        except Exception as e:
+            raise exceptions.RemoteYAMLError(
+                f"Could not load remote file: {filepath}. "
+                f"Original exception: {getattr(e, 'message', repr(e))}"
+            )
+        else:
+            data = response.read().decode("utf-8")
+            return yaml.safe_load(data)
     else:
-        return read_yaml_file(filepath)
+        with open(os.path.abspath(filepath), "r") as f:
+            data = yaml.safe_load(f)
+        return data

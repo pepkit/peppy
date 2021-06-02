@@ -4,7 +4,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 ## [0.32.0] -- unreleased
-
+- unify exceptions related to remote YAML file reading in `read_yaml` function. Now always a `RemoteYAMLError` is thrown.
 
 ## [0.31.1] -- 2021-04-15
 

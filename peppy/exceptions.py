@@ -15,6 +15,7 @@ __all__ = [
     "MissingAmendmentError",
     "InvalidConfigFileException",
     "SampleTableFileException",
+    "RemoteYAMLError",
 ]
 
 
@@ -41,6 +42,12 @@ class SampleTableFileException(PeppyError):
 
 class InvalidSampleTableFileException(SampleTableFileException):
     """Error type for invalid sample annotations file."""
+
+    pass
+
+
+class RemoteYAMLError(PeppyError):
+    """Remote YAML file cannot be accessed"""
 
     pass
 
