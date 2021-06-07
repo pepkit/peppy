@@ -13,7 +13,7 @@ from ubiquerg import is_url
 from .const import *
 from .exceptions import *
 from .sample import Sample
-from .utils import copy, load_yaml, make_abs_via_cfg, make_list
+from .utils import copy, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -23,12 +23,8 @@ class Project(PathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
-    :param str cfg: Project config file (YAML), or appropriate
-        key-value mapping of data to constitute project
-    :param str sample_table: path to the sample table,
-        disregarded if `cfg` argument is provided
-    :param str | Iterable[str] subsample_tables: path to the subsample tables,
-        disregarded if `cfg` argument is provided
+    :param str cfg: Project config file (YAML) or sample table (CSV/TSV)
+        with one row per sample to constitute project
     :param str | Iterable[str] sample_table_index: name of the columns to set
         the sample_table index to
     :param str | Iterable[str] subsample_table_index: name of the columns to set
@@ -49,8 +45,6 @@ class Project(PathExAttMap):
     def __init__(
         self,
         cfg=None,
-        sample_table=None,
-        subsample_tables=None,
         amendments=None,
         sample_table_index=None,
         subsample_table_index=None,
@@ -62,20 +56,20 @@ class Project(PathExAttMap):
             )
         )
         super(Project, self).__init__()
-        if isinstance(cfg, str):
+        if is_cfg_or_anno(file_path=cfg) is None:
+            # no 'cfg' provided. Empty Project will be created
+            self[CONFIG_FILE_KEY] = None
+            self[SAMPLE_TABLE_FILE_KEY] = None
+            self[SUBSAMPLE_TABLES_FILE_KEY] = None
+        elif is_cfg_or_anno(file_path=cfg):
+            # the provided 'cfg' is a project config file
             self[CONFIG_FILE_KEY] = cfg
+            self[SAMPLE_TABLE_FILE_KEY] = None
+            self[SUBSAMPLE_TABLES_FILE_KEY] = None
             self.parse_config_file(cfg, amendments)
         else:
-            self[CONFIG_FILE_KEY] = None
-
-        if isinstance(sample_table, str):
-            self[SAMPLE_TABLE_FILE_KEY] = sample_table
-        else:
-            self[SAMPLE_TABLE_FILE_KEY] = None
-
-        if subsample_tables is not None:
-            self[SUBSAMPLE_TABLES_FILE_KEY] = make_list(subsample_tables, str)
-        else:
+            # the provided 'cfg' is a sample table
+            self[SAMPLE_TABLE_FILE_KEY] = cfg
             self[SUBSAMPLE_TABLES_FILE_KEY] = None
 
         self._samples = []
@@ -87,10 +81,6 @@ class Project(PathExAttMap):
         ]
         self.name = self.infer_name()
         self.description = self.get_description()
-        if self[SUBSAMPLE_TABLES_FILE_KEY] and not self[SAMPLE_TABLE_FILE_KEY]:
-            raise IllegalStateException(
-                "You must specify a sample_table when the subsample_tables are provided."
-            )
         if not defer_samples_creation:
             self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(index=self.st_index)
@@ -382,7 +372,6 @@ class Project(PathExAttMap):
             for k, v in merged_attrs.items():
                 if isinstance(v, list) and len(list(set(v))) == 1:
                     merged_attrs[k] = v[0]
-            # merged_attrs[self.sample_name_colname] = dup
             self._samples = [
                 s for s in self._samples if s[self.sample_name_colname] != dup
             ]

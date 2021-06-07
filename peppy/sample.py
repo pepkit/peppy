@@ -351,7 +351,7 @@ class Sample(PathExAttMap):
         head = "Sample '{}'".format(self[SAMPLE_NAME_ATTR])
         try:
             prj_cfg = self[PRJ_REF][CONFIG_FILE_KEY]
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         else:
             head += " in Project ({})".format(prj_cfg)
@@ -383,6 +383,5 @@ class Sample(PathExAttMap):
         """
         try:
             self[PRJ_REF][SAMPLE_EDIT_FLAG_KEY] = True
-        except Exception as e:
-            _LOGGER.debug("Could not set the sample edited flag: {e}")
+        except (KeyError, AttributeError, TypeError):
             pass

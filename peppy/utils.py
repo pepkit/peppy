@@ -129,3 +129,30 @@ def load_yaml(filepath):
         with open(os.path.abspath(filepath), "r") as f:
             data = yaml.safe_load(f)
         return data
+
+
+def is_cfg_or_anno(file_path, formats=None):
+    """
+    Determine if the input file seems to be a project config file (based on the file extension).
+
+    :param str file_path: file path to examine
+    :param dict formats: formats dict to use. Must include 'config' and 'annotation' keys.
+    :raise ValueError: if the file seems to be neither a config nor an annotation
+    :return bool: True if the file is a config, False if the file is an annotation
+    """
+    formats_dict = formats or {
+        "config": (".yaml", ".yml"),
+        "annotation": (".csv", ".tsv"),
+    }
+    if file_path is None:
+        return None
+    if file_path.lower().endswith(formats_dict["config"]):
+        _LOGGER.debug(f"Creating a Project from a YAML file: {file_path}")
+        return True
+    elif file_path.lower().endswith(formats_dict["annotation"]):
+        _LOGGER.debug(f"Creating a Project from a CSV file: {file_path}")
+        return False
+    raise ValueError(
+        f"File path '{file_path}' does not point to an annotation or config. "
+        f"Accepted extensions: {formats_dict}"
+    )
