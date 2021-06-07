@@ -3,4 +3,3 @@ sample_table: sample_table.csv
 subsample_table: subsample_table.csv
 output_dir: $HOME/hello_looper_results
 pipeline_interfaces: [../pipeline/pipeline_interface.yaml]
-

@@ -3,8 +3,8 @@ name: test_pipeline
 metadata:
   sample_table: "sample_table.csv"
   output_dir: "$HOME"
-  pipeline_interfaces: "$HOME/pipeline_interface.yaml" 
-  
+  pipeline_interfaces: "$HOME/pipeline_interface.yaml"
+
 derived_columns: [read1, read2]
 
 data_sources:
@@ -12,7 +12,7 @@ data_sources:
   S1: "$DATA/test/fastq/{srr}.fastq.gz"
   H1: "$DATA/test/fastq/{srr}_PE1.fastq.gz"
   H2: "$DATA/test/fastq/{srr}_PE2.fastq.gz"
-  
+
 # implied_columns:
 #   organism:
 #     human:

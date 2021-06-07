@@ -8,10 +8,8 @@ readBedFilesExceptions = function(project) {
   result = lapply(paths, function(x){
     df = read.table(x)
     colnames(df) = c('chr', 'start', 'end')
-    gr = GenomicRanges::GRanges(df) 
+    gr = GenomicRanges::GRanges(df)
   })
   names(result) = sampleNames
   return(GenomicRanges::GRangesList(result))
 }
-
-

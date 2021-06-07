@@ -6,7 +6,7 @@ looper:
   output_dir: ../output
   #pipeline_interfaces: ["pipeline_interface1.yml", "pipeline_interface2.yaml"]
 
-sample_modifiers: 
+sample_modifiers:
   append:
     pipeline_interfaces: ["pipeline_interface1.yaml", "pipeline_interface2.yaml"]
   derive:

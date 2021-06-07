@@ -23,8 +23,8 @@ pip install --user https://github.com/pepkit/peppy/zipball/master
 
 ## Hello world!
 
-Now, to test `peppy`, let's grab an clone an example project that follows PEP format. 
-We've produced a bunch of example PEPs in the [`example_peps` repository](https://github.com/pepkit/example_peps). 
+Now, to test `peppy`, let's grab an clone an example project that follows PEP format.
+We've produced a bunch of example PEPs in the [`example_peps` repository](https://github.com/pepkit/example_peps).
 Let's clone it:
 
 ```bash
@@ -43,5 +43,5 @@ samples = project.samples # grab the list of Sample objects defined in this Proj
 samples[0].file
 ```
 
-That's it! You've got `peppy` running on an example project. 
-Now you can play around with project metadata from within python. 
+That's it! You've got `peppy` running on an example project.
+Now you can play around with project metadata from within python.

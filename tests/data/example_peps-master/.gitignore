@@ -16,7 +16,7 @@ target/
 # Rcaches
 RCache/*
 
-# Compiled source 
+# Compiled source
 *.com
 *.class
 *.dll

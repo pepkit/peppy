@@ -11,6 +11,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - Support for PEPs with no YAML configuration file component (CSV only)
 
+### Fixed
+- Project string representation; [Issue 368](https://github.com/pepkit/peppy/issues/368)
+
 ## [0.31.1] -- 2021-04-15
 
 ### Added

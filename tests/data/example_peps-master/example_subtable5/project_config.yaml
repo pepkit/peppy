@@ -11,4 +11,3 @@ sample_modifiers:
     sources:
       R1: "../data/{identifier}{file_id}_R1.fq.gz"
       R2: "../data/{identifier}{file_id}_R2.fq.gz"
-
