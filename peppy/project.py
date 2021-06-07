@@ -22,21 +22,26 @@ class Project(PathExAttMap):
     """
     A class to model a Project (collection of samples and metadata).
 
-    :param str | Mapping cfg: Project config file (YAML), or appropriate
+    :param str cfg: Project config file (YAML), or appropriate
         key-value mapping of data to constitute project
+    :param str sample_table: path to the sample table,
+        disregarded if `cfg` argument is provided
+    :param str | Iterable[str] subsample_tables: path to the subsample tables,
+        disregarded if `cfg` argument is provided
     :param str | Iterable[str] sample_table_index: name of the columns to set
         the sample_table index to
     :param str | Iterable[str] subsample_table_index: name of the columns to set
         the subsample_table index to
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
+    :param bool defer_samples_creation: whether the sample creation should be skipped
 
     :Example:
 
     .. code-block:: python
 
         from peppy import Project
-        prj = Project("ngs")
+        prj = Project(cfg="ngs.yaml")
         samples = prj.samples
     """
 
@@ -304,6 +309,10 @@ class Project(PathExAttMap):
                 for attr, new in synonyms.items():
                     if attr in sample:
                         setattr(sample, new, getattr(sample, attr))
+                    else:
+                        _LOGGER.warning(
+                            f"The sample attribute to duplicate not found: {attr}"
+                        )
 
     def _assert_samples_have_names(self):
         """
@@ -313,7 +322,7 @@ class Project(PathExAttMap):
         :raise InvalidSampleTableFileException: if names are not specified
         """
         try:
-            # before merging, which is requires sample_name attribute to map
+            # before merging, which requires sample_name attribute to map
             # sample_table rows to subsample_table rows,
             # perform only sample_name attr derivation
             if (
@@ -655,44 +664,40 @@ class Project(PathExAttMap):
         if len(self) == 0:
             return "{}"
         msg = "Project"
-        if NAME_KEY in self:
-            msg += " '{}'".format(self[NAME_KEY])
-        if CONFIG_FILE_KEY in self:
-            msg += " ({})".format(self[CONFIG_FILE_KEY])
+        if NAME_KEY in self and self[NAME_KEY] is not None:
+            msg += f" '{self[NAME_KEY]}'"
+        if CONFIG_FILE_KEY in self and self[CONFIG_FILE_KEY] is not None:
+            msg += f" ({self[CONFIG_FILE_KEY]})"
         if DESC_KEY in self and self[DESC_KEY] is not None:
-            msg += "\n{}: {}".format(DESC_KEY, self[DESC_KEY])
+            msg += f"\n{DESC_KEY}: {self[DESC_KEY]}"
         try:
             num_samples = len(self._samples)
         except (AttributeError, TypeError):
             _LOGGER.debug("No samples established on project")
             num_samples = 0
         if num_samples > 0:
-            msg = "{}\n{} samples".format(msg, num_samples)
+            msg = f"{msg}\n{num_samples} samples"
             sample_names = list(self[SAMPLE_DF_KEY][self.sample_name_colname])
             repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = (
-                " (showing first {})".format(MAX_PROJECT_SAMPLES_REPR)
+                f" (showing first {MAX_PROJECT_SAMPLES_REPR})"
                 if num_samples > MAX_PROJECT_SAMPLES_REPR
                 else ""
             )
-            msg = "{}{}: {}".format(msg, context, ", ".join(repr_names))
+            msg = f"{msg}{context}: {', '.join(repr_names)}"
         else:
-            msg = "{} {}".format(msg, "0 samples")
+            msg = f"{msg} 0 samples"
         if CONFIG_KEY not in self:
             return msg
-        msg = "{}\nSections: {}".format(
-            msg, ", ".join([s for s in self[CONFIG_KEY].keys()])
-        )
+        msg = f"{msg}\nSections: {', '.join([s for s in self[CONFIG_KEY].keys()])}"
         if (
             PROJ_MODS_KEY in self[CONFIG_KEY]
             and AMENDMENTS_KEY in self[CONFIG_KEY][PROJ_MODS_KEY]
         ):
-            msg = "{}\nAmendments: {}".format(
-                msg, ", ".join(self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys())
-            )
+            msg = f"{msg}\nAmendments: {', '.join(self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys())}"
         if self.amendments:
-            msg = "{}\nActivated amendments: {}".format(
-                msg, ", ".join(self[ACTIVE_AMENDMENTS_KEY])
+            msg = (
+                f"{msg}\nActivated amendments: {', '.join(self[ACTIVE_AMENDMENTS_KEY])}"
             )
         return msg
 
@@ -999,15 +1004,18 @@ class Project(PathExAttMap):
         typically allowed), a warning is raised and the first sample is returned
 
         :param str sample_name: The name of a sample to retrieve
+        :raise ValueError: if there's no sample with the specified name defined
         :return peppy.Sample: The requested Sample object
         """
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
-            _LOGGER.warning("More than one sample was detected; " "returning the first")
+            _LOGGER.warning(
+                f"{len(samples)} samples matched the name: {sample_name}. Returning the first one."
+            )
         try:
             return samples[0]
         except IndexError:
-            raise ValueError("Project has no sample named {}.".format(sample_name))
+            raise ValueError(f"Project has no sample named {sample_name}.")
 
     def get_samples(self, sample_names):
         """
