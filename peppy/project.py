@@ -677,7 +677,7 @@ class Project(PathExAttMap):
             num_samples = 0
         if num_samples > 0:
             msg = f"{msg}\n{num_samples} samples"
-            sample_names = list(self[SAMPLE_DF_KEY][self.sample_name_colname])
+            sample_names = [getattr(s, self.sample_name_colname) for s in self.samples]
             repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = (
                 f" (showing first {MAX_PROJECT_SAMPLES_REPR})"
