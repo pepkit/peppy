@@ -7,6 +7,7 @@ from logging import getLogger
 
 import pandas as pd
 from attmap import PathExAttMap
+from pandas.core.common import flatten
 from ubiquerg import is_url
 
 from .const import *
@@ -103,6 +104,7 @@ class Project(PathExAttMap):
             self.modify_samples()
         else:
             self._assert_samples_have_names()
+            self._auto_merge_duplicated_names()
 
     def _reinit(self):
         """
@@ -249,6 +251,7 @@ class Project(PathExAttMap):
         self.attr_synonyms()
         self.attr_imply()
         self._assert_samples_have_names()
+        self._auto_merge_duplicated_names()
         self.attr_merge()
         self.attr_derive()
 
@@ -353,6 +356,36 @@ class Project(PathExAttMap):
                 else:
                     raise InvalidSampleTableFileException(msg)
 
+    def _auto_merge_duplicated_names(self):
+        """
+        If sample_table specifies samples with non-unique names, try to merge these samples
+        """
+        sample_names_list = [getattr(s, self.sample_name_colname) for s in self.samples]
+        print(f"sample_names_list: {sample_names_list}")
+        dups_set = set([x for x in sample_names_list if sample_names_list.count(x) > 1])
+        if not dups_set:
+            # all sample names are unique
+            return
+        _LOGGER.info(f"Found {len(dups_set)} samples with non-unique names: {dups_set}")
+        for dup in dups_set:
+            dup_samples = [
+                s for s in self.samples if getattr(s, self.sample_name_colname) == dup
+            ]
+            sample_attrs = [
+                attr for attr in dup_samples[0].keys() if not attr.startswith("_")
+            ]
+            merged_attrs = {}
+            for attr in sample_attrs:
+                merged_attrs[attr] = list(
+                    flatten([getattr(s, attr) for s in dup_samples])
+                )
+            # make sure the value of sample name is not duplicated
+            merged_attrs[self.sample_name_colname] = dup
+            self._samples = [
+                s for s in self._samples if s[self.sample_name_colname] != dup
+            ]
+            self._samples.append(Sample(series=merged_attrs))
+
     def attr_merge(self):
         """
         Merge sample subannotations (from subsample table) with
@@ -365,7 +398,7 @@ class Project(PathExAttMap):
             for n in list(subsample_table[self.sample_name_colname]):
                 if n not in [s[SAMPLE_NAME_ATTR] for s in self.samples]:
                     _LOGGER.warning(
-                        ("Couldn't find matching sample for " "subsample: {}").format(n)
+                        ("Couldn't find matching sample for subsample: {}").format(n)
                     )
             for sample in self.samples:
                 sample_colname = self.sample_name_colname
@@ -404,8 +437,10 @@ class Project(PathExAttMap):
                     rowdata = row.to_dict()
 
                     def _select_new_attval(merged_attrs, attname, attval):
-                        """Select new attribute value for the merged columns
-                        dictionary"""
+                        """
+                        Select new attribute value for the merged columns
+                        dictionary
+                        """
                         if attname in merged_attrs:
                             return merged_attrs[attname] + [attval]
                         return [str(attval).rstrip()]

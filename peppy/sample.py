@@ -383,5 +383,6 @@ class Sample(PathExAttMap):
         """
         try:
             self[PRJ_REF][SAMPLE_EDIT_FLAG_KEY] = True
-        except (KeyError, AttributeError):
+        except Exception as e:
+            _LOGGER.debug("Could not set the sample edited flag: {e}")
             pass
