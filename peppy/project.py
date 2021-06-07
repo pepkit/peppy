@@ -361,7 +361,6 @@ class Project(PathExAttMap):
         If sample_table specifies samples with non-unique names, try to merge these samples
         """
         sample_names_list = [getattr(s, self.sample_name_colname) for s in self.samples]
-        print(f"sample_names_list: {sample_names_list}")
         dups_set = set([x for x in sample_names_list if sample_names_list.count(x) > 1])
         if not dups_set:
             # all sample names are unique
@@ -379,8 +378,11 @@ class Project(PathExAttMap):
                 merged_attrs[attr] = list(
                     flatten([getattr(s, attr) for s in dup_samples])
                 )
-            # make sure the value of sample name is not duplicated
-            merged_attrs[self.sample_name_colname] = dup
+            # make single element lists scalars
+            for k, v in merged_attrs.items():
+                if isinstance(v, list) and len(list(set(v))) == 1:
+                    merged_attrs[k] = v[0]
+            # merged_attrs[self.sample_name_colname] = dup
             self._samples = [
                 s for s in self._samples if s[self.sample_name_colname] != dup
             ]
