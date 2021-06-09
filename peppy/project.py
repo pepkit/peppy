@@ -326,12 +326,12 @@ class Project(PathExAttMap):
         except KeyError:
             pass
         for sample in self.samples:
-            if SAMPLE_NAME_ATTR not in sample:
+            if self.st_index not in sample:
                 msg_base = "{st} is missing '{sn}' column; ".format(
-                    st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR
+                    st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
                 )
                 msg = msg_base + "you must specify {sn}s in {st} or derive them".format(
-                    st=CFG_SAMPLE_TABLE_KEY, sn=SAMPLE_NAME_ATTR
+                    st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
                 )
                 if self.st_index != SAMPLE_NAME_ATTR:
                     setattr(sample, SAMPLE_NAME_ATTR, getattr(sample, self.st_index))
@@ -1060,7 +1060,7 @@ class Project(PathExAttMap):
         :param list sample_names: A list of sample names to retrieve
         :return list[peppy.Sample]: A list of Sample objects
         """
-        return [s for s in self.samples if s[SAMPLE_NAME_ATTR] in sample_names]
+        return [s for s in self.samples if s[self.st_index] in sample_names]
 
 
 def infer_delimiter(filepath):

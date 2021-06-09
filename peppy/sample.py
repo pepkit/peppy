@@ -348,13 +348,17 @@ class Sample(PathExAttMap):
         """Representation in interpreter."""
         if len(self) == 0:
             return ""
-        head = "Sample '{}'".format(self[SAMPLE_NAME_ATTR])
+        head = "Sample"
+        try:
+            head += f" '{self[SAMPLE_NAME_ATTR]}'"
+        except KeyError:
+            pass
         try:
             prj_cfg = self[PRJ_REF][CONFIG_FILE_KEY]
         except (KeyError, TypeError):
             pass
         else:
-            head += " in Project ({})".format(prj_cfg)
+            head += f" in Project ({prj_cfg})"
         pub_attrs = {k: v for k, v in self.items() if not k.startswith("_")}
         maxlen = max(map(len, pub_attrs.keys())) + 2
         attrs = ""
@@ -364,7 +368,7 @@ class Sample(PathExAttMap):
                 (k + ":").ljust(maxlen), v if not isinstance(v, list) else ", ".join(v)
             )
             if counter == max_attr:
-                attrs += "\n\n...".ljust(maxlen) + "(showing first {})".format(max_attr)
+                attrs += "\n\n...".ljust(maxlen) + f"(showing first {max_attr})"
                 break
             counter += 1
         return head + "\n" + attrs
