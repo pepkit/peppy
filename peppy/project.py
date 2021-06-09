@@ -3,7 +3,7 @@ Build a Project object.
 """
 import os
 from collections import Mapping
-from logging import getLogger
+from logging import error, getLogger
 
 import pandas as pd
 from attmap import PathExAttMap
@@ -355,7 +355,14 @@ class Project(PathExAttMap):
         if not dups_set:
             # all sample names are unique
             return
-        _LOGGER.info(f"Found {len(dups_set)} samples with non-unique names: {dups_set}")
+        _LOGGER.info(
+            f"Found {len(dups_set)} samples with non-unique names: {dups_set}. Attempting to auto-merge."
+        )
+        if SUBSAMPLE_DF_KEY in self and self[SUBSAMPLE_DF_KEY] is not None:
+            raise IllegalStateException(
+                f"Duplicated sample names found and subsample_table is specified in the config; "
+                f"you may use either auto-merging or subsample_table-based merging.",
+            )
         for dup in dups_set:
             dup_samples = [
                 s for s in self.samples if getattr(s, self.sample_name_colname) == dup
