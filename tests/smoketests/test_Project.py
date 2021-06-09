@@ -123,9 +123,63 @@ class ProjectConstructorTests:
         def guard(*args, **kwargs):
             raise Exception("Block internet connection")
 
+        ori_socket_val = socket.socket
         socket.socket = guard
         with pytest.raises(RemoteYAMLError):
             Project(cfg=config_path)
+        socket.socket = ori_socket_val
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic", "imply"], indirect=True)
+    def test_csv_init_autodetect(self, example_pep_cfg_path):
+        """
+        Verify that a CSV file can be used to initialize a config file
+        """
+        assert isinstance(Project(cfg=example_pep_cfg_path), Project)
+
+    @pytest.mark.parametrize(
+        "csv_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imply/sample_table.csv",
+        ],
+    )
+    def test_remote_csv_init_autodetect(self, csv_path):
+        """
+        Verify that a remote CSV file can be used to initialize a config file
+        """
+        assert isinstance(Project(cfg=csv_path), Project)
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["automerge"], indirect=True)
+    def test_automerge(self, example_pep_cfg_path):
+        """
+        Verify that duplicated sample names lead to sample auto-merging
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        # there are 4 rows in the table, but 1 sample has a duplicate
+        assert len(p.samples) == 3
+
+    @pytest.mark.parametrize("example_pep_csv_path", ["automerge"], indirect=True)
+    def test_automerge_csv(self, example_pep_csv_path):
+        """
+        Verify that duplicated sample names lead to sample auto-merging if object is initialized from a CSV
+        """
+        p = Project(cfg=example_pep_csv_path)
+        # there are 4 rows in the table, but 1 sample has a duplicate
+        assert len(p.samples) == 3
+
+    @pytest.mark.parametrize(
+        "config_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_automerge/project_config.yaml",
+        ],
+    )
+    def test_automerge_remote(self, config_path):
+        """
+        Verify that duplicated sample names lead to sample auto-merging from a remote config
+        """
+        p = Project(cfg=config_path)
+        # there are 4 rows in the table, but 1 sample has a duplicate
+        assert len(p.samples) == 3
 
     @pytest.mark.parametrize("defer", [False, True])
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)

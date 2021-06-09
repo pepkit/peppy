@@ -349,6 +349,9 @@ class Project(PathExAttMap):
     def _auto_merge_duplicated_names(self):
         """
         If sample_table specifies samples with non-unique names, try to merge these samples
+
+        :raises IllegalStateException: if both duplicated samples are detected and subsample_table is
+            specified in the config
         """
         sample_names_list = [getattr(s, self.sample_name_colname) for s in self.samples]
         dups_set = set([x for x in sample_names_list if sample_names_list.count(x) > 1])
