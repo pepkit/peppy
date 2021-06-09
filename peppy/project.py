@@ -385,7 +385,7 @@ class Project(PathExAttMap):
             self._samples = [
                 s for s in self._samples if s[self.sample_name_colname] != dup
             ]
-            self._samples.append(Sample(series=merged_attrs))
+            self.add_samples(Sample(series=merged_attrs))
 
     def attr_merge(self):
         """

@@ -11,6 +11,7 @@ from yaml import dump, safe_load
 from peppy import Project
 from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
 from peppy.exceptions import (
+    IllegalStateException,
     InvalidSampleTableFileException,
     MissingAmendmentError,
     RemoteYAMLError,
@@ -180,6 +181,16 @@ class ProjectConstructorTests:
         p = Project(cfg=config_path)
         # there are 4 rows in the table, but 1 sample has a duplicate
         assert len(p.samples) == 3
+
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path", ["subtable_automerge"], indirect=True
+    )
+    def test_automerge_disallowed_with_subsamples(self, example_pep_cfg_path):
+        """
+        Verify that both duplicated sample names and subsample table specification is disallowed
+        """
+        with pytest.raises(IllegalStateException):
+            Project(cfg=example_pep_cfg_path)
 
     @pytest.mark.parametrize("defer", [False, True])
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
