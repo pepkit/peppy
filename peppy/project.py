@@ -2,12 +2,13 @@
 Build a Project object.
 """
 import os
-from collections import Mapping
+from collections.abc import Mapping
 from logging import error, getLogger
 
 import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
+from rich.progress import track
 from ubiquerg import is_url
 
 from .const import *
@@ -83,7 +84,9 @@ class Project(PathExAttMap):
         self.description = self.get_description()
         if not defer_samples_creation:
             self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
-        self._sample_table = self._get_table_from_samples(index=self.st_index)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
+        )
 
     def create_samples(self, modify=False):
         """
@@ -105,7 +108,7 @@ class Project(PathExAttMap):
             del self[attr]
         self.__init__(cfg=cfg_path)
 
-    def _get_table_from_samples(self, index):
+    def _get_table_from_samples(self, index, initial=False):
         """
         Generate a data frame from samples. Excludes private
         attrs (prepended with an underscore)
@@ -113,21 +116,22 @@ class Project(PathExAttMap):
         :param str | Iterable[str] index: name of the columns to set the index to
         :return pandas.DataFrame: a data frame with current samples attributes
         """
-        df = pd.DataFrame()
-        for sample in self.samples:
-            sd = sample.to_dict()
-            ser = pd.Series({k: v for (k, v) in sd.items() if not k.startswith("_")})
-            df = df.append(ser, ignore_index=True)
+        if initial and not self._modifier_exists():
+            # if the sample table is generated for the first time
+            # (there is no chance of manual sample edits)
+            # and no sample_modifiers section is defined in the config,
+            # then we can simply reuse the previously read anno sheet.
+            df = self[SAMPLE_DF_KEY] if hasattr(self, SAMPLE_DF_KEY) else pd.DataFrame()
+        else:
+            df = pd.DataFrame.from_dict([s.to_dict() for s in self.samples])
         index = [index] if isinstance(index, str) else index
         if not all([i in df.columns for i in index]):
             _LOGGER.debug(
-                "Could not set {} index. At least one of the "
-                "requested columns does not exist: {}".format(
-                    CFG_SAMPLE_TABLE_KEY, index
-                )
+                f"Could not set {CFG_SAMPLE_TABLE_KEY} index. At least one of the "
+                f"requested columns does not exist: {index}"
             )
             return df
-        _LOGGER.debug("Setting sample_table index to: {}".format(index))
+        _LOGGER.debug(f"Setting sample_table index to: {index}")
         df.set_index(keys=index, drop=False, inplace=True)
         return df
 
@@ -219,6 +223,7 @@ class Project(PathExAttMap):
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
+
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
         return samples_list
@@ -277,8 +282,13 @@ class Project(PathExAttMap):
         if self._modifier_exists(REMOVE_KEY):
             to_remove = self[CONFIG_KEY][SAMPLE_MODS_KEY][REMOVE_KEY]
             _LOGGER.debug("Removing attributes: {}".format(to_remove))
-            for attr in to_remove:
-                [_del_if_in(s, attr) for s in self.samples]
+            for s in track(
+                self.samples,
+                description="Removing",
+                disable=not self.is_sample_table_large,
+            ):
+                for attr in to_remove:
+                    _del_if_in(s, attr)
 
     def attr_constants(self):
         """
@@ -288,8 +298,15 @@ class Project(PathExAttMap):
         if self._modifier_exists(CONSTANT_KEY):
             to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][CONSTANT_KEY]
             _LOGGER.debug("Applying constant attributes: {}".format(to_append))
-            for attr, val in to_append.items():
-                [s.update({attr: val}) for s in self.samples if attr not in s]
+
+            for s in track(
+                self.samples,
+                description="Applying constants",
+                disable=not self.is_sample_table_large,
+            ):
+                for attr, val in to_append.items():
+                    if attr not in s:
+                        s.update({attr: val})
 
     def attr_synonyms(self):
         """
@@ -298,7 +315,11 @@ class Project(PathExAttMap):
         if self._modifier_exists(DUPLICATED_KEY):
             synonyms = self[CONFIG_KEY][SAMPLE_MODS_KEY][DUPLICATED_KEY]
             _LOGGER.debug("Applying synonyms: {}".format(synonyms))
-            for sample in self.samples:
+            for sample in track(
+                self.samples,
+                description="Applying synonyms",
+                disable=not self.is_sample_table_large,
+            ):
                 for attr, new in synonyms.items():
                     if attr in sample:
                         setattr(sample, new, getattr(sample, attr))
@@ -401,7 +422,11 @@ class Project(PathExAttMap):
                     _LOGGER.warning(
                         ("Couldn't find matching sample for subsample: {}").format(n)
                     )
-            for sample in self.samples:
+            for sample in track(
+                self.samples,
+                description=f"Merging subsamples: {subsample_table}",
+                disable=not self.is_sample_table_large,
+            ):
                 sample_colname = self.sample_name_colname
                 if sample_colname not in subsample_table.columns:
                     raise KeyError(
@@ -494,9 +519,14 @@ class Project(PathExAttMap):
                         SAMPLE_MODS_KEY, IMPLIED_KEY, implication
                     )
                 )
-            implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
-            implied_attrs = list(implication[IMPLIED_THEN_KEY].keys())
-            for sample in self.samples:
+        for sample in track(
+            self.samples,
+            description=f"Implying",
+            disable=not self.is_sample_table_large,
+        ):
+            for implication in implications:
+                implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
+                implied_attrs = list(implication[IMPLIED_THEN_KEY].keys())
                 _LOGGER.debug(
                     "Setting Sample attributes implied by '{}'".format(implier_attrs)
                 )
@@ -538,7 +568,11 @@ class Project(PathExAttMap):
         ds = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
         derivations = attrs or (da if isinstance(da, list) else [da])
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
-        for sample in self.samples:
+        for sample in track(
+            self.samples,
+            description="Deriving",
+            disable=not self.is_sample_table_large,
+        ):
             for attr in derivations:
                 if not hasattr(sample, attr):
                     _LOGGER.debug("sample lacks '{}' attribute".format(attr))
@@ -853,6 +887,10 @@ class Project(PathExAttMap):
             sst.index = sst.index.set_levels([i.astype(str) for i in sst.index.levels])
         return sdf if len(sdf) > 1 else sdf[0]
 
+    @property
+    def is_sample_table_large(self):
+        return getattr(self, SAMPLE_DF_LARGE, False)
+
     def _read_sample_data(self):
         """
         Read the sample_table and subsample_table into dataframes
@@ -906,6 +944,7 @@ class Project(PathExAttMap):
 
         if st is not None:
             self[SAMPLE_DF_KEY] = _read_tab(st)
+            self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None

@@ -1,19 +1,13 @@
-try:
-    from collections.abc import Mapping
-except ImportError:
-    # for py2
-    from collections import Mapping
-
 import glob
 import os
-import warnings
 from collections import OrderedDict
+from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
 
 import yaml
-from attmap import PathExAttMap
+from attmap import AttMap, PathExAttMap
 
 from .const import *
 from .exceptions import InvalidSampleTableFileException
@@ -106,9 +100,6 @@ class Sample(PathExAttMap):
             :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
-            from collections import Mapping
-
-            from attmap import AttMap
             from pandas import Series, isnull
 
             if name:

@@ -76,6 +76,7 @@ CFG_SAMPLE_TABLE_KEY = "sample_table"
 CFG_SUBSAMPLE_TABLE_KEY = "subsample_table"
 SAMPLE_DF_KEY = "_sample_df"
 SUBSAMPLE_DF_KEY = "_subsample_df"
+SAMPLE_DF_LARGE = "_large_sample_df"
 PRJ_REF = "_project"
 ATTR_KEY_PREFIX = "_key_"
 INPUTS_ATTR_NAME = "input_attrs"
@@ -92,6 +93,7 @@ SAMPLE_CONSTANTS = [
     "CFG_SUBSAMPLE_TABLE_KEY",
     "SAMPLE_DF_KEY",
     "SUBSAMPLE_DF_KEY",
+    "SAMPLE_DF_LARGE",
     "SUBSAMPLE_NAME_ATTR",
     "INPUTS_ATTR_NAME",
     "REQ_INPUTS_ATTR_NAME",
