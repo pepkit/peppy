@@ -6,6 +6,7 @@ from copy import copy as cp
 from logging import getLogger
 from string import Formatter
 
+import pandas as pd
 import yaml
 from attmap import AttMap, PathExAttMap
 
@@ -371,6 +372,10 @@ class Sample(PathExAttMap):
     def _excl_from_repr(self, k, cls):
         """Exclude the Project reference from representation."""
         return k.startswith("_") or super(Sample, self)._excl_from_repr(k, cls)
+
+    def _excl_classes_from_todict(self):
+        """Exclude pandas.DataFrame from dict representation"""
+        return (pd.DataFrame,)
 
     def _try_touch_samples(self):
         """

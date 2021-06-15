@@ -88,6 +88,10 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
+    def _excl_classes_from_todict(self):
+        """Exclude pandas.DataFrame from dict representation"""
+        return (pd.DataFrame,)
+
     def create_samples(self, modify=False):
         """
         Populate Project with Sample objects
@@ -284,7 +288,7 @@ class Project(PathExAttMap):
             _LOGGER.debug("Removing attributes: {}".format(to_remove))
             for s in track(
                 self.samples,
-                description="Removing",
+                description="Removing sample attributes",
                 disable=not self.is_sample_table_large,
             ):
                 for attr in to_remove:
@@ -301,7 +305,7 @@ class Project(PathExAttMap):
 
             for s in track(
                 self.samples,
-                description="Applying constants",
+                description="Applying constant sample attributes",
                 disable=not self.is_sample_table_large,
             ):
                 for attr, val in to_append.items():
@@ -317,7 +321,7 @@ class Project(PathExAttMap):
             _LOGGER.debug("Applying synonyms: {}".format(synonyms))
             for sample in track(
                 self.samples,
-                description="Applying synonyms",
+                description="Applying synonymous sample attributes",
                 disable=not self.is_sample_table_large,
             ):
                 for attr, new in synonyms.items():
@@ -375,7 +379,17 @@ class Project(PathExAttMap):
             specified in the config
         """
         sample_names_list = [getattr(s, self.sample_name_colname) for s in self.samples]
-        dups_set = set([x for x in sample_names_list if sample_names_list.count(x) > 1])
+        dups_set = set(
+            [
+                x
+                for x in track(
+                    sample_names_list,
+                    description="Detecting duplicate sample names",
+                    disable=not self.is_sample_table_large,
+                )
+                if sample_names_list.count(x) > 1
+            ]
+        )
         if not dups_set:
             # all sample names are unique
             return
@@ -521,7 +535,7 @@ class Project(PathExAttMap):
                 )
         for sample in track(
             self.samples,
-            description=f"Implying",
+            description=f"Implying sample attributes",
             disable=not self.is_sample_table_large,
         ):
             for implication in implications:
@@ -570,7 +584,7 @@ class Project(PathExAttMap):
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
         for sample in track(
             self.samples,
-            description="Deriving",
+            description="Deriving sample attributes",
             disable=not self.is_sample_table_large,
         ):
             for attr in derivations:
