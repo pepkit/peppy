@@ -1,6 +1,6 @@
 attmap>=0.12.5
 logmuse>=0.2
-pandas>=1.2.4
+pandas>=0.24.2
 pyyaml
 rich>=10.3.0
 ubiquerg>=0.5.2
