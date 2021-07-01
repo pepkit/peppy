@@ -10,6 +10,8 @@ DESC_KEY = "description"
 CONFIG_FILE_KEY = "_config_file"
 SAMPLE_TABLE_FILE_KEY = "_sample_table_path"
 SUBSAMPLE_TABLES_FILE_KEY = "_subsample_tables_path"
+SAMPLE_TABLE_INDEX_KEY = "sample_table_index"
+SUBSAMPLE_TABLE_INDEX_KEY = "subsample_table_index"
 CONFIG_KEY = "_config"
 PROJECT_TYPENAME = "Project"
 SAMPLE_MODS_KEY = "sample_modifiers"
@@ -45,6 +47,8 @@ PROJECT_CONSTANTS = [
     "CONFIG_FILE_KEY",
     "SAMPLE_TABLE_FILE_KEY",
     "SUBSAMPLE_TABLES_FILE_KEY",
+    "SAMPLE_TABLE_INDEX_KEY",
+    "SUBSAMPLE_TABLE_INDEX_KEY",
     "CONFIG_KEY",
     "NAME_KEY",
     "REMOVE_KEY",

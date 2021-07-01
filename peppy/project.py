@@ -75,11 +75,24 @@ class Project(PathExAttMap):
 
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self.st_index = sample_table_index or SAMPLE_NAME_ATTR
-        self.sst_index = subsample_table_index or [
-            SAMPLE_NAME_ATTR,
-            SUBSAMPLE_NAME_ATTR,
-        ]
+
+        # table indexes can be specified in config or passed to the object constructor
+        # That's the priority order:
+        # 1. constructor specified
+        # 2. config specified (already set as Project attrs if config exists)
+        # 3. defaults
+        self.st_index = (
+            sample_table_index or getattr(self, "st_index", None) or SAMPLE_NAME_ATTR
+        )
+        self.sst_index = (
+            subsample_table_index
+            or getattr(self, "sst_index", None)
+            or [
+                SAMPLE_NAME_ATTR,
+                SUBSAMPLE_NAME_ATTR,
+            ]
+        )
+
         self.name = self.infer_name()
         self.description = self.get_description()
         if not defer_samples_creation:
@@ -160,6 +173,14 @@ class Project(PathExAttMap):
 
         _LOGGER.debug("Raw ({}) config data: {}".format(cfg_path, config))
 
+        self.st_index = (
+            config[SAMPLE_TABLE_INDEX_KEY] if SAMPLE_TABLE_INDEX_KEY in config else None
+        )
+        self.sst_index = (
+            config[SUBSAMPLE_TABLE_INDEX_KEY]
+            if SUBSAMPLE_TABLE_INDEX_KEY in config
+            else None
+        )
         # recursively import configs
         if (
             PROJ_MODS_KEY in config
@@ -378,7 +399,7 @@ class Project(PathExAttMap):
         :raises IllegalStateException: if both duplicated samples are detected and subsample_table is
             specified in the config
         """
-        sample_names_list = [getattr(s, self.sample_name_colname) for s in self.samples]
+        sample_names_list = [getattr(s, self.st_index) for s in self.samples]
         dups_set = set(
             [
                 x
@@ -402,9 +423,7 @@ class Project(PathExAttMap):
                 f"you may use either auto-merging or subsample_table-based merging.",
             )
         for dup in dups_set:
-            dup_samples = [
-                s for s in self.samples if getattr(s, self.sample_name_colname) == dup
-            ]
+            dup_samples = [s for s in self.samples if getattr(s, self.st_index) == dup]
             sample_attrs = [
                 attr for attr in dup_samples[0].keys() if not attr.startswith("_")
             ]
@@ -417,9 +436,7 @@ class Project(PathExAttMap):
             for k, v in merged_attrs.items():
                 if isinstance(v, list) and len(list(set(v))) == 1:
                     merged_attrs[k] = v[0]
-            self._samples = [
-                s for s in self._samples if s[self.sample_name_colname] != dup
-            ]
+            self._samples = [s for s in self._samples if s[self.st_index] != dup]
             self.add_samples(Sample(series=merged_attrs))
 
     def attr_merge(self):
@@ -431,7 +448,7 @@ class Project(PathExAttMap):
             _LOGGER.debug("No {} found, skipping merge".format(CFG_SUBSAMPLE_TABLE_KEY))
             return
         for subsample_table in self[SUBSAMPLE_DF_KEY]:
-            for n in list(subsample_table[self.sample_name_colname]):
+            for n in list(subsample_table[self.st_index]):
                 if n not in [s[SAMPLE_NAME_ATTR] for s in self.samples]:
                     _LOGGER.warning(
                         ("Couldn't find matching sample for subsample: {}").format(n)
@@ -441,7 +458,7 @@ class Project(PathExAttMap):
                 description=f"Merging subsamples: {subsample_table}",
                 disable=not self.is_sample_table_large,
             ):
-                sample_colname = self.sample_name_colname
+                sample_colname = self.st_index
                 if sample_colname not in subsample_table.columns:
                     raise KeyError(
                         "Subannotation requires column '{}'.".format(sample_colname)
@@ -761,7 +778,7 @@ class Project(PathExAttMap):
             num_samples = 0
         if num_samples > 0:
             msg = f"{msg}\n{num_samples} samples"
-            sample_names = [getattr(s, self.sample_name_colname) for s in self.samples]
+            sample_names = [getattr(s, self.st_index) for s in self.samples]
             repr_names = sample_names[:MAX_PROJECT_SAMPLES_REPR]
             context = (
                 f" (showing first {MAX_PROJECT_SAMPLES_REPR})"
@@ -845,11 +862,52 @@ class Project(PathExAttMap):
             return []
 
     @property
+    def sample_table_index(self):
+        """
+        The effective sample table index.
+
+        It is `sample_name` by default, but could be overwritten by the selected sample table index,
+        defined on the object instantiation stage or in the project configuration file
+        via `sample_table_index` field.
+
+        That's the sample table index selection priority order:
+        1. Constructor specified
+        2. Config specified
+        3. Deafult: `sample_table`
+
+        :return str: name of the column that consist of sample identifiers
+        """
+        # this property is used solely for documentation purposes
+        return self.st_index
+
+    @property
+    def subsample_table_index(self):
+        """
+        The effective subsample table indexes.
+
+        It is `[subasample_name, sample_name]` by default,
+        but could be overwritten by the selected subsample table indexes,
+        defined on the object instantiation stage or in the project configuration file
+        via `subsample_table_index` field.
+
+        That's the subsample table indexes selection priority order:
+        1. Constructor specified
+        2. Config specified
+        3. Deafult: `[subasample_name, sample_name]`
+
+        :return List[str]: names of the columns that consist of sample and subsample identifiers
+        """
+        # this property is used solely for documentation purposes
+        return self.sst_index
+
+    @property
     def sample_name_colname(self):
         """
+        **Deprecated, please use `Project.sample_table_index` instead**
+
         Name of the effective sample name containing column in the sample table.
 
-        It is "sample_name" bu default, but when it's missing it could be
+        It is "sample_name" by default, but when it's missing it could be
         replaced by the selected sample table index, defined on the
         object instantiation stage.
 
