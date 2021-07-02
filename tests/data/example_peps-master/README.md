@@ -34,7 +34,7 @@ These PEPs demonstrate the features described in the PEP2.0.0 framework and impl
 These PEPs extend the PEP2.0.0 framework and may include additional fields used by other tools that build on [`peppy`](http://github.com/pepkit/peppy) or [`pepr`](http://github.com/pepkit/pepr)
 
 - [example_piface](example_piface): defines `pipeline_interface` property for each sample, which is used by [`looper`]() - a pipeline submission engine
-- example_BiocProject: defines a `bioconductor` section that is used by [`BiocProject`] to link PEPs with Bioconductor
+- example_BiocProject: defines a `bioconductor` section that is used by [`BiocProject`](http://code.databio.org/BiocProject/) to link PEPs with Bioconductor
   - [example_BiocProject](example_BiocProject)
   - [example_BiocProject_exceptions](example_BiocProject_exceptions)
   - [example_BiocProject_remote](example_BiocProject_remote)

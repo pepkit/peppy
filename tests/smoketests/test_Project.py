@@ -223,6 +223,21 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_cfg_path)
         assert any([s["file"] != "multi" for s in p.samples])
 
+    @pytest.mark.parametrize("example_pep_cfg_path", ["custom_index"], indirect=True)
+    def test_cutsom_sample_table_index_config(self, example_pep_cfg_path):
+        """
+        Verify that custom sample table index is sourced from the config
+        """
+        Project(cfg=example_pep_cfg_path)
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["custom_index"], indirect=True)
+    def test_cutsom_sample_table_index_constructor(self, example_pep_cfg_path):
+        """
+        Verify that custom sample table index is sourced from the config
+        """
+        with pytest.raises(InvalidSampleTableFileException):
+            Project(cfg=example_pep_cfg_path, sample_table_index="bogus_column")
+
     @pytest.mark.parametrize("example_pep_cfg_path", ["subtables"], indirect=True)
     def test_subsample_table_multiple(self, example_pep_cfg_path):
         """
