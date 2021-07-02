@@ -380,14 +380,17 @@ class Project(PathExAttMap):
                     st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
                 )
                 if self.st_index != SAMPLE_NAME_ATTR:
-                    setattr(sample, SAMPLE_NAME_ATTR, getattr(sample, self.st_index))
-                    _LOGGER.warning(
-                        msg_base + "using specified {} index ({}) instead. "
-                        "Setting name: {}".format(
-                            CFG_SAMPLE_TABLE_KEY,
-                            self.st_index,
-                            getattr(sample, self.st_index),
+                    try:
+                        custom_sample_name = getattr(sample, self.st_index)
+                    except AttributeError:
+                        raise InvalidSampleTableFileException(
+                            f"Specified {CFG_SAMPLE_TABLE_KEY} index ({self.st_index}) does not exist"
                         )
+                    setattr(sample, SAMPLE_NAME_ATTR, custom_sample_name)
+                    _LOGGER.warning(
+                        msg_base
+                        + f"using specified {CFG_SAMPLE_TABLE_KEY} index ({self.st_index}) instead. "
+                        + f"Setting name: {custom_sample_name}"
                     )
                 else:
                     raise InvalidSampleTableFileException(msg)
@@ -871,6 +874,7 @@ class Project(PathExAttMap):
         via `sample_table_index` field.
 
         That's the sample table index selection priority order:
+
         1. Constructor specified
         2. Config specified
         3. Deafult: `sample_table`
@@ -891,6 +895,7 @@ class Project(PathExAttMap):
         via `subsample_table_index` field.
 
         That's the subsample table indexes selection priority order:
+
         1. Constructor specified
         2. Config specified
         3. Deafult: `[subasample_name, sample_name]`
