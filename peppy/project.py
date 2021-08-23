@@ -101,9 +101,15 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
-    def _excl_classes_from_todict(self):
-        """Exclude pandas.DataFrame from dict representation"""
-        return (pd.DataFrame,)
+    def to_dict(self, expand=False):
+        """
+        Convert the Project object to a dictionary.
+
+        :param bool expand: whether to expand the paths
+        :return dict: a dictionary representation of the Project object
+        """
+
+        return self.config.to_dict(expand=expand)
 
     def create_samples(self, modify=False):
         """
@@ -423,7 +429,8 @@ class Project(PathExAttMap):
         if SUBSAMPLE_DF_KEY in self and self[SUBSAMPLE_DF_KEY] is not None:
             raise IllegalStateException(
                 f"Duplicated sample names found and subsample_table is specified in the config; "
-                f"you may use either auto-merging or subsample_table-based merging.",
+                f"you may use either auto-merging or subsample_table-based merging. "
+                f"Duplicates: {dups_set}"
             )
         for dup in dups_set:
             dup_samples = [s for s in self.samples if getattr(s, self.st_index) == dup]
@@ -458,7 +465,7 @@ class Project(PathExAttMap):
                     )
             for sample in track(
                 self.samples,
-                description=f"Merging subsamples: {subsample_table}",
+                description=f"Merging subsamples, adding sample attrs: {', '.join(subsample_table.keys())}",
                 disable=not self.is_sample_table_large,
             ):
                 sample_colname = self.st_index
