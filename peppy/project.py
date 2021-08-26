@@ -109,7 +109,9 @@ class Project(PathExAttMap):
         :return dict: a dictionary representation of the Project object
         """
 
-        return self.config.to_dict(expand=expand)
+        p_dict = self.config.to_dict(expand=expand)
+        p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        return p_dict
 
     def create_samples(self, modify=False):
         """
