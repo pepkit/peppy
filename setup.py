@@ -1,6 +1,6 @@
 import sys
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 PACKAGE_NAME = "peppy"
 
@@ -33,7 +33,7 @@ except (IOError, ImportError, OSError):
 
 setup(
     name=PACKAGE_NAME,
-    packages=[PACKAGE_NAME],
+    packages=find_packages(),
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
