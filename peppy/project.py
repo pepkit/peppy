@@ -848,7 +848,7 @@ class Project(PathExAttMap):
         :return Mapping: config. May be formatted to comply with the most
             recent version specifications
         """
-        return self[CONFIG_KEY]
+        return self[CONFIG_KEY] if CONFIG_KEY in self else PathExAttMap()
 
     @property
     def config_file(self):
