@@ -17,7 +17,11 @@ where you can also find example projects.
 
 ## *Why* use `peppy`?
 
+<<<<<<< HEAD
 `peppy` provides and API with which to interact from Python with PEP metadata.
+=======
+`peppy` provides an API with which to interact from Python with PEP metadata. 
+>>>>>>> master
 This is often useful on its own, but the big wins include:
 
 - *Portability* between computing environments
@@ -37,7 +41,11 @@ which lets you run any command-line tool or pipeline on samples in a project.
 
 **Developer**
 
+<<<<<<< HEAD
 As a tool developer, you should `import peppy` in your python tool and read PEP projects as its input.
+=======
+As a tool developer, you should `import peppy` in your Python tool and read PEP projects as its input. 
+>>>>>>> master
 This will simplify use of your tool, because users may already have PEP-formatted projects for other tools.
 
 **Analyst**

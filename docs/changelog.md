@@ -2,6 +2,7 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+
 ## [0.32.0] -- unreleased
 
 ### Changed
@@ -20,6 +21,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 
 - Project string representation; [Issue 368](https://github.com/pepkit/peppy/issues/368)
+
+## [0.31.2] -- 2021-11-04
+### Fixed
+- Bug with setuptools 58
 
 ## [0.31.1] -- 2021-04-15
 
