@@ -34,7 +34,7 @@ _TRANSCRIPTOMES = {"human": "hg19_cdna", "mouse": "mm10_cdna"}
 
 @pytest.fixture(scope="function")
 def project_config_data():
-    """ Provide some basic data for a Project configuration. """
+    """Provide some basic data for a Project configuration."""
     return {
         METADATA_KEY: {
             NAME_TABLE_ATTR: "samples.csv",
@@ -46,7 +46,7 @@ def project_config_data():
 
 
 def pytest_generate_tests(metafunc):
-    """ Dynamic parameterization/customization for tests in this module. """
+    """Dynamic parameterization/customization for tests in this module."""
     if metafunc.cls == DerivedAttributesTests:
         # Parameterize derived attribute tests over whether the specification
         # is explicit (vs. implied), and which default attribute to validate.
@@ -58,10 +58,10 @@ def pytest_generate_tests(metafunc):
 
 
 class ProjectConstructorTests:
-    """ Tests of Project constructor, particularly behavioral details. """
+    """Tests of Project constructor, particularly behavioral details."""
 
     def test_no_samples(self, path_empty_project):
-        """ Lack of Samples is unproblematic. """
+        """Lack of Samples is unproblematic."""
         p = Project(path_empty_project)
         assert 0 == p.num_samples
         assert [] == list(p.samples)
@@ -79,7 +79,7 @@ class ProjectConstructorTests:
     def test_no_sample_subannotation_in_config(
         self, tmpdir, spec_type, lazy, proj_conf_data, path_sample_anns
     ):
-        """ Subannotation attribute remains null if config lacks subannotation. """
+        """Subannotation attribute remains null if config lacks subannotation."""
         metadata = proj_conf_data[METADATA_KEY]
         try:
             assert SAMPLE_SUBANNOTATIONS_KEY in metadata
@@ -107,7 +107,7 @@ class ProjectConstructorTests:
     def test_counting_samples_doesnt_create_samples(
         self, sample_annotation_lines, path_project_conf, path_sample_anns
     ):
-        """ User can ask about sample count without creating samples. """
+        """User can ask about sample count without creating samples."""
         # We're not parameterized in terms of Sample creation laziness here
         # because a piece of the test's essence is Sample collection absence.
         p = Project(path_project_conf, defer_sample_construction=True)
@@ -118,7 +118,7 @@ class ProjectConstructorTests:
 
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_creation_laziness(self, path_project_conf, path_sample_anns, lazy):
-        """ Project offers control over whether to create base Sample(s). """
+        """Project offers control over whether to create base Sample(s)."""
         p = Project(path_project_conf, defer_sample_construction=lazy)
         if lazy:
             # Samples should remain null during lazy Project construction.
@@ -136,7 +136,7 @@ class ProjectConstructorTests:
 
     @pytest.mark.parametrize(argnames="lazy", argvalues=[False, True])
     def test_sample_name_availability(self, path_project_conf, path_sample_anns, lazy):
-        """ Sample names always available on Project. """
+        """Sample names always available on Project."""
         with open(path_sample_anns, "r") as anns_file:
             expected_sample_names = [
                 l.split(",")[0] for l in anns_file.readlines()[1:] if l
@@ -146,12 +146,12 @@ class ProjectConstructorTests:
 
 
 class ProjectRequirementsTests:
-    """ Tests for a Project's set of requirements. """
+    """Tests for a Project's set of requirements."""
 
     def test_lacks_sample_annotation(
         self, project_config_data, env_config_filepath, tmpdir
     ):
-        """ Project can be built without sample annotations. """
+        """Project can be built without sample annotations."""
         # Remove sample annotations KV pair from config data for this test.
         del project_config_data[METADATA_KEY][NAME_TABLE_ATTR]
         # Write the (sans-annotations) config and assert Project is created.
@@ -162,13 +162,13 @@ class ProjectRequirementsTests:
     def test_minimal_configuration_doesnt_fail(
         self, minimal_project_conf_path, env_config_filepath
     ):
-        """ Project ctor requires minimal config and default environment. """
+        """Project ctor requires minimal config and default environment."""
         Project(minimal_project_conf_path)
 
     def test_minimal_configuration_name_inference(
         self, tmpdir, minimal_project_conf_path, env_config_filepath
     ):
-        """ Project infers name from where its configuration lives. """
+        """Project infers name from where its configuration lives."""
         project = Project(minimal_project_conf_path)
         _, expected_name = os.path.split(tmpdir.strpath)
         assert expected_name == project.name
@@ -176,13 +176,13 @@ class ProjectRequirementsTests:
     def test_minimal_configuration_output_dir(
         self, tmpdir, minimal_project_conf_path, env_config_filepath
     ):
-        """ Project infers output path from its configuration location. """
+        """Project infers output path from its configuration location."""
         project = Project(minimal_project_conf_path)
         assert tmpdir.strpath == project.output_dir
 
 
 class DerivedAttributesTests:
-    """ Tests for the behavior of Project's derived_attributes attribute. """
+    """Tests for the behavior of Project's derived_attributes attribute."""
 
     ADDITIONAL_DERIVED_ATTRIBUTES = ["arbitrary1", "filler2", "placeholder3"]
     DERIVED_ATTRIBUTES_CASE_TYPES = ["implicit", "disjoint", "intersection"]
@@ -232,7 +232,7 @@ class DerivedAttributesTests:
     def test_default_derived_attributes_always_present(
         self, env_config_filepath, project_config_data, case_type, tmpdir
     ):
-        """ Explicit or implicit, default derived attributes are always there. """
+        """Explicit or implicit, default derived attributes are always there."""
 
         expected_derived_attributes, project = self.create_project(
             project_config_data=project_config_data,
@@ -248,7 +248,7 @@ class DerivedAttributesTests:
     def test_default_derived_attributes_not_duplicated(
         self, env_config_filepath, project_config_data, case_type, tmpdir
     ):
-        """ Default derived attributes are not added if already present. """
+        """Default derived attributes are not added if already present."""
         from collections import Counter
 
         _, project = self.create_project(
@@ -262,7 +262,7 @@ class DerivedAttributesTests:
 
 
 class ProjectPipelineArgstringTests:
-    """ Tests for Project config's pipeline_arguments section. """
+    """Tests for Project config's pipeline_arguments section."""
 
     # Data to add to project config based on test case parameterization
     PIPELINE_ARGS_FLAGS_ONLY = {
@@ -312,7 +312,7 @@ class ProjectPipelineArgstringTests:
     def test_no_pipeline_args(
         self, tmpdir, pipeline, env_config_filepath, project_config_data
     ):
-        """ Project need not specify pipeline arguments. """
+        """Project need not specify pipeline arguments."""
         # Project-level argstring is empty if pipeline_args section is absent.
         assert [""] == self.observed_argstring_elements(
             project_config_data,
@@ -336,7 +336,7 @@ class ProjectPipelineArgstringTests:
     def test_pipeline_args_different_pipeline(
         self, tmpdir, pipeline, pipeline_args, env_config_filepath, project_config_data
     ):
-        """ Project-level argstring is empty for unmapped pipeline name. """
+        """Project-level argstring is empty for unmapped pipeline name."""
         # Project-level argstring is empty if pipeline_args section is absent.
         project_config_data[PIPE_ARGS_SECTION] = pipeline_args
         observed_argstring_elements = self.observed_argstring_elements(
@@ -354,7 +354,7 @@ class ProjectPipelineArgstringTests:
     def test_pipeline_args_pipeline_match(
         self, pipeline, optargs, tmpdir, project_config_data, env_config_filepath
     ):
-        """ Project does flags-only, options-only, or mixed pipeline_args. """
+        """Project does flags-only, options-only, or mixed pipeline_args."""
 
         # Allow parameterization to determine pipeline_args section content.
         project_config_data[PIPE_ARGS_SECTION] = self.DATA_BY_CASE_TYPE[optargs]
@@ -390,7 +390,7 @@ class ProjectPipelineArgstringTests:
     def test_default_only(
         self, default, pipeline, tmpdir, project_config_data, env_config_filepath
     ):
-        """ Project always adds any default pipeline arguments. """
+        """Project always adds any default pipeline arguments."""
         project_config_data[PIPE_ARGS_SECTION] = {"default": default}
         expected_components = {
             opt if arg is None else (opt, arg) for opt, arg in default.items()
@@ -414,7 +414,7 @@ class ProjectPipelineArgstringTests:
     def test_default_plus_non_default(
         self, default, pipeline, tmpdir, project_config_data, env_config_filepath
     ):
-        """ Default arguments apply to all pipelines; others are specific. """
+        """Default arguments apply to all pipelines; others are specific."""
         case_type = "mixed"
         pipeline_args = copy.deepcopy(self.DATA_BY_CASE_TYPE[case_type])
         pipeline_args["default"] = default
@@ -434,7 +434,7 @@ class ProjectPipelineArgstringTests:
         assert expected_components == observed_components
 
     def test_path_expansion(self, tmpdir, project_config_data, env_config_filepath):
-        """ Path values in pipeline_args expand environment variables. """
+        """Path values in pipeline_args expand environment variables."""
         pipeline = "wgbs.py"
         genomes_extension = "mm10/indexed_epilog/mm10_cg.tsv.gz"
         genomes_substitution = os.path.expandvars("$HOME")
@@ -523,13 +523,13 @@ class ProjCtorTest:
         argnames="attr_name", argvalues=["required_inputs", "all_input_attr"]
     )
     def test_sample_required_inputs_not_set(self, proj, attr_name):
-        """ Samples' inputs are not set in `Project` ctor. """
+        """Samples' inputs are not set in `Project` ctor."""
         with pytest.raises(AttributeError):
             getattr(proj.samples[nprand.randint(len(proj.samples))], attr_name)
 
     @pytest.mark.parametrize(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
     def test_merge_samples_positive(self, proj, sample_index):
-        """ Samples annotation lines say only sample 'b' should be merged. """
+        """Samples annotation lines say only sample 'b' should be merged."""
         assert proj.samples[sample_index].merged
 
     @pytest.mark.parametrize(
@@ -541,7 +541,7 @@ class ProjCtorTest:
 
     @pytest.mark.parametrize(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
     def test_data_sources_derivation(self, proj, sample_index):
-        """ Samples in merge file, check data_sources --> derived_attributes. """
+        """Samples in merge file, check data_sources --> derived_attributes."""
         # Order may be lost due to mapping.
         # We don't care about that here, or about duplicates.
         required = set(DERIVED_COLNAMES)
@@ -555,7 +555,7 @@ class ProjCtorTest:
 
     @named_param(argnames="sample_index", argvalues=MERGED_SAMPLE_INDICES)
     def test_derived_attributes_sample_subannotation_sample(self, proj, sample_index):
-        """ Make sure derived attributes works on merged table. """
+        """Make sure derived attributes works on merged table."""
         observed_merged_sample_filepaths = [
             os.path.basename(f) for f in proj.samples[sample_index].file2.split(" ")
         ]
@@ -566,12 +566,12 @@ class ProjCtorTest:
         argvalues=set(range(NUM_SAMPLES)) - MERGED_SAMPLE_INDICES,
     )
     def test_unmerged_samples_lack_merged_cols(self, proj, sample_index):
-        """ Samples not in the `subsample_table` lack merged columns. """
+        """Samples not in the `subsample_table` lack merged columns."""
         # Assert the negative to cover empty dict/AttMap/None/etc.
         assert not proj.samples[sample_index].merged_cols
 
     def test_duplicate_derived_attributes_still_derived(self, proj):
-        """ Duplicated derived attributes can still be derived. """
+        """Duplicated derived attributes can still be derived."""
         sample_index = 2
         observed_nonmerged_col_basename = os.path.basename(
             proj.samples[sample_index].nonmerged_col
@@ -587,7 +587,7 @@ class ProjCtorTest:
 
 
 class SubprojectActivationDeactivationTest:
-    """ Test cases for the effect of activating/deactivating a subproject. """
+    """Test cases for the effect of activating/deactivating a subproject."""
 
     MARK_NAME = "marker"
     SUBPROJ_SECTION = {
@@ -599,21 +599,21 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_returns_project(self, tmpdir, sub):
-        """ Subproject activation returns the project instance. """
+        """Subproject activation returns the project instance."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         assert updated_prj is prj
 
     @pytest.mark.parametrize("sub", [None])
     def test_subproj_activation_errors_on_none(self, tmpdir, sub):
-        """ Subproject deactivation returns raises TypeError when input is NoneType. """
+        """Subproject deactivation returns raises TypeError when input is NoneType."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         with pytest.raises(TypeError):
             prj.activate_subproject(sub)
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_deactivation_returns_project(self, tmpdir, sub):
-        """ Subproject deactivation returns the project instance. """
+        """Subproject deactivation returns the project instance."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         deactivated_subprj = updated_prj.deactivate_subproject()
@@ -621,7 +621,7 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_deactivation_doesnt_change_project(self, tmpdir, sub):
-        """ Activation and deactivation of a subproject restores original. """
+        """Activation and deactivation of a subproject restores original."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         deactivated_subprj = updated_prj.deactivate_subproject()
@@ -629,14 +629,14 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_changes_subproject_attr(self, tmpdir, sub):
-        """ Subproject activation populates a project's subproject field. """
+        """Subproject activation populates a project's subproject field."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         assert updated_prj.subproject is not None
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_deactivation_changes_subproject_attr_to_none(self, tmpdir, sub):
-        """ Subproject deactivation nullifies the subproject field. """
+        """Subproject deactivation nullifies the subproject field."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         updated_prj = prj.activate_subproject(sub)
         deactivated_subprj = updated_prj.deactivate_subproject()
@@ -652,7 +652,7 @@ class SubprojectActivationDeactivationTest:
     def test_sp_act_preserves_nonoverlapping_entries(
         self, tmpdir, super_data, sub_data, preserved
     ):
-        """ Existing entries not in subproject should be kept as-is. """
+        """Existing entries not in subproject should be kept as-is."""
         sp = "sub"
         meta_key = METADATA_KEY
         conf_data = {
@@ -672,7 +672,7 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_adds_new_config_entries(self, tmpdir, sub):
-        """ Previously nonexistent entries are added by subproject. """
+        """Previously nonexistent entries are added by subproject."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         assert self.MARK_NAME not in prj
         prj.activate_subproject(sub)
@@ -681,7 +681,7 @@ class SubprojectActivationDeactivationTest:
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_sp_act_overwrites_existing_config_entries(self, tmpdir, sub):
-        """ An activated subproject's values are favored over preexisting. """
+        """An activated subproject's values are favored over preexisting."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         prj[self.MARK_NAME] = "temp-mark"
         assert "temp-mark" == prj[self.MARK_NAME]
@@ -690,21 +690,21 @@ class SubprojectActivationDeactivationTest:
         assert expected == prj[self.MARK_NAME]
 
     def test_activate_unknown_subproj(self, tmpdir):
-        """ With subprojects, attempt to activate undefined one is an error. """
+        """With subprojects, attempt to activate undefined one is an error."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=True)
         with pytest.raises(Exception):
             prj.activate_subproject("DNE-subproject")
 
     @pytest.mark.parametrize("sub", SUBPROJ_SECTION.keys())
     def test_subproj_activation_when_none_exist(self, tmpdir, sub):
-        """ Without subprojects, activation attempt produces warning. """
+        """Without subprojects, activation attempt produces warning."""
         prj = self.make_proj(tmpdir.strpath, incl_subs=False)
         with pytest.raises(MissingSubprojectError):
             prj.activate_subproject(sub)
 
     @classmethod
     def make_proj(cls, folder, incl_subs):
-        """ Write temp config and create Project with subproject option. """
+        """Write temp config and create Project with subproject option."""
         conf_file_path = os.path.join(folder, "conf.yaml")
         conf_data = {METADATA_KEY: {}}
         if incl_subs:
@@ -716,7 +716,7 @@ class SubprojectActivationDeactivationTest:
 
 @pytest.mark.usefixtures("write_project_files")
 class ProjectWarningTests:
-    """ Tests for warning messages related to projects """
+    """Tests for warning messages related to projects"""
 
     @pytest.mark.parametrize(
         "ideally_implied_mappings",
@@ -735,7 +735,7 @@ class ProjectWarningTests:
         project_config_data,
         ideally_implied_mappings,
     ):
-        """ Assemblies directly in proj conf (not implied) is deprecated. """
+        """Assemblies directly in proj conf (not implied) is deprecated."""
 
         # Add the mappings parameterization to the config data.
         conf_data = copy.deepcopy(project_config_data)
@@ -785,7 +785,7 @@ class ProjectWarningTests:
         project_config_data,
         assembly_implications,
     ):
-        """ Assemblies declaration within implied columns is not deprecated. """
+        """Assemblies declaration within implied columns is not deprecated."""
 
         # Add the mappings parameterization to the config data.
         conf_data = copy.deepcopy(project_config_data)
@@ -810,10 +810,10 @@ class ProjectWarningTests:
 
 
 class ProjectSerializationTests:
-    """ Basic tests of Project serialization with pickle module. """
+    """Basic tests of Project serialization with pickle module."""
 
     def test_pickle_roundtrip(self, minimal_project_conf_path):
-        """ Test whether pickle roundtrip produces a comparable object """
+        """Test whether pickle roundtrip produces a comparable object"""
         prj = Project(minimal_project_conf_path)
 
         _buffer = tempfile.TemporaryFile()

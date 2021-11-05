@@ -40,7 +40,7 @@ BASIC_PROTOMAP = {"ATAC": "ATACSeq.py"}
 
 @pytest.fixture(scope="function")
 def basic_data_raw():
-    """ Provide minimal collection of data for a constructor, by type. """
+    """Provide minimal collection of data for a constructor, by type."""
     return copy.deepcopy(
         {
             "AttMap": {},
@@ -71,7 +71,7 @@ def basic_instance_data(request, instance_raw_data):
 
 @pytest.fixture(scope="function")
 def env_config_filepath(tmpdir):
-    """ Write default project/compute environment file for Project ctor. """
+    """Write default project/compute environment file for Project ctor."""
     conf_file = tmpdir.join(DEFAULT_COMPUTE_CONFIG_FILENAME)
     conf_file.write(ENV_CONF_LINES)
     return conf_file.strpath
@@ -79,14 +79,14 @@ def env_config_filepath(tmpdir):
 
 @pytest.fixture(scope="function")
 def instance_raw_data(request, basic_data_raw):
-    """ Supply the raw data for a basic model instance as a fixture. """
+    """Supply the raw data for a basic model instance as a fixture."""
     which_class = request.getfixturevalue("class_name")
     return copy.deepcopy(basic_data_raw[which_class])
 
 
 @pytest.fixture(scope="function")
 def minimal_project_conf_path(tmpdir):
-    """ Write minimal sample annotations and project configuration. """
+    """Write minimal sample annotations and project configuration."""
     anns_file = tmpdir.join(ANNOTATIONS_FILENAME).strpath
     df = pd.DataFrame(
         OrderedDict([(SAMPLE_NAME_COLNAME, SAMPLE_NAMES), ("data", DATA_VALUES)])
@@ -101,7 +101,7 @@ def minimal_project_conf_path(tmpdir):
 
 @pytest.fixture(scope="function")
 def path_proj_conf_file(tmpdir, proj_conf):
-    """ Write basic project configuration data and provide filepath. """
+    """Write basic project configuration data and provide filepath."""
     conf_path = os.path.join(tmpdir.strpath, "project_config.yaml")
     with open(conf_path, "w") as conf:
         yaml.safe_dump(proj_conf, conf)
@@ -110,7 +110,7 @@ def path_proj_conf_file(tmpdir, proj_conf):
 
 @pytest.fixture(scope="function")
 def path_anns_file(request, tmpdir, sample_sheet):
-    """ Write basic annotations, optionally using a different delimiter. """
+    """Write basic annotations, optionally using a different delimiter."""
     filepath = os.path.join(tmpdir.strpath, "annotations.csv")
     if "delimiter" in request.fixturenames:
         delimiter = request.getfixturevalue("delimiter")

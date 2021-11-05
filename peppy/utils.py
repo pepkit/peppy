@@ -27,7 +27,7 @@ def copy(obj):
 
 
 def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
-    """ Ensure that a possibly relative path is absolute. """
+    """Ensure that a possibly relative path is absolute."""
     if not isinstance(maybe_relpath, str):
         raise TypeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".format(
@@ -105,7 +105,7 @@ def make_list(arg, obj_class):
 
 
 def load_yaml(filepath):
-    """ Load a yaml file into a Python dict """
+    """Load a yaml file into a Python dict"""
 
     def read_yaml_file(filepath):
         """

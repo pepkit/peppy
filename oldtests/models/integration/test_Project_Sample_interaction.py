@@ -47,7 +47,7 @@ PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: NAME_ANNOTATIONS_FILE}}
 
 
 def pytest_generate_tests(metafunc):
-    """ Customization of test cases within this module. """
+    """Customization of test cases within this module."""
     protos = ["WGBS", "ATAC"]
     if metafunc.cls == BuildSheetTests:
         if "protocols" in metafunc.fixturenames:
@@ -69,13 +69,13 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="function")
 def proj_conf():
-    """ Provide the basic configuration data. """
+    """Provide the basic configuration data."""
     return copy.deepcopy(PROJECT_CONFIG_DATA)
 
 
 @pytest.fixture(scope="function")
 def path_proj_conf_file(tmpdir, proj_conf):
-    """ Write basic project configuration data and provide filepath. """
+    """Write basic project configuration data and provide filepath."""
     conf_path = os.path.join(tmpdir.strpath, "project_config.yaml")
     with open(conf_path, "w") as conf:
         yaml.safe_dump(proj_conf, conf)
@@ -84,7 +84,7 @@ def path_proj_conf_file(tmpdir, proj_conf):
 
 @pytest.fixture(scope="function")
 def path_anns_file(request, tmpdir, sample_sheet):
-    """ Write basic annotations, optionally using a different delimiter. """
+    """Write basic annotations, optionally using a different delimiter."""
     filepath = os.path.join(tmpdir.strpath, NAME_ANNOTATIONS_FILE)
     if "delimiter" in request.fixturenames:
         delimiter = request.getfixturevalue("delimiter")
@@ -97,13 +97,13 @@ def path_anns_file(request, tmpdir, sample_sheet):
 
 @pytest.fixture(scope="function")
 def samples_rawdata():
-    """ Proovide test case with raw data defining a collection of samples. """
+    """Proovide test case with raw data defining a collection of samples."""
     return copy.deepcopy(DATA)
 
 
 @pytest.fixture(scope="function")
 def sample_sheet(samples_rawdata):
-    """ Provide a test case with a DataFrame representing a sample sheet. """
+    """Provide a test case with a DataFrame representing a sample sheet."""
     df = pd.DataFrame(samples_rawdata)
     df.columns = [SAMPLE_NAME_COLNAME, "val1", "val2", ASSAY_KEY]
     return df
@@ -111,17 +111,17 @@ def sample_sheet(samples_rawdata):
 
 @pytest.mark.usefixtures("write_project_files")
 class SampleSheetAttrTests:
-    """ Tests of properties of sample sheet attributes on a sample """
+    """Tests of properties of sample sheet attributes on a sample"""
 
     def test_sheet_attr_order(self, proj):
-        """ The sample's sheet attributes are ordered. """
+        """The sample's sheet attributes are ordered."""
         s = Sample(getattr(proj, NAME_TABLE_ATTR).iloc[0])
         d = s.get_sheet_dict()
         assert SAMPLE_NAME_COLNAME == list(d)[0]
 
 
 def test_samples_are_generic(path_anns_file, path_proj_conf_file):
-    """ Regardless of protocol, Samples for sheet are generic. """
+    """Regardless of protocol, Samples for sheet are generic."""
     # Annotations filepath fixture is also writes that file, so
     # it's needed even though that return value isn't used locally.
     p = Project(path_proj_conf_file)
@@ -132,13 +132,13 @@ def test_samples_are_generic(path_anns_file, path_proj_conf_file):
 
 
 class BuildSheetTests:
-    """ Tests for construction of sheet of Project's Samples. """
+    """Tests for construction of sheet of Project's Samples."""
 
     # Note: seemingly unused parameters may affect parameterization
     # logic of other fixtures used by a test case; tread lightly.
 
     def test_no_samples(self, protocols, delimiter, path_empty_project):
-        """ Lack of Samples is unproblematic for the sheet build. """
+        """Lack of Samples is unproblematic for the sheet build."""
         # Regardless of protocol(s), the sheet should be empty.
         print("Test config file: {}".format(path_empty_project))
         p = Project(path_empty_project)
@@ -149,7 +149,7 @@ class BuildSheetTests:
         argnames="which_sample_index", argvalues=range(len(SAMPLE_NAMES))
     )
     def test_single_sample(self, tmpdir, path_proj_conf_file, which_sample_index):
-        """ Single Sample is perfectly valid for Project and sheet. """
+        """Single Sample is perfectly valid for Project and sheet."""
 
         # Pull out the values for the current sample.
         values = DATA[which_sample_index]
@@ -183,7 +183,7 @@ class BuildSheetTests:
                     raise e
 
     def test_multiple_samples(self, protocols, path_anns_file, path_proj_conf_file):
-        """ Project also processes multiple Sample fine. """
+        """Project also processes multiple Sample fine."""
 
         p = Project(path_proj_conf_file)
 
@@ -214,7 +214,7 @@ class BuildSheetTests:
 
 
 class SampleFolderCreationTests:
-    """ Tests for interaction between Project and Sample. """
+    """Tests for interaction between Project and Sample."""
 
     CONFIG_DATA_PATHS_HOOK = "uses_paths_section"
     EXPECTED_PATHS = {
@@ -235,7 +235,7 @@ class SampleFolderCreationTests:
         ids=lambda n_samples: "samples={}".format(n_samples),
     )
     def test_sample_folders_creation(self, uses_paths_section, num_samples, project):
-        """ Sample folders can be created regardless of declaration style. """
+        """Sample folders can be created regardless of declaration style."""
 
         # Not that the paths section usage flag and the sample count
         # are used by the project configuration fixture.
@@ -250,7 +250,7 @@ class SampleFolderCreationTests:
 
 @pytest.fixture(scope="function")
 def project(request, tmpdir, env_config_filepath):
-    """ Provide requesting test case with a basic Project instance. """
+    """Provide requesting test case with a basic Project instance."""
 
     # Write just the sample names as the annotations.
     annotations_filename = "anns-fill.tsv"
@@ -295,7 +295,7 @@ def project(request, tmpdir, env_config_filepath):
 
 
 class SampleTextTests:
-    """ Tests for representation of sample as text """
+    """Tests for representation of sample as text"""
 
     _SAMPLE_LINES = [
         "sample_name,protocol,file",
@@ -317,12 +317,12 @@ class SampleTextTests:
 
     @pytest.fixture(scope="function")
     def sample_lines(self):
-        """ Provide test case with lines for sample sheet / anns file. """
+        """Provide test case with lines for sample sheet / anns file."""
         return copy.copy(self._SAMPLE_LINES)
 
     @pytest.fixture(scope="function")
     def prj_data(self):
-        """ Provide test case with lines for project config file. """
+        """Provide test case with lines for project config file."""
         return copy.deepcopy(self._PRJ_DATA)
 
     @staticmethod
@@ -343,7 +343,7 @@ class SampleTextTests:
 
     @pytest.mark.parametrize("func", [repr, str])
     def test_sample_text_excludes_project_reference(self, func, prj):
-        """ Text representation of a Sample does not include its Project ref. """
+        """Text representation of a Sample does not include its Project ref."""
         assert len(prj.samples) > 0, "No samples"  # precondition
         for s in prj.samples:
             assert isinstance(getattr(s, PRJ_REF), Mapping)

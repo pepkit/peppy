@@ -30,7 +30,7 @@ SP_SPECS_KEY = "subprj_specs"
 
 
 def _get_comma_tab(lines):
-    """ Get parallel collections of comma- and tab-delimiter lines """
+    """Get parallel collections of comma- and tab-delimiter lines"""
     return [l.replace("\t", ",") for l in lines], [l.replace(",", "\t") for l in lines]
 
 
@@ -46,7 +46,7 @@ SubPrjDataSpec = namedtuple("SubPrjDataSpec", ["key", "filename", "lines"])
 
 
 def pytest_generate_tests(metafunc):
-    """ Dynamic test case generation and parameterization for this module. """
+    """Dynamic test case generation and parameterization for this module."""
     if "delimiter" in metafunc.fixturenames:
         metafunc.parametrize("delimiter", ["\t", ","])
 
@@ -118,7 +118,7 @@ def prj_data(request, tmpdir):
 
 @pytest.fixture(scope="function")
 def prj(prj_data, tmpdir):
-    """ Provide a test case with a parameterized Project instance. """
+    """Provide a test case with a parameterized Project instance."""
     conf = tmpdir.join("prjcfg.yaml").strpath
     with open(conf, "w") as f:
         yaml.dump(prj_data, f)
@@ -127,7 +127,7 @@ def prj(prj_data, tmpdir):
 
 @pytest.mark.parametrize("key", [OLD_ANNS_META_KEY, OLD_SUBS_META_KEY])
 def test_no_sheets_old_access(prj, key):
-    """ When the Project uses neither metadata table slot, they're null. """
+    """When the Project uses neither metadata table slot, they're null."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=DeprecationWarning)
         assert getattr(prj, key) is None
@@ -135,26 +135,26 @@ def test_no_sheets_old_access(prj, key):
 
 @pytest.mark.parametrize("key", [SAMPLE_ANNOTATIONS_KEY, SAMPLE_SUBANNOTATIONS_KEY])
 def test_no_sheets_new_access(prj, key):
-    """ When the Project uses neither metadata table slot, they're null. """
+    """When the Project uses neither metadata table slot, they're null."""
     assert getattr(prj, key) is None
 
 
 @pytest.fixture(scope="function")
 def main_table_file(request):
-    """ Determine path for main sample metadata annotations file. """
+    """Determine path for main sample metadata annotations file."""
     return _get_path_from_req(request, "anns")
 
 
 @pytest.fixture(scope="function")
 def subann_table_file(request):
-    """ Path to metadata subannotations file """
+    """Path to metadata subannotations file"""
     return _get_path_from_req(request, "subann")
 
 
 @pytest.mark.parametrize(ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX, [None, ""])
 @pytest.mark.parametrize(SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX, [None, ""])
 def test_no_annotations_sheets(anns_file, subs_file, prj):
-    """ Test project configuration with neither samples nor subsamples. """
+    """Test project configuration with neither samples nor subsamples."""
     assert prj.get(SAMPLE_ANNOTATIONS_KEY) is None
     assert prj.get(SAMPLE_SUBANNOTATIONS_KEY) is None
 
@@ -172,7 +172,7 @@ def test_no_annotations_sheets(anns_file, subs_file, prj):
 )
 @pytest.mark.parametrize(SUBS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX, [None, ""])
 def test_annotations_without_subannotations(anns_data, anns_file, subs_file, prj):
-    """ Test project config with main samples but no subsamples. """
+    """Test project config with main samples but no subsamples."""
     _check_table(prj, SAMPLE_ANNOTATIONS_KEY, len(SAMPLE_ANNOTATION_LINES) - 1)
     _assert_null_prj_var(prj, SAMPLE_SUBANNOTATIONS_KEY)
 
@@ -190,7 +190,7 @@ def test_annotations_without_subannotations(anns_data, anns_file, subs_file, prj
 )
 @pytest.mark.parametrize(ANNS_FIXTURE_PREFIX + FILE_FIXTURE_SUFFIX, [None, ""])
 def test_subannotations_without_annotations(subs_data, subs_file, anns_file, prj):
-    """ Test project config with subsamples but no main samples. """
+    """Test project config with subsamples but no main samples."""
     _check_table(prj, SAMPLE_SUBANNOTATIONS_KEY, len(SAMPLE_SUBANNOTATION_LINES) - 1)
     _assert_null_prj_var(prj, SAMPLE_ANNOTATIONS_KEY)
 
@@ -218,13 +218,13 @@ def test_subannotations_without_annotations(subs_data, subs_file, anns_file, prj
     ],
 )
 def test_both_annotations_sheets(anns_data, anns_file, subs_data, subs_file, prj):
-    """ Test project config with both main samples and subsamples. """
+    """Test project config with both main samples and subsamples."""
     _check_table(prj, SAMPLE_ANNOTATIONS_KEY, len(SAMPLE_ANNOTATION_LINES) - 1)
     _check_table(prj, SAMPLE_SUBANNOTATIONS_KEY, len(SAMPLE_SUBANNOTATION_LINES) - 1)
 
 
 class SampleAnnotationConfigEncodingTests:
-    """ Tests for ways of encoding/representing sample annotations in project config. """
+    """Tests for ways of encoding/representing sample annotations in project config."""
 
     @staticmethod
     @pytest.mark.parametrize("anns_key", [OLD_ANNS_META_KEY])
@@ -232,7 +232,7 @@ class SampleAnnotationConfigEncodingTests:
     def test_old_encodings(
         delimiter, tmpdir, main_table_file, subann_table_file, anns_key, subs_key
     ):
-        """ Current and previous encoding of tables works, deprecated appropriately. """
+        """Current and previous encoding of tables works, deprecated appropriately."""
         # Data setup
         anns_data, subs_data = LINES_BY_DELIM[delimiter]
         anns_file = _write(main_table_file, anns_data)
@@ -327,13 +327,13 @@ _FETCHERS = {
 
 
 class SubprojectActivationSampleMetadataAnnotationTableTests:
-    """ Tests for behavior of tables in context of subproject activation. """
+    """Tests for behavior of tables in context of subproject activation."""
 
     INJECTED_SP_NAME = "injected_subproject"
 
     @pytest.fixture(scope="function")
     def prj(self, request, tmpdir, prj_data):
-        """ Provide test case with a Project instance. """
+        """Provide test case with a Project instance."""
         # TODO: write newer sheets.
         data = deepcopy(prj_data)
         fixnames = request.fixturenames
@@ -417,7 +417,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     def test_subproject_uses_different_main_table(
         prj, tmpdir, anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs
     ):
-        """ Main table is updated while subannotations are unaffected. """
+        """Main table is updated while subannotations are unaffected."""
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=DeprecationWarning)
             orig_anns = fun(prj, key)
@@ -483,7 +483,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     def test_subproject_uses_different_subsamples(
         prj, tmpdir, anns_file, anns_data, subs_file, subs_data, fun, key, subprj_specs
     ):
-        """ Subannotations are updated while the main table is unaltered. """
+        """Subannotations are updated while the main table is unaltered."""
         orig_anns = getattr(prj, SAMPLE_ANNOTATIONS_KEY)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=DeprecationWarning)
@@ -567,7 +567,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         fun,
         subprj_specs,
     ):
-        """ Both metadata annotation tables can be updated by subproject. """
+        """Both metadata annotation tables can be updated by subproject."""
         orig_anns, orig_subs = fun(prj, ann_key), fun(prj, sub_key)
         assert SUBPROJECTS_SECTION in prj
         sps = list(prj[SUBPROJECTS_SECTION].keys())
@@ -608,7 +608,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
         ],
     )
     def test_subproject_introduces_both_table_kinds(prj, fun, key, subprj_specs):
-        """ Both metadata annotation tables can be introduced by subproject. """
+        """Both metadata annotation tables can be introduced by subproject."""
         assert fun(prj, key) is None
         assert SUBPROJECTS_SECTION in prj
         sp_names = list(prj[SUBPROJECTS_SECTION].keys())
@@ -656,7 +656,7 @@ class SubprojectActivationSampleMetadataAnnotationTableTests:
     def test_preservation_during_subproject_activation(
         prj, subprojects, anns_file, anns_data, subs_file, subs_data
     ):
-        """ Tables are preserved when a subproject is activated if it declares no tables. """
+        """Tables are preserved when a subproject is activated if it declares no tables."""
         subs = prj[SUBPROJECTS_SECTION]
         for k in [
             SAMPLE_ANNOTATIONS_KEY,
@@ -714,12 +714,12 @@ def _check_table(p, k, exp_nrow):
 
 
 def _get_extension(sep):
-    """ Based on delimiter to be used, get file extension. """
+    """Based on delimiter to be used, get file extension."""
     return {"\t": ".tsv", ",": ".csv"}[sep]
 
 
 def _get_path_from_req(request, name):
-    """ From test case parameterization request, create path for certain file. """
+    """From test case parameterization request, create path for certain file."""
     sep = (
         request.getfixturevalue("delimiter")
         if "delimiter" in request.fixturenames

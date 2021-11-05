@@ -22,7 +22,7 @@ SHEET_PARSE_FUNCPATH = "peppy.project.Project.parse_sample_sheet"
 
 
 def touch(folder, name):
-    """ In provided folder, create empty file with given name. """
+    """In provided folder, create empty file with given name."""
     fp = os.path.join(folder, name)
     with open(fp, "w"):
         return fp
@@ -30,7 +30,7 @@ def touch(folder, name):
 
 @pytest.fixture(scope="function")
 def conf_data(tmpdir):
-    """ Provide the project configuration data, writing each annotation file. """
+    """Provide the project configuration data, writing each annotation file."""
     d = tmpdir.strpath
     parent_sheet_file = touch(d, _PARENT_ANNS)
     child_sheet_file = touch(d, _CHILD_ANNS)
@@ -48,7 +48,7 @@ def conf_data(tmpdir):
 
 @pytest.fixture(scope="function")
 def conf_file(tmpdir, conf_data):
-    """ Write project config data to a tempfile and provide the filepath. """
+    """Write project config data to a tempfile and provide the filepath."""
     conf = tmpdir.join(randomize_filename(n_char=20)).strpath
     with open(conf, "w") as f:
         yaml.dump(conf_data, f)
@@ -56,11 +56,11 @@ def conf_file(tmpdir, conf_data):
 
 
 class SubprojectSampleAnnotationTests:
-    """ Tests concerning sample annotations path when a subproject is used. """
+    """Tests concerning sample annotations path when a subproject is used."""
 
     @staticmethod
     def test_annotations_path_is_from_subproject(conf_file):
-        """ Direct Project construction with subproject points to anns file. """
+        """Direct Project construction with subproject points to anns file."""
         with mock.patch(SHEET_PARSE_FUNCPATH):
             p = Project(conf_file, subproject=_SP_NAME)
         _, anns_file = os.path.split(p[METADATA_KEY][NAME_TABLE_ATTR])
@@ -68,7 +68,7 @@ class SubprojectSampleAnnotationTests:
 
     @staticmethod
     def test_subproject_activation_updates_sample_annotations_path(conf_file):
-        """ Subproject's sample annotation file pointer replaces original. """
+        """Subproject's sample annotation file pointer replaces original."""
         with mock.patch(SHEET_PARSE_FUNCPATH):
             p = Project(conf_file)
             p.activate_subproject(_SP_NAME)
@@ -77,11 +77,11 @@ class SubprojectSampleAnnotationTests:
 
 
 class SubprojectMetadataPathTests:
-    """ Tests for behavior of metadata section paths in the context of subprojects. """
+    """Tests for behavior of metadata section paths in the context of subprojects."""
 
     @pytest.fixture
     def prj(self, tmpdir, conf_data):
-        """ Provide test cases with a Project that features a subproject that declares output_dir. """
+        """Provide test cases with a Project that features a subproject that declares output_dir."""
         suboutfolder = "tmp_sub_folder"
         suboutpath = os.path.join(tmpdir.strpath, suboutfolder)
         assert OUTDIR_KEY in conf_data[METADATA_KEY]
@@ -104,7 +104,7 @@ class SubprojectMetadataPathTests:
         ],
     )
     def test_relative_path_metadata_dynamism(self, prj, check):
-        """ Results and submission paths are relative to whatever output_dir is. """
+        """Results and submission paths are relative to whatever output_dir is."""
         main_out = prj.output_dir
         with mock.patch(SHEET_PARSE_FUNCPATH):
             sub = prj.activate_subproject(_SP_NAME)
@@ -115,7 +115,7 @@ class SubprojectMetadataPathTests:
         "eq_attr", ["output_dir", "results_folder", "submission_folder"]
     )
     def test_relative_path_metadata_stasis(self, conf_file, eq_attr):
-        """ Key metadata paths are preserved with subproject that doesn't alter them. """
+        """Key metadata paths are preserved with subproject that doesn't alter them."""
         with mock.patch(SHEET_PARSE_FUNCPATH):
             p = Project(conf_file)
         main_path = getattr(p, eq_attr)
