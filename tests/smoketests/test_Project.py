@@ -1,4 +1,6 @@
-""" Classes for peppy.Project smoketesting """
+"""
+Classes for peppy.Project smoketesting
+"""
 
 import os
 import tempfile
@@ -66,13 +68,17 @@ def _cmp_all_samples_attr(p1, p2, attr):
 
 class ProjectConstructorTests:
     def test_empty(self):
-        """ Verify that an empty Project instance can be created """
+        """
+        Verify that an empty Project instance can be created
+        """
         p = Project()
         assert isinstance(p, Project)
         assert len(p.samples) == 0
 
     def test_nonexistent(self):
-        """ Verify that OSError is thrown when config does not exist """
+        """
+        Verify that OSError is thrown when config does not exist
+        """
         with pytest.raises(OSError):
             Project(cfg="nonexistentfile.yaml")
 
@@ -301,13 +307,17 @@ class ProjectManipulationTests:
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_get_sample(self, example_pep_cfg_path):
-        """ Verify that sample getting method works """
+        """
+        Verify that sample getting method works
+        """
         p = Project(cfg=example_pep_cfg_path)
         p.get_sample(sample_name=p.samples[0]["sample_name"])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_get_sample_nonexistent(self, example_pep_cfg_path):
-        """ Verify that sample getting returns ValueError if not sample found """
+        """
+        Verify that sample getting returns ValueError if not sample found
+        """
         p = Project(cfg=example_pep_cfg_path)
         with pytest.raises(ValueError):
 
@@ -317,13 +327,17 @@ class ProjectManipulationTests:
 class SampleModifiersTests:
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
     def test_append(self, example_pep_cfg_path):
-        """ Verify that the appended attribute is added to the samples """
+        """
+        Verify that the appended attribute is added to the samples
+        """
         p = Project(cfg=example_pep_cfg_path)
         assert all([s["read_type"] == "SINGLE" for s in p.samples])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["imports"], indirect=True)
     def test_imports(self, example_pep_cfg_path):
-        """ Verify that the imported attribute is added to the samples """
+        """
+        Verify that the imported attribute is added to the samples
+        """
         p = Project(cfg=example_pep_cfg_path)
         assert all([s["imported_attr"] == "imported_val" for s in p.samples])
 
