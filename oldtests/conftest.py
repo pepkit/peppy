@@ -179,7 +179,7 @@ PROJECT_CONFIG_DATA = {METADATA_KEY: {NAME_TABLE_ATTR: "annotations.csv"}}
 
 
 def update_project_conf_data(extension):
-    """Updated Project configuration data mapping based on file extension"""
+    """ Updated Project configuration data mapping based on file extension """
     updated = copy.deepcopy(PROJECT_CONFIG_DATA)
     filename = updated[METADATA_KEY][NAME_TABLE_ATTR]
     base, _ = os.path.splitext(filename)
@@ -188,7 +188,7 @@ def update_project_conf_data(extension):
 
 
 def pytest_addoption(parser):
-    """Facilitate command-line test behavior adjustment."""
+    """ Facilitate command-line test behavior adjustment. """
     parser.addoption(
         "--logging-level",
         default="WARN",
@@ -197,7 +197,7 @@ def pytest_addoption(parser):
 
 
 def pytest_generate_tests(metafunc):
-    """Centralize dynamic test case parameterization."""
+    """ Centralize dynamic test case parameterization. """
     if "empty_collection" in metafunc.fixturenames:
         # Test case strives to validate expected behavior on empty container.
         collection_types = [tuple, list, set, dict]
@@ -210,7 +210,7 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="session", autouse=True)
 def conf_logs(request):
-    """Configure logging for the testing session."""
+    """ Configure logging for the testing session. """
     level = request.config.getoption("--logging-level")
     logname = "peppy"
     init_logger(name=logname, level=level, devmode=True)
@@ -235,7 +235,7 @@ def sample_annotation_lines():
 
 @pytest.fixture(scope="function")
 def path_empty_project(request, tmpdir):
-    """Provide path to Project config file with empty annotations."""
+    """ Provide path to Project config file with empty annotations. """
 
     # Determine how to write the data and how to name a file.
     delimiter = (
@@ -365,7 +365,7 @@ def _write_temp(lines, dirpath, fname):
 
 @pytest.fixture(scope="function")
 def project_config_lines():
-    """Provide safer iteration over the lines for Project config file."""
+    """ Provide safer iteration over the lines for Project config file. """
     return PROJECT_CONFIG_LINES
 
 
@@ -453,7 +453,7 @@ def write_project_files(request):
 
 @pytest.fixture(scope="function")
 def subannotation_filepath(tmpdir):
-    """Write sample subannotations (temp) file and return path to it."""
+    """ Write sample subannotations (temp) file and return path to it. """
     return _write_temp(
         SAMPLE_SUBANNOTATION_LINES, dirpath=tmpdir.strpath, fname=SUBSAMPLES_FILENAME
     )
@@ -490,7 +490,7 @@ def _write_test_data_files(tempdir):
 
 
 def request_class_attribute(req, attr):
-    """Grab `attr` attribute from class of `req`."""
+    """ Grab `attr` attribute from class of `req`. """
     return getattr(getattr(req, "cls"), attr)
 
 

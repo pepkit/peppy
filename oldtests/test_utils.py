@@ -63,11 +63,11 @@ def sample_independent_data(request, basic_project_data):
 
 
 class GrabProjectDataTests:
-    """Tests for grabbing Sample-independent Project configuration data."""
+    """ Tests for grabbing Sample-independent Project configuration data. """
 
     @named_param(argnames="data", argvalues=[None, [], {}])
     def test_no_data(self, data):
-        """Parsing empty Project/data yields empty data subset."""
+        """ Parsing empty Project/data yields empty data subset. """
         assert {} == grab_project_data(data)
 
     @named_param(
@@ -77,7 +77,7 @@ class GrabProjectDataTests:
     def test_does_not_need_all_sample_independent_data(
         self, sections, basic_project_data, sample_independent_data
     ):
-        """Subset of all known independent data that's present is grabbed."""
+        """ Subset of all known independent data that's present is grabbed. """
         p = PathExAttMap(sample_independent_data)
         expected = {s: data for s, data in basic_project_data.items() if s in sections}
         observed = grab_project_data(p)
@@ -93,7 +93,7 @@ class GrabProjectDataTests:
     def test_grabs_only_sample_independent_data(
         self, sample_independent_data, extra_data
     ):
-        """Only Project data defined as Sample-independent is retrieved."""
+        """ Only Project data defined as Sample-independent is retrieved. """
 
         # Create the data to pass the the argument to the call under test.
         data = copy.deepcopy(sample_independent_data)
@@ -112,15 +112,15 @@ class GrabProjectDataTests:
 
 
 class AddProjectSampleConstantsTests:
-    """Utility function can add a Project's constant to Sample."""
+    """ Utility function can add a Project's constant to Sample. """
 
     @pytest.fixture
     def basic_sample(self):
-        """Provide test cases with a simple Sample instance."""
+        """ Provide test cases with a simple Sample instance. """
         return Sample({SAMPLE_NAME_COLNAME: "arbitrarily_named_sample"})
 
     def test_no_constants(self, basic_sample):
-        """No constants declared means the Sample is unchanged."""
+        """ No constants declared means the Sample is unchanged. """
         mock_prj = mock.MagicMock(constants=dict())
         sample = add_project_sample_constants(basic_sample, mock_prj)
         assert basic_sample == sample
@@ -129,7 +129,7 @@ class AddProjectSampleConstantsTests:
         argnames="const", argvalues=[{"new_attr": 45}, {"a1": 0, "b2": "filepath"}]
     )
     def test_add_project_sample_constants(self, basic_sample, const):
-        """New attribute is added by the update."""
+        """ New attribute is added by the update. """
         mock_prj = mock.MagicMock(constant_attributes=const)
         for attr in const:
             assert attr not in basic_sample
@@ -144,7 +144,7 @@ class AddProjectSampleConstantsTests:
         argvalues=[("coll_attr_1", 1, 2), ("coll_attr_2", 3, 4)],
     )
     def test_name_collision(self, basic_sample, collision, old_val, new_val):
-        """New value overwrites old value (no guarantee for null, though.)"""
+        """ New value overwrites old value (no guarantee for null, though.) """
         basic_sample[collision] = old_val
         mock_prj = mock.MagicMock(constant_attributes={collision: new_val})
         assert old_val == basic_sample[collision]
@@ -153,17 +153,17 @@ class AddProjectSampleConstantsTests:
 
 
 class NullValueHelperTests:
-    """Tests of accuracy of null value arbiter."""
+    """ Tests of accuracy of null value arbiter. """
 
     _DATA = {"a": 1, "b": [2]}
 
     @pytest.fixture(params=[lambda d: dict(d), lambda d: PathExAttMap().add_entries(d)])
     def kvs(self, request):
-        """For test cases provide KV pair map of parameterized type."""
+        """ For test cases provide KV pair map of parameterized type."""
         return request.param(self._DATA)
 
     def test_missing_key_neither_null_nor_non_null(self, kvs):
-        """A key not in a mapping has neither null nor non-null value."""
+        """ A key not in a mapping has neither null nor non-null value. """
         k = "new_key"
         assert k not in kvs
         assert not has_null_value(k, kvs)
@@ -171,7 +171,7 @@ class NullValueHelperTests:
 
     @pytest.mark.parametrize("coll", [list(), set(), tuple(), dict()])
     def test_empty_collection_is_null(self, coll, kvs):
-        """A key with an empty collection instance as its value is null."""
+        """ A key with an empty collection instance as its value is null. """
         ck = "empty"
         assert ck not in kvs
         kvs[ck] = coll
@@ -179,7 +179,7 @@ class NullValueHelperTests:
         assert not non_null_value(ck, kvs)
 
     def test_none_is_null(self, kvs):
-        """A key with None as value is null."""
+        """ A key with None as value is null. """
         bad_key = "nv"
         assert bad_key not in kvs
         kvs[bad_key] = None
@@ -188,13 +188,13 @@ class NullValueHelperTests:
 
     @pytest.mark.parametrize("k", _DATA.keys())
     def test_non_nulls(self, k, kvs):
-        """Keys with non-None atomic or nonempty collection are non-null."""
+        """ Keys with non-None atomic or nonempty collection are non-null. """
         assert k in kvs
         assert non_null_value(k, kvs)
 
 
 def test_copy():
-    """Test reference and equivalence comparison operators."""
+    """ Test reference and equivalence comparison operators. """
 
     class ExampleObject:
         pass
@@ -207,7 +207,7 @@ def test_copy():
 
 @pytest.mark.skip("not implemented")
 def test_fetch_samples():
-    """Test selection of subset of samples from a Project."""
+    """ Test selection of subset of samples from a Project. """
     pass
 
 

@@ -620,7 +620,7 @@ class Project(PathExAttMap):
             return desc_str
 
     def __str__(self):
-        """Representation in interpreter."""
+        """ Representation in interpreter. """
         if len(self) == 0:
             return "{}"
         msg = "Project"

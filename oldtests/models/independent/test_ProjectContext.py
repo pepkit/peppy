@@ -98,10 +98,10 @@ def project(request, sample_names, protocols, tmpdir):
 
 
 class ProjectContextTests:
-    """Tests for Project context manager wrapper"""
+    """ Tests for Project context manager wrapper """
 
     def test_no_filtration(self, samples, project):
-        """With no selector_include/selector_exclude, all Sample objects are in play."""
+        """ With no selector_include/selector_exclude, all Sample objects are in play. """
         _assert_samples(samples, project.samples)
         with ProjectContext(project) as prj:
             _assert_samples(project.samples, prj.samples)
@@ -115,7 +115,7 @@ class ProjectContextTests:
         ],
     )
     def test_inclusion(self, samples, project, selector_include, expected_names):
-        """Sample objects can be selected for by protocol."""
+        """ Sample objects can be selected for by protocol. """
         _assert_samples(samples, project.samples)
         with ProjectContext(project, selector_include=selector_include) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
@@ -129,7 +129,7 @@ class ProjectContextTests:
         ],
     )
     def test_exclusion(self, samples, project, selector_exclude, expected_names):
-        """Sample objects can be selected against by protocol."""
+        """ Sample objects can be selected against by protocol. """
         _assert_samples(samples, project.samples)
         with ProjectContext(project, selector_exclude=selector_exclude) as prj:
             _assert_sample_names(expected_names, observed_samples=prj.samples)
@@ -143,7 +143,7 @@ class ProjectContextTests:
         ids=lambda proto_seltype_pair: "{}:{}".format(*proto_seltype_pair),
     )
     def test_restoration(self, samples, project, selection, selection_type):
-        """After exiting the context, original Project samples restore."""
+        """ After exiting the context, original Project samples restore. """
         _assert_samples(samples, project.samples)
         with ProjectContext(project, **{selection_type: selection}) as prj:
             # Ensure that the context manager has changed something about
@@ -157,7 +157,7 @@ class ProjectContextTests:
         argnames="attr_name", argvalues=list(ADD_PROJECT_DATA.keys())
     )
     def test_access_to_project_attributes(self, project, add_project_data, attr_name):
-        """Context manager routes attribute requests through Project."""
+        """ Context manager routes attribute requests through Project. """
         # add_project_data is used by the project fixture.
         with ProjectContext(project) as prj:
             assert getattr(project, attr_name) is getattr(prj, attr_name)
@@ -166,7 +166,7 @@ class ProjectContextTests:
         argnames="attr_name", argvalues=["include", "exclude", "prj"]
     )
     def test_access_to_non_project_attributes(self, project, attr_name):
-        """Certain attributes are on the context manager itself."""
+        """ Certain attributes are on the context manager itself. """
         # add_project_data is used by the project fixture.
         with ProjectContext(project) as prj:
             # No selector_include/selector_exclude protocols --> those attributes are null.

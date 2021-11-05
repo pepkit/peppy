@@ -28,13 +28,13 @@ __email__ = "vreuter@virginia.edu"
 
 
 def pytest_generate_tests(metafunc):
-    """Dynamic test case generation and parameterization for this module."""
+    """ Dynamic test case generation and parameterization for this module. """
     if "proj_type" in metafunc.fixturenames:
         metafunc.parametrize("proj_type", [Project, SnakeProject])
 
 
 class ParseSampleImplicationsTests:
-    """Tests for appending columns/fields to a Sample based on a mapping."""
+    """ Tests for appending columns/fields to a Sample based on a mapping. """
 
     IMPLIER_NAME = SAMPLE_NAME_COLNAME
     IMPLIER_VALUES = ["a", "b"]
@@ -45,14 +45,14 @@ class ParseSampleImplicationsTests:
 
     @pytest.mark.parametrize(argnames="implications", argvalues=[None, {}, []])
     def test_project_no_implications(self, sample, implications):
-        """With no implications mapping, sample is unmodified."""
+        """ With no implications mapping, sample is unmodified. """
         before_inference = sample.__dict__
         sample.infer_attributes(implications)
         after_inference = sample.__dict__
         assert before_inference == after_inference
 
     def test_null_intersection_between_sample_and_implications(self, sample):
-        """Sample with none of implications' fields --> no change."""
+        """ Sample with none of implications' fields --> no change. """
         before_inference = sample.__dict__
         sample.infer_attributes(self.IMPLICATIONS_MAP)
         assert before_inference == sample.__dict__
@@ -63,7 +63,7 @@ class ParseSampleImplicationsTests:
     def test_intersection_between_sample_and_implications(
         self, sample, implier_value, implications
     ):
-        """Intersection between implications and sample fields --> append."""
+        """ Intersection between implications and sample fields --> append. """
 
         # Negative control pretest
         for implied_field_name in implications.keys():
@@ -84,7 +84,7 @@ class ParseSampleImplicationsTests:
     def test_sample_has_unmapped_value_for_implication(
         self, sample, unmapped_implier_value
     ):
-        """Unknown value in implier field --> null inference."""
+        """ Unknown value in implier field --> null inference. """
 
         # Negative control pre-/post-test.
         def no_implied_values():
@@ -128,7 +128,7 @@ class ParseSampleImplicationsTests:
 
 
 class SampleRequirementsTests:
-    """Test what a Sample requires."""
+    """ Test what a Sample requires. """
 
     @pytest.mark.parametrize(
         argnames="data_type",
@@ -141,7 +141,7 @@ class SampleRequirementsTests:
         ids=lambda has_name: "has_name: {}".format(has_name),
     )
     def test_requires_sample_name(self, has_name, data_type):
-        """Construction of sample requires data with sample name."""
+        """ Construction of sample requires data with sample name. """
         data = {}
         sample_name = "test-sample"
         if has_name:
@@ -160,7 +160,7 @@ class SampleRequirementsTests:
 )
 @pytest.mark.parametrize(argnames="data_type", argvalues=[dict, Series])
 def test_exception_type_matches_access_mode(data_type, accessor):
-    """Exception for attribute access failure reflects access mode."""
+    """ Exception for attribute access failure reflects access mode. """
     data = {SAMPLE_NAME_COLNAME: "placeholder"}
     sample = Sample(data_type(data))
     if accessor == "attr":
@@ -187,7 +187,7 @@ def test_exception_type_matches_access_mode(data_type, accessor):
     ids=lambda exists: "preexists={}".format(exists),
 )
 def test_make_sample_dirs(paths, preexists, tmpdir):
-    """Existence guarantee Sample instance's folders is safe and valid."""
+    """ Existence guarantee Sample instance's folders is safe and valid. """
 
     # Derive full paths and assure nonexistence before creation.
     fullpaths = []
@@ -226,7 +226,7 @@ def test_make_sample_dirs(paths, preexists, tmpdir):
 )
 @pytest.mark.parametrize(argnames="test_type", argvalues=["in_memory", "to_disk"])
 def test_input_files(files, test_type, tmpdir):
-    """Test for access to Sample input files."""
+    """ Test for access to Sample input files. """
     file_text = " ".join(files)
     sample_data = {SAMPLE_NAME_COLNAME: "test-sample", DATA_SOURCE_COLNAME: file_text}
     s = Sample(sample_data)
@@ -249,14 +249,14 @@ def test_input_files(files, test_type, tmpdir):
 
 
 class SetFilePathsTests:
-    """Tests for setting Sample file paths."""
+    """ Tests for setting Sample file paths. """
 
     SOURCE_KEYS = ["src1", "src2"]
     DATA_SOURCES = {"src1": "pathA", "src2": "pathB"}
 
     @pytest.fixture
     def prj_data(self, request):
-        """Provide test case with some basic Project data."""
+        """ Provide test case with some basic Project data. """
         if "data_src_attr" in request.fixturenames:
             data_src = request.getfixturevalue("data_src_attr")
         else:
@@ -281,7 +281,7 @@ class SetFilePathsTests:
     def test_equivalence_between_implicit_and_explicit_prj(
         self, prj_data, data_src_attr, src_key, explicit
     ):
-        """Passing Sample's project is equivalent to its inference."""
+        """ Passing Sample's project is equivalent to its inference. """
 
         # Explicitly-passed object needs to at least be an AttMap.
         sample_data = AttMap(
@@ -306,7 +306,7 @@ class SetFilePathsTests:
         assert expected == observed
 
     def test_prefers_explicit_project_context(self, prj_data):
-        """Explicit project data overrides any pre-stored project data."""
+        """ Explicit project data overrides any pre-stored project data. """
         prj_data_modified = AttMap(copy.deepcopy(prj_data))
         new_src = "src3"
         new_src_val = "newpath"
@@ -325,7 +325,7 @@ class SetFilePathsTests:
 
     @named_param(argnames="exclude_derived_attributes", argvalues=[False, True])
     def test_no_derived_attributes(self, prj_data, exclude_derived_attributes):
-        """Passing Sample's project is equivalent to its inference."""
+        """ Passing Sample's project is equivalent to its inference. """
 
         # Here we're disinterested in parameterization w.r.t. data source key,
         # so make it constant.
@@ -362,7 +362,7 @@ class SetFilePathsTests:
 
 
 class LocateDataSourceTests:
-    """Tests for determining data source filepath."""
+    """ Tests for determining data source filepath. """
 
     SOURCE_KEYS = ["src1", "src2"]
     PATH_BY_KEY = {"src1": "pathA", "src2": "pathB"}
@@ -375,7 +375,7 @@ class LocateDataSourceTests:
 
     @pytest.fixture
     def prj_data(self):
-        """Provide basic Project data to test case."""
+        """ Provide basic Project data to test case. """
         data = {METADATA_KEY: {NAME_TABLE_ATTR: "anns.csv"}}
         data.update({DATA_SOURCES_SECTION: self.PATH_BY_KEY})
         return data
@@ -390,7 +390,7 @@ class LocateDataSourceTests:
     def test_accuracy_and_allows_empty_data_sources(
         self, colname, src_key, prj_data, data_type, include_data_sources
     ):
-        """Locator is accurate and does not require data source map."""
+        """ Locator is accurate and does not require data source map. """
         sample_data = data_type(
             {SAMPLE_NAME_COLNAME: "random-sample", "prj": prj_data, colname: src_key}
         )
@@ -407,12 +407,12 @@ class LocateDataSourceTests:
 
 
 class SampleConstructorTests:
-    """Basic tests of Sample's constructor"""
+    """ Basic tests of Sample's constructor """
 
     @pytest.mark.parametrize("name_attr", [SAMPLE_NAME_COLNAME, "name"])
     @pytest.mark.parametrize("fetch", [getattr, lambda s, k: s[k]])
     def test_only_peppy_name(self, fetch, name_attr):
-        """name and sample_name access Sample's name and work with varied syntax."""
+        """ name and sample_name access Sample's name and work with varied syntax. """
         name = "testsample"
         s = Sample({SAMPLE_NAME_COLNAME: name})
         assert name == fetch(s, name_attr)
@@ -422,7 +422,7 @@ class SampleConstructorTests:
         ["fetch", "exp_err"], [(getattr, AttributeError), (lambda s, k: s[k], KeyError)]
     )
     def test_only_snakemake_name(self, fetch, name_attr, exp_err):
-        """Snakemake --> peppy <--> sample --> sample_name."""
+        """ Snakemake --> peppy <--> sample --> sample_name. """
         name = "testsample"
         s = Sample({SNAKEMAKE_SAMPLE_COL: name})
         with pytest.raises(exp_err):
@@ -447,7 +447,7 @@ class SampleConstructorTests:
     def test_peppy_and_snakemake_names(
         self, fetch, name_attr, data, expect_result, exp_err
     ):
-        """Original peppy naming of sample name is favored; exception iff values differ."""
+        """ Original peppy naming of sample name is favored; exception iff values differ. """
         if isinstance(expect_result, type) and issubclass(expect_result, Exception):
             with pytest.raises(expect_result):
                 Sample(data)
@@ -465,7 +465,7 @@ class SampleConstructorTests:
         ],
     )
     def test_no_prj_ref(self, has_ref, get_ref):
-        """Construction of a Sample without project ref --> null value"""
+        """ Construction of a Sample without project ref --> null value """
         s = Sample({SAMPLE_NAME_COLNAME: "test-sample"})
         assert has_ref(s)
         assert get_ref(s) is None
@@ -487,7 +487,7 @@ class SampleConstructorTests:
         ],
     )
     def test_non_project_prj_ref(self, fetch, prj_ref_val, expect):
-        """Project reference is null, or a PathExAttMap."""
+        """ Project reference is null, or a PathExAttMap. """
         s = Sample({SAMPLE_NAME_COLNAME: "testsample", PRJ_REF: prj_ref_val})
         assert expect == fetch(s)
 
@@ -508,7 +508,7 @@ class SampleConstructorTests:
         ],
     )
     def test_non_project_prj_ref_as_arg(self, fetch, prj_ref_val, expect):
-        """Project reference must be null, or an attmap bounded above by PathExAttMap."""
+        """ Project reference must be null, or an attmap bounded above by PathExAttMap. """
         s = Sample({SAMPLE_NAME_COLNAME: "testsample"}, prj=prj_ref_val)
         assert expect == fetch(s)
 
@@ -516,7 +516,7 @@ class SampleConstructorTests:
         "fetch", [lambda s: s[PRJ_REF]]  # lambda s: getattr(s, PRJ_REF),
     )
     def test_project_prj_ref_in_data(self, proj_type, fetch, tmpdir):
-        """Project is converted to PathExAttMap of sample-independent data."""
+        """ Project is converted to PathExAttMap of sample-independent data. """
         proj_data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
         prj = _get_prj(tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
         assert isinstance(prj, Project)
@@ -527,7 +527,7 @@ class SampleConstructorTests:
         "fetch", [lambda s: getattr(s, PRJ_REF), lambda s: s[PRJ_REF]]
     )
     def test_project_prj_ref_as_arg(self, proj_type, fetch, tmpdir):
-        """Project is converted to PathExAttMap of sample-independent data."""
+        """ Project is converted to PathExAttMap of sample-independent data. """
         proj_data = {METADATA_KEY: {OUTDIR_KEY: tmpdir.strpath}}
         prj = _get_prj(tmpdir.join("minimal_config.yaml").strpath, proj_data, proj_type)
         assert isinstance(prj, Project)
@@ -536,7 +536,7 @@ class SampleConstructorTests:
 
     @pytest.mark.skip("not implemented")
     def test_prj_ref_data_and_arg(self):
-        """Directly-specified project is favored."""
+        """ Directly-specified project is favored. """
         pass
 
     def _assert_prj_dat(self, base_data, s, fetch):
@@ -556,10 +556,10 @@ class SampleConstructorTests:
 
 
 class SampleSerializationTests:
-    """Basic tests of Sample serialization with pickle module."""
+    """ Basic tests of Sample serialization with pickle module. """
 
     def test_pickle_roundtrip(self):
-        """Test whether pickle roundtrip produces a comparable object"""
+        """ Test whether pickle roundtrip produces a comparable object """
         s = Sample({SAMPLE_NAME_COLNAME: "testsample"})
         _buffer = tempfile.TemporaryFile()
         pickle.dump(s, _buffer)

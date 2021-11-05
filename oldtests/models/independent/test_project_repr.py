@@ -129,7 +129,7 @@ def check_line_count(p):
 
 @pytest.mark.remote_data
 class ProjectReprTests:
-    """Tests for terminal representation of a project."""
+    """ Tests for terminal representation of a project. """
 
     @pytest.fixture(scope="function")
     def proj_name(self, request):
@@ -183,5 +183,5 @@ def _determine_project_paths(data_root):
 
 
 def _get_repr_lines(p):
-    """Get lines from Project's __repr__"""
+    """ Get lines from Project's __repr__ """
     return repr(p).split("\n")

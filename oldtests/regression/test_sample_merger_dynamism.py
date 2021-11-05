@@ -17,7 +17,7 @@ SUBPROJECT_NAME = "changed_output"
 
 @pytest.fixture
 def pl_iface(tmpdir):
-    """Provide test case with path to written pipeline interface file."""
+    """ Provide test case with path to written pipeline interface file. """
     data = {}
     fp = tmpdir.join(PLIF_NAME).strpath
     with open(fp, "w") as f:
@@ -27,7 +27,7 @@ def pl_iface(tmpdir):
 
 @pytest.fixture
 def annsdata(tmpdir):
-    """Provide a test case with path to written annotations file."""
+    """ Provide a test case with path to written annotations file. """
     lines = """sample_name,protocol,filename,data_source,read_type
 ATAC-seq_human_PE,ATAC-seq,atac-seq_PE.bam,microtest,paired
 ATAC-seq_human_SE,ATAC-seq,atac-seq_SE.bam,microtest,single
@@ -44,7 +44,7 @@ ChIPmentation_human_CTCF_SE,ChIPmentation,chipmentation_SE.bam,microtest,single"
 
 @pytest.fixture
 def conf_file(tmpdir, annsdata, pl_iface):
-    """Provide test case with project config data."""
+    """ Provide test case with project config data. """
     mainout, subout = [tmpdir.join(f).strpath for f in ["this", "that"]]
     os.makedirs(mainout)
     os.makedirs(subout)
@@ -73,7 +73,7 @@ def conf_file(tmpdir, annsdata, pl_iface):
 
 
 def test_subproject_activation_preserves_derived_path(tmpdir, conf_file):
-    """When a subproject changes no data relevant to a sample attribute, it shouldn't change."""
+    """ When a subproject changes no data relevant to a sample attribute, it shouldn't change. """
     old_prj = Project(conf_file)
     old_path = old_prj.samples[0].data_path
     new_prj = old_prj.activate_subproject(SUBPROJECT_NAME)

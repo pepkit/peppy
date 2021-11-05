@@ -12,7 +12,7 @@ __email__ = "michal@virginia.edu"
 
 class ProjectConstructorTests:
     def test_empty(self):
-        """Verify that an empty Project instance can be created"""
+        """ Verify that an empty Project instance can be created """
         p = Project()
         assert isinstance(p, "Project")
         assert len(p.samples) == 0

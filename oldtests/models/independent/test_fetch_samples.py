@@ -155,7 +155,7 @@ def _write_project_files(tmpdir, all_samples, sp_samples, sp_name):
     argvalues=[("faulty_attr", "RNA-Seq"), ("faulty_attr", "RRBS")],
 )
 def test_has_attribute(selector_attribute, selector_exclude, samples):
-    """At least one of the samples has to have the specified selector_attribute."""
+    """ At least one of the samples has to have the specified selector_attribute. """
     prj = mock.MagicMock(samples=samples)
     with pytest.raises(AttributeError):
         fetch_samples(
@@ -176,7 +176,7 @@ def test_has_attribute(selector_attribute, selector_exclude, samples):
 def test_only_inclusion_or_exclusion(
     selector_attribute, selector_include, selector_exclude, samples
 ):
-    """Only an selector_include or selector_exclude set is permitted."""
+    """ Only an selector_include or selector_exclude set is permitted. """
     prj = mock.MagicMock(samples=samples)
     with pytest.raises(TypeError):
         fetch_samples(
@@ -197,7 +197,7 @@ def test_only_inclusion_or_exclusion(
     ],
 )
 def test_no_samples(selector_attribute, selector_include, selector_exclude):
-    """Regardless of filtration, lack of samples means empty collection."""
+    """ Regardless of filtration, lack of samples means empty collection. """
     prj = mock.MagicMock(samples=[])
     observed = fetch_samples(
         prj,
@@ -213,7 +213,7 @@ def test_no_samples(selector_attribute, selector_include, selector_exclude):
     argvalues=[(None, None, None), (None, None, {}), (None, [], None), (None, [], [])],
 )
 def test_no_filter(selector_attribute, selector_include, selector_exclude, samples):
-    """Without a filtration mechanism, all Samples are retained."""
+    """ Without a filtration mechanism, all Samples are retained. """
     prj = mock.MagicMock(samples=samples)
     assert samples == fetch_samples(
         prj,
@@ -224,7 +224,7 @@ def test_no_filter(selector_attribute, selector_include, selector_exclude, sampl
 
 
 class ProtocolInclusionTests:
-    """Samples can be selected for by protocol."""
+    """ Samples can be selected for by protocol. """
 
     # Note that even if the vary_protocol_name "parameter" to a test case
     # function appears to go unnoticed, it's likely present so that the
@@ -242,7 +242,7 @@ class ProtocolInclusionTests:
     def test_empty_intersection_with_inclusion(
         self, samples, selector_attribute, selector_include
     ):
-        """Sensitivity and specificity for positive protocol selection."""
+        """ Sensitivity and specificity for positive protocol selection. """
         prj = mock.MagicMock(samples=samples)
         observed = fetch_samples(
             prj,
@@ -258,7 +258,7 @@ class ProtocolInclusionTests:
     def test_partial_intersection_with_inclusion(
         self, samples, selector_attribute, selector_include, expected_sample_names
     ):
-        """Empty intersection with the selector_include means no Samples."""
+        """ Empty intersection with the selector_include means no Samples. """
 
         # Mock the Project instance.
         prj = mock.MagicMock(samples=samples)
@@ -280,7 +280,7 @@ class ProtocolInclusionTests:
         _assert_samples(expected_sample_names, observed)
 
     def test_complete_intersection_with_inclusion(self, samples):
-        """Project with Sample set a subset of selector_include has all fetched."""
+        """ Project with Sample set a subset of selector_include has all fetched. """
         prj = mock.MagicMock(samples=samples)
         expected = {s.name for s in samples}
         inclusion_protocols = list(BASIC_PROTOCOL_NAMES)
@@ -302,7 +302,7 @@ class ProtocolInclusionTests:
     def test_samples_without_protocol_are_not_included(
         self, samples, selector_attribute, selector_include, expected_names
     ):
-        """Inclusion does not grab Sample lacking protocol."""
+        """ Inclusion does not grab Sample lacking protocol. """
 
         # Note that the expectations fixture isn't used here since this does
         # not fit the generic framework in which that one applies.
@@ -329,7 +329,7 @@ class ProtocolInclusionTests:
     def test_equivalence_with_subproject(
         self, tmpdir, samples, selector_attribute, selector_include
     ):
-        """Selection for protocol(s) is like specific subproject."""
+        """ Selection for protocol(s) is like specific subproject. """
         sp_name = "atac"
         confpath = _write_project_files(
             tmpdir,
@@ -356,7 +356,7 @@ class ProtocolInclusionTests:
 
 
 class ProtocolExclusionTests:
-    """Samples can be selected against by protocol."""
+    """ Samples can be selected against by protocol. """
 
     # Note that even if the vary_protocol_name "parameter" to a test case
     # function appears to go unnoticed, it's likely present so that the
@@ -373,7 +373,7 @@ class ProtocolExclusionTests:
     def test_empty_intersection_with_exclusion(
         self, samples, selector_attribute, selector_exclude
     ):
-        """Empty intersection with selector_exclude means all Samples remain."""
+        """ Empty intersection with selector_exclude means all Samples remain. """
         prj = mock.MagicMock(samples=samples)
         expected = {s.name for s in samples}
         observed = fetch_samples(
@@ -390,7 +390,7 @@ class ProtocolExclusionTests:
     def test_partial_intersection_with_exclusion(
         self, samples, selector_attribute, selector_exclude, expected_sample_names
     ):
-        """Sensitivity and specificity for negative protocol selection."""
+        """ Sensitivity and specificity for negative protocol selection. """
 
         # Mock out the Project instance.
         prj = mock.MagicMock(samples=samples)
@@ -406,7 +406,7 @@ class ProtocolExclusionTests:
         _assert_samples(expected_sample_names, observed)
 
     def test_complete_intersection_with_exclusion(self, samples):
-        """Comprehensive exclusion can leave no Samples."""
+        """ Comprehensive exclusion can leave no Samples. """
         prj = mock.MagicMock(samples=samples)
         observed = fetch_samples(
             prj,
@@ -423,7 +423,7 @@ class ProtocolExclusionTests:
     def test_samples_without_protocol_are_not_excluded(
         self, samples, spare_via_anonymity
     ):
-        """Negative selection on protocol leaves Samples without protocol."""
+        """ Negative selection on protocol leaves Samples without protocol. """
         # Strategy: specify all of the protocols as exclusions, then allow
         # the parameterization to specify which are to be "spared" exclusion
         # by removing the protocol selector_attribute

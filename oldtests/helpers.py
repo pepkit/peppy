@@ -15,7 +15,7 @@ __email__ = "vreuter@virginia.edu"
 
 
 def assert_entirely_equal(observed, expected):
-    """Accommodate equality assertion for varied data, including NaN."""
+    """ Accommodate equality assertion for varied data, including NaN. """
     try:
         assert observed == expected
     except AssertionError:
@@ -25,7 +25,7 @@ def assert_entirely_equal(observed, expected):
 
 
 def compare_mappings(expected, observed):
-    """Account for possibility that observed value is AttMap."""
+    """ Account for possibility that observed value is AttMap. """
     print("EXPECTED: {}".format(expected))
     print("OBSERVED: {}".format(observed))
     assert set(expected.keys()) == set(observed.keys())
@@ -73,7 +73,7 @@ def randomize_filename(ext=None, n_char=25):
 
 
 class TempLogFileHandler(object):
-    """Context manager for temporary file handler logging attachment"""
+    """ Context manager for temporary file handler logging attachment """
 
     def __init__(self, filepath, level, mode="w"):
         """
@@ -89,7 +89,7 @@ class TempLogFileHandler(object):
         self._used = False
 
     def __enter__(self):
-        """Add the handler to project module's logger, and update state."""
+        """ Add the handler to project module's logger, and update state. """
         import logging
 
         if self._used:
@@ -100,12 +100,12 @@ class TempLogFileHandler(object):
         self._used = True
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Remove the added file handler from the logger."""
+        """ Remove the added file handler from the logger. """
         del peppy.project._LOGGER.handlers[-1]
 
     @property
     def messages(self):
-        """Open the handler's underlying file and read the messages."""
+        """ Open the handler's underlying file and read the messages. """
         if not self._used:
             raise Exception(
                 "Attempted to read messages from unused logfile: " "{}", self.logfile

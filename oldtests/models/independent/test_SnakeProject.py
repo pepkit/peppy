@@ -40,7 +40,7 @@ VALIDATIONS = {
     scope="function", params=list(itertools.product(NAME_COLNAMES, NAME_COLNAMES))
 )
 def prj(request, tmpdir):
-    """Provide a test case with a project instance."""
+    """ Provide a test case with a project instance. """
     main_name, subs_name = request.param
     folder = tmpdir.strpath
     cfg, ann, subann = [
@@ -69,12 +69,12 @@ def prj(request, tmpdir):
     [(tn, f) for tn, checks in VALIDATIONS.items() for f in checks],
 )
 def test_snake_project_table(prj, table_name, validate):
-    """Validate columns/values of a metadata table from Snakemake project."""
+    """ Validate columns/values of a metadata table from Snakemake project. """
     assert validate(getattr(prj, table_name))
 
 
 def make_units_table_names_and_units_vectors():
-    """Create the sample names and units vectors for the units table."""
+    """ Create the sample names and units vectors for the units table. """
     names = list(itertools.chain(*zip(SAMPLE_NAMES, SAMPLE_NAMES)))
     units = [str(i) for i in [1, 2, 1, 2]]
     return names, units
@@ -91,7 +91,7 @@ def make_units_table_names_and_units_vectors():
     ],
 )
 def test_default_table_indexing(prj, exp_dat, observe):
-    """Verify expected default behavior for indexing of Project tables."""
+    """ Verify expected default behavior for indexing of Project tables. """
     exp = Index(name=SNAKEMAKE_SAMPLE_COL, data=exp_dat(prj))
     assert exp.equals(observe(prj))
 

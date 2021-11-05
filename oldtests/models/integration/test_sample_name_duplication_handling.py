@@ -35,7 +35,7 @@ ANNS_FILE_ROWS_DATA = [["sn", "src", org] for org in TEST_ORG_COLLECTION]
 
 
 def pytest_generate_tests(metafunc):
-    """Dynamic test case generation and parameterization for this module"""
+    """ Dynamic test case generation and parameterization for this module """
     if "rows_data" in metafunc.fixturenames:
         metafunc.parametrize("rows_data", [ANNS_FILE_ROWS_DATA])
     if "fetch_names" in metafunc.fixturenames:
@@ -66,7 +66,7 @@ def make_anns_file(fp, rows_data):
 
 @pytest.fixture
 def proj_conf_data(tmpdir):
-    """Provide a test case with basic Project config data."""
+    """ Provide a test case with basic Project config data. """
     data = deepcopy(BASE_PRJ_CFG_DAT)
     data[METADATA_KEY][OUTDIR_KEY] = tmpdir.strpath
     data[METADATA_KEY][SAMPLE_ANNOTATIONS_KEY] = tmpdir.join("anns.tsv").strpath
@@ -75,7 +75,7 @@ def proj_conf_data(tmpdir):
 
 @pytest.fixture
 def prj(request, tmpdir, proj_conf_data):
-    """Provide a test case with a basic Project instance."""
+    """ Provide a test case with a basic Project instance. """
     conf_file = tmpdir.join("conf.yaml").strpath
     make_anns_file(
         proj_conf_data[METADATA_KEY][SAMPLE_ANNOTATIONS_KEY],
@@ -94,12 +94,12 @@ def test_derived_names_can_be_used_for_further_derivation(prj, rows_data):
 
 
 def test_new_sample_names_are_unique(prj, rows_data):
-    """Number of unique sample names is always equal the total samples count."""
+    """ Number of unique sample names is always equal the total samples count. """
     assert len(prj.samples) == len(set([s.sample_name for s in prj.samples]))
 
 
 def test_original_sample_names_are_retained(prj, rows_data):
-    """The original names are 'backed up' in duplicated samples"""
+    """ The original names are 'backed up' in duplicated samples """
     backup_attrs = [hasattr(s, SAMPLE_NAME_BACKUP_COLNAME) for s in prj.samples]
     unique_orgs = [
         item
