@@ -2,17 +2,17 @@ name: Run pytests
 
 on:
   push:
-    branches: [master, dev]
+    branches: [master]
   pull_request:
-    branches: [master, dev]
+    branches: [master]
 
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
-        os: [ubuntu-latest, macos-latest]
+        python-version: [3.6, 3.9]
+        os: [ubuntu-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -33,9 +33,3 @@ jobs:
 
     - name: Run pytest tests
       run: pytest tests -x -vv --cov=./ --cov-report=xml --remote-data
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
-      with:
-        file: ./coverage.xml
-        name: py-${{ matrix.python-version }}-${{ matrix.os }}
