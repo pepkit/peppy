@@ -13,13 +13,8 @@ with open("requirements/requirements-all.txt", "r") as reqs_file:
         # DEPENDENCIES.append(line.split("=")[0].rstrip("<>"))
         DEPENDENCIES.append(line)
 
-<<<<<<< HEAD
 # Additional keyword arguments for setup().
 extra = {"install_requires": DEPENDENCIES}
-if sys.version_info >= (3,):
-    extra["use_2to3"] = True
-=======
-extra["install_requires"] = DEPENDENCIES
 
 # Additional files to include with package
 def get_static(name, condition=None):
@@ -33,25 +28,13 @@ def get_static(name, condition=None):
         return static
     else:
         return [i for i in filter(lambda x: eval(condition), static)]
->>>>>>> master
+
 
 with open(f"{PACKAGE_NAME}/_version.py", "r") as versionfile:
     version = versionfile.readline().split()[-1].strip("\"'\n")
 
-<<<<<<< HEAD
-# Handle the pypi README formatting.
-try:
-    import pypandoc
-
-    long_description = pypandoc.convert_file("README.md", "rst")
-    msg = "\033[032mPandoc conversion succeeded.\033[0m"
-except (IOError, ImportError, OSError):
-    msg = "\033[0;31mWarning: pandoc conversion failed!\033[0m"
-    long_description = open("README.md").read()
-=======
 with open("README.md") as f:
     long_description = f.read()
->>>>>>> master
 
 setup(
     name=PACKAGE_NAME,
