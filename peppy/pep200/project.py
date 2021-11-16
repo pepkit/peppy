@@ -2,7 +2,7 @@
 Build a Project object.
 """
 import os
-from collections import Mapping
+from collections.abc import Mapping
 from logging import getLogger
 
 import pandas as pd

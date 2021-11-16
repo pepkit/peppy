@@ -106,7 +106,7 @@ class Sample(PathExAttMap):
             :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
-            from collections import Mapping
+            from collections.abc import Mapping
 
             from attmap import AttMap
             from pandas import Series, isnull
