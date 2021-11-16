@@ -1107,7 +1107,7 @@ class Project(PathExAttMap):
             raise InvalidConfigFileException(
                 f"Version string elements are not coercible to integers: {v_str}"
             )
-        if v_bundle[0] < 2 or v_bundle[1] < 1:
+        if v_bundle[0] < 2 or v_bundle[1] < 0:
             raise InvalidConfigFileException(
                 f"PEP version is invalid: {v_str}. Please use version {req_version_str} "
                 f"or import an older version of Project from a submodule in this package, "
