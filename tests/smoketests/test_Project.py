@@ -212,6 +212,7 @@ class ProjectConstructorTests:
         """
         os.environ["DATA"] = "data"
         from peppy.pep200 import Project as Project1
+
         p = Project1(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert all(["read1" in s for s in p.samples])
 
