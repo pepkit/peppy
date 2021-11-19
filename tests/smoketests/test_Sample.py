@@ -6,7 +6,7 @@ import pytest
 from peppy import Project
 
 __author__ = "Michal Stolarczyk"
-__email__ = "michal@virginia.edu"
+__email__ = "michal.stolarczyk@nih.gov"
 
 EXAMPLE_TYPES = [
     "basic",

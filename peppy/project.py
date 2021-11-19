@@ -3,7 +3,7 @@ Build a Project object.
 """
 import os
 from collections.abc import Mapping
-from logging import error, getLogger
+from logging import getLogger
 
 import pandas as pd
 from attmap import PathExAttMap
@@ -1107,11 +1107,10 @@ class Project(PathExAttMap):
             raise InvalidConfigFileException(
                 f"Version string elements are not coercible to integers: {v_str}"
             )
-        if v_bundle[0] < 2 or v_bundle[1] < 0:
+        if v_bundle[0] < 2:
             raise InvalidConfigFileException(
-                f"PEP version is invalid: {v_str}. Please use version {req_version_str} "
-                f"or import an older version of Project from a submodule in this package, "
-                f"e.g. from peppy.pep200 import Project"
+                f"PEP version is invalid: {v_str}. "
+                f"Please use version {req_version_str} or previous versions of peppy package."
             )
         return ".".join(list(map(str, v_bundle)))
 

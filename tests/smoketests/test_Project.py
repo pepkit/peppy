@@ -18,7 +18,7 @@ from peppy.exceptions import (
 )
 
 __author__ = "Michal Stolarczyk"
-__email__ = "michal@virginia.edu"
+__email__ = "michal.stolarczyk@nih.gov"
 
 EXAMPLE_TYPES = [
     "basic",
@@ -202,19 +202,6 @@ class ProjectConstructorTests:
             cfg=example_pep_cfg_path, amendments="newLib", defer_samples_creation=defer
         )
         assert all([s["protocol"] == "ABCD" for s in p.samples])
-
-    @pytest.mark.parametrize("defer", [False, True])
-    @pytest.mark.parametrize("example_pep_cfg_path", ["old"], indirect=True)
-    def test_old_format_support(self, example_pep_cfg_path, defer):
-        """
-        Verify that old format (without implications and subprojects)
-        is still supported
-        """
-        os.environ["DATA"] = "data"
-        from peppy.pep200 import Project as Project1
-
-        p = Project1(cfg=example_pep_cfg_path, defer_samples_creation=defer)
-        assert all(["read1" in s for s in p.samples])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["subtable1"], indirect=True)
     def test_subsample_table_works_when_no_sample_mods(self, example_pep_cfg_path):

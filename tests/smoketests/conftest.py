@@ -5,7 +5,7 @@ import os
 import pytest
 
 __author__ = "Michal Stolarczyk"
-__email__ = "michal@virginia.edu"
+__email__ = "michal.stolarczyk@nih.gov"
 
 # example_peps branch, see: https://github.com/pepkit/example_peps
 EPB = "master"

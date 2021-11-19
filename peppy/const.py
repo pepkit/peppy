@@ -1,7 +1,7 @@
 """ Package constants """
 
 __author__ = "Michal Stolarczyk"
-__email__ = "michal@virginia.edu"
+__email__ = "michal.stolarczyk@nih.gov"
 
 # Project-related
 NAME_KEY = "name"
