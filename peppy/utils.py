@@ -7,7 +7,7 @@ from urllib.request import urlopen
 import yaml
 from ubiquerg import expandpath, is_url
 
-from peppy import exceptions
+from .exceptions import *
 
 from .const import CONFIG_KEY
 

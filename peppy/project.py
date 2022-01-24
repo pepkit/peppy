@@ -11,7 +11,7 @@ from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
 
-from peppy.parsers import select_parser
+from .parsers import select_parser
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
