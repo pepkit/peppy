@@ -11,6 +11,8 @@ from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
 
+from peppy.parsers import select_parser
+
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
     AMENDMENTS_KEY,
@@ -53,7 +55,7 @@ from .const import (
 )
 from .exceptions import *
 from .sample import Sample
-from .utils import copy, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
+from .utils import copy, is_config, load_yaml, make_abs_via_cfg, make_list
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -96,12 +98,13 @@ class Project(PathExAttMap):
             )
         )
         super(Project, self).__init__()
-        if is_cfg_or_anno(file_path=cfg) is None:
+        is_cfg = is_config(path=cfg)
+        if is_cfg is None:
             # no 'cfg' provided. Empty Project will be created
             self[CONFIG_FILE_KEY] = None
             self[SAMPLE_TABLE_FILE_KEY] = None
             self[SUBSAMPLE_TABLES_FILE_KEY] = None
-        elif is_cfg_or_anno(file_path=cfg):
+        elif is_cfg:
             # the provided 'cfg' is a project config file
             self[CONFIG_FILE_KEY] = cfg
             self[SAMPLE_TABLE_FILE_KEY] = None
@@ -1024,27 +1027,6 @@ class Project(PathExAttMap):
         :param List[str] sample_table: a list of paths to sample tables
         """
 
-        def _read_tab(pth):
-            """
-            Internal read table function
-
-            :param str pth: absolute path to the file to read
-            :return pandas.DataFrame: table object
-            """
-            csv_kwargs = {
-                "dtype": str,
-                "index_col": False,
-                "keep_default_na": False,
-                "na_values": [""],
-            }
-            try:
-                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
-            except Exception as e:
-                raise SampleTableFileException(
-                    f"Could not read table: {pth}. "
-                    f"Caught exception: {getattr(e, 'message', repr(e))}"
-                )
-
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:
             st = self[SAMPLE_TABLE_FILE_KEY]
@@ -1066,13 +1048,18 @@ class Project(PathExAttMap):
                 sst = None
 
         if st is not None:
-            self[SAMPLE_DF_KEY] = _read_tab(st)
+            parser_class = select_parser(path=st)
+            self[SAMPLE_DF_KEY] = parser_class(path=st).table
             self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None
         if sst is not None:
-            self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
+            ssts = []
+            for subsample_table in sst:
+                parser_class = select_parser(path=subsample_table)
+                ssts.append(parser_class(path=subsample_table).table)
+            self[SUBSAMPLE_DF_KEY] = ssts
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
             self[SUBSAMPLE_DF_KEY] = None
