@@ -55,10 +55,6 @@ class TableParser:
             - check whether extension is supported
             - check whether the file exists
         """
-        if not os.path.isfile(self.path):
-            raise InvalidSampleTableFileException(
-                f"Sample table file not found: {self.path}"
-            )
         if not any(self.path.endswith(ext) for ext in self.extensions):
             raise InvalidSampleTableFileException(
                 f"Sample table file format not supported: {self.path}"

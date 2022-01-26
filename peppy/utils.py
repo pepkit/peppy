@@ -143,4 +143,3 @@ def is_config(path: str) -> bool:
     if path.lower().endswith((".yaml", ".yml")):
         return True
     return False
-

@@ -746,11 +746,25 @@ class Project(PathExAttMap):
         """
         samples = [samples] if isinstance(samples, Sample) else samples
         for sample in samples:
-            if isinstance(sample, Sample):
-                self._samples.append(sample)
-                self[SAMPLE_EDIT_FLAG_KEY] = True
-            else:
-                _LOGGER.warning("not a peppy.Sample object, not adding")
+            if not isinstance(sample, Sample):
+                _LOGGER.warning("Not a peppy.Sample object, not adding")
+                continue
+            self._samples.append(sample)
+            self[SAMPLE_EDIT_FLAG_KEY] = True
+
+    def remove_samples(self, sample_names):
+        """
+        Remove Samples from Project
+
+        :param Iterable[str] sample_names: sample names to remove
+        """
+        sample_names = [sample_names] if isinstance(sample_names, str) else sample_names
+        samples_keep = [
+            s for s in self.samples if s[self.sample_name_colname] not in sample_names
+        ]
+        if len(self._samples) != len(samples_keep):
+            self._samples = samples_keep
+            self[SAMPLE_EDIT_FLAG_KEY] = True
 
     def infer_name(self):
         """
