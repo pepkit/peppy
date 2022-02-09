@@ -7,7 +7,7 @@ If you define your project in [Portable Encapsulated Project](http://pep.databio
 you can use the `peppy` package to instantiate an in-memory representation of your project and sample metadata.
 You can then use `peppy` for interactive analysis, or to develop Python tools so you don't have to handle sample processing. `peppy` is useful to tool developers and data analysts who want a standard way of representing sample-intensive research project metadata.
 
-## *What* is a **PEP**?
+## What is a PEP?
 
 A [PEP](http://pep.databio.org/en/2.0.0/) is a collection of metadata files conforming to a standardized structure.
 These files are written using the simple **YAML** and **TSV/CSV** formats,
@@ -15,20 +15,16 @@ and they can be read by a variety of tools in the pep toolkit, including `peppy`
 start by reading the [PEP specification](http://pep.databio.org/en/2.0.0/),
 where you can also find example projects.
 
-## *Why* use `peppy`?
+## Why use `peppy`?
 
-<<<<<<< HEAD
-`peppy` provides and API with which to interact from Python with PEP metadata.
-=======
 `peppy` provides an API with which to interact from Python with PEP metadata. 
->>>>>>> master
 This is often useful on its own, but the big wins include:
 
 - *Portability* between computing environments
 - *Reusability* among different tools and project stages
 - *Durability* with respect to data movement
 
-## *Who* should use `peppy`?
+## Who should use `peppy`?
 
 There are **two main kinds of user** that may have interest:
 
@@ -41,11 +37,8 @@ which lets you run any command-line tool or pipeline on samples in a project.
 
 **Developer**
 
-<<<<<<< HEAD
-As a tool developer, you should `import peppy` in your python tool and read PEP projects as its input.
-=======
 As a tool developer, you should `import peppy` in your Python tool and read PEP projects as its input. 
->>>>>>> master
+
 This will simplify use of your tool, because users may already have PEP-formatted projects for other tools.
 
 **Analyst**
