@@ -1,13 +1,17 @@
 """ Package constants """
 
 __author__ = "Michal Stolarczyk"
-__email__ = "michal@virginia.edu"
+__email__ = "michal.stolarczyk@nih.gov"
 
 # Project-related
 NAME_KEY = "name"
 CONFIG_VERSION_KEY = "pep_version"
 DESC_KEY = "description"
 CONFIG_FILE_KEY = "_config_file"
+SAMPLE_TABLE_FILE_KEY = "_sample_table_path"
+SUBSAMPLE_TABLES_FILE_KEY = "_subsample_tables_path"
+SAMPLE_TABLE_INDEX_KEY = "sample_table_index"
+SUBSAMPLE_TABLE_INDEX_KEY = "subsample_table_index"
 CONFIG_KEY = "_config"
 PROJECT_TYPENAME = "Project"
 SAMPLE_MODS_KEY = "sample_modifiers"
@@ -32,6 +36,7 @@ SAMPLE_EDIT_FLAG_KEY = "_samples_touched"
 SAMPLE_MODIFIERS = [CONSTANT_KEY, IMPLIED_KEY, DERIVED_KEY, DUPLICATED_KEY, REMOVE_KEY]
 PROJECT_MODIFIERS = [CFG_IMPORTS_KEY, AMENDMENTS_KEY]
 PROJECT_CONSTANTS = [
+    "REQUIRED_VERSION",
     "CONSTANT_KEY",
     "DERIVED_SOURCES_KEY",
     "DERIVED_KEY",
@@ -41,6 +46,10 @@ PROJECT_CONSTANTS = [
     "NAME_TABLE_ATTR",
     "OUTDIR_KEY",
     "CONFIG_FILE_KEY",
+    "SAMPLE_TABLE_FILE_KEY",
+    "SUBSAMPLE_TABLES_FILE_KEY",
+    "SAMPLE_TABLE_INDEX_KEY",
+    "SUBSAMPLE_TABLE_INDEX_KEY",
     "CONFIG_KEY",
     "NAME_KEY",
     "REMOVE_KEY",
@@ -72,6 +81,7 @@ CFG_SAMPLE_TABLE_KEY = "sample_table"
 CFG_SUBSAMPLE_TABLE_KEY = "subsample_table"
 SAMPLE_DF_KEY = "_sample_df"
 SUBSAMPLE_DF_KEY = "_subsample_df"
+SAMPLE_DF_LARGE = "_large_sample_df"
 PRJ_REF = "_project"
 ATTR_KEY_PREFIX = "_key_"
 INPUTS_ATTR_NAME = "input_attrs"
@@ -88,6 +98,7 @@ SAMPLE_CONSTANTS = [
     "CFG_SUBSAMPLE_TABLE_KEY",
     "SAMPLE_DF_KEY",
     "SUBSAMPLE_DF_KEY",
+    "SAMPLE_DF_LARGE",
     "SUBSAMPLE_NAME_ATTR",
     "INPUTS_ATTR_NAME",
     "REQ_INPUTS_ATTR_NAME",
@@ -97,17 +108,14 @@ SAMPLE_CONSTANTS = [
 ]
 
 # Other
+REQUIRED_VERSION = ["2", "1", "0"]
 PKG_NAME = "peppy"
 MAX_PROJECT_SAMPLES_REPR = 20
-MODIFIERS_MOVE_PAIRS = {
-    "derived_attributes": [DERIVED_KEY, DERIVED_ATTRS_KEY],
-    "derived_columns": [DERIVED_KEY, DERIVED_ATTRS_KEY],
-    "constant_attributes": CONSTANT_KEY,
-    "implied_attributes": IMPLIED_KEY,
-    "implied_columns": IMPLIED_KEY,
-    "data_sources": [DERIVED_KEY, DERIVED_SOURCES_KEY],
-}
-OTHER_CONSTANTS = ["MAX_PROJECT_SAMPLES_REPR", "PKG_NAME", "MODIFIERS_MOVE_PAIRS"]
+OTHER_CONSTANTS = [
+    "MAX_PROJECT_SAMPLES_REPR",
+    "PKG_NAME",
+    "REQUIRED_VERSION",
+]
 
 
 __all__ = PROJECT_CONSTANTS + SAMPLE_CONSTANTS + OTHER_CONSTANTS

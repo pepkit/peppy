@@ -1,21 +1,24 @@
-try:
-    from collections.abc import Mapping
-except ImportError:
-    # for py2
-    from collections import Mapping
-
 import glob
 import os
-import warnings
 from collections import OrderedDict
+from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
 
+import pandas as pd
 import yaml
-from attmap import PathExAttMap
+from attmap import AttMap, PathExAttMap
 
-from .const import *
+from .const import (
+    CONFIG_FILE_KEY,
+    DERIVED_SOURCES_KEY,
+    PKG_NAME,
+    PRJ_REF,
+    SAMPLE_EDIT_FLAG_KEY,
+    SAMPLE_NAME_ATTR,
+    SAMPLE_SHEET_KEY,
+)
 from .exceptions import InvalidSampleTableFileException
 from .utils import copy, grab_project_data
 
@@ -106,9 +109,6 @@ class Sample(PathExAttMap):
             :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
-            from collections import Mapping
-
-            from attmap import AttMap
             from pandas import Series, isnull
 
             if name:
@@ -217,7 +217,7 @@ class Sample(PathExAttMap):
                 msg = (
                     "All attributes to format the {} ({}) have to be the "
                     "same length, got: {}. Correct your {}".format(
-                        DERIVED_SOURCES_KEY, regex, attr_lens, SUBSAMPLE_SHEET_KEY
+                        DERIVED_SOURCES_KEY, regex, attr_lens, SAMPLE_SHEET_KEY
                     )
                 )
                 raise InvalidSampleTableFileException(msg)
@@ -345,16 +345,20 @@ class Sample(PathExAttMap):
         )
 
     def __str__(self, max_attr=10):
-        """ Representation in interpreter. """
+        """Representation in interpreter."""
         if len(self) == 0:
             return ""
-        head = "Sample '{}'".format(self[SAMPLE_NAME_ATTR])
+        head = "Sample"
         try:
-            prj_cfg = self[PRJ_REF][CONFIG_FILE_KEY]
+            head += f" '{self[SAMPLE_NAME_ATTR]}'"
         except KeyError:
             pass
+        try:
+            prj_cfg = self[PRJ_REF][CONFIG_FILE_KEY]
+        except (KeyError, TypeError):
+            pass
         else:
-            head += " in Project ({})".format(prj_cfg)
+            head += f" in Project ({prj_cfg})"
         pub_attrs = {k: v for k, v in self.items() if not k.startswith("_")}
         maxlen = max(map(len, pub_attrs.keys())) + 2
         attrs = ""
@@ -364,18 +368,22 @@ class Sample(PathExAttMap):
                 (k + ":").ljust(maxlen), v if not isinstance(v, list) else ", ".join(v)
             )
             if counter == max_attr:
-                attrs += "\n\n...".ljust(maxlen) + "(showing first {})".format(max_attr)
+                attrs += "\n\n...".ljust(maxlen) + f"(showing first {max_attr})"
                 break
             counter += 1
         return head + "\n" + attrs
 
     def _excl_from_eq(self, k):
-        """ Exclude the Project reference from object comparison. """
+        """Exclude the Project reference from object comparison."""
         return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)
 
     def _excl_from_repr(self, k, cls):
-        """ Exclude the Project reference from representation. """
+        """Exclude the Project reference from representation."""
         return k.startswith("_") or super(Sample, self)._excl_from_repr(k, cls)
+
+    def _excl_classes_from_todict(self):
+        """Exclude pandas.DataFrame from dict representation"""
+        return (pd.DataFrame,)
 
     def _try_touch_samples(self):
         """
@@ -383,5 +391,5 @@ class Sample(PathExAttMap):
         """
         try:
             self[PRJ_REF][SAMPLE_EDIT_FLAG_KEY] = True
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError, TypeError):
             pass

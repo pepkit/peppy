@@ -4,6 +4,5 @@ sample_table: sample_table.csv
 bioconductor:
   readFunName: readBedFiles_resize
   readFunPath: readBedFiles_resize.R
-  funcArgs: 
+  funcArgs:
     resize.width: 100
-

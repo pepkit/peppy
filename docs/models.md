@@ -26,11 +26,11 @@ and used.
 
 ## Extending sample objects
 
-By default we use *generic* models (see [API docs](autodoc_build/peppy.md) for more) that can be used in many contexts 
+By default we use *generic* models (see [API docs](autodoc_build/peppy.md) for more) that can be used in many contexts
 via Python import, or by object serialization and deserialization via YAML.
 
-Since these models provide useful methods to store, update, and read attributes in the objects created from them 
-(most notably a *sample* - `Sample` object), a frequent use case is during the run of a pipeline. 
+Since these models provide useful methods to store, update, and read attributes in the objects created from them
+(most notably a *sample* - `Sample` object), a frequent use case is during the run of a pipeline.
 A pipeline can create a more custom `Sample` model, adding or altering properties and methods.
 
 ### Use case
@@ -44,7 +44,7 @@ will likely be relevant for a ChIP-seq sample, while a transcript
 abundance/quantification file will probably be used when working with a RNA-seq
 sample. This common situation, in which one or more file types are specific
 to a pipeline and analysis both benefits from and is amenable to a bespoke
-`Sample` *type*. 
+`Sample` *type*.
 
 Rather than working with a base `Sample` instance and
 repeatedly specifying paths to relevant files, those locations can be provided
@@ -73,15 +73,15 @@ the pipeline author simply implements the subtype within the pipeline module,
 and nothing further is required--of the pipeline author or of a user! The
 `Sample` subtype will be found within the pipeline module, and the inference
 will be made that it's intended to be used as the fundamental representation
-of a sample within that pipeline. 
+of a sample within that pipeline.
 
-If a pipeline author extends the base`Sample` type in the pipeline module, it's 
-likely that the pipeline's proper functionality depends on the use of that subtype. 
-In some cases, though, it may be desirable to use the base `Sample` type even if 
-the pipeline author has provided a more customized version with the pipeline. 
-To favor the base `Sample` over the tailored one created by a pipeline author, 
+If a pipeline author extends the base`Sample` type in the pipeline module, it's
+likely that the pipeline's proper functionality depends on the use of that subtype.
+In some cases, though, it may be desirable to use the base `Sample` type even if
+the pipeline author has provided a more customized version with the pipeline.
+To favor the base `Sample` over the tailored one created by a pipeline author,
 the user may simply set `sample_subtypes` to `null` in an altered version of the pipeline
-interface, either for all types of inpute to that pipeline, or just a subset. 
+interface, either for all types of inpute to that pipeline, or just a subset.
 
 
 ```python

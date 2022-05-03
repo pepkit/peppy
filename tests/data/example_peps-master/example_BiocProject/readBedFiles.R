@@ -6,11 +6,9 @@ readBedFiles = function(project) {
   result = lapply(paths, function(x){
     df = read.table(x)
     colnames(df) = c('chr', 'start', 'end')
-    gr = GenomicRanges::GRanges(df) 
+    gr = GenomicRanges::GRanges(df)
   })
   setwd(cwd)
   names(result) = sampleNames
   return(GenomicRanges::GRangesList(result))
 }
-
-

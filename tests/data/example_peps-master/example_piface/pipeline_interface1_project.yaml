@@ -1,9 +1,10 @@
 pipeline_name: PIPELINE1
 pipeline_type: project
-path: pipelines/col_pipeline1.py
-output_schema: output_schema.yaml
+var_templates:
+  path: "{looper.piface_dir}/pipelines/proj_pipeline1.py"
+output_schema: output_schema_project.yaml
 command_template: >
-  {pipeline.path} --project-name {project.name}
+  {pipeline.var_templates.path} --project-name {project.name}
 
 bioconductor:
   readFunName: readData

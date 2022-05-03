@@ -1,12 +1,7 @@
 """ Custom error types """
 
 from abc import ABCMeta
-
-try:
-    from collections.abc import Iterable
-except ImportError:
-    # for py2
-    from collections import Iterable
+from collections.abc import Iterable
 
 __all__ = [
     "IllegalStateException",
@@ -15,11 +10,12 @@ __all__ = [
     "MissingAmendmentError",
     "InvalidConfigFileException",
     "SampleTableFileException",
+    "RemoteYAMLError",
 ]
 
 
 class PeppyError(Exception):
-    """ Base error type for peppy custom errors. """
+    """Base error type for peppy custom errors."""
 
     __metaclass__ = ABCMeta
 
@@ -28,25 +24,31 @@ class PeppyError(Exception):
 
 
 class IllegalStateException(PeppyError):
-    """ Occurrence of some illogical/prohibited state within an object. """
+    """Occurrence of some illogical/prohibited state within an object."""
 
     pass
 
 
 class SampleTableFileException(PeppyError):
-    """ Error type for invalid sample annotations file. """
+    """Error type for invalid sample annotations file."""
 
     pass
 
 
 class InvalidSampleTableFileException(SampleTableFileException):
-    """ Error type for invalid sample annotations file. """
+    """Error type for invalid sample annotations file."""
+
+    pass
+
+
+class RemoteYAMLError(PeppyError):
+    """Remote YAML file cannot be accessed"""
 
     pass
 
 
 class MissingAmendmentError(PeppyError):
-    """ Error when project config lacks a requested subproject. """
+    """Error when project config lacks a requested subproject."""
 
     def __init__(self, amendment, defined=None):
         """
@@ -63,6 +65,6 @@ class MissingAmendmentError(PeppyError):
 
 
 class InvalidConfigFileException(PeppyError):
-    """ Error type for invalid project config file """
+    """Error type for invalid project config file"""
 
     pass

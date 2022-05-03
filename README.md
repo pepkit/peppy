@@ -5,10 +5,10 @@
 [![PEP compatible](http://pepkit.github.io/img/PEP-compatible-green.svg)](http://pep.databio.org)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-`peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in `python`.
+`peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in Python.
 
 Links to complete documentation:
 
 * Complete documentation and API for the `peppy` python package is at [peppy.databio.org](http://peppy.databio.org).
-* Reference documentation for standard **PEP** format is at [pepkit.github.io](https://pepkit.github.io/).
+* Reference documentation for standard **PEP** format is at [pep.databio.org](http://pep.databio.org/).
 * Example PEPs for testing `peppy` are in the [example_peps repository](https://github.com/pepkit/example_peps).

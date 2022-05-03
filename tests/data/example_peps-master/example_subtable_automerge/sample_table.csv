@@ -1,0 +1,5 @@
+sample_name,protocol,file
+frog_1,anySampleType,data/frog1a_data.txt
+frog_2,anySampleType,data/frog2a_data.txt
+frog_3,anySampleType,data/frog3a_data.txt
+frog_3,anySampleType,data/frog3b_data.txt

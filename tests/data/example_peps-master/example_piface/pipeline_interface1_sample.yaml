@@ -1,10 +1,11 @@
 pipeline_name: PIPELINE1
 pipeline_type: sample
-path: pipelines/pipeline1.py
+var_templates:
+  path: "{looper.piface_dir}/pipelines/pipeline1.py"
 input_schema: https://schema.databio.org/pep/2.0.0.yaml
-output_schema: output_schema.yaml
+output_schema: output_schema_sample.yaml
 command_template: >
-  {pipeline.path} --sample-name {sample.sample_name} --req-attr {sample.attr}
+  {pipeline.var_templates.path} --sample-name {sample.sample_name} --req-attr {sample.attr}
 
 bioconductor:
   readFunName: readData

@@ -2,11 +2,12 @@
 
 import logging
 import os
-from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import yaml
 from ubiquerg import expandpath, is_url
+
+from peppy import exceptions
 
 from .const import CONFIG_KEY
 
@@ -27,7 +28,7 @@ def copy(obj):
 
 
 def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
-    """ Ensure that a possibly relative path is absolute. """
+    """Ensure that a possibly relative path is absolute."""
     if not isinstance(maybe_relpath, str):
         raise TypeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".format(
@@ -89,7 +90,7 @@ def make_list(arg, obj_class):
 
     def _raise_faulty_arg():
         raise TypeError(
-            "Provided argument has to be a list[{o}] or a {o}, "
+            "Provided argument has to be a List[{o}] or a {o}, "
             "got '{a}'".format(o=obj_class.__name__, a=arg.__class__.__name__)
         )
 
@@ -105,28 +106,53 @@ def make_list(arg, obj_class):
 
 
 def load_yaml(filepath):
-    """ Load a yaml file into a Python dict """
+    """
+    Load a local or remote YAML file into a Python dict
 
-    def read_yaml_file(filepath):
-        """
-        Read a YAML file
-
-        :param str filepath: path to the file to read
-        :return dict: read data
-        """
-        filepath = os.path.abspath(filepath)
-        with open(filepath, "r") as f:
-            data = yaml.safe_load(f)
-        return data
-
+    :param str filepath: path to the file to read
+    :raises RemoteYAMLError: if the remote YAML file reading fails
+    :return dict: read data
+    """
     if is_url(filepath):
         _LOGGER.debug(f"Got URL: {filepath}")
         try:
             response = urlopen(filepath)
-        except HTTPError as e:
-            raise e
-        data = response.read()  # a `bytes` object
-        text = data.decode("utf-8")
-        return yaml.safe_load(text)
+        except Exception as e:
+            raise exceptions.RemoteYAMLError(
+                f"Could not load remote file: {filepath}. "
+                f"Original exception: {getattr(e, 'message', repr(e))}"
+            )
+        else:
+            data = response.read().decode("utf-8")
+            return yaml.safe_load(data)
     else:
-        return read_yaml_file(filepath)
+        with open(os.path.abspath(filepath), "r") as f:
+            data = yaml.safe_load(f)
+        return data
+
+
+def is_cfg_or_anno(file_path, formats=None):
+    """
+    Determine if the input file seems to be a project config file (based on the file extension).
+
+    :param str file_path: file path to examine
+    :param dict formats: formats dict to use. Must include 'config' and 'annotation' keys.
+    :raise ValueError: if the file seems to be neither a config nor an annotation
+    :return bool: True if the file is a config, False if the file is an annotation
+    """
+    formats_dict = formats or {
+        "config": (".yaml", ".yml"),
+        "annotation": (".csv", ".tsv"),
+    }
+    if file_path is None:
+        return None
+    if file_path.lower().endswith(formats_dict["config"]):
+        _LOGGER.debug(f"Creating a Project from a YAML file: {file_path}")
+        return True
+    elif file_path.lower().endswith(formats_dict["annotation"]):
+        _LOGGER.debug(f"Creating a Project from a CSV file: {file_path}")
+        return False
+    raise ValueError(
+        f"File path '{file_path}' does not point to an annotation or config. "
+        f"Accepted extensions: {formats_dict}"
+    )

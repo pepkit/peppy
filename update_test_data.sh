@@ -10,6 +10,6 @@ branch=$1
 wget https://github.com/pepkit/example_peps/archive/${branch}.zip
 mv ${branch}.zip tests/data/
 cd tests/data/
-rm -rf example_peps-${branch} 
+rm -rf example_peps-${branch}
 unzip ${branch}.zip
 rm ${branch}.zip

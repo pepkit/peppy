@@ -2,7 +2,7 @@ name: Run pytests
 
 on:
   push:
-    branches: [master]
+    branches: [dev]
   pull_request:
     branches: [master]
 
@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [3.6, 3.9]
+        python-version: ["3.6", "3.9", "3.10"]
         os: [ubuntu-latest]
 
     steps:

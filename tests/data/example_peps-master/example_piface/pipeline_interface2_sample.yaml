@@ -1,9 +1,10 @@
 pipeline_name: OTHER_PIPELINE2
 pipeline_type: sample
-path: pipelines/other_pipeline2.py
-output_schema: output_schema.yaml
+var_templates:
+  path: "{looper.piface_dir}/pipelines/other_pipeline2.py"
+output_schema: output_schema_sample.yaml
 command_template: >
-  {pipeline.path} --sample-name {sample.sample_name} --req-attr {sample.attr}
+  {pipeline.var_templates.path} --sample-name {sample.sample_name} --req-attr {sample.attr}
 compute:
   size_dependent_variables: resources-sample.tsv
 

@@ -1,0 +1,44 @@
+output_file_in_object:
+  type: object
+  value: {
+    "prop2": {"path": "{protocol}_{SRR}_test1.pdf", "thumbnail_path": "{protocol}_{SRR}_test1.png", "title": "test title"},
+    "prop1": {"path": "{protocol}_{SRR}_test1.pdf", "title": "test title"}
+  }
+  properties:
+    prop1:
+      type: file
+    prop2:
+      type: image
+  description: "Object output"
+number_of_things:
+  type: integer
+  value: 1
+  description: "Number of things"
+percentage_of_things:
+  type: number
+  description: "Percentage of things"
+name_of_something:
+  type: string
+  description: "Name of something"
+switch_value:
+  type: boolean
+  value: True
+  description: "Is the switch on of off"
+collection_of_things:
+  type: array
+  value: [1, 2, 3]
+  description: "This store collection of values"
+output_object_missing_value:
+  type: object
+  description: "Object output"
+output_file:
+  type: file
+  description: "This a path to the output file"
+output_file1:
+  type: file
+  value: {"path": "{protocol}_{SRR}_output_file1.pdf", "title": "test title"}
+  description: "This a path to the output file"
+output_image:
+  type: image
+  value: {"path": "test2.pdf", "thumbnail_path": "test2.png", "title": "test title"}
+  description: "This a path to the output image"

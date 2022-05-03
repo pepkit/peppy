@@ -1,6 +1,7 @@
 """ Classes for peppy.Project smoketesting """
 
 import os
+import socket
 import tempfile
 
 import pytest
@@ -8,11 +9,16 @@ from pandas import DataFrame
 from yaml import dump, safe_load
 
 from peppy import Project
-from peppy.const import SAMPLE_NAME_ATTR
-from peppy.exceptions import InvalidSampleTableFileException, MissingAmendmentError
+from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
+from peppy.exceptions import (
+    IllegalStateException,
+    InvalidSampleTableFileException,
+    MissingAmendmentError,
+    RemoteYAMLError,
+)
 
 __author__ = "Michal Stolarczyk"
-__email__ = "michal@virginia.edu"
+__email__ = "michal.stolarczyk@nih.gov"
 
 EXAMPLE_TYPES = [
     "basic",
@@ -43,7 +49,7 @@ def _get_pair_to_post_init_test(cfg_path):
     """
     p = Project(cfg=cfg_path)
     pd = Project(cfg=cfg_path, defer_samples_creation=True)
-    pd.create_samples()
+    pd.create_samples(modify=False if pd[SAMPLE_TABLE_FILE_KEY] is not None else True)
     return [p, pd]
 
 
@@ -66,13 +72,13 @@ def _cmp_all_samples_attr(p1, p2, attr):
 
 class ProjectConstructorTests:
     def test_empty(self):
-        """ Verify that an empty Project instance can be created """
+        """Verify that an empty Project instance can be created"""
         p = Project()
         assert isinstance(p, Project)
         assert len(p.samples) == 0
 
     def test_nonexistent(self):
-        """ Verify that OSError is thrown when config does not exist """
+        """Verify that OSError is thrown when config does not exist"""
         with pytest.raises(OSError):
             Project(cfg="nonexistentfile.yaml")
 
@@ -101,6 +107,91 @@ class ProjectConstructorTests:
         p = Project(cfg=config_path)
         assert isinstance(p, Project)
 
+    @pytest.mark.parametrize(
+        "config_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_derive/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imply/project_config.yaml",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imports/project_config.yaml",
+        ],
+    )
+    def test_remote_simulate_no_network(self, config_path):
+        """
+        Verify correctness of the remote config reading behavior with no network
+        """
+
+        def guard(*args, **kwargs):
+            raise Exception("Block internet connection")
+
+        ori_socket_val = socket.socket
+        socket.socket = guard
+        with pytest.raises(RemoteYAMLError):
+            Project(cfg=config_path)
+        socket.socket = ori_socket_val
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic", "imply"], indirect=True)
+    def test_csv_init_autodetect(self, example_pep_cfg_path):
+        """
+        Verify that a CSV file can be used to initialize a config file
+        """
+        assert isinstance(Project(cfg=example_pep_cfg_path), Project)
+
+    @pytest.mark.parametrize(
+        "csv_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv",
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_imply/sample_table.csv",
+        ],
+    )
+    def test_remote_csv_init_autodetect(self, csv_path):
+        """
+        Verify that a remote CSV file can be used to initialize a config file
+        """
+        assert isinstance(Project(cfg=csv_path), Project)
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["automerge"], indirect=True)
+    def test_automerge(self, example_pep_cfg_path):
+        """
+        Verify that duplicated sample names lead to sample auto-merging
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        # there are 4 rows in the table, but 1 sample has a duplicate
+        assert len(p.samples) == 3
+
+    @pytest.mark.parametrize("example_pep_csv_path", ["automerge"], indirect=True)
+    def test_automerge_csv(self, example_pep_csv_path):
+        """
+        Verify that duplicated sample names lead to sample auto-merging if object is initialized from a CSV
+        """
+        p = Project(cfg=example_pep_csv_path)
+        # there are 4 rows in the table, but 1 sample has a duplicate
+        assert len(p.samples) == 3
+
+    @pytest.mark.parametrize(
+        "config_path",
+        [
+            "https://raw.githubusercontent.com/pepkit/example_peps/master/example_automerge/project_config.yaml",
+        ],
+    )
+    def test_automerge_remote(self, config_path):
+        """
+        Verify that duplicated sample names lead to sample auto-merging from a remote config
+        """
+        p = Project(cfg=config_path)
+        # there are 4 rows in the table, but 1 sample has a duplicate
+        assert len(p.samples) == 3
+
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path", ["subtable_automerge"], indirect=True
+    )
+    def test_automerge_disallowed_with_subsamples(self, example_pep_cfg_path):
+        """
+        Verify that both duplicated sample names and subsample table specification is disallowed
+        """
+        with pytest.raises(IllegalStateException):
+            Project(cfg=example_pep_cfg_path)
+
     @pytest.mark.parametrize("defer", [False, True])
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
     def test_amendments(self, example_pep_cfg_path, defer):
@@ -112,17 +203,6 @@ class ProjectConstructorTests:
         )
         assert all([s["protocol"] == "ABCD" for s in p.samples])
 
-    @pytest.mark.parametrize("defer", [False, True])
-    @pytest.mark.parametrize("example_pep_cfg_path", ["old"], indirect=True)
-    def test_old_format_support(self, example_pep_cfg_path, defer):
-        """
-        Verify that old format (without implications and subprojects)
-        is still supported
-        """
-        os.environ["DATA"] = "data"
-        p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
-        assert all(["read1" in s for s in p.samples])
-
     @pytest.mark.parametrize("example_pep_cfg_path", ["subtable1"], indirect=True)
     def test_subsample_table_works_when_no_sample_mods(self, example_pep_cfg_path):
         """
@@ -131,6 +211,21 @@ class ProjectConstructorTests:
         """
         p = Project(cfg=example_pep_cfg_path)
         assert any([s["file"] != "multi" for s in p.samples])
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["custom_index"], indirect=True)
+    def test_cutsom_sample_table_index_config(self, example_pep_cfg_path):
+        """
+        Verify that custom sample table index is sourced from the config
+        """
+        Project(cfg=example_pep_cfg_path)
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["custom_index"], indirect=True)
+    def test_cutsom_sample_table_index_constructor(self, example_pep_cfg_path):
+        """
+        Verify that custom sample table index is sourced from the config
+        """
+        with pytest.raises(InvalidSampleTableFileException):
+            Project(cfg=example_pep_cfg_path, sample_table_index="bogus_column")
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["subtables"], indirect=True)
     def test_subsample_table_multiple(self, example_pep_cfg_path):
@@ -301,13 +396,13 @@ class ProjectManipulationTests:
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_get_sample(self, example_pep_cfg_path):
-        """ Verify that sample getting method works """
+        """Verify that sample getting method works"""
         p = Project(cfg=example_pep_cfg_path)
         p.get_sample(sample_name=p.samples[0]["sample_name"])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_get_sample_nonexistent(self, example_pep_cfg_path):
-        """ Verify that sample getting returns ValueError if not sample found """
+        """Verify that sample getting returns ValueError if not sample found"""
         p = Project(cfg=example_pep_cfg_path)
         with pytest.raises(ValueError):
 
@@ -317,13 +412,13 @@ class ProjectManipulationTests:
 class SampleModifiersTests:
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
     def test_append(self, example_pep_cfg_path):
-        """ Verify that the appended attribute is added to the samples """
+        """Verify that the appended attribute is added to the samples"""
         p = Project(cfg=example_pep_cfg_path)
         assert all([s["read_type"] == "SINGLE" for s in p.samples])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["imports"], indirect=True)
     def test_imports(self, example_pep_cfg_path):
-        """ Verify that the imported attribute is added to the samples """
+        """Verify that the imported attribute is added to the samples"""
         p = Project(cfg=example_pep_cfg_path)
         assert all([s["imported_attr"] == "imported_val" for s in p.samples])
 

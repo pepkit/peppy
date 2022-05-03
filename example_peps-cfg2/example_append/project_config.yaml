@@ -4,4 +4,3 @@ sample_table: sample_table.csv
 sample_modifiers:
   append:
     read_type: SINGLE
-

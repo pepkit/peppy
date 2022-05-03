@@ -17,7 +17,7 @@ sample_modifiers:
           macs_genome_size: "hs"
     - if:
         organism: mouse
-      then:  
+      then:
           genome: "mm10"
           macs_genome_size: "mm"
 project_modifiers:
