@@ -163,6 +163,7 @@ class Project(PathExAttMap):
         )
 
         # add entries from the dict
+        self._samples = [Sample(s) for s in d['_samples']]
         self[CONFIG_KEY].add_entries(d)
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
 

@@ -307,6 +307,19 @@ class ProjectConstructorTests:
         """
         p = Project(cfg=example_pep_cfg_noname_path, sample_table_index="id")
         assert p.sample_name_colname == "id"
+    
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path", EXAMPLE_TYPES, indirect=True
+    )
+    def test_from_dict_instatiation(self, example_pep_cfg_path):
+        """
+        Verify that we can accurately instiate a project from it's dictionary
+        representation.
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        p2 = Project() # empty
+        p2.from_dict(p.to_dict())
+        assert p.to_dict() == p2.to_dict()
 
 
 class ProjectManipulationTests:
