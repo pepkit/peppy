@@ -162,6 +162,10 @@ class Project(PathExAttMap):
             else None
         )
 
+        # add entries from the dict
+        self[CONFIG_KEY].add_entries(d)
+        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
+
 
     def to_dict(self, expand=False):
         """
