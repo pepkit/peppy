@@ -139,6 +139,29 @@ class Project(PathExAttMap):
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
         )
+    
+    def from_dict(self, d: dict):
+        """
+        Init a peppy project instance from a dictionary representation
+        of an already processed PEP.
+
+        :param dict d: in-memory dict representation of processed pep.
+        """
+        if CONFIG_KEY not in self:
+            self[CONFIG_KEY] = PathExAttMap()
+
+        # extract custom index for sample table if exists
+        self.st_index = (
+            d[SAMPLE_TABLE_INDEX_KEY] if SAMPLE_TABLE_INDEX_KEY in d else None
+        )
+
+        # extract custom subsample table index if exists
+        self.sst_index = (
+            d[SUBSAMPLE_TABLE_INDEX_KEY]
+            if SUBSAMPLE_TABLE_INDEX_KEY in d
+            else None
+        )
+
 
     def to_dict(self, expand=False):
         """
