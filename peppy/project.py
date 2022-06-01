@@ -139,7 +139,19 @@ class Project(PathExAttMap):
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
         )
-    
+
+    def __eq__(self, other):
+        p1_samples = self.samples
+        p2_samples = other.samples
+
+        # check sample list lengths
+        if len(p1_samples) != len(p2_samples):
+            return False
+
+        # ensure all dict representations
+        # are identical
+        return all(s1.to_dict() == s2.to_dict() for s1, s2 in zip(p1_samples, p2_samples))
+
     def from_dict(self, d: dict):
         """
         Init a peppy project instance from a dictionary representation
@@ -157,16 +169,13 @@ class Project(PathExAttMap):
 
         # extract custom subsample table index if exists
         self.sst_index = (
-            d[SUBSAMPLE_TABLE_INDEX_KEY]
-            if SUBSAMPLE_TABLE_INDEX_KEY in d
-            else None
+            d[SUBSAMPLE_TABLE_INDEX_KEY] if SUBSAMPLE_TABLE_INDEX_KEY in d else None
         )
 
         # add entries from the dict
-        self._samples = [Sample(s) for s in d['_samples']]
+        self._samples = [Sample(s) for s in d["_samples"]]
         self[CONFIG_KEY].add_entries(d)
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
-
 
     def to_dict(self, expand=False):
         """

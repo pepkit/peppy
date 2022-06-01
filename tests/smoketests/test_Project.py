@@ -308,6 +308,19 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_cfg_noname_path, sample_table_index="id")
         assert p.sample_name_colname == "id"
     
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True, )
+    def test_equality(self, example_pep_cfg_path):
+        p1 = Project(cfg=example_pep_cfg_path)
+        p2 = Project(cfg=example_pep_cfg_path)
+        assert p1 == p2
+
+    @pytest.mark.parametrize("example_peps_cfg_paths", [["basic", "BiocProject"]], indirect=True)
+    def test_inequality(self, example_peps_cfg_paths):
+        cfg1, cfg2 = example_peps_cfg_paths
+        p1 = Project(cfg=cfg1)
+        p2 = Project(cfg=cfg2)
+        assert p1 != p2
+    
     @pytest.mark.parametrize(
         "example_pep_cfg_path", EXAMPLE_TYPES, indirect=True
     )
@@ -316,10 +329,10 @@ class ProjectConstructorTests:
         Verify that we can accurately instiate a project from it's dictionary
         representation.
         """
-        p = Project(cfg=example_pep_cfg_path)
+        p1 = Project(cfg=example_pep_cfg_path)
         p2 = Project() # empty
-        p2.from_dict(p.to_dict())
-        assert p.to_dict() == p2.to_dict()
+        p2.from_dict(p1.to_dict())
+        assert p1 == p2
 
 
 class ProjectManipulationTests:
