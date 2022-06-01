@@ -316,6 +316,7 @@ class ProjectConstructorTests:
     def test_equality(self, example_pep_cfg_path):
         p1 = Project(cfg=example_pep_cfg_path)
         p2 = Project(cfg=example_pep_cfg_path)
+        
         assert p1 == p2
 
     @pytest.mark.parametrize(
