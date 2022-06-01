@@ -43,6 +43,7 @@ def example_pep_cfg_noname_path(request):
         request.param,
     )
 
+
 @pytest.fixture
 def example_peps_cfg_paths(request):
     """
@@ -50,10 +51,13 @@ def example_peps_cfg_paths(request):
     you return multiple paths (for comparing peps). Will return
     list of paths.
     """
-    return [os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "data",
-        "example_peps-{}".format(EPB),
-        "example_{}".format(p),
-        "project_config.yaml",
-    ) for p in request.param]
+    return [
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "data",
+            "example_peps-{}".format(EPB),
+            "example_{}".format(p),
+            "project_config.yaml",
+        )
+        for p in request.param
+    ]

@@ -150,7 +150,9 @@ class Project(PathExAttMap):
 
         # ensure all dict representations
         # are identical
-        return all(s1.to_dict() == s2.to_dict() for s1, s2 in zip(p1_samples, p2_samples))
+        return all(
+            s1.to_dict() == s2.to_dict() for s1, s2 in zip(p1_samples, p2_samples)
+        )
 
     def from_dict(self, d: dict):
         """
