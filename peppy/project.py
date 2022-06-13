@@ -141,7 +141,9 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-
+        """
+        ensure all dict representations are identical
+        """
         dict_self = self.convert_to_dict(dict(self))
         dict_other = self.convert_to_dict(dict(other))
 
@@ -149,7 +151,9 @@ class Project(PathExAttMap):
 
     def convert_to_dict(self, project_value):
         """
-        Transformation of the project to dict format
+        Transformation of the project object to dict format
+        :param obj project_value: peppy project object
+        :return dict: peppy project dict
         """
         if isinstance(project_value, list):
             new_list = []
