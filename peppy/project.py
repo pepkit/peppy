@@ -141,18 +141,44 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-        p1_samples = self.samples
-        p2_samples = other.samples
 
-        # check sample list lengths
-        if len(p1_samples) != len(p2_samples):
-            return False
+        dict_self = self.convert_to_dict(dict(self))
+        dict_other = self.convert_to_dict(dict(other))
 
-        # ensure all dict representations
-        # are identical
-        return all(
-            s1.to_dict() == s2.to_dict() for s1, s2 in zip(p1_samples, p2_samples)
-        )
+        return dict_self == dict_other
+
+    def convert_to_dict(self, project_value):
+        """
+        Transformation of the project to dict format
+        """
+        if isinstance(project_value, list):
+            new_list = []
+            for item_value in project_value:
+                new_list.append(self.convert_to_dict(item_value))
+            return new_list
+
+        elif isinstance(project_value, dict):
+            new_dict = {}
+            for key, value in project_value.items():
+                if key != "_project":
+                    new_dict[key] = self.convert_to_dict(value)
+            return new_dict
+
+        elif isinstance(project_value, PathExAttMap):
+            new_dict = PathExAttMap.to_dict(project_value)
+            return self.convert_to_dict(new_dict)
+            # return new_dict
+
+        elif isinstance(project_value, Sample):
+            new_dict = PathExAttMap.to_dict(project_value)
+            # new_dict = dict(project_value)
+            return new_dict
+
+        elif isinstance(project_value, pd.DataFrame):
+            return project_value.to_dict()
+
+        else:
+            return project_value
 
     def from_dict(self, d: dict):
         """
