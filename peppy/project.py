@@ -111,6 +111,7 @@ class Project(PathExAttMap):
             # the provided 'cfg' is a sample table
             self[SAMPLE_TABLE_FILE_KEY] = cfg
             self[SUBSAMPLE_TABLES_FILE_KEY] = None
+            self[CONFIG_VERSION_KEY] = ".".join(REQUIRED_VERSION)
 
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
