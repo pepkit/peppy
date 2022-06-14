@@ -2,6 +2,15 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.33.0] -- 2022-06-14
+
+### Changed
+
+- `pep_version` is no longer a required parameter to create a `peppy.Project` instance from a configuration file.
+
+### Fixed
+
+- `KeyError` is thrown when attempting to access the `pep_version` of a `peppy.Project` instance instatiated from a sample table (`csv`)
 
 ## [0.32.0] -- 2022-05-03
 
