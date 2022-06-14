@@ -1089,9 +1089,10 @@ class Project(PathExAttMap):
         """
         req_version_str = ".".join(REQUIRED_VERSION)
         if CONFIG_VERSION_KEY not in self[CONFIG_KEY]:
-            raise InvalidConfigFileException(
-                f"Config file does not have version key. Please use version {req_version_str}"
+            _LOGGER.warning(
+                f"Config file does not have version key. Defaulting to {req_version_str}"
             )
+            return req_version_str
 
         v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
         if not isinstance(v_str, str):
