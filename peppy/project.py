@@ -111,7 +111,6 @@ class Project(PathExAttMap):
             # the provided 'cfg' is a sample table
             self[SAMPLE_TABLE_FILE_KEY] = cfg
             self[SUBSAMPLE_TABLES_FILE_KEY] = None
-            self[CONFIG_VERSION_KEY] = ".".join(REQUIRED_VERSION)
 
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
@@ -1089,6 +1088,12 @@ class Project(PathExAttMap):
         :return str: PEP version string
         """
         req_version_str = ".".join(REQUIRED_VERSION)
+        # if no config file was passed (init with sample table csv)
+        # then just auto-assign the required version
+        if CONFIG_KEY not in self:
+            return req_version_str
+        # if the pep_version was omitted from the config file
+        # then just warn the user and auto assign
         if CONFIG_VERSION_KEY not in self[CONFIG_KEY]:
             _LOGGER.warning(
                 f"Config file does not have version key. Defaulting to {req_version_str}"
