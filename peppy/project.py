@@ -141,19 +141,23 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-        """
-        ensure all dict representations are identical
-        """
-        dict_self = self.convert_to_dict(dict(self))
-        dict_other = self.convert_to_dict(dict(other))
+
+        dict_self = self.convert_to_dict(self)
+        dict_other = self.convert_to_dict(other)
+
+        dict_self["_samples"] = [s.to_dict() for s in self.samples]
+        dict_other["_samples"] = [s.to_dict() for s in other.samples]
 
         return dict_self == dict_other
 
-    def convert_to_dict(self, project_value):
+    def to_dict_extended(self):
+        extended_dict = self.convert_to_dict(self)
+        extended_dict["_samples"] = [s.to_dict() for s in self.samples]
+        return extended_dict
+
+    def convert_to_dict(self, project_value=None):
         """
-        Transformation of the project object to dict format
-        :param obj project_value: peppy project object
-        :return dict: peppy project dict
+        Transformation of the project to dict format
         """
         if isinstance(project_value, list):
             new_list = []
@@ -205,9 +209,41 @@ class Project(PathExAttMap):
         )
 
         # add entries from the dict
-        self._samples = [Sample(s) for s in d["_samples"]]
-        self[CONFIG_KEY].add_entries(d)
+        self._samples = [Sample(s, self) for s in d["_samples"]]
+
+        self[CONFIG_KEY].add_entries(d[CONFIG_KEY])
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
+
+        # _config + _samples
+        ################################################
+        # _config_file
+        self[CONFIG_FILE_KEY] = d[CONFIG_FILE_KEY]
+
+        self.st_index = d['st_index']
+        self.sst_index = d['sst_index']
+
+        self[SAMPLE_TABLE_FILE_KEY] = d[SAMPLE_TABLE_FILE_KEY]
+        self[SUBSAMPLE_TABLES_FILE_KEY] = d[SUBSAMPLE_TABLES_FILE_KEY]
+
+        self[NAME_KEY] = d[NAME_KEY]  # "name"
+
+        self[DESC_KEY] = d[DESC_KEY]  # "description"
+
+        self[SAMPLE_DF_LARGE] = d[SAMPLE_DF_LARGE]
+
+        # sample_df
+        self[SAMPLE_DF_KEY] = pd.DataFrame(d[SAMPLE_DF_KEY])
+        if d[SUBSAMPLE_DF_KEY] is not None:
+            self[SUBSAMPLE_DF_KEY] = pd.DataFrame(d[SUBSAMPLE_DF_KEY])
+        else:
+            self[SUBSAMPLE_DF_KEY] = None
+
+        if d["_sample_table"] is not None:
+            self._sample_table = pd.DataFrame(d["_sample_table"])
+        else:
+            self._sample_table = None
+
+        self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]  # "_samples_touched"
 
     def to_dict(self, expand=False):
         """
