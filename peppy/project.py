@@ -234,7 +234,7 @@ class Project(PathExAttMap):
         # sample_df
         self[SAMPLE_DF_KEY] = pd.DataFrame(d[SAMPLE_DF_KEY])
         if d[SUBSAMPLE_DF_KEY] is not None:
-            self[SUBSAMPLE_DF_KEY] = pd.DataFrame(d[SUBSAMPLE_DF_KEY])
+            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub) for sub in d[SUBSAMPLE_DF_KEY]]
         else:
             self[SUBSAMPLE_DF_KEY] = None
 
