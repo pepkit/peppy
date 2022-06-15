@@ -219,8 +219,8 @@ class Project(PathExAttMap):
         # _config_file
         self[CONFIG_FILE_KEY] = d[CONFIG_FILE_KEY]
 
-        self.st_index = d['st_index']
-        self.sst_index = d['sst_index']
+        self.st_index = d["st_index"]
+        self.sst_index = d["sst_index"]
 
         self[SAMPLE_TABLE_FILE_KEY] = d[SAMPLE_TABLE_FILE_KEY]
         self[SUBSAMPLE_TABLES_FILE_KEY] = d[SUBSAMPLE_TABLES_FILE_KEY]
