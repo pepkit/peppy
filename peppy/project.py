@@ -181,6 +181,7 @@ class Project(PathExAttMap):
             return new_dict
 
         elif isinstance(project_value, pd.DataFrame):
+            project_value.fillna(0, inplace=True)
             return project_value.to_dict()
 
         else:
@@ -243,7 +244,7 @@ class Project(PathExAttMap):
 
         self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]  # "_samples_touched"
 
-    def to_dict(self, expand=False, extended=False):
+    def to_dict(self, expand=False, extended=False) -> dict:
         """
         Convert the Project object to a dictionary.
 
