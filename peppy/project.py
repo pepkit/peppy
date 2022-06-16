@@ -142,47 +142,46 @@ class Project(PathExAttMap):
 
     def __eq__(self, other):
 
-        dict_self = self.convert_to_dict(self)
-        dict_other = self.convert_to_dict(other)
+        dict_self = self._convert_to_dict(self)
+        dict_other = self._convert_to_dict(other)
 
         dict_self["_samples"] = [s.to_dict() for s in self.samples]
         dict_other["_samples"] = [s.to_dict() for s in other.samples]
 
         return dict_self == dict_other
 
-    def to_dict_extended(self):
-        extended_dict = self.convert_to_dict(self)
-        extended_dict["_samples"] = [s.to_dict() for s in self.samples]
-        return extended_dict
-
-    def convert_to_dict(self, project_value=None):
+    def _convert_to_dict(self, project_value=None):
         """
-        Transformation of the project to dict format
+        Recursviely transform various project values, objects, and attributes to a dictionary
+        compatible format. Useful for creating an extended dictionary representation
+        of the peppy project.
+
+        :param project_value object - the value to transform
         """
         if isinstance(project_value, list):
             new_list = []
             for item_value in project_value:
-                new_list.append(self.convert_to_dict(item_value))
+                new_list.append(self._convert_to_dict(item_value))
             return new_list
 
         elif isinstance(project_value, dict):
             new_dict = {}
             for key, value in project_value.items():
                 if key != "_project":
-                    new_dict[key] = self.convert_to_dict(value)
+                    new_dict[key] = self._convert_to_dict(value)
             return new_dict
 
         elif isinstance(project_value, PathExAttMap):
             new_dict = PathExAttMap.to_dict(project_value)
-            return self.convert_to_dict(new_dict)
+            return self._convert_to_dict(new_dict)
             # return new_dict
 
         elif isinstance(project_value, Sample):
             new_dict = PathExAttMap.to_dict(project_value)
-            # new_dict = dict(project_value)
             return new_dict
 
         elif isinstance(project_value, pd.DataFrame):
+            project_value.fillna(0, inplace=True)
             return project_value.to_dict()
 
         else:
@@ -245,16 +244,19 @@ class Project(PathExAttMap):
 
         self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]  # "_samples_touched"
 
-    def to_dict(self, expand=False):
+    def to_dict(self, expand=False, extended=False) -> dict:
         """
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
         :return dict: a dictionary representation of the Project object
         """
-
-        p_dict = self.config.to_dict(expand=expand)
-        p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        if extended:
+            p_dict = self._convert_to_dict(self)
+            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        else:
+            p_dict = self.config.to_dict(expand=expand)
+            p_dict["_samples"] = [s.to_dict() for s in self.samples]
         return p_dict
 
     def create_samples(self, modify=False):
