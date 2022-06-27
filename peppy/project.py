@@ -148,6 +148,10 @@ class Project(PathExAttMap):
         dict_self["_samples"] = [s.to_dict() for s in self.samples]
         dict_other["_samples"] = [s.to_dict() for s in other.samples]
 
+        # changing dict to str, as _sample_df can have nan values
+        dict_self["_sample_df"] = str(dict_self["_sample_df"])
+        dict_other["_sample_df"] = str(dict_other["_sample_df"])
+
         return dict_self == dict_other
 
     def _convert_to_dict(self, project_value=None):
@@ -181,7 +185,6 @@ class Project(PathExAttMap):
             return new_dict
 
         elif isinstance(project_value, pd.DataFrame):
-            project_value.fillna(0, inplace=True)
             return project_value.to_dict()
 
         else:
