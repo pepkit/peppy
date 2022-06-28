@@ -10,6 +10,7 @@ from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
+import math
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -148,10 +149,6 @@ class Project(PathExAttMap):
         dict_self["_samples"] = [s.to_dict() for s in self.samples]
         dict_other["_samples"] = [s.to_dict() for s in other.samples]
 
-        # changing dict to str, as _sample_df can have nan values
-        dict_self["_sample_df"] = str(dict_self["_sample_df"])
-        dict_other["_sample_df"] = str(dict_other["_sample_df"])
-
         return dict_self == dict_other
 
     def _convert_to_dict(self, project_value=None):
@@ -185,10 +182,34 @@ class Project(PathExAttMap):
             return new_dict
 
         elif isinstance(project_value, pd.DataFrame):
-            return project_value.to_dict()
+            project_value = project_value.to_dict()
+            project_value = self._nan_converter(project_value)
+            return project_value
 
         else:
             return project_value
+
+    def _nan_converter(self, nan_dict: dict):
+        """
+        Searching and converting nan values to None
+        """
+        if isinstance(nan_dict, list):
+            new_list = []
+            for list_item in nan_dict:
+                new_list.append(self._nan_converter(list_item))
+
+            return new_list
+
+        elif isinstance(nan_dict, dict):
+            new_dict = {}
+            for key, value in nan_dict.items():
+                new_dict[key] = self._nan_converter(value)
+            return new_dict
+        elif isinstance(nan_dict, float):
+            if math.isnan(nan_dict):
+                return None
+        else:
+            return nan_dict
 
     def from_dict(self, d: dict):
         """
