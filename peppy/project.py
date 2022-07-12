@@ -1179,7 +1179,7 @@ class Project(PathExAttMap):
             st = self[SAMPLE_TABLE_FILE_KEY]
         else:
             if CONFIG_KEY not in self:
-                _LOGGER.warning("No config key in Project")
+                _LOGGER.info("No config key in Project, or reading project from dict")
                 return
             if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
                 _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
