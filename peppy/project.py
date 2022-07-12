@@ -90,6 +90,7 @@ class Project(PathExAttMap):
         sample_table_index=None,
         subsample_table_index=None,
         defer_samples_creation=False,
+        project_dict=None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -141,6 +142,10 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
+        # init project from dict
+        if project_dict:
+            self.from_dict(project_dict)
+
     def __eq__(self, other):
 
         dict_self = self._convert_to_dict(self)
@@ -189,9 +194,10 @@ class Project(PathExAttMap):
         else:
             return project_value
 
-    def _nan_converter(self, nan_dict: dict):
+    def _nan_converter(self, nan_dict: dict) -> dict or list:
         """
         Searching and converting nan values to None
+        :param dict nan_dict: dictionary with nan values
         """
         if isinstance(nan_dict, list):
             new_list = []
@@ -211,11 +217,10 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_dict(self, d: dict):
+    def from_dict(self, d: dict) -> None:
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-
         :param dict d: in-memory dict representation of processed pep.
         """
         if CONFIG_KEY not in self:
@@ -236,10 +241,6 @@ class Project(PathExAttMap):
 
         self[CONFIG_KEY].add_entries(d[CONFIG_KEY])
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
-
-        # _config + _samples
-        ################################################
-        # _config_file
         self[CONFIG_FILE_KEY] = d[CONFIG_FILE_KEY]
 
         self.st_index = d["st_index"]
@@ -249,12 +250,9 @@ class Project(PathExAttMap):
         self[SUBSAMPLE_TABLES_FILE_KEY] = d[SUBSAMPLE_TABLES_FILE_KEY]
 
         self[NAME_KEY] = d[NAME_KEY]  # "name"
-
         self[DESC_KEY] = d[DESC_KEY]  # "description"
-
         self[SAMPLE_DF_LARGE] = d[SAMPLE_DF_LARGE]
 
-        # sample_df
         self[SAMPLE_DF_KEY] = pd.DataFrame(d[SAMPLE_DF_KEY])
         if d[SUBSAMPLE_DF_KEY] is not None:
             self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub) for sub in d[SUBSAMPLE_DF_KEY]]
@@ -266,7 +264,7 @@ class Project(PathExAttMap):
         else:
             self._sample_table = None
 
-        self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]  # "_samples_touched"
+        self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]
 
     def to_dict(self, expand=False, extended=False) -> dict:
         """
