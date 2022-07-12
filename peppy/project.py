@@ -158,7 +158,7 @@ class Project(PathExAttMap):
 
     def _convert_to_dict(self, project_value=None):
         """
-        Recursviely transform various project values, objects, and attributes to a dictionary
+        Recursively transform various project values, objects, and attributes to a dictionary
         compatible format. Useful for creating an extended dictionary representation
         of the peppy project.
 
@@ -223,6 +223,7 @@ class Project(PathExAttMap):
         of an already processed PEP.
         :param dict d: in-memory dict representation of processed pep.
         """
+        _LOGGER.info(f"Processing project from dictionary...")
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = PathExAttMap()
 
@@ -236,7 +237,6 @@ class Project(PathExAttMap):
             d[SUBSAMPLE_TABLE_INDEX_KEY] if SUBSAMPLE_TABLE_INDEX_KEY in d else None
         )
 
-        # add entries from the dict
         self._samples = [Sample(s, self) for s in d["_samples"]]
 
         self[CONFIG_KEY].add_entries(d[CONFIG_KEY])
@@ -266,11 +266,14 @@ class Project(PathExAttMap):
 
         self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]
 
-    def to_dict(self, expand=False, extended=False) -> dict:
+        _LOGGER.info(f"Project '{self.name}' has been initiated")
+
+    def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
         """
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
+        :param bool extended: whether extend the paths (is complete project dict)
         :return dict: a dictionary representation of the Project object
         """
         if extended:
