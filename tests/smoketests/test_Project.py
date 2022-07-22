@@ -336,7 +336,7 @@ class ProjectConstructorTests:
         """
         p1 = Project(cfg=example_pep_cfg_path)
         p2 = Project()  # empty
-        p2.from_dict(p1.to_dict())
+        p2.from_dict(p1.to_dict(extended=True))
         assert p1 == p2
 
 

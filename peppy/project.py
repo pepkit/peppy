@@ -10,6 +10,7 @@ from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
+import math
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -89,6 +90,7 @@ class Project(PathExAttMap):
         sample_table_index=None,
         subsample_table_index=None,
         defer_samples_creation=False,
+        project_dict=None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -140,27 +142,88 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
+        # init project from dict
+        if project_dict:
+            self.from_dict(project_dict)
+
     def __eq__(self, other):
-        p1_samples = self.samples
-        p2_samples = other.samples
 
-        # check sample list lengths
-        if len(p1_samples) != len(p2_samples):
-            return False
+        dict_self = self._convert_to_dict(self)
+        dict_other = self._convert_to_dict(other)
 
-        # ensure all dict representations
-        # are identical
-        return all(
-            s1.to_dict() == s2.to_dict() for s1, s2 in zip(p1_samples, p2_samples)
-        )
+        dict_self["_samples"] = [s.to_dict() for s in self.samples]
+        dict_other["_samples"] = [s.to_dict() for s in other.samples]
 
-    def from_dict(self, d: dict):
+        return dict_self == dict_other
+
+    def _convert_to_dict(self, project_value=None):
+        """
+        Recursively transform various project values, objects, and attributes to a dictionary
+        compatible format. Useful for creating an extended dictionary representation
+        of the peppy project.
+
+        :param project_value object - the value to transform
+        """
+        if isinstance(project_value, list):
+            new_list = []
+            for item_value in project_value:
+                new_list.append(self._convert_to_dict(item_value))
+            return new_list
+
+        elif isinstance(project_value, dict):
+            new_dict = {}
+            for key, value in project_value.items():
+                if key != "_project":
+                    new_dict[key] = self._convert_to_dict(value)
+            return new_dict
+
+        elif isinstance(project_value, PathExAttMap):
+            new_dict = PathExAttMap.to_dict(project_value)
+            return self._convert_to_dict(new_dict)
+            # return new_dict
+
+        elif isinstance(project_value, Sample):
+            new_dict = PathExAttMap.to_dict(project_value)
+            return new_dict
+
+        elif isinstance(project_value, pd.DataFrame):
+            project_value = project_value.to_dict()
+            project_value = self._nan_converter(project_value)
+            return project_value
+
+        else:
+            return project_value
+
+    def _nan_converter(self, nan_dict: dict) -> dict or list:
+        """
+        Searching and converting nan values to None
+        :param dict nan_dict: dictionary with nan values
+        """
+        if isinstance(nan_dict, list):
+            new_list = []
+            for list_item in nan_dict:
+                new_list.append(self._nan_converter(list_item))
+
+            return new_list
+
+        elif isinstance(nan_dict, dict):
+            new_dict = {}
+            for key, value in nan_dict.items():
+                new_dict[key] = self._nan_converter(value)
+            return new_dict
+        elif isinstance(nan_dict, float):
+            if math.isnan(nan_dict):
+                return None
+        else:
+            return nan_dict
+
+    def from_dict(self, d: dict) -> None:
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-
         :param dict d: in-memory dict representation of processed pep.
         """
+        _LOGGER.info(f"Processing project from dictionary...")
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = PathExAttMap()
 
@@ -174,21 +237,51 @@ class Project(PathExAttMap):
             d[SUBSAMPLE_TABLE_INDEX_KEY] if SUBSAMPLE_TABLE_INDEX_KEY in d else None
         )
 
-        # add entries from the dict
-        self._samples = [Sample(s) for s in d["_samples"]]
-        self[CONFIG_KEY].add_entries(d)
-        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
+        self._samples = [Sample(s, self) for s in d["_samples"]]
 
-    def to_dict(self, expand=False):
+        self[CONFIG_KEY].add_entries(d[CONFIG_KEY])
+        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
+        self[CONFIG_FILE_KEY] = d[CONFIG_FILE_KEY]
+
+        self.st_index = d["st_index"]
+        self.sst_index = d["sst_index"]
+
+        self[SAMPLE_TABLE_FILE_KEY] = d[SAMPLE_TABLE_FILE_KEY]
+        self[SUBSAMPLE_TABLES_FILE_KEY] = d[SUBSAMPLE_TABLES_FILE_KEY]
+
+        self[NAME_KEY] = d[NAME_KEY]  # "name"
+        self[DESC_KEY] = d[DESC_KEY]  # "description"
+        self[SAMPLE_DF_LARGE] = d[SAMPLE_DF_LARGE]
+
+        self[SAMPLE_DF_KEY] = pd.DataFrame(d[SAMPLE_DF_KEY])
+        if d[SUBSAMPLE_DF_KEY] is not None:
+            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub) for sub in d[SUBSAMPLE_DF_KEY]]
+        else:
+            self[SUBSAMPLE_DF_KEY] = None
+
+        if d["_sample_table"] is not None:
+            self._sample_table = pd.DataFrame(d["_sample_table"])
+        else:
+            self._sample_table = None
+
+        self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]
+
+        _LOGGER.info(f"Project '{self.name}' has been initiated")
+
+    def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
         """
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
+        :param bool extended: whether extend the paths (is complete project dict)
         :return dict: a dictionary representation of the Project object
         """
-
-        p_dict = self.config.to_dict(expand=expand)
-        p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        if extended:
+            p_dict = self._convert_to_dict(self)
+            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        else:
+            p_dict = self.config.to_dict(expand=expand)
+            p_dict["_samples"] = [s.to_dict() for s in self.samples]
         return p_dict
 
     def create_samples(self, modify=False):
@@ -1089,7 +1182,7 @@ class Project(PathExAttMap):
             st = self[SAMPLE_TABLE_FILE_KEY]
         else:
             if CONFIG_KEY not in self:
-                _LOGGER.warning("No config key in Project")
+                _LOGGER.info("No config key in Project, or reading project from dict")
                 return
             if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
                 _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
