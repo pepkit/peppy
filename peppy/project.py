@@ -4,7 +4,7 @@ Build a Project object.
 import os
 from collections.abc import Mapping
 from logging import getLogger
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import pandas as pd
 from attmap import PathExAttMap
@@ -62,7 +62,7 @@ from .exceptions import (
     MissingAmendmentError,
     SampleTableFileException,
 )
-from .utils import copy, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
+from .utils import copy, extract_custom_index_for_sample_table, extract_custom_index_for_subsample_table, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -188,7 +188,6 @@ class Project(PathExAttMap):
         elif isinstance(project_value, PathExAttMap):
             new_dict = PathExAttMap.to_dict(project_value)
             return self._convert_to_dict(new_dict)
-            # return new_dict
 
         elif isinstance(project_value, Sample):
             new_dict = PathExAttMap.to_dict(project_value)
@@ -202,7 +201,7 @@ class Project(PathExAttMap):
         else:
             return project_value
 
-    def _nan_converter(self, nan_dict: dict) -> dict or list:
+    def _nan_converter(self, nan_dict: Dict) -> Union[Dict, List]:
         """
         Searching and converting nan values to None
         :param dict nan_dict: dictionary with nan values
@@ -225,7 +224,7 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_dict(self, d: dict) -> None:
+    def from_dict(self, pep_dictionary: dict) -> None:
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
@@ -236,43 +235,39 @@ class Project(PathExAttMap):
             self[CONFIG_KEY] = PathExAttMap()
 
         # extract custom index for sample table if exists
-        self.st_index = (
-            d[SAMPLE_TABLE_INDEX_KEY] if SAMPLE_TABLE_INDEX_KEY in d else None
-        )
+        self.st_index = extract_custom_index_for_sample_table(pep_dictionary)
 
         # extract custom subsample table index if exists
-        self.sst_index = (
-            d[SUBSAMPLE_TABLE_INDEX_KEY] if SUBSAMPLE_TABLE_INDEX_KEY in d else None
-        )
+        self.sst_index = extract_custom_index_for_subsample_table(pep_dictionary)
 
-        self._samples = [Sample(s, self) for s in d["_samples"]]
+        self._samples = [Sample(s, self) for s in pep_dictionary["_samples"]]
 
-        self[CONFIG_KEY].add_entries(d[CONFIG_KEY])
+        self[CONFIG_KEY].add_entries(pep_dictionary[CONFIG_KEY])
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
-        self[CONFIG_FILE_KEY] = d[CONFIG_FILE_KEY]
+        self[CONFIG_FILE_KEY] = pep_dictionary[CONFIG_FILE_KEY]
 
-        self.st_index = d["st_index"]
-        self.sst_index = d["sst_index"]
+        self.st_index = pep_dictionary["st_index"]
+        self.sst_index = pep_dictionary["sst_index"]
 
-        self[SAMPLE_TABLE_FILE_KEY] = d[SAMPLE_TABLE_FILE_KEY]
-        self[SUBSAMPLE_TABLES_FILE_KEY] = d[SUBSAMPLE_TABLES_FILE_KEY]
+        self[SAMPLE_TABLE_FILE_KEY] = pep_dictionary[SAMPLE_TABLE_FILE_KEY]
+        self[SUBSAMPLE_TABLES_FILE_KEY] = pep_dictionary[SUBSAMPLE_TABLES_FILE_KEY]
 
-        self[NAME_KEY] = d[NAME_KEY]  # "name"
-        self[DESC_KEY] = d[DESC_KEY]  # "description"
-        self[SAMPLE_DF_LARGE] = d[SAMPLE_DF_LARGE]
+        self[NAME_KEY] = pep_dictionary[NAME_KEY]  # "name"
+        self[DESC_KEY] = pep_dictionary[DESC_KEY]  # "description"
+        self[SAMPLE_DF_LARGE] = pep_dictionary[SAMPLE_DF_LARGE]
 
-        self[SAMPLE_DF_KEY] = pd.DataFrame(d[SAMPLE_DF_KEY])
-        if d[SUBSAMPLE_DF_KEY] is not None:
-            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub) for sub in d[SUBSAMPLE_DF_KEY]]
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
+        if pep_dictionary[SUBSAMPLE_DF_KEY] is not None:
+            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]]
         else:
             self[SUBSAMPLE_DF_KEY] = None
 
-        if d["_sample_table"] is not None:
-            self._sample_table = pd.DataFrame(d["_sample_table"])
+        if pep_dictionary["_sample_table"] is not None:
+            self._sample_table = pd.DataFrame(pep_dictionary["_sample_table"])
         else:
             self._sample_table = None
 
-        self[SAMPLE_EDIT_FLAG_KEY] = d[SAMPLE_EDIT_FLAG_KEY]
+        self[SAMPLE_EDIT_FLAG_KEY] = pep_dictionary[SAMPLE_EDIT_FLAG_KEY]
 
         _LOGGER.info(f"Project '{self.name}' has been initiated")
 
