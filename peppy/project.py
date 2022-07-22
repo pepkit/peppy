@@ -4,6 +4,7 @@ Build a Project object.
 import os
 from collections.abc import Mapping
 from logging import getLogger
+from typing import List, Tuple
 
 import pandas as pd
 from attmap import PathExAttMap
@@ -11,6 +12,8 @@ from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
 import math
+
+from peppy.sample import Sample
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -52,8 +55,13 @@ from .const import (
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
 )
-from .exceptions import *
-from .sample import Sample
+from .exceptions import (
+    IllegalStateException,
+    InvalidConfigFileException,
+    InvalidSampleTableFileException,
+    MissingAmendmentError,
+    SampleTableFileException,
+)
 from .utils import copy, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
 
 _LOGGER = getLogger(PKG_NAME)
@@ -605,22 +613,62 @@ class Project(PathExAttMap):
                 f"you may use either auto-merging or subsample_table-based merging. "
                 f"Duplicates: {dups_set}"
             )
-        for dup in dups_set:
-            dup_samples = [s for s in self.samples if getattr(s, self.st_index) == dup]
+        for duplication in dups_set:
+            (
+                duplicated_samples,
+                non_duplicated_samples,
+            ) = self._get_duplicated_and_not_duplicated_samples(
+                duplication, self.st_index, self.samples
+            )
+            self._samples = non_duplicated_samples
+
             sample_attrs = [
-                attr for attr in dup_samples[0].keys() if not attr.startswith("_")
+                attr
+                for attr in duplicated_samples[0].keys()
+                if not attr.startswith("_")
             ]
+
             merged_attrs = {}
             for attr in sample_attrs:
                 merged_attrs[attr] = list(
-                    flatten([getattr(s, attr) for s in dup_samples])
+                    flatten([getattr(s, attr) for s in duplicated_samples])
                 )
+
             # make single element lists scalars
-            for k, v in merged_attrs.items():
-                if isinstance(v, list) and len(list(set(v))) == 1:
-                    merged_attrs[k] = v[0]
-            self._samples = [s for s in self._samples if s[self.st_index] != dup]
+            for attribute, values in merged_attrs.items():
+                if isinstance(
+                    values, list
+                ) and self._all_values_in_the_list_are_the_same(values):
+                    merged_attrs[attribute] = values[0]
+
             self.add_samples(Sample(series=merged_attrs))
+
+    @staticmethod
+    def _get_duplicated_and_not_duplicated_samples(
+        duplication: str, st_index: str, samples: List[Sample]
+    ) -> Tuple[List, List]:
+        """
+        Iterates over list of samples and splits them into list of duplicated samples and list of not duplicated.
+
+        Args:
+            duplication: Sample ID.
+            st_index: Sample table index.
+            samples: List of Sample instances.
+
+        Returns:
+            List of Sample objects of duplicated samples and not duplicated samples.
+        """
+        duplicated_samples, not_duplicated_samples = [], []
+        for sample in samples:
+            if sample[st_index] == duplication:
+                duplicated_samples.append(sample)
+            else:
+                not_duplicated_samples.append(sample)
+        return duplicated_samples, not_duplicated_samples
+
+    @staticmethod
+    def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
+        return all(value == list_of_values[0] for value in list_of_values)
 
     def attr_merge(self):
         """
@@ -733,7 +781,7 @@ class Project(PathExAttMap):
                 )
         for sample in track(
             self.samples,
-            description=f"Implying sample attributes",
+            description="Implying sample attributes",
             disable=not self.is_sample_table_large,
         ):
             for implication in implications:
@@ -1220,10 +1268,17 @@ class Project(PathExAttMap):
         :return str: PEP version string
         """
         req_version_str = ".".join(REQUIRED_VERSION)
+        # if no config file was passed (init with sample table csv)
+        # then just auto-assign the required version
+        if CONFIG_KEY not in self:
+            return req_version_str
+        # if the pep_version was omitted from the config file
+        # then just warn the user and auto assign
         if CONFIG_VERSION_KEY not in self[CONFIG_KEY]:
-            raise InvalidConfigFileException(
-                f"Config file does not have version key. Please use version {req_version_str}"
+            _LOGGER.warning(
+                f"Config file does not have version key. Defaulting to {req_version_str}"
             )
+            return req_version_str
 
         v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
         if not isinstance(v_str, str):

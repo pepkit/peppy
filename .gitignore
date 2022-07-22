@@ -75,7 +75,8 @@ peppy.egg-info/
 
 .ipynb_checkpoints/
 
-.env/
+# env stuff
 env/
+.env
 venv/
 .venv/
