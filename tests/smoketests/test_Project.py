@@ -308,6 +308,22 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_cfg_noname_path, sample_table_index="id")
         assert p.sample_name_colname == "id"
 
+    @pytest.mark.parametrize("example_pep_cfg_path", ["missing_version"], indirect=True)
+    def test_missing_version(self, example_pep_cfg_path):
+        """
+        Verify that peppy can load a config file with no pep version
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert isinstance(p.pep_version, str)
+
+    @pytest.mark.parametrize("example_pep_csv_path", ["basic"], indirect=True)
+    def test_sample_table_version(self, example_pep_csv_path):
+        """
+        Verify that peppy can load a config file with no pep version
+        """
+        p = Project(cfg=example_pep_csv_path)
+        assert isinstance(p.pep_version, str)
+
 
 class ProjectManipulationTests:
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)

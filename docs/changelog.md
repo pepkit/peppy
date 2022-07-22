@@ -2,8 +2,17 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.33.0] -- 2022-06-14
 
-## [0.32.0] -- unreleased
+### Changed
+
+- `pep_version` is no longer a required parameter to create a `peppy.Project` instance from a configuration file.
+
+### Fixed
+
+- `KeyError` is thrown when attempting to access the `pep_version` of a `peppy.Project` instance instatiated from a sample table (`csv`)
+
+## [0.32.0] -- 2022-05-03
 
 ### Changed
 
@@ -12,11 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- Support for PEPs with no YAML configuration file component (CSV only)
-- Automatic sample merging if there are any duplicates in sample table index column
-- new project attributes:
-  - `sample_table_index`
-  - `subsample_table_index`
+- Support for PEP `2.1.0`, whichi includes support for no YAML configuration file component (CSV only), automatic sample merging if there are any duplicates in sample table index column, and new project attributes: `sample_table_index` and `subsample_table_index`.
 
 ### Fixed
 

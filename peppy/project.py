@@ -1136,10 +1136,17 @@ class Project(PathExAttMap):
         :return str: PEP version string
         """
         req_version_str = ".".join(REQUIRED_VERSION)
+        # if no config file was passed (init with sample table csv)
+        # then just auto-assign the required version
+        if CONFIG_KEY not in self:
+            return req_version_str
+        # if the pep_version was omitted from the config file
+        # then just warn the user and auto assign
         if CONFIG_VERSION_KEY not in self[CONFIG_KEY]:
-            raise InvalidConfigFileException(
-                f"Config file does not have version key. Please use version {req_version_str}"
+            _LOGGER.warning(
+                f"Config file does not have version key. Defaulting to {req_version_str}"
             )
+            return req_version_str
 
         v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
         if not isinstance(v_str, str):
