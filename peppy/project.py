@@ -62,7 +62,15 @@ from .exceptions import (
     MissingAmendmentError,
     SampleTableFileException,
 )
-from .utils import copy, extract_custom_index_for_sample_table, extract_custom_index_for_subsample_table, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
+from .utils import (
+    copy,
+    extract_custom_index_for_sample_table,
+    extract_custom_index_for_subsample_table,
+    is_cfg_or_anno,
+    load_yaml,
+    make_abs_via_cfg,
+    make_list,
+)
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -258,7 +266,9 @@ class Project(PathExAttMap):
 
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
         if pep_dictionary[SUBSAMPLE_DF_KEY] is not None:
-            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]]
+            self[SUBSAMPLE_DF_KEY] = [
+                pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]
+            ]
         else:
             self[SUBSAMPLE_DF_KEY] = None
 

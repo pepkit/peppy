@@ -158,14 +158,20 @@ def is_cfg_or_anno(file_path, formats=None):
         f"Accepted extensions: {formats_dict}"
     )
 
+
 def extract_custom_index_for_sample_table(pep_dictionary: Dict):
     """Extracts a custom index for the sample table if it exists"""
     return (
-        pep_dictionary[SAMPLE_TABLE_INDEX_KEY] if SAMPLE_TABLE_INDEX_KEY in pep_dictionary else None
+        pep_dictionary[SAMPLE_TABLE_INDEX_KEY]
+        if SAMPLE_TABLE_INDEX_KEY in pep_dictionary
+        else None
     )
+
 
 def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
     """Extracts a custom index for the subsample table if it exists"""
     return (
-        pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY] if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary else None
+        pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY]
+        if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary
+        else None
     )
