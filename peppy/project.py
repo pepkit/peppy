@@ -4,12 +4,18 @@ Build a Project object.
 import os
 from collections.abc import Mapping
 from logging import getLogger
+from typing import Dict, List, Tuple, Union
 
 import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
+import math
+
+from peppy.sample import Sample
+
+from .parsers import select_parser
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -51,9 +57,18 @@ from .const import (
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
 )
+
 from .exceptions import *
 from .sample import Sample
-from .utils import copy, is_cfg_or_anno, load_yaml, make_abs_via_cfg, make_list
+from .utils import (
+    copy,
+    extract_custom_index_for_sample_table,
+    extract_custom_index_for_subsample_table,
+    is_cfg_or_anno,
+    load_yaml,
+    make_abs_via_cfg,
+    make_list,
+)
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -89,6 +104,7 @@ class Project(PathExAttMap):
         sample_table_index=None,
         subsample_table_index=None,
         defer_samples_creation=False,
+        project_dict=None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -96,12 +112,13 @@ class Project(PathExAttMap):
             )
         )
         super(Project, self).__init__()
-        if is_cfg_or_anno(file_path=cfg) is None:
+        is_cfg = is_cfg_or_anno(cfg)
+        if is_cfg is None:
             # no 'cfg' provided. Empty Project will be created
             self[CONFIG_FILE_KEY] = None
             self[SAMPLE_TABLE_FILE_KEY] = None
             self[SUBSAMPLE_TABLES_FILE_KEY] = None
-        elif is_cfg_or_anno(file_path=cfg):
+        elif is_cfg:
             # the provided 'cfg' is a project config file
             self[CONFIG_FILE_KEY] = cfg
             self[SAMPLE_TABLE_FILE_KEY] = None
@@ -140,16 +157,143 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
-    def to_dict(self, expand=False):
+        # init project from dict
+        if project_dict:
+            self.from_dict(project_dict)
+
+    def __eq__(self, other):
+
+        dict_self = self._convert_to_dict(self)
+        dict_other = self._convert_to_dict(other)
+
+        dict_self["_samples"] = [s.to_dict() for s in self.samples]
+        dict_other["_samples"] = [s.to_dict() for s in other.samples]
+
+        return dict_self == dict_other
+
+    def _convert_to_dict(self, project_value=None):
+        """
+        Recursively transform various project values, objects, and attributes to a dictionary
+        compatible format. Useful for creating an extended dictionary representation
+        of the peppy project.
+
+        :param project_value object - the value to transform
+        """
+        if isinstance(project_value, list):
+            new_list = []
+            for item_value in project_value:
+                new_list.append(self._convert_to_dict(item_value))
+            return new_list
+
+        elif isinstance(project_value, dict):
+            new_dict = {}
+            for key, value in project_value.items():
+                if key != "_project":
+                    new_dict[key] = self._convert_to_dict(value)
+            return new_dict
+
+        elif isinstance(project_value, PathExAttMap):
+            new_dict = PathExAttMap.to_dict(project_value)
+            return self._convert_to_dict(new_dict)
+
+        elif isinstance(project_value, Sample):
+            new_dict = PathExAttMap.to_dict(project_value)
+            return new_dict
+
+        elif isinstance(project_value, pd.DataFrame):
+            project_value = project_value.to_dict()
+            project_value = self._nan_converter(project_value)
+            return project_value
+
+        else:
+            return project_value
+
+    def _nan_converter(self, nan_dict: Dict) -> Union[Dict, List]:
+        """
+        Searching and converting nan values to None
+        :param dict nan_dict: dictionary with nan values
+        """
+        if isinstance(nan_dict, list):
+            new_list = []
+            for list_item in nan_dict:
+                new_list.append(self._nan_converter(list_item))
+
+            return new_list
+
+        elif isinstance(nan_dict, dict):
+            new_dict = {}
+            for key, value in nan_dict.items():
+                new_dict[key] = self._nan_converter(value)
+            return new_dict
+        elif isinstance(nan_dict, float):
+            if math.isnan(nan_dict):
+                return None
+        else:
+            return nan_dict
+
+    def from_dict(self, pep_dictionary: dict) -> None:
+        """
+        Init a peppy project instance from a dictionary representation
+        of an already processed PEP.
+        :param dict d: in-memory dict representation of processed pep.
+        """
+        _LOGGER.info(f"Processing project from dictionary...")
+        if CONFIG_KEY not in self:
+            self[CONFIG_KEY] = PathExAttMap()
+
+        # extract custom index for sample table if exists
+        self.st_index = extract_custom_index_for_sample_table(pep_dictionary)
+
+        # extract custom subsample table index if exists
+        self.sst_index = extract_custom_index_for_subsample_table(pep_dictionary)
+
+        self._samples = [Sample(s, self) for s in pep_dictionary["_samples"]]
+
+        self[CONFIG_KEY].add_entries(pep_dictionary[CONFIG_KEY])
+        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
+        self[CONFIG_FILE_KEY] = pep_dictionary[CONFIG_FILE_KEY]
+
+        self.st_index = pep_dictionary["st_index"]
+        self.sst_index = pep_dictionary["sst_index"]
+
+        self[SAMPLE_TABLE_FILE_KEY] = pep_dictionary[SAMPLE_TABLE_FILE_KEY]
+        self[SUBSAMPLE_TABLES_FILE_KEY] = pep_dictionary[SUBSAMPLE_TABLES_FILE_KEY]
+
+        self[NAME_KEY] = pep_dictionary[NAME_KEY]  # "name"
+        self[DESC_KEY] = pep_dictionary[DESC_KEY]  # "description"
+        self[SAMPLE_DF_LARGE] = pep_dictionary[SAMPLE_DF_LARGE]
+
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
+        if pep_dictionary[SUBSAMPLE_DF_KEY] is not None:
+            self[SUBSAMPLE_DF_KEY] = [
+                pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]
+            ]
+        else:
+            self[SUBSAMPLE_DF_KEY] = None
+
+        if pep_dictionary["_sample_table"] is not None:
+            self._sample_table = pd.DataFrame(pep_dictionary["_sample_table"])
+        else:
+            self._sample_table = None
+
+        self[SAMPLE_EDIT_FLAG_KEY] = pep_dictionary[SAMPLE_EDIT_FLAG_KEY]
+
+        _LOGGER.info(f"Project '{self.name}' has been initiated")
+
+    def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
         """
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
+        :param bool extended: whether extend the paths (is complete project dict)
         :return dict: a dictionary representation of the Project object
         """
-
-        p_dict = self.config.to_dict(expand=expand)
-        p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        if extended:
+            p_dict = self._convert_to_dict(self)
+            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+        else:
+            p_dict = self.config.to_dict(expand=expand)
+            p_dict["_samples"] = [s.to_dict() for s in self.samples]
         return p_dict
 
     def create_samples(self, modify=False):
@@ -473,22 +617,62 @@ class Project(PathExAttMap):
                 f"you may use either auto-merging or subsample_table-based merging. "
                 f"Duplicates: {dups_set}"
             )
-        for dup in dups_set:
-            dup_samples = [s for s in self.samples if getattr(s, self.st_index) == dup]
+        for duplication in dups_set:
+            (
+                duplicated_samples,
+                non_duplicated_samples,
+            ) = self._get_duplicated_and_not_duplicated_samples(
+                duplication, self.st_index, self.samples
+            )
+            self._samples = non_duplicated_samples
+
             sample_attrs = [
-                attr for attr in dup_samples[0].keys() if not attr.startswith("_")
+                attr
+                for attr in duplicated_samples[0].keys()
+                if not attr.startswith("_")
             ]
+
             merged_attrs = {}
             for attr in sample_attrs:
                 merged_attrs[attr] = list(
-                    flatten([getattr(s, attr) for s in dup_samples])
+                    flatten([getattr(s, attr) for s in duplicated_samples])
                 )
+
             # make single element lists scalars
-            for k, v in merged_attrs.items():
-                if isinstance(v, list) and len(list(set(v))) == 1:
-                    merged_attrs[k] = v[0]
-            self._samples = [s for s in self._samples if s[self.st_index] != dup]
+            for attribute, values in merged_attrs.items():
+                if isinstance(
+                    values, list
+                ) and self._all_values_in_the_list_are_the_same(values):
+                    merged_attrs[attribute] = values[0]
+
             self.add_samples(Sample(series=merged_attrs))
+
+    @staticmethod
+    def _get_duplicated_and_not_duplicated_samples(
+        duplication: str, st_index: str, samples: List[Sample]
+    ) -> Tuple[List, List]:
+        """
+        Iterates over list of samples and splits them into list of duplicated samples and list of not duplicated.
+
+        Args:
+            duplication: Sample ID.
+            st_index: Sample table index.
+            samples: List of Sample instances.
+
+        Returns:
+            List of Sample objects of duplicated samples and not duplicated samples.
+        """
+        duplicated_samples, not_duplicated_samples = [], []
+        for sample in samples:
+            if sample[st_index] == duplication:
+                duplicated_samples.append(sample)
+            else:
+                not_duplicated_samples.append(sample)
+        return duplicated_samples, not_duplicated_samples
+
+    @staticmethod
+    def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
+        return all(value == list_of_values[0] for value in list_of_values)
 
     def attr_merge(self):
         """
@@ -601,7 +785,7 @@ class Project(PathExAttMap):
                 )
         for sample in track(
             self.samples,
-            description=f"Implying sample attributes",
+            description="Implying sample attributes",
             disable=not self.is_sample_table_large,
         ):
             for implication in implications:
@@ -743,11 +927,25 @@ class Project(PathExAttMap):
         """
         samples = [samples] if isinstance(samples, Sample) else samples
         for sample in samples:
-            if isinstance(sample, Sample):
-                self._samples.append(sample)
-                self[SAMPLE_EDIT_FLAG_KEY] = True
-            else:
-                _LOGGER.warning("not a peppy.Sample object, not adding")
+            if not isinstance(sample, Sample):
+                _LOGGER.warning("Not a peppy.Sample object, not adding")
+                continue
+            self._samples.append(sample)
+            self[SAMPLE_EDIT_FLAG_KEY] = True
+
+    def remove_samples(self, sample_names):
+        """
+        Remove Samples from Project
+
+        :param Iterable[str] sample_names: sample names to remove
+        """
+        sample_names = [sample_names] if isinstance(sample_names, str) else sample_names
+        samples_keep = [
+            s for s in self.samples if s[self.sample_name_colname] not in sample_names
+        ]
+        if len(self._samples) != len(samples_keep):
+            self._samples = samples_keep
+            self[SAMPLE_EDIT_FLAG_KEY] = True
 
     def infer_name(self):
         """
@@ -1024,33 +1222,12 @@ class Project(PathExAttMap):
         :param List[str] sample_table: a list of paths to sample tables
         """
 
-        def _read_tab(pth):
-            """
-            Internal read table function
-
-            :param str pth: absolute path to the file to read
-            :return pandas.DataFrame: table object
-            """
-            csv_kwargs = {
-                "dtype": str,
-                "index_col": False,
-                "keep_default_na": False,
-                "na_values": [""],
-            }
-            try:
-                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
-            except Exception as e:
-                raise SampleTableFileException(
-                    f"Could not read table: {pth}. "
-                    f"Caught exception: {getattr(e, 'message', repr(e))}"
-                )
-
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:
             st = self[SAMPLE_TABLE_FILE_KEY]
         else:
             if CONFIG_KEY not in self:
-                _LOGGER.warning("No config key in Project")
+                _LOGGER.info("No config key in Project, or reading project from dict")
                 return
             if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
                 _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
@@ -1066,13 +1243,18 @@ class Project(PathExAttMap):
                 sst = None
 
         if st is not None:
-            self[SAMPLE_DF_KEY] = _read_tab(st)
+            parser_class = select_parser(path=st)
+            self[SAMPLE_DF_KEY] = parser_class(path=st).table
             self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
             self[SAMPLE_DF_KEY] = None
         if sst is not None:
-            self[SUBSAMPLE_DF_KEY] = [_read_tab(x) for x in sst]
+            ssts = []
+            for subsample_table in sst:
+                parser_class = select_parser(path=subsample_table)
+                ssts.append(parser_class(path=subsample_table).table)
+            self[SUBSAMPLE_DF_KEY] = ssts
         else:
             _LOGGER.debug(no_metadata_msg.format(CFG_SUBSAMPLE_TABLE_KEY))
             self[SUBSAMPLE_DF_KEY] = None
@@ -1088,10 +1270,17 @@ class Project(PathExAttMap):
         :return str: PEP version string
         """
         req_version_str = ".".join(REQUIRED_VERSION)
+        # if no config file was passed (init with sample table csv)
+        # then just auto-assign the required version
+        if CONFIG_KEY not in self:
+            return req_version_str
+        # if the pep_version was omitted from the config file
+        # then just warn the user and auto assign
         if CONFIG_VERSION_KEY not in self[CONFIG_KEY]:
-            raise InvalidConfigFileException(
-                f"Config file does not have version key. Please use version {req_version_str}"
+            _LOGGER.warning(
+                f"Config file does not have version key. Defaulting to {req_version_str}"
             )
+            return req_version_str
 
         v_str = self[CONFIG_KEY][CONFIG_VERSION_KEY]
         if not isinstance(v_str, str):

@@ -2,14 +2,15 @@
 
 import logging
 import os
+from typing import Dict
 from urllib.request import urlopen
 
 import yaml
 from ubiquerg import expandpath, is_url
 
-from peppy import exceptions
+from .exceptions import *
 
-from .const import CONFIG_KEY
+from .const import CONFIG_KEY, SAMPLE_TABLE_INDEX_KEY, SUBSAMPLE_TABLE_INDEX_KEY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ def load_yaml(filepath):
         try:
             response = urlopen(filepath)
         except Exception as e:
-            raise exceptions.RemoteYAMLError(
+            raise RemoteYAMLError(
                 f"Could not load remote file: {filepath}. "
                 f"Original exception: {getattr(e, 'message', repr(e))}"
             )
@@ -134,7 +135,6 @@ def load_yaml(filepath):
 def is_cfg_or_anno(file_path, formats=None):
     """
     Determine if the input file seems to be a project config file (based on the file extension).
-
     :param str file_path: file path to examine
     :param dict formats: formats dict to use. Must include 'config' and 'annotation' keys.
     :raise ValueError: if the file seems to be neither a config nor an annotation
@@ -155,4 +155,22 @@ def is_cfg_or_anno(file_path, formats=None):
     raise ValueError(
         f"File path '{file_path}' does not point to an annotation or config. "
         f"Accepted extensions: {formats_dict}"
+    )
+
+
+def extract_custom_index_for_sample_table(pep_dictionary: Dict):
+    """Extracts a custom index for the sample table if it exists"""
+    return (
+        pep_dictionary[SAMPLE_TABLE_INDEX_KEY]
+        if SAMPLE_TABLE_INDEX_KEY in pep_dictionary
+        else None
+    )
+
+
+def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
+    """Extracts a custom index for the subsample table if it exists"""
+    return (
+        pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY]
+        if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary
+        else None
     )
