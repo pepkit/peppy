@@ -119,7 +119,7 @@ def load_yaml(filepath):
         try:
             response = urlopen(filepath)
         except Exception as e:
-            raise exceptions.RemoteYAMLError(
+            raise RemoteYAMLError(
                 f"Could not load remote file: {filepath}. "
                 f"Original exception: {getattr(e, 'message', repr(e))}"
             )
@@ -132,16 +132,22 @@ def load_yaml(filepath):
         return data
 
 
-def is_config(path: str) -> bool:
+def is_cfg_or_anno(file_path, formats=None):
     """
     Determine if the input file seems to be a project config file (based on the file extension).
-
-    :param str path: file path to examine
+    :param str file_path: file path to examine
+    :param dict formats: formats dict to use. Must include 'config' and 'annotation' keys.
+    :raise ValueError: if the file seems to be neither a config nor an annotation
     :return bool: True if the file is a config, False if the file is an annotation
     """
-    if path is None:
+    formats_dict = formats or {
+        "config": (".yaml", ".yml"),
+        "annotation": (".csv", ".tsv"),
+    }
+    if file_path is None:
         return None
-    if path.lower().endswith((".yaml", ".yml")):
+    if file_path.lower().endswith(formats_dict["config"]):
+        _LOGGER.debug(f"Creating a Project from a YAML file: {file_path}")
         return True
     elif file_path.lower().endswith(formats_dict["annotation"]):
         _LOGGER.debug(f"Creating a Project from a CSV file: {file_path}")

@@ -112,7 +112,7 @@ class Project(PathExAttMap):
             )
         )
         super(Project, self).__init__()
-        is_cfg = is_config(path=cfg)
+        is_cfg = is_cfg_or_anno(cfg)
         if is_cfg is None:
             # no 'cfg' provided. Empty Project will be created
             self[CONFIG_FILE_KEY] = None
