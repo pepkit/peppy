@@ -2,6 +2,7 @@
 
 import logging
 import os
+from typing import Dict
 from urllib.request import urlopen
 
 import yaml
@@ -9,7 +10,7 @@ from ubiquerg import expandpath, is_url
 
 from .exceptions import *
 
-from .const import CONFIG_KEY
+from .const import CONFIG_KEY, SAMPLE_TABLE_INDEX_KEY, SUBSAMPLE_TABLE_INDEX_KEY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -142,4 +143,28 @@ def is_config(path: str) -> bool:
         return None
     if path.lower().endswith((".yaml", ".yml")):
         return True
-    return False
+    elif file_path.lower().endswith(formats_dict["annotation"]):
+        _LOGGER.debug(f"Creating a Project from a CSV file: {file_path}")
+        return False
+    raise ValueError(
+        f"File path '{file_path}' does not point to an annotation or config. "
+        f"Accepted extensions: {formats_dict}"
+    )
+
+
+def extract_custom_index_for_sample_table(pep_dictionary: Dict):
+    """Extracts a custom index for the sample table if it exists"""
+    return (
+        pep_dictionary[SAMPLE_TABLE_INDEX_KEY]
+        if SAMPLE_TABLE_INDEX_KEY in pep_dictionary
+        else None
+    )
+
+
+def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
+    """Extracts a custom index for the subsample table if it exists"""
+    return (
+        pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY]
+        if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary
+        else None
+    )

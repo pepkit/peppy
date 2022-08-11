@@ -1,12 +1,7 @@
 """ Custom error types """
 
 from abc import ABCMeta
-
-try:
-    from collections.abc import Iterable
-except ImportError:
-    # for py2
-    from collections import Iterable
+from collections.abc import Iterable
 
 __all__ = [
     "IllegalStateException",
