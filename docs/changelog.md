@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Implementation of `__eq__` for the `peppy.Project` class such that two instances of the class can be compared using python's equality operators (`==`, `!=`).
 - New `from_dict` function that lets a user instatiate a new `peppy.Project` object using an in-memory representation of a PEP (a `dict`). This supports database storage of PEPs.
 - New `extended` flag for the `to_dict` method on `peppy.Project` objects. This creates a **richer** dictionary representation of PEPs.
+- Better sample parsing
 
 ## [0.32.0] -- 2022-05-03
 
