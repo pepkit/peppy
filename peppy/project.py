@@ -1,10 +1,12 @@
 """
 Build a Project object.
 """
+from __future__ import annotations
+
 import os
 from collections.abc import Mapping
 from logging import getLogger
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Iterable
 
 import pandas as pd
 from attmap import PathExAttMap
@@ -88,6 +90,8 @@ class Project(PathExAttMap):
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
     :param bool defer_samples_creation: whether the sample creation should be skipped
+    :param dict project_dict: dict with all Project object variables
+    :param pd.DataFrame pd_object: pandas dataframe of csv file
 
     :Example:
 
@@ -100,13 +104,13 @@ class Project(PathExAttMap):
 
     def __init__(
         self,
-        cfg=None,
-        amendments=None,
-        sample_table_index=None,
-        subsample_table_index=None,
-        defer_samples_creation=False,
-        project_dict=None,
-        pd_object=None,
+        cfg: str = None,
+        amendments: Union[str | Iterable[str]] = None,
+        sample_table_index: Union[str | Iterable[str]] = None,
+        subsample_table_index: Union[str | Iterable[str]] = None,
+        defer_samples_creation: bool = False,
+        project_dict: dict = None,
+        pd_object: pd.DataFrame = None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
