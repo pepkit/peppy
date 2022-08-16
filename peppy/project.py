@@ -56,6 +56,7 @@ from .const import (
     SUBSAMPLE_NAME_ATTR,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    PEP_LATEST_VERSION,
 )
 
 from .exceptions import *
@@ -105,6 +106,7 @@ class Project(PathExAttMap):
         subsample_table_index=None,
         defer_samples_creation=False,
         project_dict=None,
+        pd_object=None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -151,6 +153,11 @@ class Project(PathExAttMap):
 
         self.name = self.infer_name()
         self.description = self.get_description()
+
+        if pd_object is not None:
+            self[SUBSAMPLE_TABLES_FILE_KEY] = None
+            self._create_samples_from_pd(pd_object)
+
         if not defer_samples_creation:
             self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -296,6 +303,12 @@ class Project(PathExAttMap):
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
         return p_dict
 
+    def _create_samples_from_pd(self, pd_object):
+        self[SAMPLE_DF_KEY] = pd_object
+        self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+        self[SUBSAMPLE_DF_KEY] = None
+        self.load_samples(from_pd=True)
+
     def create_samples(self, modify=False):
         """
         Populate Project with Sample objects
@@ -426,19 +439,29 @@ class Project(PathExAttMap):
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
-    def load_samples(self):
+    def load_samples(self, from_pd: bool = False):
         """
         Read the sample_table and subsample_tables into dataframes
         and store in the object root. The values sourced from the
         project config can be overwritten by the optional arguments.
 
+        :param from_pd: set True, if initializing project from pandas object
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-        self._read_sample_data()
+        if not from_pd:
+            self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
+
+        if CONFIG_KEY not in self:
+            self[CONFIG_KEY] = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
+            self[CONFIG_FILE_KEY] = None
+
+        elif len(self[CONFIG_KEY]) < 1:
+            self[CONFIG_KEY][CONFIG_VERSION_KEY] = PEP_LATEST_VERSION
+            self[CONFIG_FILE_KEY] = None
 
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
