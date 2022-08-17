@@ -311,7 +311,7 @@ class Project(PathExAttMap):
         self[SAMPLE_DF_KEY] = pd_object
         self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
         self[SUBSAMPLE_DF_KEY] = None
-        self.load_samples(from_pd=True)
+        self.load_samples()
 
     def create_samples(self, modify=False):
         """
@@ -443,18 +443,16 @@ class Project(PathExAttMap):
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
-    def load_samples(self, from_pd: bool = False):
+    def load_samples(self):
         """
         Read the sample_table and subsample_tables into dataframes
         and store in the object root. The values sourced from the
         project config can be overwritten by the optional arguments.
 
-        :param from_pd: set True, if initializing project from pandas object
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-        if not from_pd:
-            self._read_sample_data()
+        self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
