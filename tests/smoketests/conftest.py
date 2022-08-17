@@ -61,3 +61,8 @@ def example_peps_cfg_paths(request):
         )
         for p in request.param
     ]
+
+
+@pytest.fixture
+def nextflow_sample_table_path():
+    return "tests/data/example_peps-master/example_nextflow_samplesheet/samplesheet.csv"

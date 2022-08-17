@@ -313,11 +313,11 @@ class Project(PathExAttMap):
         self[SUBSAMPLE_DF_KEY] = None
         self.load_samples()
 
-    def create_samples(self, modify=False):
+    def create_samples(self, modify: bool = False):
         """
         Populate Project with Sample objects
         """
-        self._samples = self.load_samples()
+        self._samples: List[Sample] = self.load_samples()
         if modify:
             self.modify_samples()
         else:
@@ -619,56 +619,42 @@ class Project(PathExAttMap):
             specified in the config
         """
         sample_names_list = [getattr(s, self.st_index) for s in self.samples]
-        dups_set = set(
-            [
-                x
-                for x in track(
-                    sample_names_list,
-                    description="Detecting duplicate sample names",
-                    disable=not self.is_sample_table_large,
-                )
-                if sample_names_list.count(x) > 1
-            ]
-        )
-        if not dups_set:
-            # all sample names are unique
+        duplicated_sample_ids = self._get_duplicated_sample_ids(sample_names_list)
+
+        if not duplicated_sample_ids:
             return
+
         _LOGGER.info(
-            f"Found {len(dups_set)} samples with non-unique names: {dups_set}. Attempting to auto-merge."
+            f"Found {len(duplicated_sample_ids)} samples with non-unique names: {duplicated_sample_ids}. Attempting to auto-merge."
         )
         if SUBSAMPLE_DF_KEY in self and self[SUBSAMPLE_DF_KEY] is not None:
             raise IllegalStateException(
                 f"Duplicated sample names found and subsample_table is specified in the config; "
                 f"you may use either auto-merging or subsample_table-based merging. "
-                f"Duplicates: {dups_set}"
+                f"Duplicates: {duplicated_sample_ids}"
             )
-        for duplication in dups_set:
+
+        for duplicated_id in duplicated_sample_ids:
             (
                 duplicated_samples,
                 non_duplicated_samples,
             ) = self._get_duplicated_and_not_duplicated_samples(
-                duplication, self.st_index, self.samples
+                duplicated_id, self.st_index, self.samples
             )
-            self._samples = non_duplicated_samples
-
-            sample_attrs = [
+            sample_attributes = [
                 attr
                 for attr in duplicated_samples[0].keys()
                 if not attr.startswith("_")
             ]
-
-            merged_attrs = {}
-            for attr in sample_attrs:
-                merged_attrs[attr] = list(
-                    flatten([getattr(s, attr) for s in duplicated_samples])
-                )
+            merged_attrs = self._get_merged_attributes(
+                sample_attributes, duplicated_samples
+            )
+            self._samples = non_duplicated_samples
 
             # make single element lists scalars
-            for attribute, values in merged_attrs.items():
-                if isinstance(
-                    values, list
-                ) and self._all_values_in_the_list_are_the_same(values):
-                    merged_attrs[attribute] = values[0]
+            for attribute_name, values in merged_attrs.items():
+                if isinstance(values, list) and len(list(set(values))) == 1:
+                    merged_attrs[attribute_name] = values[0]
 
             self.add_samples(Sample(series=merged_attrs))
 
@@ -698,6 +684,43 @@ class Project(PathExAttMap):
     @staticmethod
     def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
         return all(value == list_of_values[0] for value in list_of_values)
+
+    @staticmethod
+    def _get_duplicated_sample_ids(sample_names_list: List) -> set:
+        return set(
+            [
+                sample_id
+                for sample_id in track(
+                    sample_names_list,
+                    description="Detecting duplicate sample names",
+                    disable=not Project.is_sample_table_large,
+                )
+                if sample_names_list.count(sample_id) > 1
+            ]
+        )
+
+    @staticmethod
+    def _get_merged_attributes(
+        sample_attributes: List[str], duplicated_samples: List[Sample]
+    ) -> dict:
+        merged_attributes = {}
+        for attr in sample_attributes:
+
+            attribute_values = []
+            for sample in duplicated_samples:
+                attribute_value_for_sample = Project.safe_getattr(sample, attr)
+                attribute_values.append(attribute_value_for_sample)
+
+            merged_attributes[attr] = list(flatten(attribute_values))
+
+        return merged_attributes
+
+    @staticmethod
+    def safe_getattr(object: object, attribute: str):
+        try:
+            return getattr(object, attribute)
+        except AttributeError:
+            return ""
 
     def attr_merge(self):
         """
@@ -1246,6 +1269,27 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
+
+        def _read_tab(pth):
+            """
+            Internal read table function
+
+            :param str pth: absolute path to the file to read
+            :return pandas.DataFrame: table object
+            """
+            csv_kwargs = {
+                "dtype": str,
+                "index_col": False,
+                "keep_default_na": False,
+                "na_values": [""],
+            }
+            try:
+                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
+            except Exception as e:
+                raise SampleTableFileException(
+                    f"Could not read table: {pth}. "
+                    f"Caught exception: {getattr(e, 'message', repr(e))}"
+                )
 
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:
