@@ -88,8 +88,6 @@ class Project(PathExAttMap):
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
     :param bool defer_samples_creation: whether the sample creation should be skipped
-    :param dict project_dict: dict with all Project object variables
-    :param pd.DataFrame pd_object: pandas dataframe of csv file
 
     :Example:
 
