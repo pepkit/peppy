@@ -703,19 +703,12 @@ class Project(PathExAttMap):
 
             attribute_values = []
             for sample in duplicated_samples:
-                attribute_value_for_sample = Project.safe_getattr(sample, attr)
+                attribute_value_for_sample = getattr(sample, attr, "")
                 attribute_values.append(attribute_value_for_sample)
 
             merged_attributes[attr] = list(flatten(attribute_values))
 
         return merged_attributes
-
-    @staticmethod
-    def safe_getattr(object: object, attribute: str):
-        try:
-            return getattr(object, attribute)
-        except AttributeError:
-            return ""
 
     def attr_merge(self):
         """
