@@ -2,6 +2,19 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.34.0] -- 2022-08-17
+
+### Changed 
+
+Way of initialization project from dictionary. Now it's possible as follows: Project().from_dict()
+### Fixed
+
+- Fix error that was raised when duplicated sample in `sample_table` had different read types (single-end mixed with paired-end).
+
+### Added
+
+- Feature of initializing `peppy.Project` from `pandas.DataFrame`
+
 ## [0.33.0] -- 2022-07-25
 
 ### Changed

@@ -4,7 +4,7 @@ Build a Project object.
 import os
 from collections.abc import Mapping
 from logging import getLogger
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Iterable
 
 import pandas as pd
 from attmap import PathExAttMap
@@ -56,6 +56,7 @@ from .const import (
     SUBSAMPLE_NAME_ATTR,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    PEP_LATEST_VERSION,
 )
 
 from .exceptions import *
@@ -99,12 +100,11 @@ class Project(PathExAttMap):
 
     def __init__(
         self,
-        cfg=None,
-        amendments=None,
-        sample_table_index=None,
-        subsample_table_index=None,
-        defer_samples_creation=False,
-        project_dict=None,
+        cfg: str = None,
+        amendments: Union[str, Iterable[str]] = None,
+        sample_table_index: Union[str, Iterable[str]] = None,
+        subsample_table_index: Union[str, Iterable[str]] = None,
+        defer_samples_creation: bool = False,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -151,18 +151,14 @@ class Project(PathExAttMap):
 
         self.name = self.infer_name()
         self.description = self.get_description()
+
         if not defer_samples_creation:
             self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
         )
 
-        # init project from dict
-        if project_dict:
-            self.from_dict(project_dict)
-
     def __eq__(self, other):
-
         dict_self = self._convert_to_dict(self)
         dict_other = self._convert_to_dict(other)
 
@@ -231,11 +227,25 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_dict(self, pep_dictionary: dict) -> None:
+    def from_pandas(self, pandas_df: pd.DataFrame) -> object:
+        """
+        Init a peppy project instance from a pandas Dataframe
+        :param pandas_df: in-memory pandas DataFrame object
+        """
+        self[SAMPLE_DF_KEY] = pandas_df
+        self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+
+        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
+        )
+        return self
+
+    def from_dict(self, pep_dictionary: dict) -> object:
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-        :param dict d: in-memory dict representation of processed pep.
+        :param dict pep_dictionary: in-memory dict representation of processed pep.
         """
         _LOGGER.info(f"Processing project from dictionary...")
         if CONFIG_KEY not in self:
@@ -280,6 +290,8 @@ class Project(PathExAttMap):
 
         _LOGGER.info(f"Project '{self.name}' has been initiated")
 
+        return self
+
     def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
         """
         Convert the Project object to a dictionary.
@@ -296,11 +308,11 @@ class Project(PathExAttMap):
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
         return p_dict
 
-    def create_samples(self, modify=False):
+    def create_samples(self, modify: bool = False):
         """
         Populate Project with Sample objects
         """
-        self._samples = self.load_samples()
+        self._samples: List[Sample] = self.load_samples()
         if modify:
             self.modify_samples()
         else:
@@ -439,6 +451,14 @@ class Project(PathExAttMap):
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
+
+        if CONFIG_KEY not in self:
+            self[CONFIG_KEY] = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
+            self[CONFIG_FILE_KEY] = None
+
+        elif len(self[CONFIG_KEY]) < 1:
+            self[CONFIG_KEY][CONFIG_VERSION_KEY] = PEP_LATEST_VERSION
+            self[CONFIG_FILE_KEY] = None
 
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
@@ -594,56 +614,42 @@ class Project(PathExAttMap):
             specified in the config
         """
         sample_names_list = [getattr(s, self.st_index) for s in self.samples]
-        dups_set = set(
-            [
-                x
-                for x in track(
-                    sample_names_list,
-                    description="Detecting duplicate sample names",
-                    disable=not self.is_sample_table_large,
-                )
-                if sample_names_list.count(x) > 1
-            ]
-        )
-        if not dups_set:
-            # all sample names are unique
+        duplicated_sample_ids = self._get_duplicated_sample_ids(sample_names_list)
+
+        if not duplicated_sample_ids:
             return
+
         _LOGGER.info(
-            f"Found {len(dups_set)} samples with non-unique names: {dups_set}. Attempting to auto-merge."
+            f"Found {len(duplicated_sample_ids)} samples with non-unique names: {duplicated_sample_ids}. Attempting to auto-merge."
         )
         if SUBSAMPLE_DF_KEY in self and self[SUBSAMPLE_DF_KEY] is not None:
             raise IllegalStateException(
                 f"Duplicated sample names found and subsample_table is specified in the config; "
                 f"you may use either auto-merging or subsample_table-based merging. "
-                f"Duplicates: {dups_set}"
+                f"Duplicates: {duplicated_sample_ids}"
             )
-        for duplication in dups_set:
+
+        for duplicated_id in duplicated_sample_ids:
             (
                 duplicated_samples,
                 non_duplicated_samples,
             ) = self._get_duplicated_and_not_duplicated_samples(
-                duplication, self.st_index, self.samples
+                duplicated_id, self.st_index, self.samples
             )
-            self._samples = non_duplicated_samples
-
-            sample_attrs = [
+            sample_attributes = [
                 attr
                 for attr in duplicated_samples[0].keys()
                 if not attr.startswith("_")
             ]
-
-            merged_attrs = {}
-            for attr in sample_attrs:
-                merged_attrs[attr] = list(
-                    flatten([getattr(s, attr) for s in duplicated_samples])
-                )
+            merged_attrs = self._get_merged_attributes(
+                sample_attributes, duplicated_samples
+            )
+            self._samples = non_duplicated_samples
 
             # make single element lists scalars
-            for attribute, values in merged_attrs.items():
-                if isinstance(
-                    values, list
-                ) and self._all_values_in_the_list_are_the_same(values):
-                    merged_attrs[attribute] = values[0]
+            for attribute_name, values in merged_attrs.items():
+                if isinstance(values, list) and len(list(set(values))) == 1:
+                    merged_attrs[attribute_name] = values[0]
 
             self.add_samples(Sample(series=merged_attrs))
 
@@ -673,6 +679,36 @@ class Project(PathExAttMap):
     @staticmethod
     def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
         return all(value == list_of_values[0] for value in list_of_values)
+
+    @staticmethod
+    def _get_duplicated_sample_ids(sample_names_list: List) -> set:
+        return set(
+            [
+                sample_id
+                for sample_id in track(
+                    sample_names_list,
+                    description="Detecting duplicate sample names",
+                    disable=not Project.is_sample_table_large,
+                )
+                if sample_names_list.count(sample_id) > 1
+            ]
+        )
+
+    @staticmethod
+    def _get_merged_attributes(
+        sample_attributes: List[str], duplicated_samples: List[Sample]
+    ) -> dict:
+        merged_attributes = {}
+        for attr in sample_attributes:
+
+            attribute_values = []
+            for sample in duplicated_samples:
+                attribute_value_for_sample = getattr(sample, attr, "")
+                attribute_values.append(attribute_value_for_sample)
+
+            merged_attributes[attr] = list(flatten(attribute_values))
+
+        return merged_attributes
 
     def attr_merge(self):
         """
@@ -1221,6 +1257,27 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
+
+        def _read_tab(pth):
+            """
+            Internal read table function
+
+            :param str pth: absolute path to the file to read
+            :return pandas.DataFrame: table object
+            """
+            csv_kwargs = {
+                "dtype": str,
+                "index_col": False,
+                "keep_default_na": False,
+                "na_values": [""],
+            }
+            try:
+                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
+            except Exception as e:
+                raise SampleTableFileException(
+                    f"Could not read table: {pth}. "
+                    f"Caught exception: {getattr(e, 'message', repr(e))}"
+                )
 
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:

@@ -70,7 +70,7 @@ def _cmp_all_samples_attr(p1, p2, attr):
     ]
 
 
-class ProjectConstructorTests:
+class TestProjectConstructor:
     def test_empty(self):
         """Verify that an empty Project instance can be created"""
         p = Project()
@@ -355,8 +355,14 @@ class ProjectConstructorTests:
         p = Project(cfg=example_pep_csv_path)
         assert isinstance(p.pep_version, str)
 
+    def test_auto_merge_duplicated_names_works_for_different_read_types(
+        self, nextflow_sample_table_path
+    ):
+        p = Project(nextflow_sample_table_path, sample_table_index="sample")
+        assert len(p.samples) == 4
 
-class ProjectManipulationTests:
+
+class TestProjectManipulationTests:
     @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
     def test_amendments_activation_interactive(self, example_pep_cfg_path):
         """
@@ -456,7 +462,7 @@ class ProjectManipulationTests:
             p.get_sample(sample_name="kdkdkdk")
 
 
-class SampleModifiersTests:
+class TestSampleModifiers:
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
     def test_append(self, example_pep_cfg_path):
         """Verify that the appended attribute is added to the samples"""
@@ -522,7 +528,7 @@ class SampleModifiersTests:
         )
 
 
-class PostInitSampleCreationTests:
+class TestPostInitSampleCreation:
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
     def test_append(self, example_pep_cfg_path):
         """
