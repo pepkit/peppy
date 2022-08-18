@@ -1,8 +1,6 @@
 """
 Build a Project object.
 """
-from __future__ import annotations
-
 import os
 from collections.abc import Mapping
 from logging import getLogger
@@ -105,12 +103,10 @@ class Project(PathExAttMap):
     def __init__(
         self,
         cfg: str = None,
-        amendments: Union[str | Iterable[str]] = None,
-        sample_table_index: Union[str | Iterable[str]] = None,
-        subsample_table_index: Union[str | Iterable[str]] = None,
+        amendments: Union[str, Iterable[str]] = None,
+        sample_table_index: Union[str, Iterable[str]] = None,
+        subsample_table_index: Union[str, Iterable[str]] = None,
         defer_samples_creation: bool = False,
-        project_dict: dict = None,
-        pd_object: pd.DataFrame = None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -158,22 +154,13 @@ class Project(PathExAttMap):
         self.name = self.infer_name()
         self.description = self.get_description()
 
-        if pd_object is not None:
-            self[SUBSAMPLE_TABLES_FILE_KEY] = None
-            self._create_samples_from_pd(pd_object)
-
         if not defer_samples_creation:
             self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
         )
 
-        # init project from dict
-        if project_dict:
-            self.from_dict(project_dict)
-
     def __eq__(self, other):
-
         dict_self = self._convert_to_dict(self)
         dict_other = self._convert_to_dict(other)
 
@@ -242,11 +229,25 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_dict(self, pep_dictionary: dict) -> None:
+    def from_pandas(self, pandas_df: pd.DataFrame) -> object:
+        """
+        Init a peppy project instance from a pandas Dataframe
+        :param pandas_df: in-memory pandas DataFrame object
+        """
+        self[SAMPLE_DF_KEY] = pandas_df
+        self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+
+        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
+        )
+        return self
+
+    def from_dict(self, pep_dictionary: dict) -> object:
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-        :param dict d: in-memory dict representation of processed pep.
+        :param dict pep_dictionary: in-memory dict representation of processed pep.
         """
         _LOGGER.info(f"Processing project from dictionary...")
         if CONFIG_KEY not in self:
@@ -291,6 +292,8 @@ class Project(PathExAttMap):
 
         _LOGGER.info(f"Project '{self.name}' has been initiated")
 
+        return self
+
     def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
         """
         Convert the Project object to a dictionary.
@@ -306,12 +309,6 @@ class Project(PathExAttMap):
             p_dict = self.config.to_dict(expand=expand)
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
         return p_dict
-
-    def _create_samples_from_pd(self, pd_object):
-        self[SAMPLE_DF_KEY] = pd_object
-        self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
-        self[SUBSAMPLE_DF_KEY] = None
-        self.load_samples()
 
     def create_samples(self, modify: bool = False):
         """
