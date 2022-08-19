@@ -66,3 +66,8 @@ def example_peps_cfg_paths(request):
 @pytest.fixture
 def nextflow_sample_table_path():
     return "tests/data/example_peps-master/example_nextflow_samplesheet/samplesheet.csv"
+
+
+@pytest.fixture
+def config_with_other_sample_table_index_name():
+    return "tests/data/example_peps-master/example_other_sample_table_index/config.yaml"
