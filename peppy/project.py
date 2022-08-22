@@ -1,21 +1,20 @@
 """
 Build a Project object.
 """
+import math
 import os
 from collections.abc import Mapping
+from contextlib import suppress
 from logging import getLogger
-from typing import Dict, List, Tuple, Union, Iterable
+from typing import Dict, Iterable, List, Tuple, Union
 
 import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
-import math
 
 from peppy.sample import Sample
-
-from .parsers import select_parser
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -40,6 +39,7 @@ from .const import (
     MAX_PROJECT_SAMPLES_REPR,
     METADATA_KEY,
     NAME_KEY,
+    PEP_LATEST_VERSION,
     PKG_NAME,
     PROJ_MODS_KEY,
     REMOVE_KEY,
@@ -56,10 +56,9 @@ from .const import (
     SUBSAMPLE_NAME_ATTR,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
-    PEP_LATEST_VERSION,
 )
-
 from .exceptions import *
+from .parsers import select_parser
 from .sample import Sample
 from .utils import (
     copy,
@@ -140,13 +139,15 @@ class Project(PathExAttMap):
         self.st_index = (
             sample_table_index or getattr(self, "st_index", None) or SAMPLE_NAME_ATTR
         )
+
         self.sst_index = (
-            subsample_table_index
-            or getattr(self, "sst_index", None)
-            or [
-                SAMPLE_NAME_ATTR,
-                SUBSAMPLE_NAME_ATTR,
-            ]
+            ([subsample_table_index] if subsample_table_index else None)
+            or (
+                [getattr(self, "sst_index", None)]
+                if getattr(self, "sst_index", None)
+                else None
+            )
+            or [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
         )
 
         self.name = self.infer_name()
@@ -460,6 +461,9 @@ class Project(PathExAttMap):
             self[CONFIG_KEY][CONFIG_VERSION_KEY] = PEP_LATEST_VERSION
             self[CONFIG_FILE_KEY] = None
 
+        if SUBSAMPLE_DF_KEY not in self:
+            self[SUBSAMPLE_DF_KEY] = None
+
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
         return samples_list
@@ -571,7 +575,7 @@ class Project(PathExAttMap):
 
         :raise InvalidSampleTableFileException: if names are not specified
         """
-        try:
+        with suppress(KeyError):
             # before merging, which requires sample_name attribute to map
             # sample_table rows to subsample_table rows,
             # perform only sample_name attr derivation
@@ -580,15 +584,12 @@ class Project(PathExAttMap):
                 in self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
             ):
                 self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
-        except KeyError:
-            pass
+
         for sample in self.samples:
             if self.st_index not in sample:
-                msg_base = "{st} is missing '{sn}' column; ".format(
-                    st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
-                )
-                msg = msg_base + "you must specify {sn}s in {st} or derive them".format(
-                    st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
+                message = (
+                    f"{CFG_SAMPLE_TABLE_KEY} is missing '{self.st_index}' column; "
+                    f"you must specify {CFG_SAMPLE_TABLE_KEY}s in {self.st_index} or derive them"
                 )
                 if self.st_index != SAMPLE_NAME_ATTR:
                     try:
@@ -599,12 +600,12 @@ class Project(PathExAttMap):
                         )
                     setattr(sample, SAMPLE_NAME_ATTR, custom_sample_name)
                     _LOGGER.warning(
-                        msg_base
+                        message
                         + f"using specified {CFG_SAMPLE_TABLE_KEY} index ({self.st_index}) instead. "
                         + f"Setting name: {custom_sample_name}"
                     )
                 else:
-                    raise InvalidSampleTableFileException(msg)
+                    raise InvalidSampleTableFileException(message)
 
     def _auto_merge_duplicated_names(self):
         """
@@ -720,7 +721,7 @@ class Project(PathExAttMap):
             return
         for subsample_table in self[SUBSAMPLE_DF_KEY]:
             for n in list(subsample_table[self.st_index]):
-                if n not in [s[SAMPLE_NAME_ATTR] for s in self.samples]:
+                if n not in [s[self.st_index] for s in self.samples]:
                     _LOGGER.warning(
                         ("Couldn't find matching sample for subsample: {}").format(n)
                     )
@@ -739,7 +740,7 @@ class Project(PathExAttMap):
                     "subannotation table".format(sample_colname)
                 )
                 sample_indexer = (
-                    subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
+                    subsample_table[sample_colname] == sample[self.st_index]
                 )
                 this_sample_rows = subsample_table[sample_indexer].dropna(
                     how="all", axis=1
@@ -777,7 +778,7 @@ class Project(PathExAttMap):
                             continue
                         _LOGGER.debug(
                             "merge: sample '{}'; '{}'='{}'".format(
-                                sample[SAMPLE_NAME_ATTR], attname, attval
+                                sample[self.st_index], attname, attval
                             )
                         )
                         merged_attrs[attname] = _select_new_attval(
@@ -788,9 +789,7 @@ class Project(PathExAttMap):
                 merged_attrs.pop(sample_colname, None)
 
                 _LOGGER.debug(
-                    "Updating Sample {}: {}".format(
-                        sample[SAMPLE_NAME_ATTR], merged_attrs
-                    )
+                    "Updating Sample {}: {}".format(sample[self.st_index], merged_attrs)
                 )
                 sample.update(merged_attrs)
 
@@ -1225,24 +1224,41 @@ class Project(PathExAttMap):
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
-        sdf = self[SUBSAMPLE_DF_KEY]
-        if sdf is None:
-            return
-        index = self.sst_index
-        sdf = make_list(sdf, pd.DataFrame)
-        for sst in sdf:
-            if not all([i in sst.columns for i in index]):
+
+        if not self[SUBSAMPLE_DF_KEY]:
+            return None
+
+        subsample_dataframes_array = make_list(self[SUBSAMPLE_DF_KEY], pd.DataFrame)
+        for subsample_table in subsample_dataframes_array:
+            if not all([i in subsample_table.columns for i in self.sst_index]):
                 _LOGGER.info(
                     "Could not set {} index. At least one of the"
                     " requested columns does not exist: {}".format(
-                        CFG_SUBSAMPLE_TABLE_KEY, index
+                        CFG_SUBSAMPLE_TABLE_KEY, self.sst_index
                     )
                 )
-                return sst
-            sst.set_index(keys=index, drop=False, inplace=True)
-            _LOGGER.info("Setting subsample_table index to: {}".format(index))
-            sst.index = sst.index.set_levels([i.astype(str) for i in sst.index.levels])
-        return sdf if len(sdf) > 1 else sdf[0]
+                return subsample_table
+            subsample_table.set_index(keys=self.sst_index, drop=False, inplace=True)
+            _LOGGER.info("Setting subsample_table index to: {}".format(self.sst_index))
+            subsample_table.index = self._fix_subsample_table_index(subsample_table)
+        return (
+            subsample_dataframes_array
+            if len(subsample_dataframes_array) > 1
+            else subsample_dataframes_array[0]
+        )
+
+    @staticmethod
+    def _fix_subsample_table_index(subsample_table):
+        new_levels = []
+        current_levels = getattr(subsample_table.index, "levels", [])
+
+        for index in current_levels:
+            new_levels.append(index.astype(str))
+
+        if current_levels:
+            subsample_table.index = subsample_table.index.set_levels(new_levels)
+
+        return subsample_table.index
 
     @property
     def is_sample_table_large(self):

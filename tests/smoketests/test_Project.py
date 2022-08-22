@@ -4,6 +4,7 @@ import os
 import socket
 import tempfile
 
+import pandas as pd
 import pytest
 from pandas import DataFrame
 from yaml import dump, safe_load
@@ -360,6 +361,14 @@ class TestProjectConstructor:
     ):
         p = Project(nextflow_sample_table_path, sample_table_index="sample")
         assert len(p.samples) == 4
+
+    def test_peppy_initializes_correctly_for_other_sample_column_name(
+        self, config_with_other_sample_table_index_name
+    ):
+        p = Project(config_with_other_sample_table_index_name, sample_table_index=None)
+
+        assert isinstance(p.subsample_table, pd.DataFrame)
+        assert p.subsample_table.shape == (7, 5)
 
 
 class TestProjectManipulationTests:
