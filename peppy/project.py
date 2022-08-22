@@ -159,14 +159,12 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
+
     def __eq__(self, other):
-        dict_self = self._convert_to_dict(self)
-        dict_other = self._convert_to_dict(other)
+        samples_self = [s.to_dict() for s in self.samples]
+        samples_other = [s.to_dict() for s in other.samples]
 
-        dict_self["_samples"] = [s.to_dict() for s in self.samples]
-        dict_other["_samples"] = [s.to_dict() for s in other.samples]
-
-        return dict_self == dict_other
+        return samples_self == samples_other
 
     def _convert_to_dict(self, project_value=None):
         """
@@ -228,13 +226,26 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_pandas(self, pandas_df: pd.DataFrame) -> object:
+    def from_pandas(
+        self,
+        samples_df: pd.DataFrame,
+        sub_samples_df: pd.DataFrame = None,
+        config: dict = None,
+    ) -> object:
         """
         Init a peppy project instance from a pandas Dataframe
-        :param pandas_df: in-memory pandas DataFrame object
+        :param samples_df: in-memory pandas DataFrame object of samples
+        :param sub_samples_df: in-memory pandas DataFrame object of sub-samples
+        :param config: dict of yaml file
         """
-        self[SAMPLE_DF_KEY] = pandas_df
+        if not config:
+            config = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
+        self[SAMPLE_DF_KEY] = samples_df
+        self[SUBSAMPLE_DF_KEY] = sub_samples_df
+
         self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+
+        self[CONFIG_KEY] = config
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -249,47 +260,18 @@ class Project(PathExAttMap):
         :param dict pep_dictionary: in-memory dict representation of processed pep.
         """
         _LOGGER.info(f"Processing project from dictionary...")
-        if CONFIG_KEY not in self:
-            self[CONFIG_KEY] = PathExAttMap()
-
-        # extract custom index for sample table if exists
-        self.st_index = extract_custom_index_for_sample_table(pep_dictionary)
-
-        # extract custom subsample table index if exists
-        self.sst_index = extract_custom_index_for_subsample_table(pep_dictionary)
-
-        self._samples = [Sample(s, self) for s in pep_dictionary["_samples"]]
-
-        self[CONFIG_KEY].add_entries(pep_dictionary[CONFIG_KEY])
-        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
-        self[CONFIG_FILE_KEY] = pep_dictionary[CONFIG_FILE_KEY]
-
-        self.st_index = pep_dictionary["st_index"]
-        self.sst_index = pep_dictionary["sst_index"]
-
-        self[SAMPLE_TABLE_FILE_KEY] = pep_dictionary[SAMPLE_TABLE_FILE_KEY]
-        self[SUBSAMPLE_TABLES_FILE_KEY] = pep_dictionary[SUBSAMPLE_TABLES_FILE_KEY]
-
-        self[NAME_KEY] = pep_dictionary[NAME_KEY]  # "name"
-        self[DESC_KEY] = pep_dictionary[DESC_KEY]  # "description"
-        self[SAMPLE_DF_LARGE] = pep_dictionary[SAMPLE_DF_LARGE]
 
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
-        if pep_dictionary[SUBSAMPLE_DF_KEY] is not None:
-            self[SUBSAMPLE_DF_KEY] = [
-                pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]
-            ]
-        else:
-            self[SUBSAMPLE_DF_KEY] = None
+        self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
+        if pep_dictionary[SUBSAMPLE_DF_KEY]:
+            self[SUBSAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SUBSAMPLE_DF_KEY])
+        self[NAME_KEY] = pep_dictionary[NAME_KEY]
+        self[DESC_KEY] = pep_dictionary[DESC_KEY]
 
-        if pep_dictionary["_sample_table"] is not None:
-            self._sample_table = pd.DataFrame(pep_dictionary["_sample_table"])
-        else:
-            self._sample_table = None
-
-        self[SAMPLE_EDIT_FLAG_KEY] = pep_dictionary[SAMPLE_EDIT_FLAG_KEY]
-
-        _LOGGER.info(f"Project '{self.name}' has been initiated")
+        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
+        )
 
         return self
 
@@ -302,8 +284,17 @@ class Project(PathExAttMap):
         :return dict: a dictionary representation of the Project object
         """
         if extended:
-            p_dict = self._convert_to_dict(self)
-            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+            if self[SUBSAMPLE_DF_KEY] is not None:
+                sub_df = self[SUBSAMPLE_DF_KEY].to_dict()
+            else:
+                sub_df = None
+            p_dict = {
+                SAMPLE_DF_KEY: self[SAMPLE_DF_KEY].to_dict(),
+                CONFIG_KEY: self[CONFIG_KEY],
+                SUBSAMPLE_DF_KEY: sub_df,
+                NAME_KEY: self[NAME_KEY],
+                DESC_KEY: self[DESC_KEY],
+            }
         else:
             p_dict = self.config.to_dict(expand=expand)
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
@@ -356,19 +347,27 @@ class Project(PathExAttMap):
         df.set_index(keys=index, drop=False, inplace=True)
         return df
 
-    def parse_config_file(self, cfg_path, amendments=None):
+    def parse_config_file(
+        self,
+        cfg_path: str = None,
+        amendments: Iterable[str] = None,
+        config: dict = None,
+    ):
         """
         Parse provided yaml config file and check required fields exist.
 
         :param str cfg_path: path to the config file to read and parse
         :param Iterable[str] amendments: Name of amendments to activate
+        :param dict config: configuration dict
         :raises KeyError: if config file lacks required section(s)
         """
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = PathExAttMap()
-        if not os.path.exists(cfg_path) and not is_url(cfg_path):
-            raise OSError(f"Project config file path does not exist: {cfg_path}")
-        config = load_yaml(cfg_path)
+        if not config:
+            if not os.path.exists(cfg_path) and not is_url(cfg_path):
+                raise OSError(f"Project config file path does not exist: {cfg_path}")
+            config = load_yaml(cfg_path)
+
         assert isinstance(
             config, Mapping
         ), "Config file parse did not yield a Mapping; got {} ({})".format(
@@ -437,7 +436,7 @@ class Project(PathExAttMap):
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
-        _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
+        # _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
     def load_samples(self):
         """
@@ -448,7 +447,7 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-        self._read_sample_data()
+        # self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []

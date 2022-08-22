@@ -15,6 +15,10 @@ Way of initialization project from dictionary. Now it's possible as follows: Pro
 
 - Feature of initializing `peppy.Project` from `pandas.DataFrame`
 
+## [0.34.0] -- 2022-08-17
+
+
+
 ## [0.33.0] -- 2022-07-25
 
 ### Changed
