@@ -459,6 +459,9 @@ class Project(PathExAttMap):
             self[CONFIG_KEY][CONFIG_VERSION_KEY] = PEP_LATEST_VERSION
             self[CONFIG_FILE_KEY] = None
 
+        if SUBSAMPLE_DF_KEY not in self:
+            self[SUBSAMPLE_DF_KEY] = None
+
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
         return samples_list
