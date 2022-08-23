@@ -161,10 +161,10 @@ class Project(PathExAttMap):
 
 
     def __eq__(self, other):
-        samples_self = [s.to_dict() for s in self.samples]
-        samples_other = [s.to_dict() for s in other.samples]
+        samples_self = pd.DataFrame([s.to_dict() for s in self.samples])
+        samples_other = pd.DataFrame([s.to_dict() for s in other.samples])
 
-        return samples_self == samples_other
+        return samples_self.equals(samples_self)
 
     def _convert_to_dict(self, project_value=None):
         """
@@ -264,7 +264,7 @@ class Project(PathExAttMap):
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
         if pep_dictionary[SUBSAMPLE_DF_KEY]:
-            self[SUBSAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SUBSAMPLE_DF_KEY])
+            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub_a) for sub_a in pep_dictionary[SUBSAMPLE_DF_KEY]]
         self[NAME_KEY] = pep_dictionary[NAME_KEY]
         self[DESC_KEY] = pep_dictionary[DESC_KEY]
 
@@ -285,7 +285,7 @@ class Project(PathExAttMap):
         """
         if extended:
             if self[SUBSAMPLE_DF_KEY] is not None:
-                sub_df = self[SUBSAMPLE_DF_KEY].to_dict()
+                sub_df = [sub_a.to_dict() for sub_a in self[SUBSAMPLE_DF_KEY]]
             else:
                 sub_df = None
             p_dict = {
@@ -436,7 +436,7 @@ class Project(PathExAttMap):
         self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
-        # _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
+        _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
     def load_samples(self):
         """
@@ -1272,27 +1272,6 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-
-        def _read_tab(pth):
-            """
-            Internal read table function
-
-            :param str pth: absolute path to the file to read
-            :return pandas.DataFrame: table object
-            """
-            csv_kwargs = {
-                "dtype": str,
-                "index_col": False,
-                "keep_default_na": False,
-                "na_values": [""],
-            }
-            try:
-                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
-            except Exception as e:
-                raise SampleTableFileException(
-                    f"Could not read table: {pth}. "
-                    f"Caught exception: {getattr(e, 'message', repr(e))}"
-                )
 
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:
