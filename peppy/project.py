@@ -447,7 +447,7 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-        # self._read_sample_data()
+        self._read_sample_data()
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
