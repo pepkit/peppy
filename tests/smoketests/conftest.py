@@ -82,4 +82,5 @@ def config_with_pandas_obj(request):
         "example_{}".format(request.param),
         "sample_table.csv",
     )
-    return pd.read_csv(path)
+
+    return pd.read_csv(path, dtype=str)
