@@ -73,6 +73,7 @@ def nextflow_sample_table_path():
 def config_with_other_sample_table_index_name():
     return "tests/data/example_peps-master/example_other_sample_table_index/config.yaml"
 
+
 @pytest.fixture
 def config_with_pandas_obj(request):
     path = os.path.join(

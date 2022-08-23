@@ -159,7 +159,6 @@ class Project(PathExAttMap):
             index=self.st_index, initial=True
         )
 
-
     def __eq__(self, other):
         samples_self = [s.to_dict() for s in self.samples]
         samples_other = [s.to_dict() for s in other.samples]
@@ -264,7 +263,9 @@ class Project(PathExAttMap):
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
         if pep_dictionary[SUBSAMPLE_DF_KEY]:
-            self[SUBSAMPLE_DF_KEY] = [pd.DataFrame(sub_a) for sub_a in pep_dictionary[SUBSAMPLE_DF_KEY]]
+            self[SUBSAMPLE_DF_KEY] = [
+                pd.DataFrame(sub_a) for sub_a in pep_dictionary[SUBSAMPLE_DF_KEY]
+            ]
         self[NAME_KEY] = pep_dictionary[NAME_KEY]
         self[DESC_KEY] = pep_dictionary[DESC_KEY]
 
