@@ -444,11 +444,12 @@ class Project(PathExAttMap):
         Read the sample_table and subsample_tables into dataframes
         and store in the object root. The values sourced from the
         project config can be overwritten by the optional arguments.
-
-        :param str sample_table: a path to a sample table
-        :param List[str] sample_table: a list of paths to sample tables
         """
-        self._read_sample_data()
+        # To initiate project from pandas or dictionary we shouldn't run
+        # this function otherwise it will cause errors
+        if SAMPLE_DF_KEY not in self or self.amendments is not None:
+            self._read_sample_data()
+
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
