@@ -607,8 +607,9 @@ class TestPostInitSampleCreation:
         Test initializing project from dict
         """
         p1 = Project(cfg=example_pep_cfg_path)
-        p1.to_dict(extended=True)
-        p2 = Project().from_dict(p1)
+        p1_dict = p1.to_dict(extended=True)
+        del p1_dict["_config"]["sample_table"]
+        p2 = Project().from_dict(p1_dict)
         assert p1 == p2
 
     @pytest.mark.parametrize("config_with_pandas_obj", ["append"], indirect=True)

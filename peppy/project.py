@@ -351,22 +351,19 @@ class Project(PathExAttMap):
         self,
         cfg_path: str = None,
         amendments: Iterable[str] = None,
-        config: dict = None,
     ):
         """
         Parse provided yaml config file and check required fields exist.
 
         :param str cfg_path: path to the config file to read and parse
         :param Iterable[str] amendments: Name of amendments to activate
-        :param dict config: configuration dict
         :raises KeyError: if config file lacks required section(s)
         """
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = PathExAttMap()
-        if not config:
-            if not os.path.exists(cfg_path) and not is_url(cfg_path):
-                raise OSError(f"Project config file path does not exist: {cfg_path}")
-            config = load_yaml(cfg_path)
+        if not os.path.exists(cfg_path) and not is_url(cfg_path):
+            raise OSError(f"Project config file path does not exist: {cfg_path}")
+        config = load_yaml(cfg_path)
 
         assert isinstance(
             config, Mapping
