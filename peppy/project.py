@@ -295,9 +295,11 @@ class Project(PathExAttMap):
                 NAME_KEY: self[NAME_KEY],
                 DESC_KEY: self[DESC_KEY],
             }
+            p_dict = self._nan_converter(p_dict)
         else:
             p_dict = self.config.to_dict(expand=expand)
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
+
         return p_dict
 
     def create_samples(self, modify: bool = False):
