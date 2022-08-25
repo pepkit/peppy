@@ -160,7 +160,9 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-        return [s.to_dict() for s in self.samples] == [s.to_dict() for s in other.samples]
+        return [s.to_dict() for s in self.samples] == [
+            s.to_dict() for s in other.samples
+        ]
 
     def _convert_to_dict(self, project_value=None):
         """
