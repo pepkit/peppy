@@ -527,7 +527,6 @@ class TestSampleModifiers:
         Verify that the sample merging takes place
         """
         p = Project(cfg=example_pep_cfg_path)
-        a = p.samples
         assert all(
             [
                 isinstance(s["file"], list)

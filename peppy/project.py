@@ -160,10 +160,7 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-        samples_self = [s.to_dict() for s in self.samples]
-        samples_other = [s.to_dict() for s in other.samples]
-
-        return samples_self == samples_other
+        return [s.to_dict() for s in self.samples] == [s.to_dict() for s in other.samples]
 
     def _convert_to_dict(self, project_value=None):
         """
@@ -228,7 +225,7 @@ class Project(PathExAttMap):
     def from_pandas(
         self,
         samples_df: pd.DataFrame,
-        sub_samples_df: pd.DataFrame = None,
+        sub_samples_df: List[pd.DataFrame] = None,
         config: dict = None,
     ) -> object:
         """
