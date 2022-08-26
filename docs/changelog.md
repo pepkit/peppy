@@ -9,13 +9,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Optimization the way of initialization project to and from dictionary. to_dict(extended=True) woun't produce
 all project variables. It will return only most important variables. It allows save space 
 and time.
+- Small refactors.
 
 ### Fixed
 
-- Initialization of `peppy.Project` from `pandas.DataFrame`. Now from_pandas() it can receive sample table, subsample table
-- and config file
+- Initialization of `peppy.Project` from `pandas.DataFrame`. Now from_pandas() it can receive sample table, subsample table and config file
+- Multiple bugs that poked during initialization of the project with custom index column names
+
 
 ### Added
+- New test cases and test data
 
 ## [0.34.0] -- 2022-08-17
 
