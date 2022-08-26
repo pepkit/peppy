@@ -267,7 +267,8 @@ class Project(PathExAttMap):
         if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
-                    pd.DataFrame(sub_a) for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
+                    pd.DataFrame(sub_a)
+                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
                 ]
         if NAME_KEY in pep_dictionary:
             self[NAME_KEY] = pep_dictionary[NAME_KEY]
