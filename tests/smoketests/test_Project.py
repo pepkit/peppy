@@ -336,8 +336,7 @@ class TestProjectConstructor:
         representation.
         """
         p1 = Project(cfg=example_pep_cfg_path)
-        p2 = Project()  # empty
-        p2.from_dict(p1.to_dict(extended=True))
+        p2 = Project().from_dict(p1.to_dict(extended=True))
         assert p1 == p2
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["missing_version"], indirect=True)
@@ -582,3 +581,44 @@ class TestPostInitSampleCreation:
         """
         p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
         _cmp_all_samples_attr(p, pd, "file_path")
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    def test_equality(self, example_pep_cfg_path):
+        """
+        Test equality function of two projects
+        """
+        p1 = Project(cfg=example_pep_cfg_path)
+        p2 = Project(cfg=example_pep_cfg_path)
+        assert p1 == p2
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    @pytest.mark.parametrize("example_pep_csv_path", ["derive"], indirect=True)
+    def test_unequality(self, example_pep_cfg_path, example_pep_csv_path):
+        """
+        Test equality function of two projects
+        """
+        p1 = Project(cfg=example_pep_cfg_path)
+        p2 = Project(cfg=example_pep_csv_path)
+        assert not p1 == p2
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    def test_from_dict(self, example_pep_cfg_path):
+        """
+        Test initializing project from dict
+        """
+        p1 = Project(cfg=example_pep_cfg_path)
+        p1_dict = p1.to_dict(extended=True)
+        del p1_dict["_config"]["sample_table"]
+        p2 = Project().from_dict(p1_dict)
+        assert p1 == p2
+
+    @pytest.mark.parametrize("config_with_pandas_obj", ["append"], indirect=True)
+    @pytest.mark.parametrize("example_pep_csv_path", ["append"], indirect=True)
+    def test_from_pandas(self, config_with_pandas_obj, example_pep_csv_path):
+        """
+        Test initializing project from dict
+        """
+        p1 = Project().from_pandas(config_with_pandas_obj)
+        p2 = Project(example_pep_csv_path)
+
+        assert p1 == p2

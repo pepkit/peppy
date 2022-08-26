@@ -2,6 +2,7 @@
 
 import os
 
+import pandas as pd
 import pytest
 
 __author__ = "Michal Stolarczyk"
@@ -71,3 +72,16 @@ def nextflow_sample_table_path():
 @pytest.fixture
 def config_with_other_sample_table_index_name():
     return "tests/data/example_peps-master/example_other_sample_table_index/config.yaml"
+
+
+@pytest.fixture
+def config_with_pandas_obj(request):
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data",
+        "example_peps-{}".format(EPB),
+        "example_{}".format(request.param),
+        "sample_table.csv",
+    )
+
+    return pd.read_csv(path, dtype=str)

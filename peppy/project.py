@@ -56,6 +56,8 @@ from .const import (
     SUBSAMPLE_NAME_ATTR,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    SAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_DICT_KEY,
 )
 from .exceptions import *
 from .parsers import select_parser
@@ -160,13 +162,9 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-        dict_self = self._convert_to_dict(self)
-        dict_other = self._convert_to_dict(other)
-
-        dict_self["_samples"] = [s.to_dict() for s in self.samples]
-        dict_other["_samples"] = [s.to_dict() for s in other.samples]
-
-        return dict_self == dict_other
+        return [s.to_dict() for s in self.samples] == [
+            s.to_dict() for s in other.samples
+        ]
 
     def _convert_to_dict(self, project_value=None):
         """
@@ -228,13 +226,26 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_pandas(self, pandas_df: pd.DataFrame) -> object:
+    def from_pandas(
+        self,
+        samples_df: pd.DataFrame,
+        sub_samples_df: List[pd.DataFrame] = None,
+        config: dict = None,
+    ) -> object:
         """
         Init a peppy project instance from a pandas Dataframe
-        :param pandas_df: in-memory pandas DataFrame object
+        :param samples_df: in-memory pandas DataFrame object of samples
+        :param sub_samples_df: in-memory list of pandas DataFrame objects of sub-samples
+        :param config: dict of yaml file
         """
-        self[SAMPLE_DF_KEY] = pandas_df
+        if not config:
+            config = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
+        self[SAMPLE_DF_KEY] = samples_df
+        self[SUBSAMPLE_DF_KEY] = sub_samples_df
+
         self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+
+        self[CONFIG_KEY] = config
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -246,50 +257,29 @@ class Project(PathExAttMap):
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-        :param dict pep_dictionary: in-memory dict representation of processed pep.
+        :param dict pep_dictionary: in-memory dict representation of pep.
         """
         _LOGGER.info(f"Processing project from dictionary...")
-        if CONFIG_KEY not in self:
-            self[CONFIG_KEY] = PathExAttMap()
 
-        # extract custom index for sample table if exists
-        self.st_index = extract_custom_index_for_sample_table(pep_dictionary)
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
+        self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
-        # extract custom subsample table index if exists
-        self.sst_index = extract_custom_index_for_subsample_table(pep_dictionary)
+        if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
+            if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
+                self[SUBSAMPLE_DF_KEY] = [
+                    pd.DataFrame(sub_a)
+                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
+                ]
+        if NAME_KEY in pep_dictionary:
+            self[NAME_KEY] = pep_dictionary[NAME_KEY]
 
-        self._samples = [Sample(s, self) for s in pep_dictionary["_samples"]]
+        if DESC_KEY in pep_dictionary:
+            self[DESC_KEY] = pep_dictionary[DESC_KEY]
 
-        self[CONFIG_KEY].add_entries(pep_dictionary[CONFIG_KEY])
-        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
-        self[CONFIG_FILE_KEY] = pep_dictionary[CONFIG_FILE_KEY]
-
-        self.st_index = pep_dictionary["st_index"]
-        self.sst_index = pep_dictionary["sst_index"]
-
-        self[SAMPLE_TABLE_FILE_KEY] = pep_dictionary[SAMPLE_TABLE_FILE_KEY]
-        self[SUBSAMPLE_TABLES_FILE_KEY] = pep_dictionary[SUBSAMPLE_TABLES_FILE_KEY]
-
-        self[NAME_KEY] = pep_dictionary[NAME_KEY]  # "name"
-        self[DESC_KEY] = pep_dictionary[DESC_KEY]  # "description"
-        self[SAMPLE_DF_LARGE] = pep_dictionary[SAMPLE_DF_LARGE]
-
-        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
-        if pep_dictionary[SUBSAMPLE_DF_KEY] is not None:
-            self[SUBSAMPLE_DF_KEY] = [
-                pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]
-            ]
-        else:
-            self[SUBSAMPLE_DF_KEY] = None
-
-        if pep_dictionary["_sample_table"] is not None:
-            self._sample_table = pd.DataFrame(pep_dictionary["_sample_table"])
-        else:
-            self._sample_table = None
-
-        self[SAMPLE_EDIT_FLAG_KEY] = pep_dictionary[SAMPLE_EDIT_FLAG_KEY]
-
-        _LOGGER.info(f"Project '{self.name}' has been initiated")
+        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
+        )
 
         return self
 
@@ -298,15 +288,26 @@ class Project(PathExAttMap):
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
-        :param bool extended: whether extend the paths (is complete project dict)
+        :param bool extended: whether to produce complete project dict (used to reinit the project)
         :return dict: a dictionary representation of the Project object
         """
         if extended:
-            p_dict = self._convert_to_dict(self)
-            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+            if self[SUBSAMPLE_DF_KEY] is not None:
+                sub_df = [sub_a.to_dict() for sub_a in self[SUBSAMPLE_DF_KEY]]
+            else:
+                sub_df = None
+            p_dict = {
+                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
+                CONFIG_KEY: self[CONFIG_KEY],
+                SUBSAMPLE_RAW_DICT_KEY: sub_df,
+                NAME_KEY: self[NAME_KEY],
+                DESC_KEY: self[DESC_KEY],
+            }
+            p_dict = self._nan_converter(p_dict)
         else:
             p_dict = self.config.to_dict(expand=expand)
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
+
         return p_dict
 
     def create_samples(self, modify: bool = False):
@@ -356,7 +357,11 @@ class Project(PathExAttMap):
         df.set_index(keys=index, drop=False, inplace=True)
         return df
 
-    def parse_config_file(self, cfg_path, amendments=None):
+    def parse_config_file(
+        self,
+        cfg_path: str = None,
+        amendments: Iterable[str] = None,
+    ):
         """
         Parse provided yaml config file and check required fields exist.
 
@@ -369,6 +374,7 @@ class Project(PathExAttMap):
         if not os.path.exists(cfg_path) and not is_url(cfg_path):
             raise OSError(f"Project config file path does not exist: {cfg_path}")
         config = load_yaml(cfg_path)
+
         assert isinstance(
             config, Mapping
         ), "Config file parse did not yield a Mapping; got {} ({})".format(
@@ -444,11 +450,12 @@ class Project(PathExAttMap):
         Read the sample_table and subsample_tables into dataframes
         and store in the object root. The values sourced from the
         project config can be overwritten by the optional arguments.
-
-        :param str sample_table: a path to a sample table
-        :param List[str] sample_table: a list of paths to sample tables
         """
-        self._read_sample_data()
+        # To initiate project from pandas or dictionary we shouldn't run
+        # this function otherwise it will cause errors
+        if SAMPLE_DF_KEY not in self or self.amendments is not None:
+            self._read_sample_data()
+
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
@@ -1273,27 +1280,6 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-
-        def _read_tab(pth):
-            """
-            Internal read table function
-
-            :param str pth: absolute path to the file to read
-            :return pandas.DataFrame: table object
-            """
-            csv_kwargs = {
-                "dtype": str,
-                "index_col": False,
-                "keep_default_na": False,
-                "na_values": [""],
-            }
-            try:
-                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
-            except Exception as e:
-                raise SampleTableFileException(
-                    f"Could not read table: {pth}. "
-                    f"Caught exception: {getattr(e, 'message', repr(e))}"
-                )
 
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:
