@@ -56,6 +56,8 @@ from .const import (
     SUBSAMPLE_NAME_ATTR,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    SAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_DICT_KEY,
 )
 from .exceptions import *
 from .parsers import select_parser
@@ -233,7 +235,7 @@ class Project(PathExAttMap):
         """
         Init a peppy project instance from a pandas Dataframe
         :param samples_df: in-memory pandas DataFrame object of samples
-        :param sub_samples_df: in-memory pandas DataFrame object of sub-samples
+        :param sub_samples_df: in-memory list of pandas DataFrame objects of sub-samples
         :param config: dict of yaml file
         """
         if not config:
@@ -255,18 +257,23 @@ class Project(PathExAttMap):
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-        :param dict pep_dictionary: in-memory dict representation of processed pep.
+        :param dict pep_dictionary: in-memory dict representation of pep.
         """
         _LOGGER.info(f"Processing project from dictionary...")
 
-        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
-        if pep_dictionary[SUBSAMPLE_DF_KEY]:
-            self[SUBSAMPLE_DF_KEY] = [
-                pd.DataFrame(sub_a) for sub_a in pep_dictionary[SUBSAMPLE_DF_KEY]
-            ]
-        self[NAME_KEY] = pep_dictionary[NAME_KEY]
-        self[DESC_KEY] = pep_dictionary[DESC_KEY]
+
+        if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
+            if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
+                self[SUBSAMPLE_DF_KEY] = [
+                    pd.DataFrame(sub_a) for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
+                ]
+        if NAME_KEY in pep_dictionary:
+            self[NAME_KEY] = pep_dictionary[NAME_KEY]
+
+        if DESC_KEY in pep_dictionary:
+            self[DESC_KEY] = pep_dictionary[DESC_KEY]
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -280,7 +287,7 @@ class Project(PathExAttMap):
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
-        :param bool extended: whether extend the paths (is complete project dict)
+        :param bool extended: whether to produce complete project dict (used to reinit the project)
         :return dict: a dictionary representation of the Project object
         """
         if extended:
@@ -289,9 +296,9 @@ class Project(PathExAttMap):
             else:
                 sub_df = None
             p_dict = {
-                SAMPLE_DF_KEY: self[SAMPLE_DF_KEY].to_dict(),
+                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
                 CONFIG_KEY: self[CONFIG_KEY],
-                SUBSAMPLE_DF_KEY: sub_df,
+                SUBSAMPLE_RAW_DICT_KEY: sub_df,
                 NAME_KEY: self[NAME_KEY],
                 DESC_KEY: self[DESC_KEY],
             }
