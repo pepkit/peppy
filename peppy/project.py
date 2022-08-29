@@ -1,21 +1,20 @@
 """
 Build a Project object.
 """
+import math
 import os
 from collections.abc import Mapping
+from contextlib import suppress
 from logging import getLogger
-from typing import Dict, List, Tuple, Union, Iterable
+from typing import Dict, Iterable, List, Tuple, Union
 
 import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
 from ubiquerg import is_url
-import math
 
 from peppy.sample import Sample
-
-from .parsers import select_parser
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -40,6 +39,7 @@ from .const import (
     MAX_PROJECT_SAMPLES_REPR,
     METADATA_KEY,
     NAME_KEY,
+    PEP_LATEST_VERSION,
     PKG_NAME,
     PROJ_MODS_KEY,
     REMOVE_KEY,
@@ -56,10 +56,11 @@ from .const import (
     SUBSAMPLE_NAME_ATTR,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
-    PEP_LATEST_VERSION,
+    SAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_DICT_KEY,
 )
-
 from .exceptions import *
+from .parsers import select_parser
 from .sample import Sample
 from .utils import (
     copy,
@@ -140,13 +141,15 @@ class Project(PathExAttMap):
         self.st_index = (
             sample_table_index or getattr(self, "st_index", None) or SAMPLE_NAME_ATTR
         )
+
         self.sst_index = (
-            subsample_table_index
-            or getattr(self, "sst_index", None)
-            or [
-                SAMPLE_NAME_ATTR,
-                SUBSAMPLE_NAME_ATTR,
-            ]
+            ([subsample_table_index] if subsample_table_index else None)
+            or (
+                [getattr(self, "sst_index", None)]
+                if getattr(self, "sst_index", None)
+                else None
+            )
+            or [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
         )
 
         self.name = self.infer_name()
@@ -159,13 +162,9 @@ class Project(PathExAttMap):
         )
 
     def __eq__(self, other):
-        dict_self = self._convert_to_dict(self)
-        dict_other = self._convert_to_dict(other)
-
-        dict_self["_samples"] = [s.to_dict() for s in self.samples]
-        dict_other["_samples"] = [s.to_dict() for s in other.samples]
-
-        return dict_self == dict_other
+        return [s.to_dict() for s in self.samples] == [
+            s.to_dict() for s in other.samples
+        ]
 
     def _convert_to_dict(self, project_value=None):
         """
@@ -227,13 +226,26 @@ class Project(PathExAttMap):
         else:
             return nan_dict
 
-    def from_pandas(self, pandas_df: pd.DataFrame) -> object:
+    def from_pandas(
+        self,
+        samples_df: pd.DataFrame,
+        sub_samples_df: List[pd.DataFrame] = None,
+        config: dict = None,
+    ) -> object:
         """
         Init a peppy project instance from a pandas Dataframe
-        :param pandas_df: in-memory pandas DataFrame object
+        :param samples_df: in-memory pandas DataFrame object of samples
+        :param sub_samples_df: in-memory list of pandas DataFrame objects of sub-samples
+        :param config: dict of yaml file
         """
-        self[SAMPLE_DF_KEY] = pandas_df
+        if not config:
+            config = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
+        self[SAMPLE_DF_KEY] = samples_df
+        self[SUBSAMPLE_DF_KEY] = sub_samples_df
+
         self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+
+        self[CONFIG_KEY] = config
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -245,50 +257,29 @@ class Project(PathExAttMap):
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-        :param dict pep_dictionary: in-memory dict representation of processed pep.
+        :param dict pep_dictionary: in-memory dict representation of pep.
         """
         _LOGGER.info(f"Processing project from dictionary...")
-        if CONFIG_KEY not in self:
-            self[CONFIG_KEY] = PathExAttMap()
 
-        # extract custom index for sample table if exists
-        self.st_index = extract_custom_index_for_sample_table(pep_dictionary)
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
+        self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
-        # extract custom subsample table index if exists
-        self.sst_index = extract_custom_index_for_subsample_table(pep_dictionary)
+        if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
+            if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
+                self[SUBSAMPLE_DF_KEY] = [
+                    pd.DataFrame(sub_a)
+                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
+                ]
+        if NAME_KEY in pep_dictionary:
+            self[NAME_KEY] = pep_dictionary[NAME_KEY]
 
-        self._samples = [Sample(s, self) for s in pep_dictionary["_samples"]]
+        if DESC_KEY in pep_dictionary:
+            self[DESC_KEY] = pep_dictionary[DESC_KEY]
 
-        self[CONFIG_KEY].add_entries(pep_dictionary[CONFIG_KEY])
-        self[CONFIG_KEY][CONFIG_VERSION_KEY] = self.pep_version
-        self[CONFIG_FILE_KEY] = pep_dictionary[CONFIG_FILE_KEY]
-
-        self.st_index = pep_dictionary["st_index"]
-        self.sst_index = pep_dictionary["sst_index"]
-
-        self[SAMPLE_TABLE_FILE_KEY] = pep_dictionary[SAMPLE_TABLE_FILE_KEY]
-        self[SUBSAMPLE_TABLES_FILE_KEY] = pep_dictionary[SUBSAMPLE_TABLES_FILE_KEY]
-
-        self[NAME_KEY] = pep_dictionary[NAME_KEY]  # "name"
-        self[DESC_KEY] = pep_dictionary[DESC_KEY]  # "description"
-        self[SAMPLE_DF_LARGE] = pep_dictionary[SAMPLE_DF_LARGE]
-
-        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_DF_KEY])
-        if pep_dictionary[SUBSAMPLE_DF_KEY] is not None:
-            self[SUBSAMPLE_DF_KEY] = [
-                pd.DataFrame(sub) for sub in pep_dictionary[SUBSAMPLE_DF_KEY]
-            ]
-        else:
-            self[SUBSAMPLE_DF_KEY] = None
-
-        if pep_dictionary["_sample_table"] is not None:
-            self._sample_table = pd.DataFrame(pep_dictionary["_sample_table"])
-        else:
-            self._sample_table = None
-
-        self[SAMPLE_EDIT_FLAG_KEY] = pep_dictionary[SAMPLE_EDIT_FLAG_KEY]
-
-        _LOGGER.info(f"Project '{self.name}' has been initiated")
+        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
+        )
 
         return self
 
@@ -297,15 +288,26 @@ class Project(PathExAttMap):
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
-        :param bool extended: whether extend the paths (is complete project dict)
+        :param bool extended: whether to produce complete project dict (used to reinit the project)
         :return dict: a dictionary representation of the Project object
         """
         if extended:
-            p_dict = self._convert_to_dict(self)
-            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+            if self[SUBSAMPLE_DF_KEY] is not None:
+                sub_df = [sub_a.to_dict() for sub_a in self[SUBSAMPLE_DF_KEY]]
+            else:
+                sub_df = None
+            p_dict = {
+                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
+                CONFIG_KEY: self[CONFIG_KEY],
+                SUBSAMPLE_RAW_DICT_KEY: sub_df,
+                NAME_KEY: self[NAME_KEY],
+                DESC_KEY: self[DESC_KEY],
+            }
+            p_dict = self._nan_converter(p_dict)
         else:
             p_dict = self.config.to_dict(expand=expand)
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
+
         return p_dict
 
     def create_samples(self, modify: bool = False):
@@ -355,7 +357,11 @@ class Project(PathExAttMap):
         df.set_index(keys=index, drop=False, inplace=True)
         return df
 
-    def parse_config_file(self, cfg_path, amendments=None):
+    def parse_config_file(
+        self,
+        cfg_path: str = None,
+        amendments: Iterable[str] = None,
+    ):
         """
         Parse provided yaml config file and check required fields exist.
 
@@ -368,6 +374,7 @@ class Project(PathExAttMap):
         if not os.path.exists(cfg_path) and not is_url(cfg_path):
             raise OSError(f"Project config file path does not exist: {cfg_path}")
         config = load_yaml(cfg_path)
+
         assert isinstance(
             config, Mapping
         ), "Config file parse did not yield a Mapping; got {} ({})".format(
@@ -443,11 +450,12 @@ class Project(PathExAttMap):
         Read the sample_table and subsample_tables into dataframes
         and store in the object root. The values sourced from the
         project config can be overwritten by the optional arguments.
-
-        :param str sample_table: a path to a sample table
-        :param List[str] sample_table: a list of paths to sample tables
         """
-        self._read_sample_data()
+        # To initiate project from pandas or dictionary we shouldn't run
+        # this function otherwise it will cause errors
+        if SAMPLE_DF_KEY not in self or self.amendments is not None:
+            self._read_sample_data()
+
         samples_list = []
         if SAMPLE_DF_KEY not in self:
             return []
@@ -459,6 +467,9 @@ class Project(PathExAttMap):
         elif len(self[CONFIG_KEY]) < 1:
             self[CONFIG_KEY][CONFIG_VERSION_KEY] = PEP_LATEST_VERSION
             self[CONFIG_FILE_KEY] = None
+
+        if SUBSAMPLE_DF_KEY not in self:
+            self[SUBSAMPLE_DF_KEY] = None
 
         for _, r in self[SAMPLE_DF_KEY].iterrows():
             samples_list.append(Sample(r.dropna(), prj=self))
@@ -571,7 +582,7 @@ class Project(PathExAttMap):
 
         :raise InvalidSampleTableFileException: if names are not specified
         """
-        try:
+        with suppress(KeyError):
             # before merging, which requires sample_name attribute to map
             # sample_table rows to subsample_table rows,
             # perform only sample_name attr derivation
@@ -580,15 +591,12 @@ class Project(PathExAttMap):
                 in self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
             ):
                 self.attr_derive(attrs=[SAMPLE_NAME_ATTR])
-        except KeyError:
-            pass
+
         for sample in self.samples:
             if self.st_index not in sample:
-                msg_base = "{st} is missing '{sn}' column; ".format(
-                    st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
-                )
-                msg = msg_base + "you must specify {sn}s in {st} or derive them".format(
-                    st=CFG_SAMPLE_TABLE_KEY, sn=self.st_index
+                message = (
+                    f"{CFG_SAMPLE_TABLE_KEY} is missing '{self.st_index}' column; "
+                    f"you must specify {CFG_SAMPLE_TABLE_KEY}s in {self.st_index} or derive them"
                 )
                 if self.st_index != SAMPLE_NAME_ATTR:
                     try:
@@ -599,12 +607,12 @@ class Project(PathExAttMap):
                         )
                     setattr(sample, SAMPLE_NAME_ATTR, custom_sample_name)
                     _LOGGER.warning(
-                        msg_base
+                        message
                         + f"using specified {CFG_SAMPLE_TABLE_KEY} index ({self.st_index}) instead. "
                         + f"Setting name: {custom_sample_name}"
                     )
                 else:
-                    raise InvalidSampleTableFileException(msg)
+                    raise InvalidSampleTableFileException(message)
 
     def _auto_merge_duplicated_names(self):
         """
@@ -720,7 +728,7 @@ class Project(PathExAttMap):
             return
         for subsample_table in self[SUBSAMPLE_DF_KEY]:
             for n in list(subsample_table[self.st_index]):
-                if n not in [s[SAMPLE_NAME_ATTR] for s in self.samples]:
+                if n not in [s[self.st_index] for s in self.samples]:
                     _LOGGER.warning(
                         ("Couldn't find matching sample for subsample: {}").format(n)
                     )
@@ -739,7 +747,7 @@ class Project(PathExAttMap):
                     "subannotation table".format(sample_colname)
                 )
                 sample_indexer = (
-                    subsample_table[sample_colname] == sample[SAMPLE_NAME_ATTR]
+                    subsample_table[sample_colname] == sample[self.st_index]
                 )
                 this_sample_rows = subsample_table[sample_indexer].dropna(
                     how="all", axis=1
@@ -777,7 +785,7 @@ class Project(PathExAttMap):
                             continue
                         _LOGGER.debug(
                             "merge: sample '{}'; '{}'='{}'".format(
-                                sample[SAMPLE_NAME_ATTR], attname, attval
+                                sample[self.st_index], attname, attval
                             )
                         )
                         merged_attrs[attname] = _select_new_attval(
@@ -788,9 +796,7 @@ class Project(PathExAttMap):
                 merged_attrs.pop(sample_colname, None)
 
                 _LOGGER.debug(
-                    "Updating Sample {}: {}".format(
-                        sample[SAMPLE_NAME_ATTR], merged_attrs
-                    )
+                    "Updating Sample {}: {}".format(sample[self.st_index], merged_attrs)
                 )
                 sample.update(merged_attrs)
 
@@ -1225,24 +1231,41 @@ class Project(PathExAttMap):
 
         :return pandas.DataFrame: a data frame with subsample attributes
         """
-        sdf = self[SUBSAMPLE_DF_KEY]
-        if sdf is None:
-            return
-        index = self.sst_index
-        sdf = make_list(sdf, pd.DataFrame)
-        for sst in sdf:
-            if not all([i in sst.columns for i in index]):
+
+        if not self[SUBSAMPLE_DF_KEY]:
+            return None
+
+        subsample_dataframes_array = make_list(self[SUBSAMPLE_DF_KEY], pd.DataFrame)
+        for subsample_table in subsample_dataframes_array:
+            if not all([i in subsample_table.columns for i in self.sst_index]):
                 _LOGGER.info(
                     "Could not set {} index. At least one of the"
                     " requested columns does not exist: {}".format(
-                        CFG_SUBSAMPLE_TABLE_KEY, index
+                        CFG_SUBSAMPLE_TABLE_KEY, self.sst_index
                     )
                 )
-                return sst
-            sst.set_index(keys=index, drop=False, inplace=True)
-            _LOGGER.info("Setting subsample_table index to: {}".format(index))
-            sst.index = sst.index.set_levels([i.astype(str) for i in sst.index.levels])
-        return sdf if len(sdf) > 1 else sdf[0]
+                return subsample_table
+            subsample_table.set_index(keys=self.sst_index, drop=False, inplace=True)
+            _LOGGER.info("Setting subsample_table index to: {}".format(self.sst_index))
+            subsample_table.index = self._fix_subsample_table_index(subsample_table)
+        return (
+            subsample_dataframes_array
+            if len(subsample_dataframes_array) > 1
+            else subsample_dataframes_array[0]
+        )
+
+    @staticmethod
+    def _fix_subsample_table_index(subsample_table):
+        new_levels = []
+        current_levels = getattr(subsample_table.index, "levels", [])
+
+        for index in current_levels:
+            new_levels.append(index.astype(str))
+
+        if current_levels:
+            subsample_table.index = subsample_table.index.set_levels(new_levels)
+
+        return subsample_table.index
 
     @property
     def is_sample_table_large(self):
@@ -1257,27 +1280,6 @@ class Project(PathExAttMap):
         :param str sample_table: a path to a sample table
         :param List[str] sample_table: a list of paths to sample tables
         """
-
-        def _read_tab(pth):
-            """
-            Internal read table function
-
-            :param str pth: absolute path to the file to read
-            :return pandas.DataFrame: table object
-            """
-            csv_kwargs = {
-                "dtype": str,
-                "index_col": False,
-                "keep_default_na": False,
-                "na_values": [""],
-            }
-            try:
-                return pd.read_csv(pth, sep=infer_delimiter(pth), **csv_kwargs)
-            except Exception as e:
-                raise SampleTableFileException(
-                    f"Could not read table: {pth}. "
-                    f"Caught exception: {getattr(e, 'message', repr(e))}"
-                )
 
         no_metadata_msg = "No {} specified"
         if self[SAMPLE_TABLE_FILE_KEY] is not None:
