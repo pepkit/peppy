@@ -1,0 +1,13 @@
+pep_version: "2.0.0"
+sample_modifiers:
+  append:
+    imported_attr: imported_val
+
+value: &anchor Foo
+testvalue: *anchor
+anchors:
+  - &property value
+  - &trimmer trimmomatic
+  - &setting 4
+
+trimmer: *trimmer

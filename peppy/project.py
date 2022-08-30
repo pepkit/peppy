@@ -8,6 +8,7 @@ from contextlib import suppress
 from logging import getLogger
 from typing import Dict, Iterable, List, Tuple, Union
 
+import numpy as np
 import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
@@ -50,14 +51,14 @@ from .const import (
     SAMPLE_MODIFIERS,
     SAMPLE_MODS_KEY,
     SAMPLE_NAME_ATTR,
+    SAMPLE_RAW_DICT_KEY,
     SAMPLE_TABLE_FILE_KEY,
     SAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_DF_KEY,
     SUBSAMPLE_NAME_ATTR,
+    SUBSAMPLE_RAW_DICT_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
-    SAMPLE_RAW_DICT_KEY,
-    SUBSAMPLE_RAW_DICT_KEY,
 )
 from .exceptions import *
 from .parsers import select_parser
@@ -472,7 +473,7 @@ class Project(PathExAttMap):
             self[SUBSAMPLE_DF_KEY] = None
 
         for _, r in self[SAMPLE_DF_KEY].iterrows():
-            samples_list.append(Sample(r.dropna(), prj=self))
+            samples_list.append(Sample(r, prj=self))
         return samples_list
 
     def modify_samples(self):
@@ -727,10 +728,12 @@ class Project(PathExAttMap):
             _LOGGER.debug("No {} found, skipping merge".format(CFG_SUBSAMPLE_TABLE_KEY))
             return
         for subsample_table in self[SUBSAMPLE_DF_KEY]:
-            for n in list(subsample_table[self.st_index]):
-                if n not in [s[self.st_index] for s in self.samples]:
+            for sample_name in list(subsample_table[self.st_index]):
+                if sample_name not in [s[self.st_index] for s in self.samples]:
                     _LOGGER.warning(
-                        ("Couldn't find matching sample for subsample: {}").format(n)
+                        ("Couldn't find matching sample for subsample: {}").format(
+                            sample_name
+                        )
                     )
             for sample in track(
                 self.samples,
@@ -749,8 +752,8 @@ class Project(PathExAttMap):
                 sample_indexer = (
                     subsample_table[sample_colname] == sample[self.st_index]
                 )
-                this_sample_rows = subsample_table[sample_indexer].dropna(
-                    how="all", axis=1
+                this_sample_rows = subsample_table[sample_indexer].replace(
+                    {np.nan: None}
                 )
                 if len(this_sample_rows) == 0:
                     _LOGGER.debug(
