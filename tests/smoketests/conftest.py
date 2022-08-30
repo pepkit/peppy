@@ -75,6 +75,11 @@ def config_with_other_sample_table_index_name():
 
 
 @pytest.fixture
+def config_with_pep_raising_error():
+    return "tests/data/example_peps-master/example_nextflow_config_error/config.yaml"
+
+
+@pytest.fixture
 def config_with_pandas_obj(request):
     path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
