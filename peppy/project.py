@@ -172,7 +172,7 @@ class Project(PathExAttMap):
         samples_df: pd.DataFrame,
         sub_samples_df: List[pd.DataFrame] = None,
         config: dict = None,
-    ) -> object:
+    ) -> 'Project':
         """
         Init a peppy project instance from a pandas Dataframe
         :param samples_df: in-memory pandas DataFrame object of samples
@@ -194,7 +194,7 @@ class Project(PathExAttMap):
         )
         return self
 
-    def from_dict(self, pep_dictionary: dict) -> object:
+    def from_dict(self, pep_dictionary: dict) -> 'Project':
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
