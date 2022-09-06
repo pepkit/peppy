@@ -167,72 +167,12 @@ class Project(PathExAttMap):
             s.to_dict() for s in other.samples
         ]
 
-    def _convert_to_dict(self, project_value=None):
-        """
-        Recursively transform various project values, objects, and attributes to a dictionary
-        compatible format. Useful for creating an extended dictionary representation
-        of the peppy project.
-
-        :param project_value object - the value to transform
-        """
-        if isinstance(project_value, list):
-            new_list = []
-            for item_value in project_value:
-                new_list.append(self._convert_to_dict(item_value))
-            return new_list
-
-        elif isinstance(project_value, dict):
-            new_dict = {}
-            for key, value in project_value.items():
-                if key != "_project":
-                    new_dict[key] = self._convert_to_dict(value)
-            return new_dict
-
-        elif isinstance(project_value, PathExAttMap):
-            new_dict = PathExAttMap.to_dict(project_value)
-            return self._convert_to_dict(new_dict)
-
-        elif isinstance(project_value, Sample):
-            new_dict = PathExAttMap.to_dict(project_value)
-            return new_dict
-
-        elif isinstance(project_value, pd.DataFrame):
-            project_value = project_value.to_dict()
-            project_value = self._nan_converter(project_value)
-            return project_value
-
-        else:
-            return project_value
-
-    def _nan_converter(self, nan_dict: Dict) -> Union[Dict, List]:
-        """
-        Searching and converting nan values to None
-        :param dict nan_dict: dictionary with nan values
-        """
-        if isinstance(nan_dict, list):
-            new_list = []
-            for list_item in nan_dict:
-                new_list.append(self._nan_converter(list_item))
-
-            return new_list
-
-        elif isinstance(nan_dict, dict):
-            new_dict = {}
-            for key, value in nan_dict.items():
-                new_dict[key] = self._nan_converter(value)
-            return new_dict
-        elif isinstance(nan_dict, float):
-            if math.isnan(nan_dict):
-                return None
-        else:
-            return nan_dict
-
     def from_pandas(
         self,
         samples_df: pd.DataFrame,
         sub_samples_df: List[pd.DataFrame] = None,
         config: dict = None,
-    ) -> object:
+    ) -> "Project":
         """
         Init a peppy project instance from a pandas Dataframe
         :param samples_df: in-memory pandas DataFrame object of samples
@@ -254,7 +194,7 @@ class Project(PathExAttMap):
         )
         return self
 
-    def from_dict(self, pep_dictionary: dict) -> object:
+    def from_dict(self, pep_dictionary: dict) -> "Project":
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
@@ -304,7 +244,6 @@ class Project(PathExAttMap):
                 NAME_KEY: self[NAME_KEY],
                 DESC_KEY: self[DESC_KEY],
             }
-            p_dict = self._nan_converter(p_dict)
         else:
             p_dict = self.config.to_dict(expand=expand)
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
