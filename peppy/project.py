@@ -691,9 +691,7 @@ class Project(PathExAttMap):
                 sample_indexer = (
                     subsample_table[sample_colname] == sample[self.st_index]
                 )
-                this_sample_rows = subsample_table[sample_indexer].replace(
-                    {np.nan: None}
-                )
+                this_sample_rows = subsample_table[sample_indexer]
                 if len(this_sample_rows) == 0:
                     _LOGGER.debug(
                         "No merge rows for sample '%s', skipping",
