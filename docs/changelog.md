@@ -2,6 +2,18 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.35.1] -- 2022-09-07
+### Changed
+- Organization of test files. Separated unittests from smoketests.
+
+### Fixed
+- The root cause of `np.nan` values showing up in Pandas dataframes. Replaced the values with None right after reading the database, which made it possible to remove all custom `np.nan` to `None` converters used later in the code.
+- Typing in some methods.
+- Code redundancy in fixtures in conftest.
+
+### Added
+- New test cases with test data
+
 ## [0.35.0] -- 2022-08-25
 
 ### Changed 
