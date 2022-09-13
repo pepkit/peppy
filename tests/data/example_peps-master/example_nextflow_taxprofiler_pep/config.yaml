@@ -1,0 +1,2 @@
+pep_version: "2.1.0"
+sample_table: "https://raw.githubusercontent.com/pepkit/example_peps/master/example_nextflow_taxprofiler_pep/samplesheet.csv"

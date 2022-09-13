@@ -138,7 +138,7 @@ class Sample(PathExAttMap):
             elif isnull(obj):
                 # Missing values as evaluated by pandas.isnull().
                 # This gets correctly written into yaml.
-                return "NaN"
+                return None
             else:
                 return obj
 

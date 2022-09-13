@@ -4,6 +4,7 @@ import os
 import socket
 import tempfile
 
+import numpy as np
 import pytest
 from pandas import DataFrame
 from yaml import dump, safe_load
@@ -337,6 +338,16 @@ class TestProjectConstructor:
         p1 = Project(cfg=example_pep_cfg_path)
         p2 = Project().from_dict(p1.to_dict(extended=True))
         assert p1 == p2
+
+    def test_to_dict_does_not_create_nans(self, example_pep_nextflow_csv_path):
+        wrong_values = ["NaN", np.nan, "nan"]
+
+        p1 = Project(
+            cfg=example_pep_nextflow_csv_path, sample_table_index="sample"
+        ).to_dict()
+        for sample in p1.get("_samples"):
+            for attribute, value in sample.items():
+                assert value not in wrong_values
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["missing_version"], indirect=True)
     def test_missing_version(self, example_pep_cfg_path):

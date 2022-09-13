@@ -4,6 +4,7 @@ import os
 
 import pandas as pd
 import pytest
+import json
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal.stolarczyk@nih.gov"
@@ -34,6 +35,11 @@ def example_pep_cfg_path(request):
 @pytest.fixture
 def example_pep_csv_path(request):
     return get_path_to_example_file(EPB, request.param, "sample_table.csv")
+
+
+@pytest.fixture
+def example_pep_nextflow_csv_path():
+    return get_path_to_example_file(EPB, "nextflow_taxprofiler_pep", "samplesheet.csv")
 
 
 @pytest.fixture
