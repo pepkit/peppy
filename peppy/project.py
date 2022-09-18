@@ -2,7 +2,7 @@
 Build a Project object.
 """
 import math
-import os
+import os, sys
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
@@ -13,6 +13,7 @@ import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
+from rich.console import Console
 from ubiquerg import is_url
 
 from peppy.sample import Sample
@@ -637,6 +638,7 @@ class Project(PathExAttMap):
                     sample_names_list,
                     description="Detecting duplicate sample names",
                     disable=not Project.is_sample_table_large,
+                    console=Console(file=sys.stderr),
                 )
                 if sample_names_list.count(sample_id) > 1
             ]
