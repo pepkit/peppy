@@ -133,6 +133,7 @@ class Project(PathExAttMap):
 
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
+        self.is_private = False
 
         # table indexes can be specified in config or passed to the object constructor
         # That's the priority order:
