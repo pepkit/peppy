@@ -182,7 +182,7 @@ class Project(PathExAttMap):
         """
         if not config:
             config = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
-        self[SAMPLE_DF_KEY] = samples_df
+        self[SAMPLE_DF_KEY] = samples_df.replace(np.nan, "")
         self[SUBSAMPLE_DF_KEY] = sub_samples_df
 
         self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
