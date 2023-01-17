@@ -629,15 +629,14 @@ class Project(PathExAttMap):
     def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
         return all(value == list_of_values[0] for value in list_of_values)
 
-    @staticmethod
-    def _get_duplicated_sample_ids(sample_names_list: List) -> set:
+    def _get_duplicated_sample_ids(self, sample_names_list: List) -> set:
         return set(
             [
                 sample_id
                 for sample_id in track(
                     sample_names_list,
                     description="Detecting duplicate sample names",
-                    disable=not Project.is_sample_table_large,
+                    disable=not self.is_sample_table_large,
                 )
                 if sample_names_list.count(sample_id) > 1
             ]
