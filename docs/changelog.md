@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [0.35.4] -- 2023-01-17
 ### Fixed
 - Fixed disabling rich progress on small datasets bug
+- Disabled progressbar if object variable `progressbar` is set False
 
 ## [0.35.3] -- 2022-11-16
 ### Fixed
