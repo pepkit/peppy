@@ -474,7 +474,7 @@ class Project(PathExAttMap):
             for s in track(
                 self.samples,
                 description="Removing sample attributes",
-                disable=not self.is_sample_table_large and self.progressbar,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 for attr in to_remove:
                     _del_if_in(s, attr)
@@ -491,7 +491,7 @@ class Project(PathExAttMap):
             for s in track(
                 self.samples,
                 description="Applying constant sample attributes",
-                disable=not self.is_sample_table_large and self.progressbar,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 for attr, val in to_append.items():
                     if attr not in s:
@@ -507,7 +507,7 @@ class Project(PathExAttMap):
             for sample in track(
                 self.samples,
                 description="Applying synonymous sample attributes",
-                disable=not self.is_sample_table_large and self.progressbar,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 for attr, new in synonyms.items():
                     if attr in sample:
@@ -637,7 +637,7 @@ class Project(PathExAttMap):
                 for sample_id in track(
                     sample_names_list,
                     description="Detecting duplicate sample names",
-                    disable=not self.is_sample_table_large and self.progressbar,
+                    disable=not (self.is_sample_table_large and self.progressbar),
                 )
                 if sample_names_list.count(sample_id) > 1
             ]
@@ -678,7 +678,7 @@ class Project(PathExAttMap):
             for sample in track(
                 self.samples,
                 description=f"Merging subsamples, adding sample attrs: {', '.join(subsample_table.keys())}",
-                disable=not self.is_sample_table_large and self.progressbar,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 sample_colname = self.st_index
                 if sample_colname not in subsample_table.columns:
@@ -769,7 +769,7 @@ class Project(PathExAttMap):
         for sample in track(
             self.samples,
             description="Implying sample attributes",
-            disable=not self.is_sample_table_large and self.progressbar,
+            disable=not (self.is_sample_table_large and self.progressbar),
         ):
             for implication in implications:
                 implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
@@ -818,7 +818,7 @@ class Project(PathExAttMap):
         for sample in track(
             self.samples,
             description="Deriving sample attributes",
-            disable=not self.is_sample_table_large and self.progressbar,
+            disable=not (self.is_sample_table_large and self.progressbar),
         ):
             for attr in derivations:
                 if not hasattr(sample, attr):
