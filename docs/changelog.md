@@ -1,8 +1,19 @@
 # Changelog
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
+
+## [0.35.4] -- 2023-01-17
+### Fixed
+- Fixed disabling rich progress on small datasets bug
+- Disabled progressbar if object variable `progressbar` is set False
+
+## [0.35.3] -- 2022-11-16
+### Fixed
+- Returning `NaN` value in initialization project from pandas df
+
 ## [0.35.2] -- 2022-09-13
 ### Fixed
+
 - Returning `NaN` value within `to_dict` method was fixed and method now returns `None` instead
 ## [0.35.1] -- 2022-09-07
 ### Changed
