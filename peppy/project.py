@@ -2,7 +2,7 @@
 Build a Project object.
 """
 import math
-import os
+import os, sys
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
@@ -13,6 +13,7 @@ import pandas as pd
 from attmap import PathExAttMap
 from pandas.core.common import flatten
 from rich.progress import track
+from rich.console import Console
 from ubiquerg import is_url
 
 from peppy.sample import Sample
@@ -475,6 +476,7 @@ class Project(PathExAttMap):
                 self.samples,
                 description="Removing sample attributes",
                 disable=not (self.is_sample_table_large and self.progressbar),
+                console=Console(file=sys.stderr),
             ):
                 for attr in to_remove:
                     _del_if_in(s, attr)
@@ -492,6 +494,7 @@ class Project(PathExAttMap):
                 self.samples,
                 description="Applying constant sample attributes",
                 disable=not (self.is_sample_table_large and self.progressbar),
+                console=Console(file=sys.stderr),
             ):
                 for attr, val in to_append.items():
                     if attr not in s:
@@ -508,6 +511,7 @@ class Project(PathExAttMap):
                 self.samples,
                 description="Applying synonymous sample attributes",
                 disable=not (self.is_sample_table_large and self.progressbar),
+                console=Console(file=sys.stderr),
             ):
                 for attr, new in synonyms.items():
                     if attr in sample:
@@ -638,6 +642,7 @@ class Project(PathExAttMap):
                     sample_names_list,
                     description="Detecting duplicate sample names",
                     disable=not (self.is_sample_table_large and self.progressbar),
+                    console=Console(file=sys.stderr),
                 )
                 if sample_names_list.count(sample_id) > 1
             ]
@@ -679,6 +684,7 @@ class Project(PathExAttMap):
                 self.samples,
                 description=f"Merging subsamples, adding sample attrs: {', '.join(subsample_table.keys())}",
                 disable=not (self.is_sample_table_large and self.progressbar),
+                console=Console(file=sys.stderr),
             ):
                 sample_colname = self.st_index
                 if sample_colname not in subsample_table.columns:
@@ -770,6 +776,7 @@ class Project(PathExAttMap):
             self.samples,
             description="Implying sample attributes",
             disable=not (self.is_sample_table_large and self.progressbar),
+            console=Console(file=sys.stderr),
         ):
             for implication in implications:
                 implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
@@ -819,6 +826,7 @@ class Project(PathExAttMap):
             self.samples,
             description="Deriving sample attributes",
             disable=not (self.is_sample_table_large and self.progressbar),
+            console=Console(file=sys.stderr),
         ):
             for attr in derivations:
                 if not hasattr(sample, attr):
