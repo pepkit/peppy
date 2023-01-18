@@ -134,6 +134,7 @@ class Project(PathExAttMap):
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
         self.is_private = False
+        self.progressbar = False
 
         # table indexes can be specified in config or passed to the object constructor
         # That's the priority order:
@@ -473,7 +474,7 @@ class Project(PathExAttMap):
             for s in track(
                 self.samples,
                 description="Removing sample attributes",
-                disable=not self.is_sample_table_large,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 for attr in to_remove:
                     _del_if_in(s, attr)
@@ -490,7 +491,7 @@ class Project(PathExAttMap):
             for s in track(
                 self.samples,
                 description="Applying constant sample attributes",
-                disable=not self.is_sample_table_large,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 for attr, val in to_append.items():
                     if attr not in s:
@@ -506,7 +507,7 @@ class Project(PathExAttMap):
             for sample in track(
                 self.samples,
                 description="Applying synonymous sample attributes",
-                disable=not self.is_sample_table_large,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 for attr, new in synonyms.items():
                     if attr in sample:
@@ -629,15 +630,14 @@ class Project(PathExAttMap):
     def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
         return all(value == list_of_values[0] for value in list_of_values)
 
-    @staticmethod
-    def _get_duplicated_sample_ids(sample_names_list: List) -> set:
+    def _get_duplicated_sample_ids(self, sample_names_list: List) -> set:
         return set(
             [
                 sample_id
                 for sample_id in track(
                     sample_names_list,
                     description="Detecting duplicate sample names",
-                    disable=not Project.is_sample_table_large,
+                    disable=not (self.is_sample_table_large and self.progressbar),
                 )
                 if sample_names_list.count(sample_id) > 1
             ]
@@ -678,7 +678,7 @@ class Project(PathExAttMap):
             for sample in track(
                 self.samples,
                 description=f"Merging subsamples, adding sample attrs: {', '.join(subsample_table.keys())}",
-                disable=not self.is_sample_table_large,
+                disable=not (self.is_sample_table_large and self.progressbar),
             ):
                 sample_colname = self.st_index
                 if sample_colname not in subsample_table.columns:
@@ -769,7 +769,7 @@ class Project(PathExAttMap):
         for sample in track(
             self.samples,
             description="Implying sample attributes",
-            disable=not self.is_sample_table_large,
+            disable=not (self.is_sample_table_large and self.progressbar),
         ):
             for implication in implications:
                 implier_attrs = list(implication[IMPLIED_IF_KEY].keys())
@@ -818,7 +818,7 @@ class Project(PathExAttMap):
         for sample in track(
             self.samples,
             description="Deriving sample attributes",
-            disable=not self.is_sample_table_large,
+            disable=not (self.is_sample_table_large and self.progressbar),
         ):
             for attr in derivations:
                 if not hasattr(sample, attr):
