@@ -561,7 +561,7 @@ class TestPostInitSampleCreation:
         """
         p1 = Project(cfg=example_pep_cfg_path)
         p1_dict = p1.to_dict(extended=True)
-        del p1_dict["_config"]["sample_table"]
+        del p1_dict["config"]["sample_table"]
         p2 = Project().from_dict(p1_dict)
         assert p1 == p2
 

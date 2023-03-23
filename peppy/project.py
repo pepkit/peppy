@@ -60,6 +60,7 @@ from .const import (
     SUBSAMPLE_RAW_DICT_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    CONFIG_DICT_KEY,
 )
 from .exceptions import *
 from .parsers import select_parser
@@ -205,8 +206,10 @@ class Project(PathExAttMap):
         """
         _LOGGER.info(f"Processing project from dictionary...")
 
+        pep_dictionary = {k.lstrip("_"): v for (k, v) in pep_dictionary.items()}
+
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
-        self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
+        self[CONFIG_KEY] = pep_dictionary[CONFIG_DICT_KEY]
 
         if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
@@ -242,7 +245,7 @@ class Project(PathExAttMap):
                 sub_df = None
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
-                CONFIG_KEY: self[CONFIG_KEY],
+                CONFIG_DICT_KEY: self[CONFIG_KEY],
                 SUBSAMPLE_RAW_DICT_KEY: sub_df,
                 NAME_KEY: self[NAME_KEY],
                 DESC_KEY: self[DESC_KEY],
