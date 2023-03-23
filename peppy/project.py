@@ -245,7 +245,7 @@ class Project(PathExAttMap):
                 sub_df = None
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
-                CONFIG_DICT_KEY: self[CONFIG_KEY],
+                CONFIG_DICT_KEY: dict(self[CONFIG_KEY]),
                 SUBSAMPLE_RAW_DICT_KEY: sub_df,
                 NAME_KEY: self[NAME_KEY],
                 DESC_KEY: self[DESC_KEY],
