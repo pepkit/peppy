@@ -10,7 +10,7 @@ from pandas import DataFrame
 from yaml import dump, safe_load
 
 from peppy import Project
-from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
+from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY, CONFIG_DICT_KEY
 from peppy.exceptions import (
     IllegalStateException,
     InvalidSampleTableFileException,
@@ -560,7 +560,7 @@ class TestPostInitSampleCreation:
         """
         p1 = Project(cfg=example_pep_cfg_path)
         p1_dict = p1.to_dict(extended=True)
-        del p1_dict["config"]["sample_table"]
+        del p1_dict[CONFIG_DICT_KEY]["sample_table"]
         p2 = Project().from_dict(p1_dict)
         assert p1 == p2
 
