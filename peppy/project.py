@@ -657,7 +657,6 @@ class Project(PathExAttMap):
     ) -> dict:
         merged_attributes = {}
         for attr in sample_attributes:
-
             attribute_values = []
             for sample in duplicated_samples:
                 attribute_value_for_sample = getattr(sample, attr, "")
