@@ -635,16 +635,16 @@ class Project(PathExAttMap):
         return all(value == list_of_values[0] for value in list_of_values)
 
     def _get_duplicated_sample_ids(self, sample_names_list: List) -> set:
-        result = set()
+        duplicated_ids = set()
         seen = set()
 
         for sample_id in sample_names_list:
             if sample_id in seen:
-                result.add(sample_id)
+                duplicated_ids.add(sample_id)
             else:
                 seen.add(sample_id)
 
-        return result
+        return duplicated_ids
 
     @staticmethod
     def _get_merged_attributes(
