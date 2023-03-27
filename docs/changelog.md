@@ -4,7 +4,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [0.35.5] -- 2023-03-27
 ### Fixed
-- A bug with custom sample ids
+- A [bug](https://github.com/pepkit/peppy/issues/435) with custom sample ids
 - Improved performance for large tables dramatically
 
 ## [0.35.4] -- 2023-01-17
