@@ -39,7 +39,6 @@ class Sample(PathExAttMap):
     """
 
     def __init__(self, series, prj=None):
-
         super(Sample, self).__init__()
 
         data = OrderedDict(series)
