@@ -635,18 +635,16 @@ class Project(PathExAttMap):
         return all(value == list_of_values[0] for value in list_of_values)
 
     def _get_duplicated_sample_ids(self, sample_names_list: List) -> set:
-        return set(
-            [
-                sample_id
-                for sample_id in track(
-                    sample_names_list,
-                    description="Detecting duplicate sample names",
-                    disable=not (self.is_sample_table_large and self.progressbar),
-                    console=Console(file=sys.stderr),
-                )
-                if sample_names_list.count(sample_id) > 1
-            ]
-        )
+        duplicated_ids = set()
+        seen = set()
+
+        for sample_id in sample_names_list:
+            if sample_id in seen:
+                duplicated_ids.add(sample_id)
+            else:
+                seen.add(sample_id)
+
+        return duplicated_ids
 
     @staticmethod
     def _get_merged_attributes(
