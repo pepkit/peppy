@@ -836,7 +836,7 @@ class Project(PathExAttMap):
                     _LOGGER.debug("'{}' has been derived".format(attr))
                     continue
                 _LOGGER.debug(
-                    "Deriving '{}' attribute for '{}'".format(attr, sample.sample_name)
+                    "Deriving '{}' attribute for '{}'".format(attr, sample[self.st_index])
                 )
 
                 # Set {atr}_key, so the original source can also be retrieved
