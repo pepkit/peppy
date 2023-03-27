@@ -654,7 +654,6 @@ class Project(PathExAttMap):
     ) -> dict:
         merged_attributes = {}
         for attr in sample_attributes:
-
             attribute_values = []
             for sample in duplicated_samples:
                 attribute_value_for_sample = getattr(sample, attr, "")
@@ -836,7 +835,9 @@ class Project(PathExAttMap):
                     _LOGGER.debug("'{}' has been derived".format(attr))
                     continue
                 _LOGGER.debug(
-                    "Deriving '{}' attribute for '{}'".format(attr, sample[self.st_index])
+                    "Deriving '{}' attribute for '{}'".format(
+                        attr, sample[self.st_index]
+                    )
                 )
 
                 # Set {atr}_key, so the original source can also be retrieved
