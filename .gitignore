@@ -80,3 +80,8 @@ env/
 .env
 venv/
 .venv/
+
+# swap files
+.swp
+.swo
+.swn
