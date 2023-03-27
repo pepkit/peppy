@@ -485,7 +485,6 @@ class TestProjectManipulationTests:
         """Verify that sample getting returns ValueError if not sample found"""
         p = Project(cfg=example_pep_cfg_path)
         with pytest.raises(ValueError):
-
             p.get_sample(sample_name="kdkdkdk")
 
 

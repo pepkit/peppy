@@ -2,6 +2,11 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.35.5] -- 2023-03-27
+### Fixed
+- A [bug](https://github.com/pepkit/peppy/issues/435) with custom sample ids
+- Improved performance for large tables dramatically
+
 ## [0.35.4] -- 2023-01-17
 ### Fixed
 - Fixed disabling rich progress on small datasets bug
