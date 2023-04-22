@@ -258,10 +258,10 @@ class Project(PathExAttMap):
         Populate Project with Sample objects
         """
         self._samples: List[Sample] = self.load_samples()
+        if self.samples is None:
+            _LOGGER.info("No samples found in the project.")
+
         if modify:
-            if self.samples is None:
-                _LOGGER.info("No samples found in file.")
-                sys.exit(1)
             self.modify_samples()
         else:
             self._assert_samples_have_names()
