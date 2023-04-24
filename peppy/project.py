@@ -450,7 +450,7 @@ class Project(PathExAttMap):
         :param str modifier_key: modifier key to be checked
         :return bool: whether the requirements are met
         """
-        _LOGGER.debug("Checking existence: {}".format(modifier_key))
+        _LOGGER.debug(f"Checking existence of modifier: {modifier_key}")
         if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
             return False
         if (
