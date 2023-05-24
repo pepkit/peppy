@@ -65,9 +65,8 @@ def _cmp_all_samples_attr(p1, p2, attr):
     :param attr: attribute name to compare
     :type attr: str
     """
-
-    assert [getattr(s, attr, None) for s in p1.samples] == [
-        getattr(s, attr, None) for s in p2.samples
+    assert [s1.get(attr, "") for s1 in p1.samples] == [
+        s2.get(attr, "") for s2 in p2.samples
     ]
 
 
@@ -245,7 +244,7 @@ class TestProjectConstructor:
         """
         p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p, Project)
-        assert "description" in p and p.description is None
+        assert p.description is None
 
     @pytest.mark.parametrize("defer", [False, True])
     @pytest.mark.parametrize("desc", ["desc1", "desc 2 <test> 123$!@#;11", 11, None])
@@ -264,7 +263,7 @@ class TestProjectConstructor:
             dump(data, f)
         p = Project(cfg=temp_path_cfg, defer_samples_creation=defer)
         assert isinstance(p, Project)
-        assert "description" in p and p.description == str(desc)
+        assert p.description == str(desc)
 
     @pytest.mark.parametrize(
         "example_pep_cfg_noname_path", ["project_config.yaml"], indirect=True
@@ -390,7 +389,7 @@ class TestProjectConstructor:
         self, example_pep_cfg_path, expected_attribute
     ):
         p = Project(example_pep_cfg_path, sample_table_index="sample")
-        assert all([hasattr(sample, expected_attribute) for sample in p.samples])
+        assert all([expected_attribute in sample for sample in p.samples])
 
 
 class TestProjectManipulationTests:
@@ -543,8 +542,11 @@ class TestPostInitSampleCreation:
         p2 = Project(cfg=example_pep_cfg_path)
         assert p1 == p2
 
-    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
-    @pytest.mark.parametrize("example_pep_csv_path", ["derive"], indirect=True)
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path, example_pep_csv_path",
+        [["append", "derive"]],
+        indirect=True,
+    )
     def test_unequality(self, example_pep_cfg_path, example_pep_csv_path):
         """
         Test equality function of two projects
@@ -553,7 +555,11 @@ class TestPostInitSampleCreation:
         p2 = Project(cfg=example_pep_csv_path)
         assert not p1 == p2
 
-    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path",
+        ["append", "derive", "duplicate", "subtable1"],
+        indirect=True,
+    )
     def test_from_dict(self, example_pep_cfg_path):
         """
         Test initializing project from dict
@@ -564,13 +570,19 @@ class TestPostInitSampleCreation:
         p2 = Project().from_dict(p1_dict)
         assert p1 == p2
 
-    @pytest.mark.parametrize("config_with_pandas_obj", ["append"], indirect=True)
-    @pytest.mark.parametrize("example_pep_csv_path", ["append"], indirect=True)
+    @pytest.mark.parametrize(
+        "config_with_pandas_obj, example_pep_csv_path",
+        [
+            ["append", "append"],
+            ["derive", "derive"],
+            ["subtable1", "subtable1"],
+        ],
+        indirect=True,
+    )
     def test_from_pandas(self, config_with_pandas_obj, example_pep_csv_path):
         """
         Test initializing project from dict
         """
         p1 = Project().from_pandas(config_with_pandas_obj)
         p2 = Project(example_pep_csv_path)
-
         assert p1 == p2

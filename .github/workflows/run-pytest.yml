@@ -4,14 +4,14 @@ on:
   push:
     branches: [dev]
   pull_request:
-    branches: [master]
+    branches: [master, dev]
 
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8", "3.11"]
         os: [ubuntu-20.04]
 
     steps:
