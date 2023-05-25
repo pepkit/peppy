@@ -1332,8 +1332,8 @@ class Project(MutableMapping):
         """
         return [s for s in self.samples if s[self.st_index] in sample_names]
 
-    def __setitem__(self, item, value):
-        self._project_data[item] = value
+    def __setitem__(self, key, value):
+        self._project_data[key] = value
 
     def __getitem__(self, item):
         """

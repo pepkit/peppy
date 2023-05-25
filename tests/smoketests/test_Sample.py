@@ -27,7 +27,7 @@ EXAMPLE_TYPES = [
 ]
 
 
-class TestsSample:
+class TestSample:
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_serialization(self, example_pep_cfg_path):
         """
