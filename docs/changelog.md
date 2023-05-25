@@ -2,11 +2,14 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
-## [0.35.6] -- 2023-05-25
+## [0.40.0] -- 2023-05-25
+
+**This version introduced backwards-incompatible changes.**
+
 ### Changed
 - Replaced attmap with MutableMapping. (which resulted in the removal of the attribute functionality previously available in attmap)
 - Replaced OrderedDict with dict.
-- Deprecated support for Python versions older than 3.6.
+- Deprecated support for Python versions <= 3.6.
 
 ## [0.35.5] -- 2023-03-27
 ### Fixed
