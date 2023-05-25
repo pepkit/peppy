@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - Replaced attmap with MutableMapping. (which resulted in the removal of the attribute functionality previously available in attmap)
 - Replaced OrderedDict with dict.
-- Deprecated support for Python versions older than 2.7.
+- Deprecated support for Python versions older than 3.6.
 
 ## [0.35.5] -- 2023-03-27
 ### Fixed
