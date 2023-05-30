@@ -39,7 +39,8 @@ class Sample(MutableMapping):
 
     def __init__(self, series, prj=None):
         super(Sample, self).__init__()
-        self._sample_dict = {}
+        super(Sample, self).__setattr__("_sample_dict", {})
+        # self._sample_dict = {}
 
         data = dict(series)
         _LOGGER.debug("Sample data: {data}")
@@ -307,6 +308,13 @@ class Sample(MutableMapping):
 
     def __setitem__(self, item, value):
         self._try_touch_samples()
+        self._sample_dict[item] = value
+
+    def __getattr__(self, item):
+        # return super(Sample, self).__getattr__(item)
+        return self._sample_dict[item]
+
+    def __setattr__(self, item, value):
         self._sample_dict[item] = value
 
     def __getitem__(self, item):
