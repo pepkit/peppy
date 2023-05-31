@@ -1,6 +1,6 @@
 import glob
 import os
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
@@ -20,6 +20,7 @@ from .const import (
 )
 from .exceptions import InvalidSampleTableFileException
 from .utils import copy, grab_project_data
+from .simple_attr_map import SimpleAttrMap
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -30,7 +31,7 @@ class SafeDict(dict):
 
 
 @copy
-class Sample(MutableMapping):
+class Sample(SimpleAttrMap):
     """
     Class to model Samples based on a pandas Series.
 
@@ -39,8 +40,6 @@ class Sample(MutableMapping):
 
     def __init__(self, series, prj=None):
         super(Sample, self).__init__()
-        super(Sample, self).__setattr__("_sample_dict", {})
-        # self._sample_dict = {}
 
         data = dict(series)
         _LOGGER.debug("Sample data: {data}")
@@ -301,45 +300,6 @@ class Sample(MutableMapping):
         :return peppy.Project: project object the sample was created from
         """
         return self[PRJ_REF]
-
-    def __delattr__(self, item):
-        self._try_touch_samples()
-        super(Sample, self).__delattr__(item)
-
-    def __setitem__(self, item, value):
-        self._try_touch_samples()
-        self._sample_dict[item] = value
-
-    def __getattr__(self, item):
-        # return super(Sample, self).__getattr__(item)
-        return self._sample_dict[item]
-
-    def __setattr__(self, item, value):
-        self._sample_dict[item] = value
-
-    def __getitem__(self, item):
-        """
-        Fetch the value of given key.
-
-        :param hashable item: key for which to fetch value
-        :return object: value mapped to given key, if available
-        :raise KeyError: if the requested key is unmapped.
-        """
-        return self._sample_dict[item]
-
-    def __iter__(self):
-        return iter(self._sample_dict)
-
-    def __len__(self):
-        return len(self._sample_dict)
-
-    def __delitem__(self, key):
-        value = self[key]
-        del self._sample_dict[key]
-        self.pop(value, None)
-
-    def __contains__(self, key):
-        return key in list(self.keys())
 
     # The __reduce__ function provides an interface for
     # correct object serialization with the pickle module.

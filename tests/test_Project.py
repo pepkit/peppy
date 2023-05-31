@@ -586,3 +586,49 @@ class TestPostInitSampleCreation:
         p1 = Project().from_pandas(config_with_pandas_obj)
         p2 = Project(example_pep_csv_path)
         assert p1 == p2
+
+    @pytest.mark.parametrize(
+        "config_with_pandas_obj, example_pep_csv_path",
+        [
+            ["append", "append"],
+            ["derive", "derive"],
+            ["subtable1", "subtable1"],
+        ],
+        indirect=True,
+    )
+    def test_from_pandas_unequal(self, config_with_pandas_obj, example_pep_csv_path):
+        """
+        Test initializing project from pandas changing one of the samples
+        and checking inequality
+        """
+        p1 = Project().from_pandas(config_with_pandas_obj)
+
+        del p1.samples[0].sample_name
+        p2 = Project(example_pep_csv_path)
+        assert p1 != p2
+
+
+class TestSampleAttrMap:
+    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    def test_sample_getattr(self, example_pep_cfg_path):
+        """
+        Verify that the getattr works
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        p1 = Project(cfg=example_pep_cfg_path)
+
+        for s1, s2 in zip(p.samples, p1.samples):
+            assert s1.sample_name == s1["sample_name"]
+            assert s2.organism == s2["organism"]
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    def test_sample_getattr(self, example_pep_cfg_path):
+        """
+        Verify that the setattr works
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        new_name = "bingo"
+        p.samples[0].sample_name = new_name
+
+        df = p.samples[0].to_dict()
+        assert df["sample_name"] == new_name
