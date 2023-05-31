@@ -632,3 +632,11 @@ class TestSampleAttrMap:
 
         df = p.samples[0].to_dict()
         assert df["sample_name"] == new_name
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
+    def test_sample_len(self, example_pep_cfg_path):
+        """
+        Verify that the len works
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert len(p.samples[0]) == 4

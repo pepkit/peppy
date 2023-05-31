@@ -312,6 +312,9 @@ class Sample(SimpleAttrMap):
             iter({PRJ_REF: self[PRJ_REF]}.items()),
         )
 
+    def __len__(self):
+        return len(self.to_dict())
+
     def __str__(self, max_attr=10):
         """Representation in interpreter."""
         if len(self) == 0:
