@@ -20,7 +20,7 @@ from .const import (
 )
 from .exceptions import InvalidSampleTableFileException
 from .utils import copy, grab_project_data
-from .simple_attr_map import SimpleAttrMap
+from .simple_attr_map import SimpleAttMap
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -31,7 +31,7 @@ class SafeDict(dict):
 
 
 @copy
-class Sample(SimpleAttrMap):
+class Sample(SimpleAttMap):
     """
     Class to model Samples based on a pandas Series.
 

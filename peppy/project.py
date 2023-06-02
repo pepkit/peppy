@@ -7,6 +7,7 @@ from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from logging import getLogger
 from typing import Dict, Iterable, List, Tuple, Union
+from yacman import YAMLConfigManager
 
 import numpy as np
 import pandas as pd
@@ -318,7 +319,7 @@ class Project(MutableMapping):
         :raises KeyError: if config file lacks required section(s)
         """
         if CONFIG_KEY not in self:
-            self[CONFIG_KEY] = {}
+            self[CONFIG_KEY] = YAMLConfigManager()
         if not os.path.exists(cfg_path) and not is_url(cfg_path):
             raise OSError(f"Project config file path does not exist: {cfg_path}")
         config = load_yaml(cfg_path)

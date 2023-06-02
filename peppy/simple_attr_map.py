@@ -1,7 +1,7 @@
 from collections.abc import MutableMapping
 
 
-class SimpleAttrMap(MutableMapping):
+class SimpleAttMap(MutableMapping):
     """
     Simplified the AttrMap class, which enables storing key-value pairs in
     a dictionary-like structure.
@@ -10,8 +10,8 @@ class SimpleAttrMap(MutableMapping):
     """
 
     def __init__(self):
-        super(SimpleAttrMap, self).__init__()
-        super(SimpleAttrMap, self).__setattr__("sample", {})
+        super(SimpleAttMap, self).__init__()
+        super(SimpleAttMap, self).__setattr__("sample", {})
 
     def __delitem__(self, key):
         value = self[key]
