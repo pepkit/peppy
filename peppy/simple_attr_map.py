@@ -11,25 +11,25 @@ class SimpleAttMap(MutableMapping):
 
     def __init__(self):
         super(SimpleAttMap, self).__init__()
-        super(SimpleAttMap, self).__setattr__("sample", {})
+        super(SimpleAttMap, self).__setattr__("_mapped_attr", {})
 
     def __delitem__(self, key):
         value = self[key]
-        del self.sample[key]
+        del self._mapped_attr[key]
         self.pop(value, None)
 
     def __setitem__(self, item, value):
         self._try_touch_samples()
-        self.sample[item] = value
+        self._mapped_attr[item] = value
 
     def __getitem__(self, item):
-        return self.sample[item]
+        return self._mapped_attr[item]
 
     def __iter__(self):
-        return iter(self.sample)
+        return iter(self._mapped_attr)
 
     def __len__(self):
-        return len(self.sample)
+        return len(self._mapped_attr)
 
     def __contains__(self, key):
         return key in list(self.keys())
@@ -38,7 +38,7 @@ class SimpleAttMap(MutableMapping):
         del self[key]
 
     def __setattr__(self, item, value):
-        self.sample[item] = value
+        self._mapped_attr[item] = value
 
     def __getattr__(self, item):
-        return self.sample[item]
+        return self._mapped_attr[item]
