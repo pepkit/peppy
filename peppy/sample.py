@@ -344,6 +344,9 @@ class Sample(SimpleAttMap):
             counter += 1
         return head + "\n" + attrs
 
+    def __repr__(self):
+        return str(self)
+
     def _excl_from_eq(self, k):
         """Exclude the Project reference from object comparison."""
         return k == PRJ_REF or super(Sample, self)._excl_from_eq(k)

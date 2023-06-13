@@ -607,6 +607,32 @@ class TestPostInitSampleCreation:
         p2 = Project(example_pep_csv_path)
         assert p1 != p2
 
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path",
+        ["append"],
+        indirect=True,
+    )
+    def test_description_setter(self, example_pep_cfg_path):
+        new_description = "new_description1"
+        p = Project(cfg=example_pep_cfg_path)
+        p.description = new_description
+
+        assert p.description == new_description
+        assert p.to_dict(extended=True)["description"] == new_description
+
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path",
+        ["append"],
+        indirect=True,
+    )
+    def test_name_setter(self, example_pep_cfg_path):
+        new_name = "new_name1"
+        p = Project(cfg=example_pep_cfg_path)
+        p.name = new_name
+
+        assert p.name == new_name
+        assert p.to_dict(extended=True)["name"] == new_name
+
 
 class TestSampleAttrMap:
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)

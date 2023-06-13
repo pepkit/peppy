@@ -155,9 +155,6 @@ class Project(MutableMapping):
             or [SAMPLE_NAME_ATTR, SUBSAMPLE_NAME_ATTR]
         )
 
-        self.name = self.infer_name()
-        self.description = self.get_description()
-
         if not defer_samples_creation:
             self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -1333,6 +1330,22 @@ class Project(MutableMapping):
         """
         return [s for s in self.samples if s[self.st_index] in sample_names]
 
+    @property
+    def description(self):
+        return self.get_description()
+
+    @description.setter
+    def description(self, value):
+        self[CONFIG_KEY][DESC_KEY] = str(value)
+
+    @property
+    def name(self):
+        return self.infer_name()
+
+    @name.setter
+    def name(self, value):
+        self[CONFIG_KEY][NAME_KEY] = str(value)
+
     def __setitem__(self, key, value):
         self._project_data[key] = value
 
@@ -1356,6 +1369,9 @@ class Project(MutableMapping):
         value = self[key]
         del self._project_data[key]
         self.pop(value, None)
+
+    def __repr__(self):
+        return str(self)
 
 
 def infer_delimiter(filepath):
