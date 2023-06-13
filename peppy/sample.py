@@ -335,9 +335,13 @@ class Sample(SimpleAttMap):
         attrs = ""
         counter = 0
         for k, v in pub_attrs.items():
-            attrs += "\n{}{}".format(
-                (k + ":").ljust(maxlen), v if not isinstance(v, list) else ", ".join(v)
-            )
+            key_to_show = (k + ":").ljust(maxlen)
+            if not isinstance(v, list):
+                try:
+                    val_to_show = ", ".join(v)
+                except TypeError:
+                    val_to_show = "None" 
+            attrs += f"\n{key_to_show}{val_to_show}"
             if counter == max_attr:
                 attrs += "\n\n...".ljust(maxlen) + f"(showing first {max_attr})"
                 break
