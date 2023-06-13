@@ -338,7 +338,7 @@ class Sample(SimpleAttMap):
             key_to_show = (k + ":").ljust(maxlen)
             if not isinstance(v, list):
                 try:
-                    val_to_show = ", ".join(v)
+                    val_to_show = ", ".join([i for i in v if v is not None])
                 except TypeError:
                     val_to_show = "None" 
             attrs += f"\n{key_to_show}{val_to_show}"
