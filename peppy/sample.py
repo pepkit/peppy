@@ -337,6 +337,8 @@ class Sample(SimpleAttMap):
         for k, v in pub_attrs.items():
             key_to_show = (k + ":").ljust(maxlen)
             if not isinstance(v, list):
+                val_to_show = v
+            else:
                 try:
                     val_to_show = ", ".join([i for i in v if v is not None])
                 except TypeError:
