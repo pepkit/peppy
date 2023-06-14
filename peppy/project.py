@@ -244,7 +244,7 @@ class Project(MutableMapping):
                 DESC_KEY: self.description,
             }
         else:
-            p_dict = self.config
+            p_dict = self.config.to_dict()
             p_dict["_samples"] = [s.to_dict() for s in self.samples]
 
         return p_dict
