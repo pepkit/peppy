@@ -342,7 +342,7 @@ class Sample(SimpleAttMap):
                 try:
                     val_to_show = ", ".join([i for i in v if v is not None])
                 except TypeError:
-                    val_to_show = "None" 
+                    val_to_show = "None"
             attrs += f"\n{key_to_show}{val_to_show}"
             if counter == max_attr:
                 attrs += "\n\n...".ljust(maxlen) + f"(showing first {max_attr})"
