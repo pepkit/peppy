@@ -210,10 +210,10 @@ class Project(MutableMapping):
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
                 ]
         if NAME_KEY in pep_dictionary:
-            self[NAME_KEY] = pep_dictionary[NAME_KEY]
+            self[CONFIG_KEY][NAME_KEY] = pep_dictionary[NAME_KEY]
 
         if DESC_KEY in pep_dictionary:
-            self[DESC_KEY] = pep_dictionary[DESC_KEY]
+            self[CONFIG_KEY][DESC_KEY] = pep_dictionary[DESC_KEY]
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
