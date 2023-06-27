@@ -6,7 +6,7 @@ import os, sys
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union, Literal
 
 import numpy as np
 import pandas as pd
@@ -227,21 +227,31 @@ class Project(PathExAttMap):
 
         return self
 
-    def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
+    def to_dict(
+        self,
+        expand: bool = False,
+        extended: bool = False,
+        orient: Literal[
+            "dict", "list", "series", "split", "tight", "records", "index"
+        ] = "dict",
+    ) -> dict:
         """
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
         :param bool extended: whether to produce complete project dict (used to reinit the project)
+        :param Literal orient: orientation of the returned df
         :return dict: a dictionary representation of the Project object
         """
         if extended:
             if self[SUBSAMPLE_DF_KEY] is not None:
-                sub_df = [sub_a.to_dict() for sub_a in self[SUBSAMPLE_DF_KEY]]
+                sub_df = [
+                    sub_a.to_dict(orient=orient) for sub_a in self[SUBSAMPLE_DF_KEY]
+                ]
             else:
                 sub_df = None
             p_dict = {
-                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
+                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
                 CONFIG_KEY: self[CONFIG_KEY],
                 SUBSAMPLE_RAW_DICT_KEY: sub_df,
                 NAME_KEY: self[NAME_KEY],
