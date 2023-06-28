@@ -214,11 +214,11 @@ class Project(PathExAttMap):
                     pd.DataFrame(sub_a)
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
                 ]
-        if NAME_KEY in pep_dictionary:
-            self[NAME_KEY] = pep_dictionary[NAME_KEY]
+        if NAME_KEY in self[CONFIG_KEY]:
+            self[NAME_KEY] = self[CONFIG_KEY][NAME_KEY]
 
-        if DESC_KEY in pep_dictionary:
-            self[DESC_KEY] = pep_dictionary[DESC_KEY]
+        if DESC_KEY in self[CONFIG_KEY]:
+            self[DESC_KEY] = self[CONFIG_KEY][DESC_KEY]
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -250,12 +250,12 @@ class Project(PathExAttMap):
                 ]
             else:
                 sub_df = None
+            self[CONFIG_KEY][NAME_KEY] = self[NAME_KEY]
+            self[CONFIG_KEY][DESC_KEY] = self[DESC_KEY]
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
-                CONFIG_KEY: self[CONFIG_KEY],
+                CONFIG_KEY: self[CONFIG_KEY].to_dict(expand=expand),
                 SUBSAMPLE_RAW_DICT_KEY: sub_df,
-                NAME_KEY: self[NAME_KEY],
-                DESC_KEY: self[DESC_KEY],
             }
         else:
             p_dict = self.config.to_dict(expand=expand)
