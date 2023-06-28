@@ -556,7 +556,7 @@ class TestPostInitSampleCreation:
     @pytest.mark.parametrize(
         "example_pep_cfg_path", ["append", "subtable2"], indirect=True
     )
-    @pytest.mark.parametrize("orient", ["dict", "record"])
+    @pytest.mark.parametrize("orient", ["dict", "records"])
     def test_from_dict(self, example_pep_cfg_path, orient):
         """
         Test initializing project from dict
