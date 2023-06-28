@@ -57,7 +57,7 @@ from .const import (
     SAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_DF_KEY,
     SUBSAMPLE_NAME_ATTR,
-    SUBSAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_LIST_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
 )
@@ -208,11 +208,11 @@ class Project(PathExAttMap):
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
-        if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
-            if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
+        if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
+            if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
                     pd.DataFrame(sub_a)
-                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
+                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
         if NAME_KEY in self[CONFIG_KEY]:
             self[NAME_KEY] = self[CONFIG_KEY][NAME_KEY]
@@ -255,7 +255,7 @@ class Project(PathExAttMap):
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
                 CONFIG_KEY: self[CONFIG_KEY].to_dict(expand=expand),
-                SUBSAMPLE_RAW_DICT_KEY: sub_df,
+                SUBSAMPLE_RAW_LIST_KEY: sub_df,
             }
         else:
             p_dict = self.config.to_dict(expand=expand)
