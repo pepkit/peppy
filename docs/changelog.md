@@ -2,6 +2,16 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.35.6] -- 2023-06-27
+### Added
+- `orient` argument to `to_dict` method
+
+### Fixed
+- The name of the raw subsample object to match the actual name (list). Commit: #442
+
+### Changed
+- Reduced the number of items returned in the to_dict(extended=True) method to 3, with the name and description now stored in the config key.
+
 ## [0.35.5] -- 2023-03-27
 ### Fixed
 - A [bug](https://github.com/pepkit/peppy/issues/435) with custom sample ids
