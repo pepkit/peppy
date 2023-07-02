@@ -3,3 +3,4 @@ pandas>=0.24.2
 pyyaml
 rich>=10.3.0
 ubiquerg>=0.6.2
+numpy
