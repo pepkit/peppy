@@ -2,6 +2,11 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.35.7] -- 2023-07-19
+### Fixed 
+- incorrect setting of sample and subsample indexes using from_dict function (#452)
+- clarified debug messages
+
 ## [0.35.6] -- 2023-06-27
 ### Added
 - `orient` argument to `to_dict` method
