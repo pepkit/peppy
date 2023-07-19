@@ -6,7 +6,7 @@ import os, sys
 from collections.abc import Mapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, Iterable, List, Tuple, Union, Literal
+from typing import Dict, Iterable, List, Tuple, Union, Literal, NoReturn
 
 import numpy as np
 import pandas as pd
@@ -220,6 +220,8 @@ class Project(PathExAttMap):
         if DESC_KEY in self[CONFIG_KEY]:
             self[DESC_KEY] = self[CONFIG_KEY][DESC_KEY]
 
+        self._set_indexes(self[CONFIG_KEY])
+
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
@@ -336,14 +338,7 @@ class Project(PathExAttMap):
 
         _LOGGER.debug("Raw ({}) config data: {}".format(cfg_path, config))
 
-        self.st_index = (
-            config[SAMPLE_TABLE_INDEX_KEY] if SAMPLE_TABLE_INDEX_KEY in config else None
-        )
-        self.sst_index = (
-            config[SUBSAMPLE_TABLE_INDEX_KEY]
-            if SUBSAMPLE_TABLE_INDEX_KEY in config
-            else None
-        )
+        self._set_indexes(config)
         # recursively import configs
         if (
             PROJ_MODS_KEY in config
@@ -397,6 +392,23 @@ class Project(PathExAttMap):
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
+
+    def _set_indexes(self, config: Mapping) -> NoReturn:
+        """
+        Set sample and subsample indexes if they are different then Default
+
+        :param config: project config
+        """
+        self.st_index = (
+            config[SAMPLE_TABLE_INDEX_KEY]
+            if SAMPLE_TABLE_INDEX_KEY in config
+            else SAMPLE_NAME_ATTR
+        )
+        self.sst_index = (
+            config[SUBSAMPLE_TABLE_INDEX_KEY]
+            if SUBSAMPLE_TABLE_INDEX_KEY in config
+            else SUBSAMPLE_NAME_ATTR
+        )
 
     def load_samples(self):
         """
