@@ -554,7 +554,9 @@ class TestPostInitSampleCreation:
         assert not p1 == p2
 
     @pytest.mark.parametrize(
-        "example_pep_cfg_path", ["append", "subtable2"], indirect=True
+        "example_pep_cfg_path",
+        ["append", "custom_index", "imply", "subtables"],
+        indirect=True,
     )
     @pytest.mark.parametrize("orient", ["dict", "records"])
     def test_from_dict(self, example_pep_cfg_path, orient):
