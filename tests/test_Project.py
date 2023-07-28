@@ -557,15 +557,16 @@ class TestPostInitSampleCreation:
 
     @pytest.mark.parametrize(
         "example_pep_cfg_path",
-        ["append", "derive", "duplicate", "subtable1"],
+        ["append", "custom_index", "imply", "subtables"],
         indirect=True,
     )
-    def test_from_dict(self, example_pep_cfg_path):
+    @pytest.mark.parametrize("orient", ["dict", "records"])
+    def test_from_dict(self, example_pep_cfg_path, orient):
         """
         Test initializing project from dict
         """
         p1 = Project(cfg=example_pep_cfg_path)
-        p1_dict = p1.to_dict(extended=True)
+        p1_dict = p1.to_dict(extended=True, orient=orient)
         del p1_dict["_config"]["sample_table"]
         p2 = Project().from_dict(p1_dict)
         assert p1 == p2

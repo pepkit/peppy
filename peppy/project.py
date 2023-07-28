@@ -6,7 +6,7 @@ import sys
 from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union, Literal, NoReturn
 
 import numpy as np
 import pandas as pd
@@ -54,7 +54,7 @@ from .const import (
     SAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_DF_KEY,
     SUBSAMPLE_NAME_ATTR,
-    SUBSAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_LIST_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
 )
@@ -203,17 +203,19 @@ class Project(MutableMapping):
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
-        if SUBSAMPLE_RAW_DICT_KEY in pep_dictionary:
-            if pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]:
+        if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
+            if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
                     pd.DataFrame(sub_a)
-                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_DICT_KEY]
+                    for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
-        if NAME_KEY in pep_dictionary:
-            self[CONFIG_KEY][NAME_KEY] = pep_dictionary[NAME_KEY]
+        if NAME_KEY in self[CONFIG_KEY]:
+            self[NAME_KEY] = self[CONFIG_KEY][NAME_KEY]
 
-        if DESC_KEY in pep_dictionary:
-            self[CONFIG_KEY][DESC_KEY] = pep_dictionary[DESC_KEY]
+        if DESC_KEY in self[CONFIG_KEY]:
+            self[DESC_KEY] = self[CONFIG_KEY][DESC_KEY]
+
+        self._set_indexes(self[CONFIG_KEY])
 
         self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
         self._sample_table = self._get_table_from_samples(
@@ -222,25 +224,35 @@ class Project(MutableMapping):
 
         return self
 
-    def to_dict(self, expand: bool = False, extended: bool = False) -> dict:
+    def to_dict(
+        self,
+        expand: bool = False,
+        extended: bool = False,
+        orient: Literal[
+            "dict", "list", "series", "split", "tight", "records", "index"
+        ] = "dict",
+    ) -> dict:
         """
         Convert the Project object to a dictionary.
 
         :param bool expand: whether to expand the paths
         :param bool extended: whether to produce complete project dict (used to reinit the project)
+        :param Literal orient: orientation of the returned df
         :return dict: a dictionary representation of the Project object
         """
         if extended:
             if self[SUBSAMPLE_DF_KEY] is not None:
-                sub_df = [sub_a.to_dict() for sub_a in self[SUBSAMPLE_DF_KEY]]
+                sub_df = [
+                    sub_a.to_dict(orient=orient) for sub_a in self[SUBSAMPLE_DF_KEY]
+                ]
             else:
                 sub_df = None
-            p_dict = {
-                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(),
+            self[CONFIG_KEY][NAME_KEY] = self[NAME_KEY]
+            self[CONFIG_KEY][DESC_KEY] = self[DESC_KEY]
+            p_dict = 
+                SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
                 CONFIG_KEY: dict(self[CONFIG_KEY]),
-                SUBSAMPLE_RAW_DICT_KEY: sub_df,
-                NAME_KEY: self.name,
-                DESC_KEY: self.description,
+                SUBSAMPLE_RAW_LIST_KEY: sub_df,
             }
         else:
             p_dict = self.config
@@ -253,6 +265,9 @@ class Project(MutableMapping):
         Populate Project with Sample objects
         """
         self._samples: List[Sample] = self.load_samples()
+        if self.samples is None:
+            _LOGGER.info("No samples found in the project.")
+
         if modify:
             self.modify_samples()
         else:
@@ -328,14 +343,7 @@ class Project(MutableMapping):
 
         _LOGGER.debug(f"Raw ({cfg_path}) config data: {config}")
 
-        self.st_index = (
-            config[SAMPLE_TABLE_INDEX_KEY] if SAMPLE_TABLE_INDEX_KEY in config else None
-        )
-        self.sst_index = (
-            config[SUBSAMPLE_TABLE_INDEX_KEY]
-            if SUBSAMPLE_TABLE_INDEX_KEY in config
-            else None
-        )
+        self._set_indexes(config)
         # recursively import configs
         if (
             PROJ_MODS_KEY in config
@@ -389,6 +397,23 @@ class Project(MutableMapping):
         # here specify cfg sections that may need expansion
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
+
+    def _set_indexes(self, config: Mapping) -> NoReturn:
+        """
+        Set sample and subsample indexes if they are different then Default
+
+        :param config: project config
+        """
+        self.st_index = (
+            config[SAMPLE_TABLE_INDEX_KEY]
+            if SAMPLE_TABLE_INDEX_KEY in config
+            else SAMPLE_NAME_ATTR
+        )
+        self.sst_index = (
+            config[SUBSAMPLE_TABLE_INDEX_KEY]
+            if SUBSAMPLE_TABLE_INDEX_KEY in config
+            else SUBSAMPLE_NAME_ATTR
+        )
 
     def load_samples(self):
         """
@@ -453,7 +478,7 @@ class Project(MutableMapping):
         :param str modifier_key: modifier key to be checked
         :return bool: whether the requirements are met
         """
-        _LOGGER.debug(f"Checking existence of modifier: {modifier_key}")
+        _LOGGER.debug("Checking existence: {}".format(modifier_key))
         if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
             return False
         if (
