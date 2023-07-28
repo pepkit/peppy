@@ -619,7 +619,7 @@ class TestPostInitSampleCreation:
         p.description = new_description
 
         assert p.description == new_description
-        assert p.to_dict(extended=True)["description"] == new_description
+        assert p.to_dict(extended=True)["_config"]["description"] == new_description
 
     @pytest.mark.parametrize(
         "example_pep_cfg_path",
@@ -632,7 +632,7 @@ class TestPostInitSampleCreation:
         p.name = new_name
 
         assert p.name == new_name
-        assert p.to_dict(extended=True)["name"] == new_name
+        assert p.to_dict(extended=True)["_config"]["name"] == new_name
 
 
 class TestSampleAttrMap:

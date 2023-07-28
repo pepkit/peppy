@@ -210,10 +210,10 @@ class Project(MutableMapping):
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
         if NAME_KEY in self[CONFIG_KEY]:
-            self[NAME_KEY] = self[CONFIG_KEY][NAME_KEY]
+            self.name = self[CONFIG_KEY][NAME_KEY]
 
         if DESC_KEY in self[CONFIG_KEY]:
-            self[DESC_KEY] = self[CONFIG_KEY][DESC_KEY]
+            self.description = self[CONFIG_KEY][DESC_KEY]
 
         self._set_indexes(self[CONFIG_KEY])
 
@@ -247,8 +247,8 @@ class Project(MutableMapping):
                 ]
             else:
                 sub_df = None
-            self[CONFIG_KEY][NAME_KEY] = self[NAME_KEY]
-            self[CONFIG_KEY][DESC_KEY] = self[DESC_KEY]
+            self[CONFIG_KEY][NAME_KEY] = self.name
+            self[CONFIG_KEY][DESC_KEY] = self.description
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
                 CONFIG_KEY: dict(self[CONFIG_KEY]),
