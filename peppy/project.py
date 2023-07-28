@@ -249,7 +249,7 @@ class Project(MutableMapping):
                 sub_df = None
             self[CONFIG_KEY][NAME_KEY] = self[NAME_KEY]
             self[CONFIG_KEY][DESC_KEY] = self[DESC_KEY]
-            p_dict = 
+            p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
                 CONFIG_KEY: dict(self[CONFIG_KEY]),
                 SUBSAMPLE_RAW_LIST_KEY: sub_df,
