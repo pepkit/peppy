@@ -11,6 +11,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Replaced OrderedDict with dict.
 - Deprecated support for Python versions <= 3.7.
 
+_Due to the changes mentioned above, a few item functionalities may be disabled. For example, the `name` and `description` properties can now be accessed and modified using attribute functionality_
+
 ## [0.35.7] -- 2023-07-19
 ### Fixed 
 - incorrect setting of sample and subsample indexes using from_dict function (#452)
