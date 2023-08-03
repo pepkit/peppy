@@ -44,7 +44,7 @@ class TestSampleModifiers:
         """
         p = Project(cfg=example_pep_cfg_path)
         assert all(["file_path" in s for s in p.samples])
-        assert all(["file_path" in s["_derived_cols_done"] for s in p.samples])
+        assert all(["file_path" in s._derived_cols_done for s in p.samples])
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["remove"], indirect=True)
     def test_remove(self, example_pep_cfg_path):

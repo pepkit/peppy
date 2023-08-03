@@ -1,6 +1,5 @@
 import glob
 import os
-from collections import OrderedDict
 from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
@@ -8,7 +7,7 @@ from string import Formatter
 
 import pandas as pd
 import yaml
-from attmap import AttMap, PathExAttMap
+from pandas import Series, isnull
 
 from .const import (
     CONFIG_FILE_KEY,
@@ -21,6 +20,7 @@ from .const import (
 )
 from .exceptions import InvalidSampleTableFileException
 from .utils import copy, grab_project_data
+from .simple_attr_map import SimpleAttMap
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -31,7 +31,7 @@ class SafeDict(dict):
 
 
 @copy
-class Sample(PathExAttMap):
+class Sample(SimpleAttMap):
     """
     Class to model Samples based on a pandas Series.
 
@@ -41,8 +41,8 @@ class Sample(PathExAttMap):
     def __init__(self, series, prj=None):
         super(Sample, self).__init__()
 
-        data = OrderedDict(series)
-        _LOGGER.debug("Sample data: {}".format(data))
+        data = dict(series)
+        _LOGGER.debug("Sample data: {data}")
 
         # Attach Project reference
         try:
@@ -50,12 +50,11 @@ class Sample(PathExAttMap):
         except (AttributeError, KeyError):
             data_proj = None
 
-        self.add_entries(data)
+        self.update(**data)
 
         if data_proj and PRJ_REF not in self:
             self[PRJ_REF] = data_proj
 
-        typefam = PathExAttMap
         if PRJ_REF in self and prj:
             _LOGGER.warning(
                 "Project data provided both in data and as separate"
@@ -68,13 +67,10 @@ class Sample(PathExAttMap):
             self[PRJ_REF] = None
             _LOGGER.debug("No project reference for sample")
         else:
-            prefix = "Project reference on a sample must be an instance of {}".format(
-                typefam.__name__
-            )
+            prefix = "Project reference on a sample must be an instance of dict"
+
             if not isinstance(self[PRJ_REF], Mapping):
-                raise TypeError(
-                    prefix + "; got {}".format(type(self[PRJ_REF]).__name__)
-                )
+                raise TypeError(f"{prefix}; got {type(self[PRJ_REF]).__name__}")
         self._derived_cols_done = []
         self._attributes = list(series.keys())
 
@@ -88,7 +84,7 @@ class Sample(PathExAttMap):
             originally provided via the sample sheet (i.e., the a map-like
             representation of the instance, excluding derived items)
         """
-        return OrderedDict([[k, getattr(self, k)] for k in self._attributes])
+        return dict([[k, self[k]] for k in self._attributes])
 
     def to_dict(self, add_prj_ref=False):
         """
@@ -108,18 +104,10 @@ class Sample(PathExAttMap):
             :param str name: name of the object to represent.
             :param Iterable[str] to_skip: names of attributes to ignore.
             """
-            from pandas import Series, isnull
-
             if name:
-                _LOGGER.log(5, "Converting to dict: {}".format(name))
+                _LOGGER.log(5, "Converting to dict: {name}")
             if isinstance(obj, list):
                 return [_obj2dict(i) for i in obj]
-            if isinstance(obj, AttMap):
-                return {
-                    k: _obj2dict(v, name=k)
-                    for k, v in obj.items()
-                    if not k.startswith("_")
-                }
             elif isinstance(obj, Mapping):
                 return {
                     k: _obj2dict(v, name=k)
@@ -269,7 +257,7 @@ class Sample(PathExAttMap):
             return None
         sn = self[SAMPLE_NAME_ATTR] if SAMPLE_NAME_ATTR in self else "this sample"
         try:
-            source_key = getattr(self, attr_name)
+            source_key = self[attr_name]
         except AttributeError:
             reason = (
                 "'{attr}': to locate sample's derived attribute source, "
@@ -282,31 +270,24 @@ class Sample(PathExAttMap):
 
         try:
             regex = data_sources[source_key]
-            _LOGGER.debug("Data sources: {}".format(data_sources))
+            _LOGGER.debug("Data sources: {data_sources}")
         except KeyError:
             _LOGGER.debug(
-                "{}: config lacks entry for {} key: "
-                "'{}' in column '{}'; known: {}".format(
-                    sn, DERIVED_SOURCES_KEY, source_key, attr_name, data_sources.keys()
-                )
+                f"{sn}: config lacks entry for {DERIVED_SOURCES_KEY} key: "
+                f"'{source_key}' in column '{attr_name}'; known: {data_sources.keys()}"
             )
             return ""
         deriv_exc_base = (
-            "In sample '{sn}' cannot correctly parse derived "
-            "attribute source: {r}.".format(sn=sn, r=regex)
+            f"In sample '{sn}' cannot correctly parse derived "
+            f"attribute source: {regex}."
         )
         try:
             vals = _format_regex(regex, dict(self.items()))
             _LOGGER.debug("Formatted regex: {}".format(vals))
         except KeyError as ke:
-            _LOGGER.warning(
-                deriv_exc_base + " Can't access {ke} attribute".format(ke=str(ke))
-            )
+            _LOGGER.warning(f"{deriv_exc_base} Can't access {str(ke)} attribute")
         except Exception as e:
-            _LOGGER.warning(
-                deriv_exc_base
-                + " Caught exception: {e}".format(e=getattr(e, "message", repr(e)))
-            )
+            _LOGGER.warning(f"{deriv_exc_base} Caught exception: {str(e)}")
         else:
             return _glob_regex(vals)
         return None
@@ -320,18 +301,6 @@ class Sample(PathExAttMap):
         """
         return self[PRJ_REF]
 
-    def __setattr__(self, key, value):
-        self._try_touch_samples()
-        super(Sample, self).__setattr__(key, value)
-
-    def __delattr__(self, item):
-        self._try_touch_samples()
-        super(Sample, self).__delattr__(item)
-
-    def __setitem__(self, key, value):
-        self._try_touch_samples()
-        super(Sample, self).__setitem__(key, value)
-
     # The __reduce__ function provides an interface for
     # correct object serialization with the pickle module.
     def __reduce__(self):
@@ -342,6 +311,9 @@ class Sample(PathExAttMap):
             iter([]),
             iter({PRJ_REF: self[PRJ_REF]}.items()),
         )
+
+    def __len__(self):
+        return len(self.to_dict())
 
     def __str__(self, max_attr=10):
         """Representation in interpreter."""
@@ -363,14 +335,23 @@ class Sample(PathExAttMap):
         attrs = ""
         counter = 0
         for k, v in pub_attrs.items():
-            attrs += "\n{}{}".format(
-                (k + ":").ljust(maxlen), v if not isinstance(v, list) else ", ".join(v)
-            )
+            key_to_show = (k + ":").ljust(maxlen)
+            if not isinstance(v, list):
+                val_to_show = v
+            else:
+                try:
+                    val_to_show = ", ".join([i for i in v if v is not None])
+                except TypeError:
+                    val_to_show = "None"
+            attrs += f"\n{key_to_show}{val_to_show}"
             if counter == max_attr:
                 attrs += "\n\n...".ljust(maxlen) + f"(showing first {max_attr})"
                 break
             counter += 1
         return head + "\n" + attrs
+
+    def __repr__(self):
+        return str(self)
 
     def _excl_from_eq(self, k):
         """Exclude the Project reference from object comparison."""
