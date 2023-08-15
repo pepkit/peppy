@@ -226,7 +226,7 @@ class Project(MutableMapping):
 
     def to_dict(
         self,
-        expand: bool = False,
+        # expand: bool = False, # expand was used to expand paths. This functionality was removed, because of attmapp
         extended: bool = False,
         orient: Literal[
             "dict", "list", "series", "split", "tight", "records", "index"
@@ -1397,6 +1397,7 @@ class Project(MutableMapping):
     def __repr__(self):
         return str(self)
 
+    # # pickle now is impossible, because it's impossible to initialize Project class without using actual files
     # def __reduce__(self):
     #     return (self.__class__,)
 

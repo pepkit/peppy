@@ -66,3 +66,14 @@ class TestSample:
         p = Project(cfg=example_pep_cfg_path)
         for sample in p.samples:
             assert len(sample.get_sheet_dict()) == len(p.sample_table.columns)
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
+    def test_pickle_in_samples(self, example_pep_cfg_path):
+        import pickle
+
+        p = Project(cfg=example_pep_cfg_path)
+        for sample in p.samples:
+            pickled_data = pickle.dumps(sample)
+            unpickled_sample = pickle.loads(pickled_data)
+
+            assert sample.to_dict() == unpickled_sample.to_dict()

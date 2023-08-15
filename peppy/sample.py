@@ -307,10 +307,9 @@ class Sample(SimpleAttMap):
         return (
             self.__class__,
             (pd.Series(self.to_dict()),),
-            # (self.as_series(),),
-            (None, {}),
-            iter([]),
-            iter({PRJ_REF: self[PRJ_REF]}.items()),
+            # (None, {}),
+            # iter([]),
+            # iter({PRJ_REF: self[PRJ_REF]}.items()),
         )
 
     def __len__(self):
