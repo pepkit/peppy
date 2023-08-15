@@ -1105,7 +1105,7 @@ class Project(MutableMapping):
         :return Iterable[Sample]: Sample instance for each
             of this Project's samples
         """
-        if self._samples:
+        if self._samples is not None:
             return self._samples
         if SAMPLE_DF_KEY not in self or self[SAMPLE_DF_KEY] is None:
             _LOGGER.debug("No samples are defined")
