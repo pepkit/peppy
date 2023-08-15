@@ -41,4 +41,7 @@ class SimpleAttMap(MutableMapping):
         self._mapped_attr[item] = value
 
     def __getattr__(self, item):
-        return self._mapped_attr[item]
+        try:
+            return self._mapped_attr[item]
+        except KeyError:
+            return None
