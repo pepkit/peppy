@@ -1397,6 +1397,9 @@ class Project(MutableMapping):
     def __repr__(self):
         return str(self)
 
+    # def __reduce__(self):
+    #     return (self.__class__,)
+
 
 def infer_delimiter(filepath):
     """

@@ -8,7 +8,9 @@ import numpy as np
 import pytest
 from pandas import DataFrame
 from yaml import dump, safe_load
+import pickle
 
+import peppy
 from peppy import Project
 from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
 from peppy.exceptions import (
@@ -390,6 +392,15 @@ class TestProjectConstructor:
     ):
         p = Project(example_pep_cfg_path, sample_table_index="sample")
         assert all([expected_attribute in sample for sample in p.samples])
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic", "imply"], indirect=True)
+    def test_correct_pickle(self, example_pep_cfg_path):
+        proj = Project(example_pep_cfg_path)
+
+        pickled_data = pickle.dumps(proj)
+        unpickled_project = pickle.loads(pickled_data)
+
+        assert proj == unpickled_project
 
 
 class TestProjectManipulationTests:

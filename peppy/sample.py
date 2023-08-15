@@ -306,7 +306,8 @@ class Sample(SimpleAttMap):
     def __reduce__(self):
         return (
             self.__class__,
-            (self.as_series(),),
+            (pd.Series(self.to_dict()),),
+            # (self.as_series(),),
             (None, {}),
             iter([]),
             iter({PRJ_REF: self[PRJ_REF]}.items()),
