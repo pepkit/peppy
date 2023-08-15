@@ -282,7 +282,8 @@ class Sample(SimpleAttMap):
             f"attribute source: {regex}."
         )
         try:
-            vals = _format_regex(regex, dict(self.items()))
+            expanded_regex = os.path.expandvars(regex)
+            vals = _format_regex(expanded_regex, dict(self.items()))
             _LOGGER.debug("Formatted regex: {}".format(vals))
         except KeyError as ke:
             _LOGGER.warning(f"{deriv_exc_base} Can't access {str(ke)} attribute")
