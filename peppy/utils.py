@@ -9,7 +9,7 @@ import yaml
 from ubiquerg import expandpath, is_url
 
 from .const import CONFIG_KEY, SAMPLE_TABLE_INDEX_KEY, SUBSAMPLE_TABLE_INDEX_KEY
-from .exceptions import *
+from .exceptions import RemoteYAMLError
 
 _LOGGER = logging.getLogger(__name__)
 

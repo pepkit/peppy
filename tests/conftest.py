@@ -1,6 +1,5 @@
 """ Configuration for modules with independent tests of models. """
 
-import json
 import os
 
 import pandas as pd

@@ -6,7 +6,7 @@ import sys
 from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, Iterable, List, Tuple, Union, Literal, NoReturn
+from typing import Iterable, List, Tuple, Union, Literal, NoReturn
 
 import numpy as np
 import pandas as pd
@@ -58,13 +58,16 @@ from .const import (
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
 )
-from .exceptions import *
+from .exceptions import (
+    InvalidSampleTableFileException,
+    MissingAmendmentError,
+    IllegalStateException,
+    InvalidConfigFileException,
+)
 from .parsers import select_parser
 from .sample import Sample
 from .utils import (
     copy,
-    extract_custom_index_for_sample_table,
-    extract_custom_index_for_subsample_table,
     is_cfg_or_anno,
     load_yaml,
     make_abs_via_cfg,
@@ -198,7 +201,7 @@ class Project(MutableMapping):
         of an already processed PEP.
         :param dict pep_dictionary: in-memory dict representation of pep.
         """
-        _LOGGER.info(f"Processing project from dictionary...")
+        _LOGGER.info("Processing project from dictionary...")
 
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
@@ -842,7 +845,7 @@ class Project(MutableMapping):
             console=Console(file=sys.stderr),
         ):
             for attr in derivations:
-                if not attr in sample:
+                if attr not in sample:
                     _LOGGER.debug(f"sample lacks '{attr}' attribute")
                     continue
                 elif attr in sample._derived_cols_done:
