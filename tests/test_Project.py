@@ -393,9 +393,9 @@ class TestProjectConstructor:
         p = Project(example_pep_cfg_path, sample_table_index="sample")
         assert all([expected_attribute in sample for sample in p.samples])
 
-    @pytest.mark.skip(
-        "skipping this test, because this functionality is unavailable now"
-    )
+    # @pytest.mark.skip(
+    #     "skipping this test, because this functionality is unavailable now"
+    # )
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic", "imply"], indirect=True)
     def test_correct_pickle(self, example_pep_cfg_path):
         proj = Project(example_pep_cfg_path)

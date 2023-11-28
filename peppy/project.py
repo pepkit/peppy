@@ -91,6 +91,9 @@ class Project(MutableMapping):
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
     :param bool defer_samples_creation: whether the sample creation should be skipped
+    :param Dict[Any]: dict representation of the project {_config: str,
+                                                          _samples: list | dict,
+                                                          _subsamples: list[list | dict]}
 
     :Example:
 
@@ -108,6 +111,7 @@ class Project(MutableMapping):
         sample_table_index: Union[str, Iterable[str]] = None,
         subsample_table_index: Union[str, Iterable[str]] = None,
         defer_samples_creation: bool = False,
+        from_dict: dict = None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -162,6 +166,8 @@ class Project(MutableMapping):
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
         )
+        if from_dict:
+            self.from_dict(from_dict)
 
     def __eq__(self, other):
         return [s.to_dict() for s in self.samples] == [
@@ -1400,9 +1406,19 @@ class Project(MutableMapping):
     def __repr__(self):
         return str(self)
 
-    # # pickle now is impossible, because it's impossible to initialize Project class without using actual files
-    # def __reduce__(self):
-    #     return (self.__class__,)
+    # pickle now is impossible, because it's impossible to initialize Project class without using actual files
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (
+                None,
+                None,
+                None,
+                None,
+                False,
+                self.to_dict(extended=True, orient="records"),
+            ),
+        )
 
 
 def infer_delimiter(filepath):
