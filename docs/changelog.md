@@ -79,7 +79,7 @@ _Due to the changes mentioned above, a few item functionalities may be disabled.
 ### Changed 
 
 - Way of initialization project from dictionary. Now it's possible as follows: `Project().from_dict()`
-- 
+
 ### Fixed
 
 - Fix error that was raised when duplicated sample in `sample_table` had different read types (single-end mixed with paired-end).
