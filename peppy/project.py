@@ -7,6 +7,7 @@ from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from logging import getLogger
 from typing import Iterable, List, Tuple, Union, Literal, NoReturn
+import yacman
 
 import numpy as np
 import pandas as pd
@@ -91,9 +92,6 @@ class Project(MutableMapping):
     :param str | Iterable[str] amendments: names of the amendments to activate
     :param Iterable[str] amendments: amendments to use within configuration file
     :param bool defer_samples_creation: whether the sample creation should be skipped
-    :param Dict[Any]: dict representation of the project {_config: str,
-                                                          _samples: list | dict,
-                                                          _subsamples: list[list | dict]}
 
     :Example:
 
@@ -111,7 +109,6 @@ class Project(MutableMapping):
         sample_table_index: Union[str, Iterable[str]] = None,
         subsample_table_index: Union[str, Iterable[str]] = None,
         defer_samples_creation: bool = False,
-        from_dict: dict = None,
     ):
         _LOGGER.debug(
             "Creating {}{}".format(
@@ -166,72 +163,77 @@ class Project(MutableMapping):
         self._sample_table = self._get_table_from_samples(
             index=self.st_index, initial=True
         )
-        if from_dict:
-            self.from_dict(from_dict)
 
     def __eq__(self, other):
         return [s.to_dict() for s in self.samples] == [
             s.to_dict() for s in other.samples
         ]
 
+    @classmethod
     def from_pandas(
-        self,
+        cls,
         samples_df: pd.DataFrame,
         sub_samples_df: List[pd.DataFrame] = None,
         config: dict = None,
-    ) -> "Project":
+    ):
         """
         Init a peppy project instance from a pandas Dataframe
+
         :param samples_df: in-memory pandas DataFrame object of samples
         :param sub_samples_df: in-memory list of pandas DataFrame objects of sub-samples
         :param config: dict of yaml file
         """
+        tmp_obj = cls()
         if not config:
             config = {CONFIG_VERSION_KEY: PEP_LATEST_VERSION}
-        self[SAMPLE_DF_KEY] = samples_df.replace(np.nan, "")
-        self[SUBSAMPLE_DF_KEY] = sub_samples_df
+        tmp_obj[SAMPLE_DF_KEY] = samples_df.replace(np.nan, "")
+        tmp_obj[SUBSAMPLE_DF_KEY] = sub_samples_df
 
-        self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
+        tmp_obj[SAMPLE_DF_LARGE] = tmp_obj[SAMPLE_DF_KEY].shape[0] > 1000
 
-        self[CONFIG_KEY] = config
+        tmp_obj[CONFIG_KEY] = config
 
-        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
-        self._sample_table = self._get_table_from_samples(
-            index=self.st_index, initial=True
+        tmp_obj.create_samples(modify=False if tmp_obj[SAMPLE_TABLE_FILE_KEY] else True)
+        tmp_obj._sample_table = tmp_obj._get_table_from_samples(
+            index=tmp_obj.st_index, initial=True
         )
-        return self
+        return tmp_obj
 
-    def from_dict(self, pep_dictionary: dict) -> "Project":
+    @classmethod
+    def from_dict(cls, pep_dictionary: dict):
         """
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
-        :param dict pep_dictionary: in-memory dict representation of pep.
+
+        :param Dict[Any] pep_dictionary: dict representation of the project {_config: str,
+                                                                             _samples: list | dict,
+                                                                             _subsamples: list[list | dict]}
         """
         _LOGGER.info("Processing project from dictionary...")
-
-        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
-        self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
+        tmp_obj = cls()
+        tmp_obj[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
+        tmp_obj[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
-                self[SUBSAMPLE_DF_KEY] = [
+                tmp_obj[SUBSAMPLE_DF_KEY] = [
                     pd.DataFrame(sub_a)
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
-        if NAME_KEY in self[CONFIG_KEY]:
-            self.name = self[CONFIG_KEY][NAME_KEY]
+        if NAME_KEY in tmp_obj[CONFIG_KEY]:
+            tmp_obj.name = tmp_obj[CONFIG_KEY][NAME_KEY]
 
-        if DESC_KEY in self[CONFIG_KEY]:
-            self.description = self[CONFIG_KEY][DESC_KEY]
+        if DESC_KEY in tmp_obj[CONFIG_KEY]:
+            tmp_obj.description = tmp_obj[CONFIG_KEY][DESC_KEY]
 
-        self._set_indexes(self[CONFIG_KEY])
+        tmp_obj._set_indexes(tmp_obj[CONFIG_KEY])
 
-        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
-        self._sample_table = self._get_table_from_samples(
-            index=self.st_index, initial=True
+        tmp_obj.create_samples(modify=False if tmp_obj[SAMPLE_TABLE_FILE_KEY] else True)
+        tmp_obj._sample_table = tmp_obj._get_table_from_samples(
+            index=tmp_obj.st_index, initial=True
         )
 
-        return self
+        return tmp_obj
 
     def to_dict(
         self,
@@ -244,7 +246,6 @@ class Project(MutableMapping):
         """
         Convert the Project object to a dictionary.
 
-        :param bool expand: whether to expand the paths
         :param bool extended: whether to produce complete project dict (used to reinit the project)
         :param Literal orient: orientation of the returned df
         :return dict: a dictionary representation of the Project object
@@ -1406,18 +1407,10 @@ class Project(MutableMapping):
     def __repr__(self):
         return str(self)
 
-    # pickle now is impossible, because it's impossible to initialize Project class without using actual files
     def __reduce__(self):
         return (
-            self.__class__,
-            (
-                None,
-                None,
-                None,
-                None,
-                False,
-                self.to_dict(extended=True, orient="records"),
-            ),
+            self.__class__.from_dict,
+            (self.to_dict(extended=True, orient="records"),),
         )
 
 
