@@ -14,6 +14,7 @@ nav:
     - How to use append sample modifier: feature1_append.md
     - How to use imply sample modifier: feature2_imply.md
     - How to validate a PEP: validating.md
+    - How to initialize a peppy: initialize.md
   - Reference:
     - API: autodoc_build/peppy.md
     - Support: support.md

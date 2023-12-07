@@ -290,7 +290,7 @@ class Project(MutableMapping):
         """
         self._samples: List[Sample] = self.load_samples()
         if self.samples is None:
-            _LOGGER.info("No samples found in the project.")
+            _LOGGER.debug("No samples found in the project.")
 
         if modify:
             self.modify_samples()
