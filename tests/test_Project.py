@@ -602,6 +602,21 @@ class TestPostInitSampleCreation:
         assert p1 == p2
 
     @pytest.mark.parametrize(
+        "example_yaml_sample_file",
+        [
+            "basic_sample_yaml",
+        ],
+        indirect=True,
+    )
+    def test_from_yaml(self, example_yaml_sample_file):
+        """
+        Test initializing project from dict
+        """
+        p1 = Project.from_yaml(example_yaml_sample_file)
+        assert p1.samples[0].sample_name == "sample1"
+        assert len(p1.samples) == 3
+
+    @pytest.mark.parametrize(
         "config_with_pandas_obj, example_pep_csv_path",
         [
             ["append", "append"],

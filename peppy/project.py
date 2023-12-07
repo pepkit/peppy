@@ -11,6 +11,7 @@ import yacman
 
 import numpy as np
 import pandas as pd
+import yaml
 from pandas.core.common import flatten
 from rich.console import Console
 from rich.progress import track
@@ -234,6 +235,19 @@ class Project(MutableMapping):
         )
 
         return tmp_obj
+
+    @classmethod
+    def from_yaml(cls, yaml_file: str):
+        """
+        Init a peppy project instance from a yaml file
+
+        :param str yaml_file: path to yaml file
+        """
+        _LOGGER.info("Processing project from yaml...")
+        with open(yaml_file, "r") as f:
+            prj_dict = yaml.safe_load(f)
+        pd_df = pd.DataFrame.from_dict(prj_dict)
+        return cls.from_pandas(pd_df)
 
     def to_dict(
         self,
