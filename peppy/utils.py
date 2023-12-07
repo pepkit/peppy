@@ -5,6 +5,7 @@ import os
 from typing import Dict
 from urllib.request import urlopen
 
+import yacman
 import yaml
 from ubiquerg import expandpath, is_url
 
@@ -123,11 +124,11 @@ def load_yaml(filepath):
             )
         else:
             data = response.read().decode("utf-8")
-            return yaml.safe_load(data)
+            return yacman.YAMLConfigManager(yamldata=data).exp
     else:
         with open(os.path.abspath(filepath), "r") as f:
             data = yaml.safe_load(f)
-        return data
+        return yacman.YAMLConfigManager(data).exp
 
 
 def is_cfg_or_anno(file_path, formats=None):

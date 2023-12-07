@@ -93,6 +93,19 @@ class TestProjectConstructor:
         p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p, Project)
 
+    @pytest.mark.parametrize("defer", [False, True])
+    @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
+    def test_expand_path(self, example_pep_cfg_path, defer):
+        """
+        Verify output_path is expanded
+        """
+        p = Project(
+            cfg=example_pep_cfg_path,
+            amendments="newLib",
+            defer_samples_creation=defer,
+        )
+        assert not p.config["output_dir"].startswith("$")
+
     @pytest.mark.parametrize(
         "config_path",
         [

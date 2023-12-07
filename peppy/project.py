@@ -7,7 +7,6 @@ from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from logging import getLogger
 from typing import Iterable, List, Tuple, Union, Literal, NoReturn
-import yacman
 
 import numpy as np
 import pandas as pd
