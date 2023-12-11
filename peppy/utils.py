@@ -5,7 +5,6 @@ import os
 from typing import Dict, Mapping
 from urllib.request import urlopen
 
-import yacman
 import yaml
 from ubiquerg import expandpath, is_url
 

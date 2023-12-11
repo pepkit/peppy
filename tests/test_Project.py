@@ -350,6 +350,10 @@ class TestProjectConstructor:
         representation.
         """
         p1 = Project(cfg=example_pep_cfg_path)
+        ff = p1.to_dict(extended=True)
+        import pprint
+
+        pprint.pprint(ff)
         p2 = Project.from_dict(p1.to_dict(extended=True))
         assert p1 == p2
 

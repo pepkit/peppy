@@ -236,6 +236,37 @@ class Project(MutableMapping):
         return tmp_obj
 
     @classmethod
+    def from_pep_config(
+        cls,
+        cfg: str = None,
+        amendments: Union[str, Iterable[str]] = None,
+        sample_table_index: Union[str, Iterable[str]] = None,
+        subsample_table_index: Union[str, Iterable[str]] = None,
+        defer_samples_creation: bool = False,
+    ):
+        """
+        Init a peppy project instance from a yaml file
+
+        :param str cfg: Project config file (YAML) or sample table (CSV/TSV)
+            with one row per sample to constitute project
+        :param str | Iterable[str] sample_table_index: name of the columns to set
+            the sample_table index to
+        :param str | Iterable[str] subsample_table_index: name of the columns to set
+            the subsample_table index to
+        :param str | Iterable[str] amendments: names of the amendments to activate
+        :param Iterable[str] amendments: amendments to use within configuration file
+        :param bool defer_samples_creation: whether the sample creation should be skipped
+        """
+        # TODO: this is just a copy of the __init__ method. It should be refactored
+        return cls(
+            cfg=cfg,
+            amendments=amendments,
+            sample_table_index=sample_table_index,
+            subsample_table_index=subsample_table_index,
+            defer_samples_creation=defer_samples_creation,
+        )
+
+    @classmethod
     def from_yaml(cls, yaml_file: str):
         """
         Init a peppy project instance from a yaml file
