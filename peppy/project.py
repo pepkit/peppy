@@ -301,7 +301,10 @@ class Project(MutableMapping):
                 ]
             else:
                 sub_df = None
-            self[CONFIG_KEY][NAME_KEY] = self.name
+            try:
+                self[CONFIG_KEY][NAME_KEY] = self.name
+            except NotImplementedError:
+                self[CONFIG_KEY][NAME_KEY] = "unnamed"
             self[CONFIG_KEY][DESC_KEY] = self.description
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),

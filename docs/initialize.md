@@ -54,6 +54,18 @@ project = peppy.Project.from_dict(
                        'sample_name': 'pig_0h'}]]})
 ```
 
+## 5.1 Generate dict from peppy and reuse it
+```python
+import peppy
+
+project = peppy.Project("https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv")
+project_dict = project.to_dict(extended=True)
+project_copy = peppy.Project.from_dict(project_dict)
+
+# now you can check if this project is the same as the original project
+print(project_copy == project)
+```
+
 ## 6. Using a csv file from a url
 ```python
 import peppy
