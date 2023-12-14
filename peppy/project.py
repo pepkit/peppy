@@ -267,7 +267,7 @@ class Project(MutableMapping):
         )
 
     @classmethod
-    def from_yaml(cls, yaml_file: str):
+    def from_sample_yaml(cls, yaml_file: str):
         """
         Init a peppy project instance from a yaml file
 

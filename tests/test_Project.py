@@ -629,7 +629,7 @@ class TestPostInitSampleCreation:
         """
         Test initializing project from dict
         """
-        p1 = Project.from_yaml(example_yaml_sample_file)
+        p1 = Project.from_sample_yaml(example_yaml_sample_file)
         assert p1.samples[0].sample_name == "sample1"
         assert len(p1.samples) == 3
 

@@ -17,9 +17,11 @@ project = peppy.Project.from_pep_config("path/to/project/sample_sheet.csv")
 ```
 
 ## 3. Using yaml sample sheet
+
 ```python
 import peppy
-project = peppy.Project.from_yaml("path/to/project/sample_sheet.yaml")
+
+project = peppy.Project.from_sample_yaml("path/to/project/sample_sheet.yaml")
 ```
 
 
