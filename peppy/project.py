@@ -205,35 +205,47 @@ class Project(MutableMapping):
         Init a peppy project instance from a dictionary representation
         of an already processed PEP.
 
-        :param Dict[Any] pep_dictionary: dict representation of the project {_config: str,
+        :param Dict[Any] pep_dictionary: dict representation of the project {_config: dict,
                                                                              _samples: list | dict,
                                                                              _subsamples: list[list | dict]}
         """
         _LOGGER.info("Processing project from dictionary...")
-        tmp_obj = cls()
-        tmp_obj[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
-        tmp_obj[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
+        temp_obj = cls()
+        return temp_obj._from_dict(pep_dictionary)
+
+    def _from_dict(self, pep_dictionary) -> "Project":
+        """
+        Initiate a peppy project instance from a dictionary representation of an already processed PEP.
+
+        # This function is needed in looper to reinit the project after it was created from a dictionary representation.
+
+        :param Dict[Any] pep_dictionary: dict representation of the project {_config: dict,
+                                                                             _samples: list | dict,
+                                                                             _subsamples: list[list | dict]}
+        """
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
+        self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
-                tmp_obj[SUBSAMPLE_DF_KEY] = [
+                self[SUBSAMPLE_DF_KEY] = [
                     pd.DataFrame(sub_a)
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
-        if NAME_KEY in tmp_obj[CONFIG_KEY]:
-            tmp_obj.name = tmp_obj[CONFIG_KEY][NAME_KEY]
+        if NAME_KEY in self[CONFIG_KEY]:
+            self.name = self[CONFIG_KEY][NAME_KEY]
 
-        if DESC_KEY in tmp_obj[CONFIG_KEY]:
-            tmp_obj.description = tmp_obj[CONFIG_KEY][DESC_KEY]
+        if DESC_KEY in self[CONFIG_KEY]:
+            self.description = self[CONFIG_KEY][DESC_KEY]
 
-        tmp_obj._set_indexes(tmp_obj[CONFIG_KEY])
+        self._set_indexes(self[CONFIG_KEY])
 
-        tmp_obj.create_samples(modify=False if tmp_obj[SAMPLE_TABLE_FILE_KEY] else True)
-        tmp_obj._sample_table = tmp_obj._get_table_from_samples(
-            index=tmp_obj.st_index, initial=True
+        self.create_samples(modify=False if self[SAMPLE_TABLE_FILE_KEY] else True)
+        self._sample_table = self._get_table_from_samples(
+            index=self.st_index, initial=True
         )
 
-        return tmp_obj
+        return self
 
     @classmethod
     def from_pep_config(
