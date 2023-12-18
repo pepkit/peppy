@@ -3,6 +3,13 @@
 The primary use case of `peppy` is to create a `peppy.Project` object, which will give you an API for interacting with your project and sample metadata. There are multiple ways to instantiate a `peppy.Project`. 
 The most common is to use a configuration file; however, you can also use a `CSV` file (sample sheet), or a sample `YAML` file (sample sheet), or use Python objects directly, such as a `pandas` DataFrame, or a Python `dict`.
 
+
+<figure>
+<img src="../img/format_convert.svg" width="475">
+<figcaption>peppy can read from and produce various metadata formats</figcaption>
+</figure>
+
+
 ## 1. From PEP configuration file
 
 ```python
