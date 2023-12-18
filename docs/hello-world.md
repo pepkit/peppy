@@ -45,3 +45,4 @@ samples[0]["file"]
 
 That's it! You've got `peppy` running on an example project.
 Now you can play around with project metadata from within python.
+There are lots of other ways to initialize a project, which we will in the next section.
