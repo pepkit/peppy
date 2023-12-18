@@ -93,6 +93,19 @@ class TestProjectConstructor:
         p = Project(cfg=example_pep_cfg_path, defer_samples_creation=defer)
         assert isinstance(p, Project)
 
+    @pytest.mark.parametrize("defer", [False, True])
+    @pytest.mark.parametrize("example_pep_cfg_path", ["amendments1"], indirect=True)
+    def test_expand_path(self, example_pep_cfg_path, defer):
+        """
+        Verify output_path is expanded
+        """
+        p = Project(
+            cfg=example_pep_cfg_path,
+            amendments="newLib",
+            defer_samples_creation=defer,
+        )
+        assert not p.config["output_dir"].startswith("$")
+
     @pytest.mark.parametrize(
         "config_path",
         [
@@ -337,7 +350,11 @@ class TestProjectConstructor:
         representation.
         """
         p1 = Project(cfg=example_pep_cfg_path)
-        p2 = Project().from_dict(p1.to_dict(extended=True))
+        ff = p1.to_dict(extended=True)
+        import pprint
+
+        pprint.pprint(ff)
+        p2 = Project.from_dict(p1.to_dict(extended=True))
         assert p1 == p2
 
     def test_to_dict_does_not_create_nans(self, example_pep_nextflow_csv_path):
@@ -581,7 +598,7 @@ class TestPostInitSampleCreation:
         p1 = Project(cfg=example_pep_cfg_path)
         p1_dict = p1.to_dict(extended=True, orient=orient)
         del p1_dict["_config"]["sample_table"]
-        p2 = Project().from_dict(p1_dict)
+        p2 = Project.from_dict(p1_dict)
         assert p1 == p2
 
     @pytest.mark.parametrize(
@@ -597,9 +614,24 @@ class TestPostInitSampleCreation:
         """
         Test initializing project from dict
         """
-        p1 = Project().from_pandas(config_with_pandas_obj)
+        p1 = Project.from_pandas(config_with_pandas_obj)
         p2 = Project(example_pep_csv_path)
         assert p1 == p2
+
+    @pytest.mark.parametrize(
+        "example_yaml_sample_file",
+        [
+            "basic_sample_yaml",
+        ],
+        indirect=True,
+    )
+    def test_from_yaml(self, example_yaml_sample_file):
+        """
+        Test initializing project from dict
+        """
+        p1 = Project.from_sample_yaml(example_yaml_sample_file)
+        assert p1.samples[0].sample_name == "sample1"
+        assert len(p1.samples) == 3
 
     @pytest.mark.parametrize(
         "config_with_pandas_obj, example_pep_csv_path",

@@ -37,6 +37,11 @@ def example_pep_csv_path(request):
 
 
 @pytest.fixture
+def example_yaml_sample_file(request):
+    return get_path_to_example_file(EPB, request.param, "sample.yaml")
+
+
+@pytest.fixture
 def example_pep_nextflow_csv_path():
     return get_path_to_example_file(EPB, "nextflow_taxprofiler_pep", "samplesheet.csv")
 

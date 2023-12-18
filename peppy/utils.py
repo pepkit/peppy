@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Dict
+from typing import Dict, Mapping
 from urllib.request import urlopen
 
 import yaml
@@ -104,6 +104,30 @@ def make_list(arg, obj_class):
         _raise_faulty_arg()
 
 
+def _expandpath(path: str):
+    """
+    Expand a filesystem path that may or may not contain user/env vars.
+
+    :param str path: path to expand
+    :return str: expanded version of input path
+    """
+    return os.path.expandvars(os.path.expanduser(path))
+
+
+def expand_paths(x: dict) -> dict:
+    """
+    Recursively expand paths in a dict.
+
+    :param dict x: dict to expand
+    :return dict: dict with expanded paths
+    """
+    if isinstance(x, str):
+        return expandpath(x)
+    elif isinstance(x, Mapping):
+        return {k: expand_paths(v) for k, v in x.items()}
+    return x
+
+
 def load_yaml(filepath):
     """
     Load a local or remote YAML file into a Python dict
@@ -123,11 +147,11 @@ def load_yaml(filepath):
             )
         else:
             data = response.read().decode("utf-8")
-            return yaml.safe_load(data)
+            return expand_paths(yaml.safe_load(data))
     else:
         with open(os.path.abspath(filepath), "r") as f:
             data = yaml.safe_load(f)
-        return data
+        return expand_paths(data)
 
 
 def is_cfg_or_anno(file_path, formats=None):

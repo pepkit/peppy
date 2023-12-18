@@ -1,0 +1,6 @@
+- sample_name: sample1
+  file: path/to/file.tsv
+- sample_name: sample2
+  file: path/to/2.tsv
+- sample_name: sample3
+  file: path/to/3.tsv
