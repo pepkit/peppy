@@ -1,5 +1,6 @@
-import sys
 import os
+import sys
+
 from setuptools import find_packages, setup
 
 PACKAGE_NAME = "peppy"
@@ -47,16 +48,16 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     keywords="project, metadata, bioinformatics, sequencing, ngs, workflow",
     url="https://github.com/pepkit/peppy/",
-    author="Michal Stolarczyk, Nathan Sheffield, Vince Reuter, Andre Rendeiro",
+    author="Michal Stolarczyk, Nathan Sheffield, Vince Reuter, Andre Rendeiro, Oleksandr Khoroshevskyi",
     license="BSD2",
     include_package_data=True,
     tests_require=(["pytest"]),

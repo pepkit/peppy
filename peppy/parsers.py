@@ -1,7 +1,9 @@
-from typing import Any, Dict, List
-from .exceptions import InvalidSampleTableFileException
-import pandas as pd
 import os
+from typing import Any, Dict, List
+
+import pandas as pd
+
+from .exceptions import InvalidSampleTableFileException
 
 
 class TableParser:

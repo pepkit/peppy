@@ -40,7 +40,7 @@ project = peppy.Project("example_basic/project_config.yaml") # instantiate in-me
 samples = project.samples # grab the list of Sample objects defined in this Project
 
 # Find the input file for the first sample in the project
-samples[0].file
+samples[0]["file"]
 ```
 
 That's it! You've got `peppy` running on an example project.
