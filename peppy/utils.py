@@ -8,9 +8,8 @@ from urllib.request import urlopen
 import yaml
 from ubiquerg import expandpath, is_url
 
-from .exceptions import *
-
 from .const import CONFIG_KEY, SAMPLE_TABLE_INDEX_KEY, SUBSAMPLE_TABLE_INDEX_KEY
+from .exceptions import RemoteYAMLError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,10 +71,9 @@ def grab_project_data(prj):
         return {}
 
     try:
-        return prj[CONFIG_KEY].to_dict()
+        return dict(prj[CONFIG_KEY])
     except KeyError:
         raise KeyError("Project lacks section '{}'".format(CONFIG_KEY))
-    return data
 
 
 def make_list(arg, obj_class):

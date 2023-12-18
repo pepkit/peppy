@@ -4,7 +4,6 @@ import os
 
 import pandas as pd
 import pytest
-import json
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal.stolarczyk@nih.gov"
