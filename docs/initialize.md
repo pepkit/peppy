@@ -1,22 +1,31 @@
 # How to initiate peppy using different methods
 
-peppy supports multiple ways to initiate a project. The most common way is to use a configuration file. 
-However, peppy also supports using a csv file (sample sheet), and a yaml file (sample sheet).
-Additionally, peppy can be initiated using Python objects such as a pandas dataframe or a dictionary.
+The primary use case of `peppy` is to create a `peppy.Project` object, which will give you an API for interacting with your project and sample metadata. There are multiple ways to instantiate a `peppy.Project`. 
+The most common is to use a configuration file; however, you can also use a `CSV` file (sample sheet), or a sample `YAML` file (sample sheet), or use Python objects directly, such as a `pandas` DataFrame, or a Python `dict`.
 
-## 1. Using a configuration file
+## 1. From PEP configuration file
+
 ```python
 import peppy
 project = peppy.Project.from_pep_config("path/to/project/config.yaml")
 ```
 
-## 2. Using csv file (sample sheet)
+## 2. FROM `CSV` file (sample sheet)
+
 ```python
 import peppy
 project = peppy.Project.from_pep_config("path/to/project/sample_sheet.csv")
 ```
 
-## 3. Using yaml sample sheet
+You can also instantiate directly from a URL to a CSV file:
+
+```python
+import peppy
+project = peppy.Project("https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv")
+```
+
+
+## 3. From `YAML` sample sheet
 
 ```python
 import peppy
@@ -25,7 +34,8 @@ project = peppy.Project.from_sample_yaml("path/to/project/sample_sheet.yaml")
 ```
 
 
-## 4. Using a pandas dataframe
+## 4. From a `pandas` DataFrame
+
 ```python
 import pandas as pd
 import peppy
@@ -33,7 +43,24 @@ df = pd.read_csv("path/to/project/sample_sheet.csv")
 project = peppy.Project.from_pandas(df)
 ```
 
-## 5. Using a peppy generated dict
+## 5. From a `peppy`-generated `dict`
+
+Store a `peppy.Project` object as a dict using `prj.to_dict()`. Then, load it with `Project.from_dict()`:
+
+```python
+import peppy
+
+project = peppy.Project("https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv")
+project_dict = project.to_dict(extended=True)
+project_copy = peppy.Project.from_dict(project_dict)
+
+# now you can check if this project is the same as the original project
+print(project_copy == project)
+```
+
+Or, you could generate an equivalent dictionary in some other way:
+
+
 ```python
 import peppy
 project = peppy.Project.from_dict(
@@ -54,22 +81,4 @@ project = peppy.Project.from_dict(
                       {'read1': 'frog1c_data.txt',
                        'read2': 'frog1b_data2.txt',
                        'sample_name': 'pig_0h'}]]})
-```
-
-## 5.1 Generate dict from peppy and reuse it
-```python
-import peppy
-
-project = peppy.Project("https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv")
-project_dict = project.to_dict(extended=True)
-project_copy = peppy.Project.from_dict(project_dict)
-
-# now you can check if this project is the same as the original project
-print(project_copy == project)
-```
-
-## 6. Using a csv file from a url
-```python
-import peppy
-project = peppy.Project("https://raw.githubusercontent.com/pepkit/example_peps/master/example_basic/sample_table.csv")
 ```

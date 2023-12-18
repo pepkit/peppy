@@ -7,14 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 **This version introduced backwards-incompatible changes.**
 
 ### Changed
-- Replaced attmap with MutableMapping. (which resulted in the removal of the attribute functionality previously available in attmap)
+- Replaced attmap with MutableMapping (which removes some attribute)
 - Replaced OrderedDict with dict.
 - Deprecated support for Python versions <= 3.7.
 
 _Due to the changes mentioned above, a few item functionalities may be disabled. For example, the `name` and `description` properties can now be accessed and modified using attribute functionality_
 
 ### Added
-- Constructor methods: `from_dict`, `from_pandas`, `from_yaml`
+- Constructor methods: `Project.from_dict`, `Project.from_pandas`, `Project.from_yaml`
 
 
 ## [0.35.7] -- 2023-07-19
