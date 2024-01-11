@@ -223,13 +223,15 @@ class Project(MutableMapping):
                                                                              _samples: list | dict,
                                                                              _subsamples: list[list | dict]}
         """
-        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY])
+        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY]).replace(
+            np.nan, "None"
+        )
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
-                    pd.DataFrame(sub_a)
+                    pd.DataFrame(sub_a).replace(np.nan, "None")
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
         if NAME_KEY in self[CONFIG_KEY]:
