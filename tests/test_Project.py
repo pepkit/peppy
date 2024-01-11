@@ -10,7 +10,6 @@ from pandas import DataFrame
 from yaml import dump, safe_load
 import pickle
 
-import peppy
 from peppy import Project
 from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
 from peppy.exceptions import (
@@ -350,10 +349,6 @@ class TestProjectConstructor:
         representation.
         """
         p1 = Project(cfg=example_pep_cfg_path)
-        ff = p1.to_dict(extended=True)
-        import pprint
-
-        pprint.pprint(ff)
         p2 = Project.from_dict(p1.to_dict(extended=True))
         assert p1 == p2
 
@@ -694,7 +689,7 @@ class TestSampleAttrMap:
             assert s2.organism == s2["organism"]
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["append"], indirect=True)
-    def test_sample_getattr(self, example_pep_cfg_path):
+    def test_sample_settatr(self, example_pep_cfg_path):
         """
         Verify that the setattr works
         """

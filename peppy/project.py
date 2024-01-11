@@ -6,7 +6,7 @@ import sys
 from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from logging import getLogger
-from typing import Iterable, List, Tuple, Union, Literal, NoReturn
+from typing import Iterable, List, Tuple, Union, Literal
 
 import numpy as np
 import pandas as pd
@@ -224,14 +224,14 @@ class Project(MutableMapping):
                                                                              _subsamples: list[list | dict]}
         """
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY]).replace(
-            np.nan, "None"
+            np.nan, None
         )
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
-                    pd.DataFrame(sub_a).replace(np.nan, "None")
+                    pd.DataFrame(sub_a).replace(np.nan, None)
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
         if NAME_KEY in self[CONFIG_KEY]:
@@ -469,7 +469,7 @@ class Project(MutableMapping):
         relative_vars = [CFG_SAMPLE_TABLE_KEY, CFG_SUBSAMPLE_TABLE_KEY]
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
-    def _set_indexes(self, config: Mapping) -> NoReturn:
+    def _set_indexes(self, config: Mapping) -> None:
         """
         Set sample and subsample indexes if they are different then Default
 
@@ -485,6 +485,7 @@ class Project(MutableMapping):
             if SUBSAMPLE_TABLE_INDEX_KEY in config
             else SUBSAMPLE_NAME_ATTR
         )
+        return None
 
     def load_samples(self):
         """
