@@ -224,14 +224,14 @@ class Project(MutableMapping):
                                                                              _subsamples: list[list | dict]}
         """
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY]).replace(
-            np.nan, None
+            np.nan, ""
         )
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
 
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
-                    pd.DataFrame(sub_a).replace(np.nan, None)
+                    pd.DataFrame(sub_a).replace(np.nan, "")
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
         if NAME_KEY in self[CONFIG_KEY]:
@@ -1336,7 +1336,7 @@ class Project(MutableMapping):
 
         if st is not None:
             parser_class = select_parser(path=st)
-            self[SAMPLE_DF_KEY] = parser_class(path=st).table
+            self[SAMPLE_DF_KEY] = parser_class(path=st).table.replace(np.nan, "")
             self[SAMPLE_DF_LARGE] = self[SAMPLE_DF_KEY].shape[0] > 1000
         else:
             _LOGGER.warning(no_metadata_msg.format(CFG_SAMPLE_TABLE_KEY))
