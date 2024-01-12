@@ -14,6 +14,6 @@ from .project import Project
 from .sample import Sample
 
 __classes__ = ["Project", "Sample"]
-__all__ = __classes__ + ["PeppyError"]
+__all__ = __classes__ + ["PeppyError", "__version__"]
 
 LOGGING_LEVEL = "INFO"
