@@ -40,7 +40,7 @@ with open("README.md") as f:
 
 setup(
     name=PACKAGE_NAME,
-    packages=find_packages(),
+    packages=[PACKAGE_NAME],
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
