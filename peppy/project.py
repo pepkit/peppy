@@ -1,6 +1,7 @@
 """
 Build a Project object.
 """
+
 import os
 import sys
 from collections.abc import Mapping, MutableMapping
