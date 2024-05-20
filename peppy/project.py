@@ -662,7 +662,6 @@ class Project(MutableMapping):
             else:
                 if self.st_index != SAMPLE_NAME_ATTR:
                     sample[SAMPLE_NAME_ATTR] = self.st_index
-                    _LOGGER.warning(f"Setting sample.sample_name: {self.st_index}")
 
     def _auto_merge_duplicated_names(self):
         """
