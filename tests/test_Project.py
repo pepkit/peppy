@@ -331,7 +331,7 @@ class TestProjectConstructor:
         """
         p = Project(cfg=example_pep_cfg_custom_index)
         assert p.sample_name_colname == "NOT_SAMPLE_NAME"
-        assert p.samples[0].sample_name == "NOT_SAMPLE_NAME"
+        assert p.samples[0].sample_name == "frog_1"
 
     @pytest.mark.parametrize(
         "example_pep_cfg_path",

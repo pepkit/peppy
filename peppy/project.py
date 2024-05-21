@@ -660,9 +660,6 @@ class Project(MutableMapping):
                     )
                 else:
                     raise InvalidSampleTableFileException(message)
-            else:
-                if self.st_index != SAMPLE_NAME_ATTR:
-                    sample[SAMPLE_NAME_ATTR] = self.st_index
 
     def _auto_merge_duplicated_names(self):
         """
