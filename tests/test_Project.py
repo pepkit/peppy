@@ -233,6 +233,14 @@ class TestProjectConstructor:
         """
         Project(cfg=example_pep_cfg_path)
 
+    @pytest.mark.parametrize("example_pep_cfg_path", ["incorrect_index"], indirect=True)
+    def test_cutsom_sample_table_index_config_exception(self, example_pep_cfg_path):
+        """
+        Verify that custom sample table index is sourced from the config
+        """
+        with pytest.raises(InvalidSampleTableFileException):
+            Project(cfg=example_pep_cfg_path)
+
     @pytest.mark.parametrize("example_pep_cfg_path", ["custom_index"], indirect=True)
     def test_cutsom_sample_table_index_constructor(self, example_pep_cfg_path):
         """
