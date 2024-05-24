@@ -331,6 +331,17 @@ class TestProjectConstructor:
         assert p.sample_name_colname == "id"
 
     @pytest.mark.parametrize(
+        "example_pep_cfg_custom_index", ["project_config.yaml"], indirect=True
+    )
+    def test_sample_name_custom_index(self, example_pep_cfg_custom_index):
+        """
+        Verify that sample_name attribute becomes st_index from cfg
+        """
+        p = Project(cfg=example_pep_cfg_custom_index)
+        assert p.sample_name_colname == "NOT_SAMPLE_NAME"
+        assert p.samples[0].sample_name == "frog_1"
+
+    @pytest.mark.parametrize(
         "example_pep_cfg_path",
         ["basic"],
         indirect=True,
