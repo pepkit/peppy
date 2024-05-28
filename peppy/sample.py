@@ -302,6 +302,16 @@ class Sample(SimpleAttMap):
         """
         return self[PRJ_REF]
 
+    @property
+    def sample_name(self):
+        """
+        Get the sample's name
+
+        :return str: current sample name derived from project's st_index
+        """
+
+        return self[self[PRJ_REF].st_index]
+
     # The __reduce__ function provides an interface for
     # correct object serialization with the pickle module.
     def __reduce__(self):

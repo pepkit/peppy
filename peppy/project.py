@@ -1,6 +1,7 @@
 """
 Build a Project object.
 """
+
 import os
 import sys
 from collections.abc import Mapping, MutableMapping
@@ -644,21 +645,7 @@ class Project(MutableMapping):
                     f"{CFG_SAMPLE_TABLE_KEY} is missing '{self.st_index}' column; "
                     f"you must specify {CFG_SAMPLE_TABLE_KEY}s in {self.st_index} or derive them"
                 )
-                if self.st_index != SAMPLE_NAME_ATTR:
-                    try:
-                        custom_sample_name = sample[self.st_index]
-                    except KeyError:
-                        raise InvalidSampleTableFileException(
-                            f"Specified {CFG_SAMPLE_TABLE_KEY} index ({self.st_index}) does not exist"
-                        )
-                    sample[SAMPLE_NAME_ATTR] = custom_sample_name
-                    _LOGGER.warning(
-                        message
-                        + f"using specified {CFG_SAMPLE_TABLE_KEY} index ({self.st_index}) instead. "
-                        + f"Setting name: {custom_sample_name}"
-                    )
-                else:
-                    raise InvalidSampleTableFileException(message)
+                raise InvalidSampleTableFileException(message)
 
     def _auto_merge_duplicated_names(self):
         """
