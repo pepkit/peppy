@@ -2,7 +2,8 @@
 
 import os
 
-import pandas as pd
+# import pandas as pd
+import polars as pl
 import pytest
 
 __author__ = "Michal Stolarczyk"
@@ -70,6 +71,6 @@ def example_peps_cfg_paths(request):
 
 @pytest.fixture
 def config_with_pandas_obj(request):
-    return pd.read_csv(
+    return pl.read_csv(
         get_path_to_example_file(EPB, request.param, "sample_table.csv"), dtype=str
     )

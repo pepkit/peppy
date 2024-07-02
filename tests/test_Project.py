@@ -6,7 +6,8 @@ import tempfile
 
 import numpy as np
 import pytest
-from pandas import DataFrame
+#from pandas import DataFrame
+from polars import DataFrame
 from yaml import dump, safe_load
 import pickle
 

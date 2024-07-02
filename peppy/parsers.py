@@ -1,7 +1,8 @@
 import os
 from typing import Any, Dict, List
 
-import pandas as pd
+#import pandas as pd
+import polars as pl
 
 from .exceptions import InvalidSampleTableFileException
 
@@ -18,7 +19,7 @@ class TableParser:
     def __init__(self, path: str, exts: List[str]) -> None:
         self._path = path
         self._exts = exts
-        self._table: pd.DataFrame = None
+        self._table: pl.DataFrame = None
         self._pandas_kwargs: Dict[str, Any] = {
             "dtype": str,
             "index_col": False,
@@ -41,7 +42,7 @@ class TableParser:
         return self._exts
 
     @property
-    def table(self) -> pd.DataFrame:
+    def table(self) -> pl.DataFrame:
         """
         The parsed table
 
@@ -62,7 +63,7 @@ class TableParser:
                 f"Sample table file format not supported: {self.path}"
             )
 
-    def parse(self) -> pd.DataFrame:
+    def parse(self) -> pl.DataFrame:
         """
         Parse the sample table
         """
@@ -83,13 +84,13 @@ class CSVTableParser(TableParser):
     def __init__(self, path: str) -> None:
         super().__init__(path, ["csv"])
 
-    def parse(self) -> pd.DataFrame:
+    def parse(self) -> pl.DataFrame:
         """
         Parse the sample table
         """
         self.validate_path()
-        self._table = pd.read_csv(self.path, **self._pandas_kwargs)
-        self._table = self._table.where(pd.notnull(self._table), None)
+        self._table = pl.read_csv(self.path, **self._pandas_kwargs)
+        self._table = self._table.where(pl.notnull(self._table), None)
         return self.table
 
 
@@ -101,12 +102,12 @@ class TSVTableParser(TableParser):
     def __init__(self, path: str) -> None:
         super().__init__(path, ["tsv"])
 
-    def parse(self) -> pd.DataFrame:
+    def parse(self) -> pl.DataFrame:
         """
         Parse the sample table
         """
         self.validate_path()
-        self._table = pd.read_csv(self.path, sep="\t", **self._pandas_kwargs)
+        self._table = pl.read_csv(self.path, sep="\t", **self._pandas_kwargs)
         return self.table
 
 
@@ -118,12 +119,12 @@ class XLSXTableParser(TableParser):
     def __init__(self, path: str) -> None:
         super().__init__(path, ["xlsx"])
 
-    def parse(self) -> pd.DataFrame:
+    def parse(self) -> pl.DataFrame:
         """
         Parse the sample table
         """
         self.validate_path()
-        self._table = pd.read_excel(self.path, **self._pandas_kwargs)
+        self._table = pl.read_excel(self.path, **self._pandas_kwargs)
         return self.table
 
 

@@ -5,9 +5,11 @@ from copy import copy as cp
 from logging import getLogger
 from string import Formatter
 
-import pandas as pd
+#import pandas as pd
+import polars as pl
 import yaml
-from pandas import Series, isnull
+#from pandas import Series, isnull
+from polars import Series
 
 from .const import (
     CONFIG_FILE_KEY,
@@ -122,7 +124,7 @@ class Sample(SimpleAttMap):
             elif hasattr(obj, "dtype"):  # numpy data types
                 # TODO: this fails with ValueError for multi-element array.
                 return obj.item()
-            elif isnull(obj):
+            elif pl.is_null(obj):
                 # Missing values as evaluated by pandas.isnull().
                 # This gets correctly written into yaml.
                 return None
@@ -317,7 +319,7 @@ class Sample(SimpleAttMap):
     def __reduce__(self):
         return (
             self.__class__,
-            (pd.Series(self.to_dict()),),
+            (pl.Series(self.to_dict()),),
             # (None, {}),
             # iter([]),
             # iter({PRJ_REF: self[PRJ_REF]}.items()),
@@ -374,7 +376,7 @@ class Sample(SimpleAttMap):
 
     def _excl_classes_from_todict(self):
         """Exclude pandas.DataFrame from dict representation"""
-        return (pd.DataFrame,)
+        return (pl.DataFrame,)
 
     def _try_touch_samples(self):
         """

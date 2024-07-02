@@ -10,9 +10,10 @@ from logging import getLogger
 from typing import Iterable, List, Tuple, Union, Literal
 
 import numpy as np
-import pandas as pd
+#import pandas as pd
+import polars as pl
 import yaml
-from pandas.core.common import flatten
+#from pandas.core.common import flatten
 from rich.console import Console
 from rich.progress import track
 from ubiquerg import is_url
@@ -173,8 +174,8 @@ class Project(MutableMapping):
     @classmethod
     def from_pandas(
         cls,
-        samples_df: pd.DataFrame,
-        sub_samples_df: List[pd.DataFrame] = None,
+        samples_df: pl.DataFrame,
+        sub_samples_df: List[pl.DataFrame] = None,
         config: dict = None,
     ):
         """
@@ -224,7 +225,7 @@ class Project(MutableMapping):
                                                                              _samples: list | dict,
                                                                              _subsamples: list[list | dict]}
         """
-        self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY]).replace(
+        self[SAMPLE_DF_KEY] = pl.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY]).replace(
             np.nan, ""
         )
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
@@ -232,7 +233,7 @@ class Project(MutableMapping):
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
                 self[SUBSAMPLE_DF_KEY] = [
-                    pd.DataFrame(sub_a).replace(np.nan, "")
+                    pl.DataFrame(sub_a).replace(np.nan, "")
                     for sub_a in pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]
                 ]
         if NAME_KEY in self[CONFIG_KEY]:
@@ -291,7 +292,7 @@ class Project(MutableMapping):
         _LOGGER.info("Processing project from yaml...")
         with open(yaml_file, "r") as f:
             prj_dict = yaml.safe_load(f)
-        pd_df = pd.DataFrame.from_dict(prj_dict)
+        pd_df = pl.DataFrame.from_dict(prj_dict)
         return cls.from_pandas(pd_df)
 
     def to_dict(
@@ -375,9 +376,9 @@ class Project(MutableMapping):
             if SAMPLE_DF_KEY in self:
                 df = self[SAMPLE_DF_KEY]
             else:
-                df = pd.DataFrame()
+                df = pl.DataFrame()
         else:
-            df = pd.DataFrame.from_dict([s.to_dict() for s in self.samples])
+            df = pl.DataFrame.from_dict([s.to_dict() for s in self.samples])
         index = [index] if isinstance(index, str) else index
         if not all([i in df.columns for i in index]):
             _LOGGER.debug(
@@ -745,7 +746,7 @@ class Project(MutableMapping):
                 attribute_value_for_sample = sample.get(attr, "")
                 attribute_values.append(attribute_value_for_sample)
 
-            merged_attributes[attr] = list(flatten(attribute_values))
+            merged_attributes[attr] = list(pl.Expr.flatten(attribute_values))
 
         return merged_attributes
 
@@ -1255,7 +1256,7 @@ class Project(MutableMapping):
         if not self[SUBSAMPLE_DF_KEY]:
             return None
 
-        subsample_dataframes_array = make_list(self[SUBSAMPLE_DF_KEY], pd.DataFrame)
+        subsample_dataframes_array = make_list(self[SUBSAMPLE_DF_KEY], pl.DataFrame)
         for subsample_table in subsample_dataframes_array:
             if not all([i in subsample_table.columns for i in self.sst_index]):
                 _LOGGER.info(
