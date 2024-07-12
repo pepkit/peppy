@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Type, Union
 from urllib.request import urlopen
 
 import yaml
@@ -76,14 +76,16 @@ def grab_project_data(prj):
         raise KeyError("Project lacks section '{}'".format(CONFIG_KEY))
 
 
-def make_list(arg, obj_class):
+def make_list(arg: Union[list, str], obj_class: Type) -> list:
     """
     Convert an object of predefined class to a list of objects of that class or
     ensure a list is a list of objects of that class
 
     :param list[obj] | obj arg: string or a list of strings to listify
     :param str obj_class: name of the class of intrest
+
     :return list: list of objects of the predefined class
+
     :raise TypeError: if a faulty argument was provided
     """
 

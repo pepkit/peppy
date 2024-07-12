@@ -1316,7 +1316,10 @@ class Project(MutableMapping):
         if self[SUBSAMPLE_TABLES_FILE_KEY] is not None:
             sst = self[SUBSAMPLE_TABLES_FILE_KEY]
         else:
-            if CONFIG_KEY in self and CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
+            if (
+                CONFIG_KEY in self
+                and self[CONFIG_KEY].get(CFG_SUBSAMPLE_TABLE_KEY) is not None
+            ):
                 sst = make_list(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY], str)
             else:
                 sst = None

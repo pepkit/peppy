@@ -715,3 +715,11 @@ class TestSampleAttrMap:
         """
         p = Project(cfg=example_pep_cfg_path)
         assert len(p.samples[0]) == 4
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["subsamples_none"], indirect=True)
+    def test_config_with_subsample_null(self, example_pep_cfg_path):
+        """
+        Tests if config can have value with subsample=null
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert p.subsample_table is None
