@@ -723,3 +723,13 @@ class TestSampleAttrMap:
         """
         p = Project(cfg=example_pep_cfg_path)
         assert p.subsample_table is None
+
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path", ["nextflow_subsamples"], indirect=True
+    )
+    def test_nextflow_subsamples(self, example_pep_cfg_path):
+        """
+        Tests if config can have value with subsample=null
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        assert isinstance(p, Project)

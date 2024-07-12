@@ -16,6 +16,7 @@ from pandas.core.common import flatten
 from rich.console import Console
 from rich.progress import track
 from ubiquerg import is_url
+from copy import deepcopy
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -59,6 +60,7 @@ from .const import (
     SUBSAMPLE_RAW_LIST_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    ORIGINAL_CONFIG_KEY,
 )
 from .exceptions import (
     InvalidSampleTableFileException,
@@ -317,13 +319,13 @@ class Project(MutableMapping):
             else:
                 sub_df = None
             try:
-                self[CONFIG_KEY][NAME_KEY] = self.name
+                self[ORIGINAL_CONFIG_KEY][NAME_KEY] = self.name
             except NotImplementedError:
-                self[CONFIG_KEY][NAME_KEY] = "unnamed"
-            self[CONFIG_KEY][DESC_KEY] = self.description
+                self[ORIGINAL_CONFIG_KEY][NAME_KEY] = "unnamed"
+            self[ORIGINAL_CONFIG_KEY][DESC_KEY] = self.description
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
-                CONFIG_KEY: dict(self[CONFIG_KEY]),
+                CONFIG_KEY: dict(self[ORIGINAL_CONFIG_KEY]),
                 SUBSAMPLE_RAW_LIST_KEY: sub_df,
             }
         else:
@@ -438,6 +440,7 @@ class Project(MutableMapping):
                     )
 
         self[CONFIG_KEY].update(**config)
+        self[ORIGINAL_CONFIG_KEY] = deepcopy(self[CONFIG_KEY])
         # Parse yaml into the project.config attributes
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
         # Overwrite any config entries with entries in the amendments
