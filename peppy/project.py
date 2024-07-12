@@ -27,7 +27,7 @@ from .const import (
     CONFIG_FILE_KEY,
     CONFIG_KEY,
     CONFIG_VERSION_KEY,
-    CONSTANT_KEY,
+    APPEND_KEY,
     DERIVED_ATTRS_KEY,
     DERIVED_KEY,
     DERIVED_SOURCES_KEY,
@@ -587,8 +587,8 @@ class Project(MutableMapping):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if self._modifier_exists(CONSTANT_KEY):
-            to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][CONSTANT_KEY]
+        if self._modifier_exists(APPEND_KEY):
+            to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][APPEND_KEY]
             _LOGGER.debug("Applying constant attributes: {}".format(to_append))
 
             for s in track(
