@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
+from typing import Optional, Union
 
 import pandas as pd
 import yaml
@@ -134,31 +135,39 @@ class Sample(SimpleAttMap):
             serial.update({"prj": grab_project_data(self[PRJ_REF])})
         return serial
 
-    def to_yaml(self, path, add_prj_ref=False):
+    def to_yaml(
+        self, path: Optional[str] = None, add_prj_ref=False
+    ) -> Union[str, None]:
         """
-        Serializes itself in YAML format.
+        Serializes itself in YAML format. Writes to file if path is provided, else returns string representation.
 
         :param str path: A file path to write yaml to; provide this or
-            the subs_folder_path
+            the subs_folder_path, defaults to None
         :param bool add_prj_ref: whether the project reference bound do the
             Sample object should be included in the YAML representation
+        :return str | None: returns string representation of sample yaml or None
         """
         serial = self.to_dict(add_prj_ref=add_prj_ref)
-        path = os.path.expandvars(path)
-        if not os.path.exists(os.path.dirname(path)):
-            _LOGGER.warning(
-                "Could not write sample data to: {}. "
-                "Directory does not exist".format(path)
-            )
-            return
-        with open(path, "w") as outfile:
-            try:
-                yaml_data = yaml.safe_dump(serial, default_flow_style=False)
-            except yaml.representer.RepresenterError:
-                _LOGGER.error("Serialized sample data: {}".format(serial))
-                raise
-            outfile.write(yaml_data)
-            _LOGGER.debug("Sample data written to: {}".format(path))
+        if path:
+            path = os.path.expandvars(path)
+            if os.path.exists(os.path.dirname(path)):
+                with open(path, "w") as outfile:
+                    try:
+                        yaml_data = yaml.safe_dump(serial, default_flow_style=False)
+                    except yaml.representer.RepresenterError:
+                        _LOGGER.error("Serialized sample data: {}".format(serial))
+                        raise
+                    outfile.write(yaml_data)
+                    _LOGGER.debug("Sample data written to: {}".format(path))
+            else:
+                _LOGGER.warning(
+                    "Could not write sample data to: {}. "
+                    "Directory does not exist".format(path)
+                )
+                return
+        else:
+            yaml_data = yaml.safe_dump(serial, stream=None, default_flow_style=False)
+            return yaml_data
 
     def derive_attribute(self, data_sources, attr_name):
         """
@@ -301,6 +310,16 @@ class Sample(SimpleAttMap):
         :return peppy.Project: project object the sample was created from
         """
         return self[PRJ_REF]
+
+    @property
+    def sample_name(self):
+        """
+        Get the sample's name
+
+        :return str: current sample name derived from project's st_index
+        """
+
+        return self[self[PRJ_REF].st_index]
 
     # The __reduce__ function provides an interface for
     # correct object serialization with the pickle module.
