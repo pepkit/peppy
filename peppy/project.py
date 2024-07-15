@@ -139,7 +139,6 @@ class Project(MutableMapping):
 
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self.is_private = False
         self.progressbar = False
 
         # table indexes can be specified in config or passed to the object constructor
@@ -1312,7 +1311,7 @@ class Project(MutableMapping):
                 _LOGGER.info("No config key in Project, or reading project from dict")
                 return
             if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
-                _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
+                _LOGGER.debug(f"No {CFG_SAMPLE_TABLE_KEY} found in config file")
                 return
             st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
 
