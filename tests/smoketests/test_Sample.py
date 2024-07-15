@@ -58,6 +58,16 @@ class TestSample:
             assert example_pep_cfg_path in str_repr
             assert "Sample '{}'".format(sample["sample_name"]) in str_repr
 
+    @pytest.mark.parametrize("example_pep_cfg_path", EXAMPLE_TYPES, indirect=True)
+    def test_sample_to_yaml_no_path(self, example_pep_cfg_path):
+        """
+        Verify that to_yaml returns representation without requiring a path.
+        """
+        p = Project(cfg=example_pep_cfg_path)
+        for sample in p.samples:
+            yaml_repr = sample.to_yaml()
+            assert "sample_name" in yaml_repr
+
     @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
     def test_sheet_dict_excludes_private_attrs(self, example_pep_cfg_path):
         """
