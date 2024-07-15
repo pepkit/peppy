@@ -77,3 +77,24 @@ class TestSample:
             unpickled_sample = pickle.loads(pickled_data)
 
             assert sample.to_dict() == unpickled_sample.to_dict()
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
+    def test_equals_samples(self, example_pep_cfg_path):
+        p1 = Project(cfg=example_pep_cfg_path)
+        p2 = Project(cfg=example_pep_cfg_path)
+        s1 = p1.samples[0]
+        s2 = p2.samples[0]
+
+        assert s1 == s2
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["basic"], indirect=True)
+    def test_not_equals_samples(self, example_pep_cfg_path):
+        p1 = Project(cfg=example_pep_cfg_path)
+        p2 = Project(cfg=example_pep_cfg_path)
+        s1 = p1.samples[0]
+        s2 = p2.samples[0]
+        s3 = p2.samples[1]
+
+        s2.new = "something"
+        assert not s1 == s2
+        assert not s1 == s3
