@@ -202,6 +202,19 @@ class Project(MutableMapping):
         return tmp_obj
 
     @classmethod
+    def from_pephub(cls, registry_path: str) -> "Project":
+        """
+        Init project from pephubclient.
+
+        :param registry_path: PEPhub registry path
+        :return: peppy Project
+        """
+        from pephubclient import PEPHubClient
+
+        phc = PEPHubClient()
+        return phc.load_project(project_registry_path=registry_path)
+
+    @classmethod
     def from_dict(cls, pep_dictionary: dict):
         """
         Init a peppy project instance from a dictionary representation
