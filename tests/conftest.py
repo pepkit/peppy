@@ -52,11 +52,6 @@ def example_pep_cfg_noname_path(request):
 
 
 @pytest.fixture
-def example_pep_cfg_custom_index(request):
-    return get_path_to_example_file(EPB, "custom_index", request.param)
-
-
-@pytest.fixture
 def example_peps_cfg_paths(request):
     """
     This is the same as the ficture above, however, it lets

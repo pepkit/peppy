@@ -46,6 +46,9 @@ class SimpleAttMap(MutableMapping):
         except KeyError:
             raise AttributeError(f"Attribute not found: {item}")
 
+    def __eq__(self, other: "SimpleAttMap"):
+        return self._mapped_attr == other._mapped_attr
+
     @property
     def attributes(self):
         return self._mapped_attr

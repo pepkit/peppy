@@ -16,6 +16,7 @@ from pandas.core.common import flatten
 from rich.console import Console
 from rich.progress import track
 from ubiquerg import is_url
+from copy import deepcopy
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
@@ -27,7 +28,7 @@ from .const import (
     CONFIG_FILE_KEY,
     CONFIG_KEY,
     CONFIG_VERSION_KEY,
-    CONSTANT_KEY,
+    APPEND_KEY,
     DERIVED_ATTRS_KEY,
     DERIVED_KEY,
     DERIVED_SOURCES_KEY,
@@ -59,6 +60,7 @@ from .const import (
     SUBSAMPLE_RAW_LIST_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
+    ORIGINAL_CONFIG_KEY,
 )
 from .exceptions import (
     InvalidSampleTableFileException,
@@ -137,7 +139,6 @@ class Project(MutableMapping):
 
         self._samples = []
         self[SAMPLE_EDIT_FLAG_KEY] = False
-        self.is_private = False
         self.progressbar = False
 
         # table indexes can be specified in config or passed to the object constructor
@@ -199,6 +200,19 @@ class Project(MutableMapping):
             index=tmp_obj.st_index, initial=True
         )
         return tmp_obj
+
+    @classmethod
+    def from_pephub(cls, registry_path: str) -> "Project":
+        """
+        Init project from pephubclient.
+
+        :param registry_path: PEPhub registry path
+        :return: peppy Project
+        """
+        from pephubclient import PEPHubClient
+
+        phc = PEPHubClient()
+        return phc.load_project(project_registry_path=registry_path)
 
     @classmethod
     def from_dict(cls, pep_dictionary: dict):
@@ -317,13 +331,13 @@ class Project(MutableMapping):
             else:
                 sub_df = None
             try:
-                self[CONFIG_KEY][NAME_KEY] = self.name
+                self[ORIGINAL_CONFIG_KEY][NAME_KEY] = self.name
             except NotImplementedError:
-                self[CONFIG_KEY][NAME_KEY] = "unnamed"
-            self[CONFIG_KEY][DESC_KEY] = self.description
+                self[ORIGINAL_CONFIG_KEY][NAME_KEY] = "unnamed"
+            self[ORIGINAL_CONFIG_KEY][DESC_KEY] = self.description
             p_dict = {
                 SAMPLE_RAW_DICT_KEY: self[SAMPLE_DF_KEY].to_dict(orient=orient),
-                CONFIG_KEY: dict(self[CONFIG_KEY]),
+                CONFIG_KEY: dict(self[ORIGINAL_CONFIG_KEY]),
                 SUBSAMPLE_RAW_LIST_KEY: sub_df,
             }
         else:
@@ -438,6 +452,7 @@ class Project(MutableMapping):
                     )
 
         self[CONFIG_KEY].update(**config)
+        self[ORIGINAL_CONFIG_KEY] = deepcopy(self[CONFIG_KEY])
         # Parse yaml into the project.config attributes
         _LOGGER.debug("Adding attributes: {}".format(", ".join(config)))
         # Overwrite any config entries with entries in the amendments
@@ -587,8 +602,8 @@ class Project(MutableMapping):
         Update each Sample with constants declared by a Project.
         If Project does not declare constants, no update occurs.
         """
-        if self._modifier_exists(CONSTANT_KEY):
-            to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][CONSTANT_KEY]
+        if self._modifier_exists(APPEND_KEY):
+            to_append = self[CONFIG_KEY][SAMPLE_MODS_KEY][APPEND_KEY]
             _LOGGER.debug("Applying constant attributes: {}".format(to_append))
 
             for s in track(
@@ -1309,14 +1324,17 @@ class Project(MutableMapping):
                 _LOGGER.info("No config key in Project, or reading project from dict")
                 return
             if CFG_SAMPLE_TABLE_KEY not in self[CONFIG_KEY]:
-                _LOGGER.debug("no {} found".format(CFG_SAMPLE_TABLE_KEY))
+                _LOGGER.debug(f"No {CFG_SAMPLE_TABLE_KEY} found in config file")
                 return
             st = self[CONFIG_KEY][CFG_SAMPLE_TABLE_KEY]
 
         if self[SUBSAMPLE_TABLES_FILE_KEY] is not None:
             sst = self[SUBSAMPLE_TABLES_FILE_KEY]
         else:
-            if CONFIG_KEY in self and CFG_SUBSAMPLE_TABLE_KEY in self[CONFIG_KEY]:
+            if (
+                CONFIG_KEY in self
+                and self[CONFIG_KEY].get(CFG_SUBSAMPLE_TABLE_KEY) is not None
+            ):
                 sst = make_list(self[CONFIG_KEY][CFG_SUBSAMPLE_TABLE_KEY], str)
             else:
                 sst = None

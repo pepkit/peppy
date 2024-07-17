@@ -3,3 +3,4 @@ pyyaml
 rich>=10.3.0
 ubiquerg>=0.6.2
 numpy
+pephubclient>=0.4.2
