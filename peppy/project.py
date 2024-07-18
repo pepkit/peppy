@@ -242,6 +242,7 @@ class Project(MutableMapping):
             np.nan, ""
         )
         self[CONFIG_KEY] = pep_dictionary[CONFIG_KEY]
+        self[ORIGINAL_CONFIG_KEY] = deepcopy(self[CONFIG_KEY])
 
         if SUBSAMPLE_RAW_LIST_KEY in pep_dictionary:
             if pep_dictionary[SUBSAMPLE_RAW_LIST_KEY]:
