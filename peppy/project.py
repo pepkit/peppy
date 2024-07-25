@@ -331,6 +331,9 @@ class Project(MutableMapping):
                 ]
             else:
                 sub_df = None
+
+            if not self.get(ORIGINAL_CONFIG_KEY):
+                self[ORIGINAL_CONFIG_KEY] = self[CONFIG_KEY]
             try:
                 self[ORIGINAL_CONFIG_KEY][NAME_KEY] = self.name
             except NotImplementedError:
@@ -418,6 +421,7 @@ class Project(MutableMapping):
         """
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = {}
+            self[ORIGINAL_CONFIG_KEY] = {}
         if not os.path.exists(cfg_path) and not is_url(cfg_path):
             raise OSError(f"Project config file path does not exist: {cfg_path}")
         config = load_yaml(cfg_path)
