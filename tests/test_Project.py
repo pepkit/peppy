@@ -375,7 +375,7 @@ class TestProjectConstructor:
         p1 = Project(
             cfg=example_pep_nextflow_csv_path, sample_table_index="sample"
         ).to_dict()
-        for sample in p1.get("_samples"):
+        for sample in p1.get("samples"):
             for attribute, value in sample.items():
                 assert value not in wrong_values
 
