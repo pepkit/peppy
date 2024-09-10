@@ -345,8 +345,10 @@ class Project(MutableMapping):
                 SUBSAMPLE_RAW_LIST_KEY: sub_df,
             }
         else:
-            p_dict = self.config.copy()
-            p_dict["_samples"] = [s.to_dict() for s in self.samples]
+            p_dict = {
+                "project": self.config.copy(),
+                "samples": [s.to_dict() for s in self.samples],
+            }
 
         return p_dict
 
