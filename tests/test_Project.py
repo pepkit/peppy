@@ -229,7 +229,7 @@ class TestProjectConstructor:
     @pytest.mark.parametrize(
         "example_pep_cfg_path", ["custom_index", "multiple_subsamples"], indirect=True
     )
-    def test_cutsom_sample_table_index_config(self, example_pep_cfg_path):
+    def test_custom_sample_table_index_config(self, example_pep_cfg_path):
         """
         Verify that custom sample table index is sourced from the config
         """
