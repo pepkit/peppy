@@ -1,0 +1,21 @@
+pep_version: "2.1.0"
+sample_table: sample_table.csv
+subsample_table:
+  - subsample_table1.csv
+  - subsample_table2.csv
+
+sample_table_index: sample_id
+
+sample_modifiers:
+  append:
+    local_files: LOCAL
+    genome: "fg"
+  derive:
+    attributes: [local_files]
+    sources:
+      LOCAL: "../data/{file_path}"
+  imply:
+    - if:
+        identifier: "frog1"
+      then:
+        genome: "frog_frog"

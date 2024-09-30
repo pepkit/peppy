@@ -809,7 +809,7 @@ class Project(MutableMapping):
                 if len(this_sample_rows) == 0:
                     _LOGGER.debug(
                         "No merge rows for sample '%s', skipping",
-                        sample[SAMPLE_NAME_ATTR],
+                        sample[self.st_index],
                     )
                     continue
                 _LOGGER.debug("%d rows to merge", len(this_sample_rows))
