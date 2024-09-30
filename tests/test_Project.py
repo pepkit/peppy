@@ -226,7 +226,9 @@ class TestProjectConstructor:
         p = Project(cfg=example_pep_cfg_path)
         assert any([s["file"] != "multi" for s in p.samples])
 
-    @pytest.mark.parametrize("example_pep_cfg_path", ["custom_index"], indirect=True)
+    @pytest.mark.parametrize(
+        "example_pep_cfg_path", ["custom_index", "multiple_subsamples"], indirect=True
+    )
     def test_cutsom_sample_table_index_config(self, example_pep_cfg_path):
         """
         Verify that custom sample table index is sourced from the config
@@ -599,7 +601,7 @@ class TestPostInitSampleCreation:
 
     @pytest.mark.parametrize(
         "example_pep_cfg_path",
-        ["append", "custom_index", "imply", "subtables"],
+        ["append", "custom_index", "imply", "subtables", "multiple_subsamples"],
         indirect=True,
     )
     @pytest.mark.parametrize("orient", ["dict", "records"])
