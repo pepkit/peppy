@@ -426,6 +426,10 @@ class Project(MutableMapping):
             self[ORIGINAL_CONFIG_KEY] = {}
         if not os.path.exists(cfg_path) and not is_url(cfg_path):
             raise OSError(f"Project config file path does not exist: {cfg_path}")
+        if os.path.islink(cfg_path):
+            cfg_path = os.path.realpath(
+                cfg_path
+            )  # due to some problems with symlinks in Nextflow
         config = load_yaml(cfg_path)
 
         assert isinstance(
