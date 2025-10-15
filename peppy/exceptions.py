@@ -1,4 +1,4 @@
-""" Custom error types """
+"""Custom error types"""
 
 from abc import ABCMeta
 from collections.abc import Iterable

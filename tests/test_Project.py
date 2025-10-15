@@ -1,4 +1,4 @@
-""" Classes for peppy.Project smoketesting """
+"""Classes for peppy.Project smoketesting"""
 
 import os
 import socket
@@ -743,4 +743,10 @@ class TestSampleAttrMap:
         Tests if config can have value with subsample=null
         """
         p = Project(cfg=example_pep_cfg_path)
+        assert isinstance(p, Project)
+
+    def test_peppy_proj(self):
+        p = Project(
+            "/home/bnt4me/virginia/repos/tutorials/next_eido/work/d0/5c465753864eb8429c2ea8d0d35153/pep_config.yaml"
+        )
         assert isinstance(p, Project)
