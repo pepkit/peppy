@@ -33,3 +33,10 @@ class EidoValidationError(EidoException):
 
     def __str__(self):
         return f"EidoValidationError ({self.message}): {self.errors_by_type}"
+
+
+class EidoFilterError(EidoException):
+    """Issue with the PEP filter."""
+
+    def __init__(self, key):
+        super(EidoFilterError, self).__init__(key)
