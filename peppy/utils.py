@@ -2,7 +2,10 @@
 
 import logging
 import os
-from typing import Dict, Mapping, Type, Union
+import posixpath as psp
+import re
+from collections import defaultdict
+from typing import Dict, Mapping, Set, Type, Union
 from urllib.request import urlopen
 
 import yaml
@@ -198,3 +201,45 @@ def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
         if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary
         else None
     )
+
+
+def unpopulated_env_var(paths: Set[str]):
+    """
+    Given a set of paths that may contain env vars, group by env var and
+    print a warning for each group with the deepest common directory and
+    the paths relative to that directory.
+    """
+    _VAR_RE = re.compile(r"^\$(\w+)/(.*)$")
+    groups: dict[str, list[str]] = defaultdict(list)
+
+    # 1) Group by env var
+    for s in paths:
+        m = _VAR_RE.match(s.strip())
+        if not m:
+            # Not in "$VAR/..." form — skip or collect under a special key if you prefer
+            continue
+        var, tail = m.group(1), m.group(2)
+        # normalize to POSIX-ish, no leading "./"
+        tail = tail.lstrip("/")
+        groups[var].append(tail)
+
+    # 2) For each var, compute deepest common directory and print
+    for var, tails in groups.items():
+        if not tails:
+            continue
+
+        if len(tails) == 1:
+            # With a single path, use its directory as the common dir
+            common_dir = psp.dirname(tails[0]) or "."
+        else:
+            common_dir = psp.commonpath(tails) or "."
+            # Ensure it's a directory; commonpath is component-wise, so it's fine.
+
+        _LOGGER.warning(
+            "Not all environment variables were populated in derived attribute source: $%s",
+            var,
+        )
+        for t in tails:
+            rel = psp.relpath(t, start=common_dir or ".")
+            # show with leading "./" per your example
+            _LOGGER.warning("    ./%s", rel)

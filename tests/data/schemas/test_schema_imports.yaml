@@ -1,0 +1,17 @@
+imports:
+    - http://schema.databio.org/pep/2.0.0.yaml
+description: Schema for a more restrictive PEP
+properties:
+  samples:
+    type: array
+    items:
+      type: object
+      properties:
+        my_numeric_attribute:
+          type: integer
+          minimum: 0
+          maximum: 1
+      required:
+        - my_numeric_attribute
+required:
+  - samples

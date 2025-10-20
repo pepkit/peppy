@@ -1,0 +1,12 @@
+pep_version: "2.1.0"
+sample_table: sample_table.csv
+subsample_table: subsample_table.csv
+
+
+sample_modifiers:
+  append:
+    local_files: LOCAL
+  derive:
+    attributes: [local_files]
+    sources:
+      LOCAL: "../data/{file_path}"

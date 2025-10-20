@@ -1,0 +1,6 @@
+sample_id,file_path,subsample_name
+frog_1,file/a.txt,a
+frog_1,file/b.txt,b
+frog_1,file/c.txt,c
+frog_2,file/a.txt,a
+frog_2,file/b.txt,b

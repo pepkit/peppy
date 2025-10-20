@@ -4,12 +4,18 @@ import os
 
 import pandas as pd
 import pytest
+from peppy.project import Project
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal.stolarczyk@nih.gov"
 
 # example_peps branch, see: https://github.com/pepkit/example_peps
 EPB = "master"
+
+
+@pytest.fixture
+def data_path():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 
 def merge_paths(pep_branch, directory_name):
@@ -68,3 +74,43 @@ def config_with_pandas_obj(request):
     return pd.read_csv(
         get_path_to_example_file(EPB, request.param, "sample_table.csv"), dtype=str
     )
+
+
+@pytest.fixture
+def schemas_path(data_path):
+    return os.path.join(data_path, "schemas")
+
+
+@pytest.fixture
+def peps_path(data_path):
+    return os.path.join(data_path, "peps")
+
+
+@pytest.fixture
+def project_file_path(peps_path):
+    return os.path.join(peps_path, "test_pep", "test_cfg.yaml")
+
+
+@pytest.fixture
+def project_object(project_file_path):
+    return Project(project_file_path)
+
+
+@pytest.fixture
+def schema_file_path(schemas_path):
+    return os.path.join(schemas_path, "test_schema.yaml")
+
+
+@pytest.fixture
+def schema_samples_file_path(schemas_path):
+    return os.path.join(schemas_path, "test_schema_samples.yaml")
+
+
+@pytest.fixture
+def schema_invalid_file_path(schemas_path):
+    return os.path.join(schemas_path, "test_schema_invalid.yaml")
+
+
+@pytest.fixture
+def schema_imports_file_path(schemas_path):
+    return os.path.join(schemas_path, "test_schema_imports.yaml")

@@ -20,8 +20,8 @@ from .const import (
     SAMPLE_SHEET_KEY,
 )
 from .exceptions import InvalidSampleTableFileException
-from .utils import copy, grab_project_data
 from .simple_attr_map import SimpleAttMap
+from .utils import copy, grab_project_data
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -199,11 +199,6 @@ class Sample(SimpleAttMap):
             keys = [i[1] for i in Formatter().parse(regex) if i[1] is not None]
             if not keys:
                 return [regex]
-            if "$" in regex:
-                _LOGGER.warning(
-                    "Not all environment variables were populated "
-                    "in derived attribute source: {}".format(regex)
-                )
             attr_lens = [
                 len(v) for k, v in items.items() if (isinstance(v, list) and k in keys)
             ]

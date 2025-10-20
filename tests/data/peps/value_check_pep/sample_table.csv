@@ -1,0 +1,7 @@
+sample_name,file_name,genome,assay,cell_line,target,format_type
+encode_4,ENCFF452DAM.bed.gz,hg38,Histone ChIP-seq,skeletal muscle myoblast,H3K36me3,narrowPeak
+encode_20,ENCFF121AXG.bed.gz,hg38,DNase-seq,RPMI7951,,tssPeak
+encode_21,ENCFF710ECJ.bed.gz,hg38,DNase-seq,RPMI7951,,broadPeak
+encode_22,ENCFF945FZN.bed.gz,hg38,DNase-seq,RPMI7951,,narrowPeak
+encode_23,ENCFF322PQO.bed.gz,hg38,DNase-seq,RPMI7951,,tssPeak
+encode_24,ENCFF322PQO.bed.gz,hg38,DNase-seq,RPMI7951,,tssPeak1

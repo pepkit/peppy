@@ -1,15 +1,13 @@
 """ Classes for peppy.Project smoketesting """
 
 import os
+import pickle
 import socket
 import tempfile
 
 import numpy as np
 import pytest
 from pandas import DataFrame
-from yaml import dump, safe_load
-import pickle
-
 from peppy import Project
 from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
 from peppy.exceptions import (
@@ -18,6 +16,7 @@ from peppy.exceptions import (
     MissingAmendmentError,
     RemoteYAMLError,
 )
+from yaml import dump, safe_load
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal.stolarczyk@nih.gov"
@@ -38,6 +37,7 @@ EXAMPLE_TYPES = [
     "subtable4",
     "subtable5",
     "remove",
+    "issue499",
 ]
 
 
@@ -570,6 +570,15 @@ class TestPostInitSampleCreation:
 
     @pytest.mark.parametrize("example_pep_cfg_path", ["derive"], indirect=True)
     def test_derive(self, example_pep_cfg_path):
+        """
+        Verify that the derivation the same way in a post init
+        sample creation scenario
+        """
+        p, pd = _get_pair_to_post_init_test(example_pep_cfg_path)
+        _cmp_all_samples_attr(p, pd, "file_path")
+
+    @pytest.mark.parametrize("example_pep_cfg_path", ["issue499"], indirect=True)
+    def test_issue499(self, example_pep_cfg_path):
         """
         Verify that the derivation the same way in a post init
         sample creation scenario
