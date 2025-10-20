@@ -1,4 +1,4 @@
-""" Classes for peppy.Project smoketesting """
+"""Classes for peppy.Project smoketesting"""
 
 import os
 import socket
