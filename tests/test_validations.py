@@ -6,6 +6,7 @@ from peppy.eido.exceptions import EidoValidationError, PathAttrNotFoundError
 from peppy.eido.validation import (
     validate_config,
     validate_input_files,
+    validate_original_samples,
     validate_project,
     validate_sample,
 )
@@ -91,12 +92,22 @@ class TestSampleValidation:
                 schema=schema_sample_invalid_file_path,
             )
 
+    def test_original_sample(self, project_table_path, schema_samples_file_path):
+        validate_original_samples(project_table_path, schema_samples_file_path)
+
 
 class TestConfigValidation:
     def test_validate_succeeds_on_invalid_sample(
         self, project_object, schema_sample_invalid_file_path
     ):
         validate_config(project=project_object, schema=schema_sample_invalid_file_path)
+
+    def test_validate_on_yaml_dict(
+        self, project_file_path, schema_sample_invalid_file_path
+    ):
+        validate_config(
+            project=project_file_path, schema=schema_sample_invalid_file_path
+        )
 
 
 class TestRemoteValidation:

@@ -92,6 +92,11 @@ def project_file_path(peps_path):
 
 
 @pytest.fixture
+def project_table_path(peps_path):
+    return os.path.join(peps_path, "test_pep", "test_sample_table.csv")
+
+
+@pytest.fixture
 def project_object(project_file_path):
     return Project(project_file_path)
 

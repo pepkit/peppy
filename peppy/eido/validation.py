@@ -4,11 +4,13 @@ from logging import getLogger
 from typing import Mapping, NoReturn, Union
 from warnings import warn
 
+import pandas as pd
 from jsonschema import Draft7Validator
 from pandas.core.common import flatten
 
 from ..project import Project
 from ..sample import Sample
+from ..utils import load_yaml
 from .const import PROP_KEY, SAMPLES_KEY, SIZING_KEY, TANGIBLE_KEY
 from .exceptions import EidoValidationError, PathAttrNotFoundError
 from .schema import preprocess_schema, read_schema
@@ -120,7 +122,7 @@ def validate_sample(
 
 
 def validate_config(
-    project: Union[Project, dict], schema: Union[str, dict]
+    project: Union[Project, dict, str], schema: Union[str, dict]
 ) -> NoReturn:
     """
     Validate the config part of the Project object against a schema
@@ -143,6 +145,14 @@ def validate_config(
         if isinstance(project, dict):
             _validate_object({"project": project}, schema_cpy)
 
+        elif isinstance(project, str):
+            try:
+                project_dict = load_yaml(project)
+            except:
+                raise ValueError(
+                    f"Please provide a valid yaml config of PEP project; invalid config path: {project}"
+                )
+            _validate_object({"project": project_dict}, schema_cpy)
         else:
             project_dict = project.to_dict()
             _validate_object(project_dict, schema_cpy)
@@ -235,3 +245,25 @@ def validate_input_files(
                 f"For sample '{getattr(sample, project.sample_table_index)}'. "
                 f"Required inputs not found: {required_inputs}"
             )
+
+
+def validate_original_samples(
+    samples: Union[str, pd.DataFrame], schema: Union[str, dict]
+):
+    """
+    Validate the original samples from the csv table against a schema
+
+    :param samples: the path to the sample table csv or the dataframe fom the table
+    :param str | dict schema: schema dict to validate against or a path to one
+
+    :raises EidoValidationError: if validation is unsuccessful
+    """
+    if isinstance(samples, str):
+        samples = pd.read_csv(samples)
+
+    assist_project = Project.from_pandas(samples)
+    for s in assist_project.samples:
+        _validate_sample_object(
+            sample=s,
+            schemas=read_schema(schema=schema),
+        )
