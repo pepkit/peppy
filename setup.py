@@ -40,7 +40,7 @@ with open("README.md") as f:
 
 setup(
     name=PACKAGE_NAME,
-    packages=[PACKAGE_NAME],
+    packages=[PACKAGE_NAME, "peppy.eido"],
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
@@ -60,7 +60,7 @@ setup(
     author="Michal Stolarczyk, Nathan Sheffield, Vince Reuter, Andre Rendeiro, Oleksandr Khoroshevskyi",
     license="BSD2",
     entry_points={
-        "console_scripts": ["peppy = peppy.cli.main"],
+        "console_scripts": ["peppy = peppy.cli:main"],
         "pep.filters": [
             "basic=peppy.eido.conversion_plugins:basic_pep_filter",
             "yaml=peppy.eido.conversion_plugins:yaml_pep_filter",
