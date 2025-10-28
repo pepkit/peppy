@@ -59,6 +59,15 @@ setup(
     url="https://github.com/pepkit/peppy/",
     author="Michal Stolarczyk, Nathan Sheffield, Vince Reuter, Andre Rendeiro, Oleksandr Khoroshevskyi",
     license="BSD2",
+    entry_points={
+        "console_scripts": ["peppy = peppy.cli.main"],
+        "pep.filters": [
+            "basic=peppy.eido.conversion_plugins:basic_pep_filter",
+            "yaml=peppy.eido.conversion_plugins:yaml_pep_filter",
+            "csv=peppy.eido.conversion_plugins:csv_pep_filter",
+            "yaml-samples=peppy.eido.conversion_plugins:yaml_samples_pep_filter",
+        ],
+    },
     include_package_data=True,
     tests_require=(["pytest"]),
     setup_requires=(
