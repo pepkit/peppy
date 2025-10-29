@@ -127,6 +127,11 @@ def schema_imports_file_path(schemas_path):
 
 
 @pytest.fixture
+def schema_rel_path_imports_file_path(schemas_path):
+    return os.path.join(schemas_path, "test_schema_imports_rel_path.yaml")
+
+
+@pytest.fixture
 def taxprofiler_project_path(peps_path):
     return os.path.join(peps_path, "multiline_output", "config.yaml")
 
@@ -139,6 +144,11 @@ def taxprofiler_project(taxprofiler_project_path):
 @pytest.fixture
 def path_to_taxprofiler_csv_multiline_output(peps_path):
     return os.path.join(peps_path, "multiline_output", "multiline_output.csv")
+
+
+@pytest.fixture
+def path_pep_for_schema_with_rel_path(peps_path):
+    return os.path.join(peps_path, "pep_schema_rel_path", "config.yaml")
 
 
 @pytest.fixture

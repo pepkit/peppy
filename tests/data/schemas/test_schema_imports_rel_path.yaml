@@ -1,0 +1,13 @@
+description: "PEP validation schema for this particular pipeline."
+version: "2.0.0"
+imports:
+  - "../common/schemas/common_pep_validation.yaml"
+properties:
+  samples:
+    items:
+      properties:
+        patient:
+          type: string
+          pattern: "\\S+"
+          description: >-
+            Unique identifier of the patient a sample has been taken from.

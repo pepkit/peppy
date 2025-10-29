@@ -1,4 +1,8 @@
+import os
 from logging import getLogger
+from typing import Union
+
+from ubiquerg import is_url
 
 from ..utils import load_yaml
 from .const import PROP_KEY, SAMPLES_KEY
@@ -52,10 +56,18 @@ def read_schema(schema):
         if the 'imports' sections in any of the schemas is not a list
     """
 
-    def _recursively_read_schemas(x, lst):
+    def _recursively_read_schemas(x, lst, parent_folder: Union[str, None]):
         if "imports" in x:
             if isinstance(x["imports"], list):
                 for sch in x["imports"]:
+                    if (not is_url(sch)) and (not os.path.isabs(sch)):
+                        # resolve relative path
+                        if parent_folder is not None:
+                            sch = os.path.normpath(os.path.join(parent_folder, sch))
+                        else:
+                            _LOGGER.warning(
+                                f"The schema contains relative path without known parent folder: {sch}"
+                            )
                     lst.extend(read_schema(sch))
             else:
                 raise TypeError("In schema the 'imports' section has to be a list")
@@ -63,12 +75,14 @@ def read_schema(schema):
         return lst
 
     schema_list = []
+    schema_folder = None
     if isinstance(schema, str):
         _LOGGER.debug(f"Reading schema: {schema}")
+        schema_folder = os.path.split(schema)[0]
         schema = load_yaml(schema)
     if not isinstance(schema, dict):
         raise TypeError(
             f"schema has to be a dict, path to an existing file or URL to a remote one. "
             f"Got: {type(schema)}"
         )
-    return _recursively_read_schemas(schema, schema_list)
+    return _recursively_read_schemas(schema, schema_list, schema_folder)

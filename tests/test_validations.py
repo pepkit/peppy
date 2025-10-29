@@ -37,6 +37,12 @@ class TestProjectValidation:
         with pytest.raises(EidoValidationError):
             validate_project(project=project_object, schema=schema_imports_file_path)
 
+    def test_validate_imports_with_rel_path(
+        self, path_pep_for_schema_with_rel_path, schema_rel_path_imports_file_path
+    ):
+        pep_project = Project(path_pep_for_schema_with_rel_path)
+        validate_project(project=pep_project, schema=schema_rel_path_imports_file_path)
+
     def test_validate_converts_samples_to_private_attr(
         self, project_object, schema_samples_file_path
     ):
