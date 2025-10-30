@@ -235,11 +235,16 @@ def unpopulated_env_var(paths: Set[str]):
             common_dir = psp.commonpath(tails) or "."
             # Ensure it's a directory; commonpath is component-wise, so it's fine.
 
-        _LOGGER.warning(
-            "Not all environment variables were populated in derived attribute source: $%s",
-            var,
-        )
+        warning_message = "Not all environment variables were populated in derived attribute source: $%s/{"
+
+        in_env = []
         for t in tails:
             rel = psp.relpath(t, start=common_dir or ".")
-            # show with leading "./" per your example
-            _LOGGER.warning("    ./%s", rel)
+            in_env.append(rel)
+
+        warning_message += ", ".join(in_env)
+        warning_message += "}"
+        _LOGGER.warning(
+            warning_message,
+            var,
+        )
