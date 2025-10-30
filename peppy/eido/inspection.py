@@ -80,7 +80,7 @@ def get_input_files_size(sample, schema):
             [
                 size(f, size_str=False) or 0.0
                 for f in all_inputs
-                if f != "" and f != None
+                if f != "" and f is not None
             ]
         ) / (1024**3)
         if w:

@@ -49,7 +49,7 @@ class TestConversionInfrastructure:
         assert save_result_mock.called
         assert conv_result["samples"] == taxprofiler_csv_multiline_output
 
-    def test_csv_filter_handles_empty_fasta_correclty(
+    def test_csv_filter_handles_empty_fasta_correctly(
         self,
         project_pep_with_fasta_column,
         output_pep_with_fasta_column,

@@ -159,7 +159,7 @@ class TestProjectWithoutConfigValidation:
                 project=Project(remote_pep_cfg), schema=schema_invalid_file_path
             )
 
-    def test_validate_file_existance(
+    def test_validate_file_existence(
         self, test_file_existing_pep, test_file_existing_schema
     ):
         schema_path = test_file_existing_schema

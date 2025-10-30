@@ -2,7 +2,7 @@
 
 from abc import ABCMeta
 
-_all__ = [
+__all__ = [
     "EidoFilterError",
     "EidoSchemaInvalidError",
     "EidoValidationError",
@@ -23,6 +23,20 @@ class PathAttrNotFoundError(EidoException):
         super(PathAttrNotFoundError, self).__init__(key)
 
 
+class EidoSchemaInvalidError(EidoException):
+    """Schema does not comply to eido-specific requirements."""
+
+    def __init__(self, key):
+        super(EidoSchemaInvalidError, self).__init__(key)
+
+
+class EidoFilterError(EidoException):
+    """Issue with the PEP filter."""
+
+    def __init__(self, key):
+        super(EidoFilterError, self).__init__(key)
+
+
 class EidoValidationError(EidoException):
     """Object was not validated successfully according to schema."""
 
@@ -33,10 +47,3 @@ class EidoValidationError(EidoException):
 
     def __str__(self):
         return f"EidoValidationError ({self.message}): {self.errors_by_type}"
-
-
-class EidoFilterError(EidoException):
-    """Issue with the PEP filter."""
-
-    def __init__(self, key):
-        super(EidoFilterError, self).__init__(key)
