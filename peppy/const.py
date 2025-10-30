@@ -1,4 +1,4 @@
-""" Package constants """
+"""Package constants"""
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal.stolarczyk@nih.gov"

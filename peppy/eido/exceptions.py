@@ -1,4 +1,4 @@
-""" Exceptions for specific eido issues. """
+"""Exceptions for specific eido issues."""
 
 from abc import ABCMeta
 

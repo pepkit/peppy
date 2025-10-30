@@ -1,4 +1,4 @@
-""" Helpers without an obvious logical home. """
+"""Helpers without an obvious logical home."""
 
 import logging
 import os

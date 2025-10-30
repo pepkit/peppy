@@ -1,4 +1,4 @@
-""" built-in PEP filters """
+"""built-in PEP filters"""
 
 from typing import Dict
 
