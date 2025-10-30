@@ -82,7 +82,7 @@ def get_input_files_size(sample, schema):
                 for f in all_inputs
                 if f != "" and f != None
             ]
-        ) / (1024 ** 3)
+        ) / (1024**3)
         if w:
             _LOGGER.warning(
                 f"{len(w)} input files missing, job input size was "
