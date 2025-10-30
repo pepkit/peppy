@@ -4,4 +4,6 @@ rich>=10.3.0
 ubiquerg>=0.6.2
 numpy
 pephubclient>=0.4.2
+# eido
 importlib-metadata; python_version < '3.10'
+jsonschema>=3.0.1
