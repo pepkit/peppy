@@ -2,3 +2,6 @@ mock
 pytest
 pytest-cov
 pytest-remotedata
+# eido
+coveralls
+pytest-mock==3.6.1
