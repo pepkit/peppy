@@ -8,14 +8,15 @@ else:
 import inspect
 import os
 from logging import getLogger
-from typing import NoReturn
+from typing import Callable, Dict, List, NoReturn
 
+from ..project import Project
 from .exceptions import EidoFilterError
 
 _LOGGER = getLogger(__name__)
 
 
-def pep_conversion_plugins():
+def pep_conversion_plugins() -> Dict[str, Callable]:
     """
     Plugins registered by entry points in the current Python env
 
@@ -36,7 +37,7 @@ def pep_conversion_plugins():
     return plugins
 
 
-def convert_project(prj, target_format, plugin_kwargs=None):
+def convert_project(prj: Project, target_format: str, plugin_kwargs=None):
     """
     Convert a `peppy.Project` object to a selected format
 
@@ -48,7 +49,9 @@ def convert_project(prj, target_format, plugin_kwargs=None):
     return run_filter(prj, target_format, plugin_kwargs=plugin_kwargs or dict())
 
 
-def run_filter(prj, filter_name, verbose=True, plugin_kwargs=None):
+def run_filter(
+    prj: Project, filter_name: str, verbose=True, plugin_kwargs=None
+) -> Dict[str, str]:
     """
     Run a selected filter on a peppy.Project object
 
@@ -113,7 +116,7 @@ def save_result(result_path: str, content: str) -> NoReturn:
         f.write(content)
 
 
-def get_available_pep_filters():
+def get_available_pep_filters() -> List[str]:
     """
     Get a list of available target formats
 

@@ -1,9 +1,11 @@
 import os
 from logging import getLogger
+from typing import Dict, Iterable, List, Set, Union
 from warnings import catch_warnings
 
 from ubiquerg import size
 
+from .. import Project, Sample
 from .const import (
     ALL_INPUTS_KEY,
     INPUT_FILE_SIZE_KEY,
@@ -20,7 +22,9 @@ from .validation import _get_attr_values, _validate_sample_object
 _LOGGER = getLogger(__name__)
 
 
-def inspect_project(p, sample_names=None, max_attr=10):
+def inspect_project(
+    p: Project, sample_names: Union[None, List[str]] = None, max_attr=10
+) -> None:
     """
     Print inspection info: Project or,
     if sample_names argument is provided, matched samples
@@ -42,7 +46,9 @@ def inspect_project(p, sample_names=None, max_attr=10):
     return
 
 
-def get_input_files_size(sample, schema):
+def get_input_files_size(
+    sample: Sample, schema: Union[str, List[Dict]]
+) -> Dict[str, Union[List[str], Set[str], float]]:
     """
     Determine which of this Sample's required attributes/files are missing
     and calculate sizes of the files (inputs).

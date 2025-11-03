@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy as dpcpy
 from logging import getLogger
-from typing import Mapping, NoReturn, Union
+from typing import Dict, List, Mapping, NoReturn, Union
 from warnings import warn
 
 import pandas as pd
@@ -81,7 +81,7 @@ def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
         _LOGGER.debug("Project validation successful")
 
 
-def _validate_sample_object(sample: Sample, schemas):
+def _validate_sample_object(sample: Sample, schemas: List[Dict]):
     """
     Internal function that allows to validate a peppy.Sample object without
     requiring a reference to peppy.Project.
@@ -159,7 +159,9 @@ def validate_config(
             _LOGGER.debug("Config validation successful")
 
 
-def _get_attr_values(obj, attrlist):
+def _get_attr_values(
+    obj: Mapping, attrlist: Union[str, List[str]]
+) -> Union[None, List[str]]:
     """
     Get value corresponding to each given attribute.
 

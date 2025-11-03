@@ -1,6 +1,7 @@
 """Exceptions for specific eido issues."""
 
 from abc import ABCMeta
+from typing import Dict, List
 
 __all__ = [
     "EidoFilterError",
@@ -40,7 +41,7 @@ class EidoFilterError(EidoException):
 class EidoValidationError(EidoException):
     """Object was not validated successfully according to schema."""
 
-    def __init__(self, message, errors_by_type):
+    def __init__(self, message: str, errors_by_type: Dict[str, List[Dict[str, str]]]):
         super().__init__(message)
         self.errors_by_type = errors_by_type
         self.message = message

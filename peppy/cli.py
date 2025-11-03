@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import Dict, List
 
 from logmuse import init_logger
 
@@ -35,7 +36,7 @@ def _parse_filter_args_str(input):
     )
 
 
-def print_error_summary(errors_by_type):
+def print_error_summary(errors_by_type: Dict[str, List[Dict[str, str]]]):
     """Print a summary of errors, organized by error type"""
     n_error_types = len(errors_by_type)
     print(f"Found {n_error_types} types of error:")

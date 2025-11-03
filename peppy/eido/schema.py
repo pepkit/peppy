@@ -1,6 +1,6 @@
 import os
 from logging import getLogger
-from typing import Union
+from typing import Dict, List, Union
 
 from ubiquerg import is_url
 
@@ -10,7 +10,7 @@ from .const import PROP_KEY, SAMPLES_KEY
 _LOGGER = getLogger(__name__)
 
 
-def preprocess_schema(schema_dict):
+def preprocess_schema(schema_dict: Dict) -> Dict:
     """
     Preprocess schema before validation for user's convenience
 
@@ -43,7 +43,7 @@ def preprocess_schema(schema_dict):
     return schema_dict
 
 
-def read_schema(schema):
+def read_schema(schema: Union[str, Dict]) -> list[Dict]:
     """
     Safely read schema from YAML-formatted file.
 
@@ -56,7 +56,9 @@ def read_schema(schema):
         if the 'imports' sections in any of the schemas is not a list
     """
 
-    def _recursively_read_schemas(x, lst, parent_folder: Union[str, None]):
+    def _recursively_read_schemas(
+        x: Dict, lst: List[Dict], parent_folder: Union[str, None]
+    ) -> List[Dict]:
         if "imports" in x:
             if isinstance(x["imports"], list):
                 for sch in x["imports"]:
