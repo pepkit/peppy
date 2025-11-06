@@ -31,7 +31,20 @@ def copy(obj: Any) -> Any:
 
 
 def make_abs_via_cfg(maybe_relpath: str, cfg_path: str, check_exists: bool = False) -> str:
-    """Ensure that a possibly relative path is absolute."""
+    """Ensure that a possibly relative path is absolute.
+
+    Args:
+        maybe_relpath: Path that may be relative
+        cfg_path: Path to configuration file
+        check_exists: Whether to verify the resulting path exists
+
+    Returns:
+        Absolute path
+
+    Raises:
+        TypeError: If maybe_relpath is not a string
+        OSError: If check_exists is True and path doesn't exist
+    """
     if not isinstance(maybe_relpath, str):
         raise TypeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".format(
@@ -57,18 +70,23 @@ def make_abs_via_cfg(maybe_relpath: str, cfg_path: str, check_exists: bool = Fal
 
 
 def grab_project_data(prj: Any) -> Mapping:
-    """
-    From the given Project, grab Sample-independent data.
+    """From the given Project, grab Sample-independent data.
 
     There are some aspects of a Project of which it's beneficial for a Sample
     to be aware, particularly for post-hoc analysis. Since Sample objects
     within a Project are mutually independent, though, each doesn't need to
-    know about any of the others. A Project manages its, Sample instances,
+    know about any of the others. A Project manages its Sample instances,
     so for each Sample knowledge of Project data is limited. This method
     facilitates adoption of that conceptual model.
 
-    :param Project prj: Project from which to grab data
-    :return Mapping: Sample-independent data sections from given Project
+    Args:
+        prj: Project from which to grab data
+
+    Returns:
+        Sample-independent data sections from given Project
+
+    Raises:
+        KeyError: If project lacks required config section
     """
     if not prj:
         return {}
@@ -80,16 +98,17 @@ def grab_project_data(prj: Any) -> Mapping:
 
 
 def make_list(arg: Union[list, str], obj_class: Type) -> list:
-    """
-    Convert an object of predefined class to a list of objects of that class or
-    ensure a list is a list of objects of that class
+    """Convert an object of predefined class to a list or ensure list contains correct type.
 
-    :param list[obj] | obj arg: string or a list of strings to listify
-    :param str obj_class: name of the class of intrest
+    Args:
+        arg: Object or list of objects to listify
+        obj_class: Class that objects should be instances of
 
-    :return list: list of objects of the predefined class
+    Returns:
+        List of objects of the predefined class
 
-    :raise TypeError: if a faulty argument was provided
+    Raises:
+        TypeError: If a faulty argument was provided
     """
 
     def _raise_faulty_arg():
@@ -109,22 +128,26 @@ def make_list(arg: Union[list, str], obj_class: Type) -> list:
         _raise_faulty_arg()
 
 
-def _expandpath(path: str):
-    """
-    Expand a filesystem path that may or may not contain user/env vars.
+def _expandpath(path: str) -> str:
+    """Expand a filesystem path that may or may not contain user/env vars.
 
-    :param str path: path to expand
-    :return str: expanded version of input path
+    Args:
+        path: Path to expand
+
+    Returns:
+        Expanded version of input path
     """
     return os.path.expandvars(os.path.expanduser(path))
 
 
 def expand_paths(x: dict) -> dict:
-    """
-    Recursively expand paths in a dict.
+    """Recursively expand paths in a dict.
 
-    :param dict x: dict to expand
-    :return dict: dict with expanded paths
+    Args:
+        x: Dict to expand
+
+    Returns:
+        Dict with expanded paths
     """
     if isinstance(x, str):
         return expandpath(x)
@@ -134,12 +157,16 @@ def expand_paths(x: dict) -> dict:
 
 
 def load_yaml(filepath: str) -> dict:
-    """
-    Load a local or remote YAML file into a Python dict
+    """Load a local or remote YAML file into a Python dict.
 
-    :param str filepath: path to the file to read
-    :raises RemoteYAMLError: if the remote YAML file reading fails
-    :return dict: read data
+    Args:
+        filepath: Path to the file to read
+
+    Returns:
+        Read data
+
+    Raises:
+        RemoteYAMLError: If the remote YAML file reading fails
     """
     if is_url(filepath):
         _LOGGER.debug(f"Got URL: {filepath}")
@@ -160,12 +187,18 @@ def load_yaml(filepath: str) -> dict:
 
 
 def is_cfg_or_anno(file_path: Optional[str], formats: Optional[dict] = None) -> Optional[bool]:
-    """
-    Determine if the input file seems to be a project config file (based on the file extension).
-    :param str file_path: file path to examine
-    :param dict formats: formats dict to use. Must include 'config' and 'annotation' keys.
-    :raise ValueError: if the file seems to be neither a config nor an annotation
-    :return bool: True if the file is a config, False if the file is an annotation
+    """Determine if the input file seems to be a project config file (based on extension).
+
+    Args:
+        file_path: File path to examine
+        formats: Formats dict to use. Must include 'config' and 'annotation' keys
+
+    Returns:
+        True if the file is a config, False if the file is an annotation,
+        None if file_path is None
+
+    Raises:
+        ValueError: If the file seems to be neither a config nor an annotation
     """
     formats_dict = formats or {
         "config": (".yaml", ".yml"),
@@ -186,7 +219,14 @@ def is_cfg_or_anno(file_path: Optional[str], formats: Optional[dict] = None) -> 
 
 
 def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]:
-    """Extracts a custom index for the sample table if it exists"""
+    """Extracts a custom index for the sample table if it exists.
+
+    Args:
+        pep_dictionary: PEP configuration dictionary
+
+    Returns:
+        Custom index name or None if not specified
+    """
     return (
         pep_dictionary[SAMPLE_TABLE_INDEX_KEY]
         if SAMPLE_TABLE_INDEX_KEY in pep_dictionary
@@ -195,7 +235,14 @@ def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]
 
 
 def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[str]:
-    """Extracts a custom index for the subsample table if it exists"""
+    """Extracts a custom index for the subsample table if it exists.
+
+    Args:
+        pep_dictionary: PEP configuration dictionary
+
+    Returns:
+        Custom index name or None if not specified
+    """
     return (
         pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY]
         if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary
@@ -204,10 +251,14 @@ def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[s
 
 
 def unpopulated_env_var(paths: Set[str]) -> None:
-    """
+    """Print warnings for unpopulated environment variables in paths.
+
     Given a set of paths that may contain env vars, group by env var and
     print a warning for each group with the deepest common directory and
     the paths relative to that directory.
+
+    Args:
+        paths: Set of paths that may contain environment variables
     """
     _VAR_RE = re.compile(r"^\$(\w+)/(.*)$")
     groups: dict[str, list[str]] = defaultdict(list)
