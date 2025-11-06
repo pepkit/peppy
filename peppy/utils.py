@@ -30,7 +30,9 @@ def copy(obj: Any) -> Any:
     return obj
 
 
-def make_abs_via_cfg(maybe_relpath: str, cfg_path: str, check_exists: bool = False) -> str:
+def make_abs_via_cfg(
+    maybe_relpath: str, cfg_path: str, check_exists: bool = False
+) -> str:
     """Ensure that a possibly relative path is absolute.
 
     Args:
@@ -186,7 +188,9 @@ def load_yaml(filepath: str) -> dict:
         return expand_paths(data)
 
 
-def is_cfg_or_anno(file_path: Optional[str], formats: Optional[dict] = None) -> Optional[bool]:
+def is_cfg_or_anno(
+    file_path: Optional[str], formats: Optional[dict] = None
+) -> Optional[bool]:
     """Determine if the input file seems to be a project config file (based on extension).
 
     Args:

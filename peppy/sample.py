@@ -39,7 +39,9 @@ class Sample(SimpleAttMap):
     :param Mapping | pandas.core.series.Series series: Sample's data.
     """
 
-    def __init__(self, series: Union[Mapping, Series], prj: Optional[Any] = None) -> None:
+    def __init__(
+        self, series: Union[Mapping, Series], prj: Optional[Any] = None
+    ) -> None:
         super(Sample, self).__init__()
 
         data = dict(series)
