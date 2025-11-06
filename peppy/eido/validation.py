@@ -136,11 +136,13 @@ def validate_config(
         try:
             del schema_cpy[PROP_KEY][SAMPLES_KEY]
         except KeyError:
+            # Schema doesn't have samples key, which is fine for config-only validation
             pass
         if "required" in schema_cpy:
             try:
                 schema_cpy["required"].remove(SAMPLES_KEY)
             except ValueError:
+                # SAMPLES_KEY is not in required list, no action needed
                 pass
         if isinstance(project, dict):
             _validate_object({"project": project}, schema_cpy)
@@ -148,10 +150,10 @@ def validate_config(
         elif isinstance(project, str):
             try:
                 project_dict = load_yaml(project)
-            except:
+            except (FileNotFoundError, IOError, OSError) as e:
                 raise ValueError(
                     f"Please provide a valid yaml config of PEP project; invalid config path: {project}"
-                )
+                ) from e
             _validate_object({"project": project_dict}, schema_cpy)
         else:
             project_dict = project.to_dict()
