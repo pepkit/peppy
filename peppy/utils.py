@@ -5,7 +5,7 @@ import os
 import posixpath as psp
 import re
 from collections import defaultdict
-from typing import Dict, Mapping, Set, Type, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Set, Type, Union
 from urllib.request import urlopen
 
 import yaml
@@ -17,7 +17,7 @@ from .exceptions import RemoteYAMLError
 _LOGGER = logging.getLogger(__name__)
 
 
-def copy(obj):
+def copy(obj: Any) -> Any:
     def copy(self):
         """
         Copy self to a new object.
@@ -30,7 +30,7 @@ def copy(obj):
     return obj
 
 
-def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
+def make_abs_via_cfg(maybe_relpath: str, cfg_path: str, check_exists: bool = False) -> str:
     """Ensure that a possibly relative path is absolute."""
     if not isinstance(maybe_relpath, str):
         raise TypeError(
@@ -56,7 +56,7 @@ def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
     return abs_path
 
 
-def grab_project_data(prj):
+def grab_project_data(prj: Any) -> Mapping:
     """
     From the given Project, grab Sample-independent data.
 
@@ -133,7 +133,7 @@ def expand_paths(x: dict) -> dict:
     return x
 
 
-def load_yaml(filepath):
+def load_yaml(filepath: str) -> dict:
     """
     Load a local or remote YAML file into a Python dict
 
@@ -159,7 +159,7 @@ def load_yaml(filepath):
         return expand_paths(data)
 
 
-def is_cfg_or_anno(file_path, formats=None):
+def is_cfg_or_anno(file_path: Optional[str], formats: Optional[dict] = None) -> Optional[bool]:
     """
     Determine if the input file seems to be a project config file (based on the file extension).
     :param str file_path: file path to examine
@@ -185,7 +185,7 @@ def is_cfg_or_anno(file_path, formats=None):
     )
 
 
-def extract_custom_index_for_sample_table(pep_dictionary: Dict):
+def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]:
     """Extracts a custom index for the sample table if it exists"""
     return (
         pep_dictionary[SAMPLE_TABLE_INDEX_KEY]
@@ -194,7 +194,7 @@ def extract_custom_index_for_sample_table(pep_dictionary: Dict):
     )
 
 
-def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
+def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[str]:
     """Extracts a custom index for the subsample table if it exists"""
     return (
         pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY]
@@ -203,7 +203,7 @@ def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
     )
 
 
-def unpopulated_env_var(paths: Set[str]):
+def unpopulated_env_var(paths: Set[str]) -> None:
     """
     Given a set of paths that may contain env vars, group by env var and
     print a warning for each group with the deepest common directory and

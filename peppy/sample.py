@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 import yaml
@@ -39,7 +39,7 @@ class Sample(SimpleAttMap):
     :param Mapping | pandas.core.series.Series series: Sample's data.
     """
 
-    def __init__(self, series, prj=None):
+    def __init__(self, series: Union[Mapping, Series], prj: Optional[Any] = None) -> None:
         super(Sample, self).__init__()
 
         data = dict(series)
@@ -75,7 +75,7 @@ class Sample(SimpleAttMap):
         self._derived_cols_done = []
         self._attributes = list(series.keys())
 
-    def get_sheet_dict(self):
+    def get_sheet_dict(self) -> Dict:
         """
         Create a K-V pairs for items originally passed in via the sample sheet.
         This is useful for summarizing; it provides a representation of the
@@ -87,7 +87,7 @@ class Sample(SimpleAttMap):
         """
         return dict([[k, self[k]] for k in self._attributes])
 
-    def to_dict(self, add_prj_ref=False):
+    def to_dict(self, add_prj_ref: bool = False) -> Dict:
         """
         Serializes itself as dict object.
 
