@@ -5,7 +5,7 @@ import os
 import posixpath as psp
 import re
 from collections import defaultdict
-from typing import Any, Callable, Dict, Mapping, Optional, Set, Type, Union
+from typing import Any, Dict, Mapping, Optional, Set, Type, Union
 from urllib.request import urlopen
 
 import yaml
