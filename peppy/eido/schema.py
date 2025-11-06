@@ -45,7 +45,7 @@ def preprocess_schema(schema_dict: Dict) -> Dict:
     return schema_dict
 
 
-def read_schema(schema: Union[str, Dict]) -> list[Dict]:
+def read_schema(schema: Union[str, Dict]) -> List[Dict]:
     """Safely read schema from YAML-formatted file.
 
     If the schema imports any other schemas, they will be read recursively.
