@@ -37,7 +37,7 @@ def pep_conversion_plugins() -> Dict[str, Callable]:
     return plugins
 
 
-def convert_project(prj: Project, target_format: str, plugin_kwargs=None):
+def convert_project(prj: Project, target_format: str, plugin_kwargs: Dict = None) -> Dict[str, str]:
     """
     Convert a `peppy.Project` object to a selected format
 
@@ -50,7 +50,7 @@ def convert_project(prj: Project, target_format: str, plugin_kwargs=None):
 
 
 def run_filter(
-    prj: Project, filter_name: str, verbose=True, plugin_kwargs=None
+    prj: Project, filter_name: str, verbose: bool = True, plugin_kwargs: Dict = None
 ) -> Dict[str, str]:
     """
     Run a selected filter on a peppy.Project object

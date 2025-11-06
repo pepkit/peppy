@@ -18,7 +18,7 @@ from .schema import preprocess_schema, read_schema
 _LOGGER = getLogger(__name__)
 
 
-def _validate_object(obj: Mapping, schema: Union[str, dict], sample_name_colname=False):
+def _validate_object(obj: Mapping, schema: Union[str, dict], sample_name_colname: Union[str, bool] = False) -> None:
     """
     Generic function to validate object against a schema
 
@@ -81,7 +81,7 @@ def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
         _LOGGER.debug("Project validation successful")
 
 
-def _validate_sample_object(sample: Sample, schemas: List[Dict]):
+def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
     """
     Internal function that allows to validate a peppy.Sample object without
     requiring a reference to peppy.Project.
@@ -185,8 +185,8 @@ def _get_attr_values(
 def validate_input_files(
     project: Project,
     schemas: Union[str, dict],
-    sample_name: Union[str, int] = None,
-):
+    sample_name: Union[str, int, None] = None,
+) -> None:
     """
     Determine which of the required and optional files are missing.
 
@@ -251,7 +251,7 @@ def validate_input_files(
 
 def validate_original_samples(
     samples: Union[str, pd.DataFrame], schema: Union[str, dict]
-):
+) -> None:
     """
     Validate the original samples from the csv table against a schema
 

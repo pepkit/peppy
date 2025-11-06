@@ -1,4 +1,6 @@
+from argparse import ArgumentParser
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARN
+from typing import Dict, Tuple
 
 from ubiquerg import VersionInHelpParser
 
@@ -9,7 +11,7 @@ from .const import CONVERT_CMD, INSPECT_CMD, SUBPARSER_MSGS, VALIDATE_CMD
 LEVEL_BY_VERBOSITY = [ERROR, CRITICAL, WARN, INFO, DEBUG]
 
 
-def build_argparser():
+def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
     banner = "%(prog)s - Interact with PEPs"
     additional_description = "\nhttp://eido.databio.org/"
 
