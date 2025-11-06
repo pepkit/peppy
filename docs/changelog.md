@@ -2,6 +2,10 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [Unreleased]
+### Changed
+- Documentation has been migrated to the centralized [pepspec repository](https://github.com/pepkit/pepspec). Please visit https://pep.databio.org for all documentation.
+
 ## [0.40.2] -- 2024-05-28
 ### Added
 - added `sample_name` property to samples object.

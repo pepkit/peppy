@@ -9,7 +9,7 @@
 
 Links to complete documentation:
 
-* Complete documentation and API for the `peppy` python package is at [peppy.databio.org](https://peppy.databio.org).
+* Complete documentation and API for the `peppy` python package is at [pep.databio.org/peppy](https://pep.databio.org/peppy).
 * Reference documentation for standard **PEP** format is at [pep.databio.org](https://pep.databio.org/).
 * Example PEPs for testing `peppy` are in the [example_peps repository](https://github.com/pepkit/example_peps).
 * The package [on PyPI](https://pypi.org/project/peppy/).
