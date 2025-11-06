@@ -8,7 +8,7 @@ else:
 import inspect
 import os
 from logging import getLogger
-from typing import Callable, Dict, List, NoReturn
+from typing import Callable, Dict, List, NoReturn, Optional
 
 from ..project import Project
 from .exceptions import EidoFilterError
@@ -39,7 +39,7 @@ def pep_conversion_plugins() -> Dict[str, Callable]:
 
 
 def convert_project(
-    prj: Project, target_format: str, plugin_kwargs: Dict = None
+    prj: Project, target_format: str, plugin_kwargs: Optional[Dict] = None
 ) -> Dict[str, str]:
     """Convert a `peppy.Project` object to a selected format.
 
@@ -58,7 +58,10 @@ def convert_project(
 
 
 def run_filter(
-    prj: Project, filter_name: str, verbose: bool = True, plugin_kwargs: Dict = None
+    prj: Project,
+    filter_name: str,
+    verbose: bool = True,
+    plugin_kwargs: Optional[Dict] = None,
 ) -> Dict[str, str]:
     """Run a selected filter on a peppy.Project object.
 
