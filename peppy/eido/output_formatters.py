@@ -7,7 +7,7 @@ from ..sample import Sample
 class BaseOutputFormatter(ABC):
     @staticmethod
     @abstractmethod
-    def format(samples: List[Sample]):
+    def format(samples: List[Sample]) -> str:
         """
         Convert the samples to correct format.
         """
@@ -43,7 +43,7 @@ class MultilineOutputFormatter(BaseOutputFormatter):
         return "\n".join(header + output_rows) + "\n"
 
     @staticmethod
-    def _get_header(header_column_names: List[str]):
+    def _get_header(header_column_names: List[str]) -> List[str]:
         return [",".join(header_column_names)]
 
     @staticmethod
@@ -122,5 +122,5 @@ class MultilineOutputFormatter(BaseOutputFormatter):
 
 
 class SampleSubsampleOutputFormatter(BaseOutputFormatter):
-    def format(self, samples: List[Sample]):
+    def format(self, samples: List[Sample]) -> str:
         pass
