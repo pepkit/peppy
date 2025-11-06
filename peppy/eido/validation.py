@@ -18,7 +18,11 @@ from .schema import preprocess_schema, read_schema
 _LOGGER = getLogger(__name__)
 
 
-def _validate_object(obj: Mapping, schema: Union[str, dict], sample_name_colname: Union[str, bool] = False) -> None:
+def _validate_object(
+    obj: Mapping,
+    schema: Union[str, dict],
+    sample_name_colname: Union[str, bool] = False,
+) -> None:
     """Generic function to validate object against a schema.
 
     Args:

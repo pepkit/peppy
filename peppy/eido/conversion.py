@@ -38,7 +38,9 @@ def pep_conversion_plugins() -> Dict[str, Callable]:
     return plugins
 
 
-def convert_project(prj: Project, target_format: str, plugin_kwargs: Dict = None) -> Dict[str, str]:
+def convert_project(
+    prj: Project, target_format: str, plugin_kwargs: Dict = None
+) -> Dict[str, str]:
     """Convert a `peppy.Project` object to a selected format.
 
     Args:
