@@ -11,8 +11,7 @@ _LOGGER = getLogger(__name__)
 
 
 def preprocess_schema(schema_dict: Dict) -> Dict:
-    """
-    Preprocess schema before validation for user's convenience
+    """Preprocess schema before validation for user's convenience.
 
     Preprocessing includes:
     - renaming 'samples' to '_samples' since in the peppy.Project object
@@ -20,8 +19,11 @@ def preprocess_schema(schema_dict: Dict) -> Dict:
     - adding array of strings entry for every string specified to accommodate
         subsamples in peppy.Project
 
-    :param dict schema_dict: schema dictionary to preprocess
-    :return dict: preprocessed schema
+    Args:
+        schema_dict: Schema dictionary to preprocess
+
+    Returns:
+        Preprocessed schema
     """
     _LOGGER.debug(f"schema ori: {schema_dict}")
     if "project" not in schema_dict[PROP_KEY]:
@@ -44,16 +46,19 @@ def preprocess_schema(schema_dict: Dict) -> Dict:
 
 
 def read_schema(schema: Union[str, Dict]) -> list[Dict]:
-    """
-    Safely read schema from YAML-formatted file.
+    """Safely read schema from YAML-formatted file.
 
     If the schema imports any other schemas, they will be read recursively.
 
-    :param str | Mapping schema: path to the schema file
-        or schema in a dict form
-    :return list[dict]: read schemas
-    :raise TypeError: if the schema arg is neither a Mapping nor a file path or
-        if the 'imports' sections in any of the schemas is not a list
+    Args:
+        schema: Path to the schema file or schema in a dict form
+
+    Returns:
+        Read schemas
+
+    Raises:
+        TypeError: If the schema arg is neither a Mapping nor a file path or
+            if the 'imports' sections in any of the schemas is not a list
     """
 
     def _recursively_read_schemas(

@@ -19,14 +19,15 @@ _LOGGER = getLogger(__name__)
 
 
 def _validate_object(obj: Mapping, schema: Union[str, dict], sample_name_colname: Union[str, bool] = False) -> None:
-    """
-    Generic function to validate object against a schema
+    """Generic function to validate object against a schema.
 
-    :param Mapping obj: an object to validate
-    :param str | dict schema: schema dict to validate against or a path to one
-        from the error. Useful when used ith large projects
+    Args:
+        obj: An object to validate
+        schema: Schema dict to validate against or a path to one
+        sample_name_colname: Column name for sample names in error reporting
 
-    :raises EidoValidationError: if validation is unsuccessful
+    Raises:
+        EidoValidationError: If validation is unsuccessful
     """
     validator = Draft7Validator(schema)
     _LOGGER.debug(f"{obj},\n {schema}")
@@ -61,15 +62,14 @@ def _validate_object(obj: Mapping, schema: Union[str, dict], sample_name_colname
 
 
 def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
-    """
-    Validate a project object against a schema
+    """Validate a project object against a schema.
 
-    :param peppy.Project project: a project object to validate
-    :param str | dict schema: schema dict to validate against or a path to one
-    from the error. Useful when used ith large projects
+    Args:
+        project: A project object to validate
+        schema: Schema dict to validate against or a path to one
 
-    :return: NoReturn
-    :raises EidoValidationError: if validation is unsuccessful
+    Raises:
+        EidoValidationError: If validation is unsuccessful
     """
     sample_name_colname = project.sample_name_colname
     schema_dicts = read_schema(schema=schema)
@@ -82,12 +82,11 @@ def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
 
 
 def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
-    """
-    Internal function that allows to validate a peppy.Sample object without
-    requiring a reference to peppy.Project.
+    """Validate a peppy.Sample object without requiring a reference to peppy.Project.
 
-    :param peppy.Sample sample: a sample object to validate
-    :param list[dict] schemas: list of schemas to validate against or a path to one
+    Args:
+        sample: A sample object to validate
+        schemas: List of schemas to validate against or a path to one
     """
     for schema_dict in schemas:
         schema_dict = preprocess_schema(schema_dict)
@@ -101,14 +100,15 @@ def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
 def validate_sample(
     project: Project, sample_name: Union[str, int], schema: Union[str, dict]
 ) -> NoReturn:
-    """
-    Validate the selected sample object against a schema
+    """Validate the selected sample object against a schema.
 
-    :param peppy.Project project: a project object to validate
-    :param str | int sample_name: name or index of the sample to validate
-    :param str | dict schema: schema dict to validate against or a path to one
+    Args:
+        project: A project object to validate
+        sample_name: Name or index of the sample to validate
+        schema: Schema dict to validate against or a path to one
 
-    :raises EidoValidationError: if validation is unsuccessful
+    Raises:
+        EidoValidationError: If validation is unsuccessful
     """
     sample = (
         project.samples[sample_name]
@@ -124,11 +124,11 @@ def validate_sample(
 def validate_config(
     project: Union[Project, dict, str], schema: Union[str, dict]
 ) -> NoReturn:
-    """
-    Validate the config part of the Project object against a schema
+    """Validate the config part of the Project object against a schema.
 
-    :param peppy.Project project: a project object to validate
-    :param str | dict schema: schema dict to validate against or a path to one
+    Args:
+        project: A project object, dict, or path to config file to validate
+        schema: Schema dict to validate against or a path to one
     """
     schema_dicts = read_schema(schema=schema)
     for schema_dict in schema_dicts:
@@ -162,16 +162,16 @@ def validate_config(
 def _get_attr_values(
     obj: Mapping, attrlist: Union[str, List[str]]
 ) -> Union[None, List[str]]:
-    """
-    Get value corresponding to each given attribute.
+    """Get value corresponding to each given attribute.
 
-    :param Mapping obj: an object to get the attributes from
-    :param str | Iterable[str] attrlist: names of attributes to
-        retrieve values for
-    :return dict: value corresponding to
-        each named attribute; null if this Sample's value for the
-        attribute given by the argument to the "attrlist" parameter is
-        empty/null, or if this Sample lacks the indicated attribute
+    Args:
+        obj: An object to get the attributes from
+        attrlist: Names of attributes to retrieve values for
+
+    Returns:
+        Value corresponding to each named attribute; None if this Sample's
+        value for the attribute is empty/null, or if this Sample lacks the
+        indicated attribute
     """
     # If attribute is None, then value is also None.
     if not attrlist:
@@ -187,8 +187,7 @@ def validate_input_files(
     schemas: Union[str, dict],
     sample_name: Union[str, int, None] = None,
 ) -> None:
-    """
-    Determine which of the required and optional files are missing.
+    """Determine which of the required and optional files are missing.
 
     The names of the attributes that are required and/or deemed as inputs
     are sourced from the schema, more specifically from `required_files`
@@ -199,11 +198,14 @@ def validate_input_files(
 
     Note, this function also performs Sample object validation with jsonschema.
 
-    :param peppy.Project project: project that defines the samples to validate
-    :param str | dict schema: schema dict to validate against or a path to one
-    :param str | int sample_name: name or index of the sample to validate. If None,
-        validate all samples in the project
-    :raise PathAttrNotFoundError: if any required sample attribute is missing
+    Args:
+        project: Project that defines the samples to validate
+        schemas: Schema dict to validate against or a path to one
+        sample_name: Name or index of the sample to validate. If None,
+            validate all samples in the project
+
+    Raises:
+        PathAttrNotFoundError: If any required sample attribute is missing
     """
 
     if sample_name is None:
@@ -252,13 +254,14 @@ def validate_input_files(
 def validate_original_samples(
     samples: Union[str, pd.DataFrame], schema: Union[str, dict]
 ) -> None:
-    """
-    Validate the original samples from the csv table against a schema
+    """Validate the original samples from the csv table against a schema.
 
-    :param samples: the path to the sample table csv or the dataframe fom the table
-    :param str | dict schema: schema dict to validate against or a path to one
+    Args:
+        samples: The path to the sample table csv or the dataframe from the table
+        schema: Schema dict to validate against or a path to one
 
-    :raises EidoValidationError: if validation is unsuccessful
+    Raises:
+        EidoValidationError: If validation is unsuccessful
     """
     if isinstance(samples, str):
         samples = pd.read_csv(samples)
