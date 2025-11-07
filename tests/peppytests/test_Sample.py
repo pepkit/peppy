@@ -2,7 +2,6 @@ import os
 import tempfile
 
 import pytest
-
 from peppy import Project
 
 __author__ = "Michal Stolarczyk"
