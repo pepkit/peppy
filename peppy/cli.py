@@ -36,24 +36,26 @@ def _parse_filter_args_str(input):
     )
 
 
-def print_error_summary(errors_by_type: Dict[str, List[Dict[str, str]]]):
+def print_error_summary(
+    errors_by_type: Dict[str, List[Dict[str, str]]], _LOGGER: logging.Logger
+):
     """Print a summary of errors, organized by error type"""
     n_error_types = len(errors_by_type)
-    print(f"Found {n_error_types} types of error:")
-    for type in errors_by_type:
-        n = len(errors_by_type[type])
-        msg = f"  - {type}: ({n} samples) "
+    _LOGGER.error(f"Found {n_error_types} types of error:")
+    for err_type, items in errors_by_type.items():
+        n = len(items)
+        msg = f"  - {err_type}: ({n} samples) "
         if n < 50:
-            msg += ", ".join([x["sample_name"] for x in errors_by_type[type]])
-        print(msg)
+            msg += ", ".join(x["sample_name"] for x in items)
+        _LOGGER.error(msg)
 
     if len(errors_by_type) > 1:
         final_msg = f"Validation unsuccessful. {len(errors_by_type)} error types found."
     else:
         final_msg = f"Validation unsuccessful. {len(errors_by_type)} error type found."
 
-    print(final_msg)
-    return final_msg
+    _LOGGER.error(final_msg)
+    # return final_msg
 
 
 def main():
@@ -91,7 +93,7 @@ def main():
                 _LOGGER.info(f" - {filter_name}")
             sys.exit(0)
         if not "format" in args:
-            _LOGGER.info("The following arguments are required: --format")
+            _LOGGER.error("The following arguments are required: --format")
             sps[CONVERT_CMD].print_help(sys.stderr)
             sys.exit(1)
         if args.describe:
@@ -138,6 +140,7 @@ def main():
             try:
                 args.sample_name = int(args.sample_name)
             except ValueError:
+                # If sample_name is not an integer, leave it as a string.
                 pass
             _LOGGER.debug(
                 f"Comparing Sample ('{args.pep}') in Project ('{args.pep}') "
@@ -160,7 +163,7 @@ def main():
         try:
             validator(*arguments)
         except EidoValidationError as e:
-            print_error_summary(e.errors_by_type)
+            print_error_summary(e.errors_by_type, _LOGGER)
             return False
         _LOGGER.info("Validation successful")
         sys.exit(0)

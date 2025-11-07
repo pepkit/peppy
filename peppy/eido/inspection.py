@@ -66,6 +66,24 @@ def get_input_files_size(
     Raises:
         ValidationError: If any required sample attribute is missing
     """
+
+    def _compute_input_file_size(inputs: Iterable[str]) -> float:
+        """
+        Compute total size of input files.
+        """
+        with catch_warnings(record=True) as w:
+            total_bytes = sum(
+                size(f, size_str=False) or 0.0
+                for f in inputs
+                if f != "" and f is not None
+            )
+            if w:
+                _LOGGER.warning(
+                    f"{len(w)} input files missing, job input size was "
+                    f"not calculated accurately"
+                )
+        return total_bytes / (1024**3)
+
     if isinstance(schema, str):
         schema = read_schema(schema)
 
@@ -84,13 +102,14 @@ def get_input_files_size(
         )
         all_inputs.update(required_inputs)
     with catch_warnings(record=True) as w:
-        input_file_size = sum(
-            [
-                size(f, size_str=False) or 0.0
-                for f in all_inputs
-                if f != "" and f is not None
-            ]
-        ) / (1024**3)
+        # input_file_size = sum(
+        #     [
+        #         size(f, size_str=False) or 0.0
+        #         for f in all_inputs
+        #         if f != "" and f is not None
+        #     ]
+        # ) / (1024**3)
+        input_file_size = _compute_input_file_size(all_inputs)
         if w:
             _LOGGER.warning(
                 f"{len(w)} input files missing, job input size was "
