@@ -16,7 +16,7 @@ from peppy.utils import load_yaml
 def _check_remote_file_accessible(url):
     try:
         code = urllib.request.urlopen(url).getcode()
-    except:
+    except (urllib.error.URLError, OSError):
         pytest.skip(f"Remote file not found: {url}")
     else:
         if code != 200:
