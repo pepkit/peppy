@@ -140,8 +140,6 @@ def validate_config(
         try:
             del schema_cpy[PROP_KEY][SAMPLES_KEY]
         except KeyError:
-            # It's fine if SAMPLES_KEY is not present; nothing to remove.
-            # It's fine if SAMPLES_KEY is not present; nothing to remove.
             # Schema doesn't have samples key, which is fine for config-only validation
             pass
         if "required" in schema_cpy:
