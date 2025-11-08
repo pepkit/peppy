@@ -55,7 +55,6 @@ def print_error_summary(
         final_msg = f"Validation unsuccessful. {len(errors_by_type)} error type found."
 
     _LOGGER.error(final_msg)
-    # return final_msg
 
 
 def main():
@@ -164,7 +163,7 @@ def main():
             validator(*arguments)
         except EidoValidationError as e:
             print_error_summary(e.errors_by_type, _LOGGER)
-            return False
+            sys.exit(1)
         _LOGGER.info("Validation successful")
         sys.exit(0)
 

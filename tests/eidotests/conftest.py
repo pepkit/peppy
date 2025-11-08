@@ -1,6 +1,5 @@
 import os
 
-import pandas as pd
 import pytest
 from peppy import Project
 
