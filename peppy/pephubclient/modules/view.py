@@ -1,15 +1,16 @@
 from typing import Union
-import peppy
+# import peppy
+from ...project import Project
 import logging
 
-from pephubclient.helpers import RequestManager
-from pephubclient.constants import (
+from ..helpers import RequestManager
+from ..constants import (
     PEPHUB_VIEW_URL,
     PEPHUB_VIEW_SAMPLE_URL,
     ResponseStatusCodes,
 )
-from pephubclient.exceptions import ResponseError
-from pephubclient.models import ProjectDict
+from ..exceptions import ResponseError
+from ..models import ProjectDict
 
 _LOGGER = logging.getLogger("pephubclient")
 
@@ -32,7 +33,7 @@ class PEPHubView(RequestManager):
 
     def get(
         self, namespace: str, name: str, tag: str, view_name: str, raw: bool = False
-    ) -> Union[peppy.Project, dict]:
+    ) -> Union[Project, dict]:
         """
         Get view from project in PEPhub.
 
@@ -57,7 +58,7 @@ class PEPHubView(RequestManager):
             if raw:
                 return output
             output = ProjectDict(**output).model_dump(by_alias=True)
-            return peppy.Project.from_dict(output)
+            return Project.from_dict(output)
         elif response.status_code == ResponseStatusCodes.NOT_EXIST:
             raise ResponseError("View does not exist, or you are unauthorized.")
         else:

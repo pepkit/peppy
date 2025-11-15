@@ -1,4 +1,4 @@
-from pephubclient.pephubclient import PEPHubClient
+from peppy.pephubclient.pephubclient import PEPHubClient
 import pytest
 
 

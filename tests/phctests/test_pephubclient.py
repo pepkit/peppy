@@ -3,17 +3,20 @@ from unittest.mock import Mock
 
 import pytest
 
-from pephubclient.exceptions import ResponseError
-from pephubclient.pephubclient import PEPHubClient
-from pephubclient.helpers import is_registry_path
+from peppy.pephubclient.exceptions import ResponseError
+from peppy.pephubclient.pephubclient import PEPHubClient
+from peppy.pephubclient.helpers import is_registry_path
+from peppy.pephubclient.pephub_oauth.models import InitializeDeviceCodeResponse
 
-SAMPLE_PEP = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "tests",
-    "data",
-    "sample_pep",
-    "subsamp_config.yaml",
-)
+
+
+@pytest.fixture()
+def device_code_return():
+    device_code = "asdf2345"
+    return InitializeDeviceCodeResponse(
+        device_code=device_code,
+        auth_url=f"any_base_url/auth/device/login/{device_code}",
+    )
 
 
 class TestSmoke:
@@ -26,16 +29,17 @@ class TestSmoke:
             return_value=Mock(content=device_code_return, status_code=200),
         )
         pephub_response_mock = mocker.patch(
-            "pephubclient.pephub_oauth.pephub_oauth.PEPHubAuth._handle_pephub_response",
+            "peppy.pephubclient.pephub_oauth.pephub_oauth.PEPHubAuth._handle_pephub_response",
             return_value=device_code_return,
         )
+
         pephub_exchange_code_mock = mocker.patch(
-            "pephubclient.pephub_oauth.pephub_oauth.PEPHubAuth._exchange_device_code_on_token",
+            "peppy.pephubclient.pephub_oauth.pephub_oauth.PEPHubAuth._exchange_device_code_on_token",
             return_value=test_jwt,
         )
 
         pathlib_mock = mocker.patch(
-            "pephubclient.files_manager.FilesManager.save_jwt_data_to_file"
+            "peppy.pephubclient.files_manager.FilesManager.save_jwt_data_to_file"
         )
 
         PEPHubClient().login()
@@ -53,7 +57,7 @@ class TestSmoke:
 
     def test_pull(self, mocker, test_jwt, test_raw_pep_return):
         jwt_mock = mocker.patch(
-            "pephubclient.files_manager.FilesManager.load_jwt_data_from_file",
+            "peppy.pephubclient.files_manager.FilesManager.load_jwt_data_from_file",
             return_value=test_jwt,
         )
         requests_mock = mocker.patch(
@@ -61,16 +65,16 @@ class TestSmoke:
             return_value=Mock(content="some return", status_code=200),
         )
         mocker.patch(
-            "pephubclient.helpers.RequestManager.decode_response",
+            "peppy.pephubclient.helpers.RequestManager.decode_response",
             return_value=test_raw_pep_return,
         )
         save_yaml_mock = mocker.patch(
-            "pephubclient.files_manager.FilesManager.save_yaml"
+            "peppy.pephubclient.files_manager.FilesManager.save_yaml"
         )
         save_sample_mock = mocker.patch(
-            "pephubclient.files_manager.FilesManager.save_pandas"
+            "peppy.pephubclient.files_manager.FilesManager.save_pandas"
         )
-        mocker.patch("pephubclient.files_manager.FilesManager.create_project_folder")
+        mocker.patch("peppy.pephubclient.files_manager.FilesManager.create_project_folder")
 
         PEPHubClient().pull("some/project")
 
@@ -96,7 +100,7 @@ class TestSmoke:
         self, mocker, test_jwt, status_code, expected_error_message
     ):
         mocker.patch(
-            "pephubclient.files_manager.FilesManager.load_jwt_data_from_file",
+            "peppy.pephubclient.files_manager.FilesManager.load_jwt_data_from_file",
             return_value=test_jwt,
         )
         mocker.patch(
@@ -111,7 +115,7 @@ class TestSmoke:
 
         assert e.value.message == expected_error_message
 
-    def test_push(self, mocker, test_jwt):
+    def test_push(self, mocker, test_jwt, SAMPLE_PEP):
         requests_mock = mocker.patch(
             "requests.request", return_value=Mock(status_code=202)
         )
@@ -139,7 +143,7 @@ class TestSmoke:
         ],
     )
     def test_push_with_pephub_error_response(
-        self, mocker, status_code, expected_error_message
+        self, mocker, status_code, expected_error_message, SAMPLE_PEP
     ):
         mocker.patch("requests.request", return_value=Mock(status_code=status_code))
         with pytest.raises(ResponseError, match=expected_error_message):
@@ -179,7 +183,7 @@ class TestSmoke:
             return_value=Mock(content=return_value, status_code=200),
         )
         mocker.patch(
-            "pephubclient.helpers.RequestManager.decode_response",
+            "peppy.pephubclient.helpers.RequestManager.decode_response",
             return_value=return_value,
         )
 
@@ -242,7 +246,7 @@ class TestSamples:
             return_value=Mock(content=return_value, status_code=200),
         )
         mocker.patch(
-            "pephubclient.helpers.RequestManager.decode_response",
+            "peppy.pephubclient.helpers.RequestManager.decode_response",
             return_value=return_value,
         )
         return_value = PEPHubClient().sample.get(
@@ -436,7 +440,7 @@ class TestViews:
             return_value=Mock(content=return_value, status_code=200),
         )
         mocker.patch(
-            "pephubclient.helpers.RequestManager.decode_response",
+            "peppy.pephubclient.helpers.RequestManager.decode_response",
             return_value=return_value,
         )
 

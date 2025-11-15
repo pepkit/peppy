@@ -1,10 +1,10 @@
 import json
 from typing import Any, Callable, Optional, Union
-import peppy
+from ..project import Project
 import yaml
 import os
 import pandas as pd
-from peppy.const import (
+from ..const import (
     NAME_KEY,
     DESC_KEY,
     CONFIG_KEY,
@@ -21,10 +21,10 @@ from urllib.parse import urlencode
 from ubiquerg import parse_registry_path
 from pydantic import ValidationError
 
-from pephubclient.exceptions import PEPExistsError, ResponseError
-from pephubclient.constants import RegistryPath
-from pephubclient.files_manager import FilesManager
-from pephubclient.models import ProjectDict
+from .exceptions import PEPExistsError, ResponseError
+from .constants import RegistryPath
+from .files_manager import FilesManager
+from .models import ProjectDict
 
 
 class RequestManager:
@@ -280,7 +280,7 @@ def _save_unzipped_pep(
 
 
 def save_pep(
-    project: Union[dict, peppy.Project],
+    project: Union[dict, Project],
     reg_path: str = None,
     force: bool = False,
     project_path: Optional[str] = None,
@@ -297,7 +297,7 @@ def save_pep(
     :param bool zip: If True, save project as zip file
     :return: None
     """
-    if isinstance(project, peppy.Project):
+    if isinstance(project, Project):
         project = project.to_dict(extended=True, orient="records")
 
     project = ProjectDict(**project).model_dump(by_alias=True)

@@ -1,8 +1,8 @@
 import typer
 
 from pephubclient import __app_name__, __version__
-from pephubclient.helpers import call_client_func
-from pephubclient.pephubclient import PEPHubClient
+from .helpers import call_client_func
+from .pephubclient import PEPHubClient
 
 _client = PEPHubClient()
 

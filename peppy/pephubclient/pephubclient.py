@@ -1,13 +1,13 @@
 from typing import NoReturn, Optional, Literal
 from typing_extensions import deprecated
 
-import peppy
-from peppy.const import NAME_KEY
+from ..project import Project
+from ..const import NAME_KEY
 import urllib3
 from pydantic import ValidationError
 from ubiquerg import parse_registry_path
 
-from pephubclient.constants import (
+from .constants import (
     PEPHUB_PEP_API_BASE_URL,
     PEPHUB_PUSH_URL,
     RegistryPath,
@@ -15,21 +15,21 @@ from pephubclient.constants import (
     PEPHUB_PEP_SEARCH_URL,
     PATH_TO_FILE_WITH_JWT,
 )
-from pephubclient.exceptions import (
+from .exceptions import (
     IncorrectQueryStringError,
     ResponseError,
 )
-from pephubclient.files_manager import FilesManager
-from pephubclient.helpers import MessageHandler, RequestManager, save_pep
-from pephubclient.models import (
+from .files_manager import FilesManager
+from .helpers import MessageHandler, RequestManager, save_pep
+from .models import (
     ProjectDict,
     ProjectUploadData,
     SearchReturnModel,
     ProjectAnnotationModel,
 )
-from pephubclient.pephub_oauth.pephub_oauth import PEPHubAuth
-from pephubclient.modules.view import PEPHubView
-from pephubclient.modules.sample import PEPHubSample
+from .pephub_oauth.pephub_oauth import PEPHubAuth
+from .modules.view import PEPHubView
+from .modules.sample import PEPHubSample
 
 urllib3.disable_warnings()
 
@@ -97,16 +97,16 @@ class PEPHubClient(RequestManager):
         self,
         project_registry_path: str,
         query_param: Optional[dict] = None,
-    ) -> peppy.Project:
+    ) -> Project:
         """
-        Load peppy project from PEPhub in peppy.Project object
+        Load peppy project from PEPhub in Project object
 
         :param project_registry_path: registry path of the project
         :param query_param: query parameters used in get request
         :return Project: peppy project.
         """
         raw_pep = self.load_raw_pep(project_registry_path, query_param)
-        peppy_project = peppy.Project().from_dict(raw_pep)
+        peppy_project = Project().from_dict(raw_pep)
         return peppy_project
 
     def push(
@@ -130,7 +130,7 @@ class PEPHubClient(RequestManager):
         :param bool force: Force push to the database. Use it to update, or upload project. [Default= False]
         :return: None
         """
-        peppy_project = peppy.Project(cfg=cfg)
+        peppy_project = Project(cfg=cfg)
         self.upload(
             project=peppy_project,
             namespace=namespace,
@@ -142,7 +142,7 @@ class PEPHubClient(RequestManager):
 
     def upload(
         self,
-        project: peppy.Project,
+        project: Project,
         namespace: str,
         name: str = None,
         tag: str = None,
@@ -152,7 +152,7 @@ class PEPHubClient(RequestManager):
         """
         Upload peppy project to the PEPhub.
 
-        :param peppy.Project project: Project object that has to be uploaded to the DB
+        :param Project project: Project object that has to be uploaded to the DB
         :param namespace: namespace
         :param name: project name
         :param tag: project tag
@@ -263,7 +263,7 @@ class PEPHubClient(RequestManager):
         """
         !!! This method is deprecated. Use load_raw_pep instead. !!!
 
-        Request PEPhub and return the requested project as peppy.Project object.
+        Request PEPhub and return the requested project as Project object.
 
         :param registry_path: Project namespace, eg. "geo/GSE124224:tag"
         :param query_param: Optional variables to be passed to PEPhub
@@ -277,7 +277,7 @@ class PEPHubClient(RequestManager):
         query_param: Optional[dict] = None,
     ) -> dict:
         """
-        Request PEPhub and return the requested project as peppy.Project object.
+        Request PEPhub and return the requested project as Project object.
 
         :param registry_path: Project namespace, eg. "geo/GSE124224:tag"
         :param query_param: Optional variables to be passed to PEPhub

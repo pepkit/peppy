@@ -1,14 +1,15 @@
 import pytest
+import os
 
-from pephubclient.pephub_oauth.models import InitializeDeviceCodeResponse
 
-
-@pytest.fixture()
-def device_code_return():
-    device_code = "asdf2345"
-    return InitializeDeviceCodeResponse(
-        device_code=device_code,
-        auth_url=f"any_base_url/auth/device/login/{device_code}",
+@pytest.fixture
+def SAMPLE_PEP():
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data",
+        "phcdata",
+        "sample_pep",
+        "subsamp_config.yaml",
     )
 
 

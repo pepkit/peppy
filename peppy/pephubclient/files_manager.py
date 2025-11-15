@@ -6,7 +6,7 @@ import pandas
 import yaml
 import zipfile
 
-from pephubclient.exceptions import PEPExistsError
+from .exceptions import PEPExistsError
 
 
 class FilesManager:

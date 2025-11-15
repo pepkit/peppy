@@ -5,16 +5,16 @@ from typing import Type, Union
 import requests
 from pydantic import BaseModel
 
-from pephubclient.helpers import MessageHandler, RequestManager
-from pephubclient.pephub_oauth.const import (
+from ..helpers import MessageHandler, RequestManager
+from ..pephub_oauth.const import (
     PEPHUB_DEVICE_INIT_URI,
     PEPHUB_DEVICE_TOKEN_URI,
 )
-from pephubclient.pephub_oauth.exceptions import (
+from ..pephub_oauth.exceptions import (
     PEPHubResponseException,
     PEPHubTokenExchangeException,
 )
-from pephubclient.pephub_oauth.models import (
+from ..pephub_oauth.models import (
     InitializeDeviceCodeResponse,
     PEPHubDeviceTokenResponse,
 )
