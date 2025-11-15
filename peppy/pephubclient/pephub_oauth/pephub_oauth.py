@@ -6,10 +6,7 @@ import requests
 from pydantic import BaseModel
 
 from ..helpers import MessageHandler, RequestManager
-from ..pephub_oauth.const import (
-    PEPHUB_DEVICE_INIT_URI,
-    PEPHUB_DEVICE_TOKEN_URI,
-)
+from ..pephub_oauth.const import PEPHUB_DEVICE_INIT_URI, PEPHUB_DEVICE_TOKEN_URI
 from ..pephub_oauth.exceptions import (
     PEPHubResponseException,
     PEPHubTokenExchangeException,

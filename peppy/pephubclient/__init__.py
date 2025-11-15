@@ -1,7 +1,9 @@
-from pephubclient.pephubclient import PEPHubClient
-from pephubclient.helpers import is_registry_path, save_pep
 import logging
+
 import coloredlogs
+
+from pephubclient.helpers import is_registry_path, save_pep
+from pephubclient.pephubclient import PEPHubClient
 
 __app_name__ = "pephubclient"
 __version__ = "0.4.5"

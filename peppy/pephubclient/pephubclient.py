@@ -1,35 +1,32 @@
-from typing import NoReturn, Optional, Literal
-from typing_extensions import deprecated
+from typing import Literal, NoReturn, Optional
 
-from ..project import Project
-from ..const import NAME_KEY
 import urllib3
 from pydantic import ValidationError
+from typing_extensions import deprecated
 from ubiquerg import parse_registry_path
 
+from ..const import NAME_KEY
+from ..project import Project
 from .constants import (
+    PATH_TO_FILE_WITH_JWT,
     PEPHUB_PEP_API_BASE_URL,
+    PEPHUB_PEP_SEARCH_URL,
     PEPHUB_PUSH_URL,
     RegistryPath,
     ResponseStatusCodes,
-    PEPHUB_PEP_SEARCH_URL,
-    PATH_TO_FILE_WITH_JWT,
 )
-from .exceptions import (
-    IncorrectQueryStringError,
-    ResponseError,
-)
+from .exceptions import IncorrectQueryStringError, ResponseError
 from .files_manager import FilesManager
 from .helpers import MessageHandler, RequestManager, save_pep
 from .models import (
+    ProjectAnnotationModel,
     ProjectDict,
     ProjectUploadData,
     SearchReturnModel,
-    ProjectAnnotationModel,
 )
-from .pephub_oauth.pephub_oauth import PEPHubAuth
-from .modules.view import PEPHubView
 from .modules.sample import PEPHubSample
+from .modules.view import PEPHubView
+from .pephub_oauth.pephub_oauth import PEPHubAuth
 
 urllib3.disable_warnings()
 

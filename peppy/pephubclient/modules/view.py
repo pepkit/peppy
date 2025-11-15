@@ -1,15 +1,11 @@
+import logging
 from typing import Union
+
 # import peppy
 from ...project import Project
-import logging
-
-from ..helpers import RequestManager
-from ..constants import (
-    PEPHUB_VIEW_URL,
-    PEPHUB_VIEW_SAMPLE_URL,
-    ResponseStatusCodes,
-)
+from ..constants import PEPHUB_VIEW_SAMPLE_URL, PEPHUB_VIEW_URL, ResponseStatusCodes
 from ..exceptions import ResponseError
+from ..helpers import RequestManager
 from ..models import ProjectDict
 
 _LOGGER = logging.getLogger("pephubclient")

@@ -1,28 +1,27 @@
 import json
-from typing import Any, Callable, Optional, Union
-from ..project import Project
-import yaml
 import os
-import pandas as pd
-from ..const import (
-    NAME_KEY,
-    DESC_KEY,
-    CONFIG_KEY,
-    SUBSAMPLE_RAW_LIST_KEY,
-    SAMPLE_RAW_DICT_KEY,
-    CFG_SAMPLE_TABLE_KEY,
-    CFG_SUBSAMPLE_TABLE_KEY,
-)
-
-import requests
-from requests.exceptions import ConnectionError
+from typing import Any, Callable, Optional, Union
 from urllib.parse import urlencode
 
-from ubiquerg import parse_registry_path
+import pandas as pd
+import requests
+import yaml
 from pydantic import ValidationError
+from requests.exceptions import ConnectionError
+from ubiquerg import parse_registry_path
 
-from .exceptions import PEPExistsError, ResponseError
+from ..const import (
+    CFG_SAMPLE_TABLE_KEY,
+    CFG_SUBSAMPLE_TABLE_KEY,
+    CONFIG_KEY,
+    DESC_KEY,
+    NAME_KEY,
+    SAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_LIST_KEY,
+)
+from ..project import Project
 from .constants import RegistryPath
+from .exceptions import PEPExistsError, ResponseError
 from .files_manager import FilesManager
 from .models import ProjectDict
 

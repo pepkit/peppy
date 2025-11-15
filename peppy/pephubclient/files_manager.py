@@ -1,10 +1,10 @@
 import os
+import zipfile
 from contextlib import suppress
 from pathlib import Path
 
 import pandas
 import yaml
-import zipfile
 
 from .exceptions import PEPExistsError
 

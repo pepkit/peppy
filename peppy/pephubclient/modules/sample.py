@@ -1,8 +1,8 @@
 import logging
 
-from ..helpers import RequestManager
 from ..constants import PEPHUB_SAMPLE_URL, ResponseStatusCodes
 from ..exceptions import ResponseError
+from ..helpers import RequestManager
 
 _LOGGER = logging.getLogger("pephubclient")
 

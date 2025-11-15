@@ -1,8 +1,9 @@
 import datetime
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from ..const import CONFIG_KEY, SUBSAMPLE_RAW_LIST_KEY, SAMPLE_RAW_DICT_KEY
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ..const import CONFIG_KEY, SAMPLE_RAW_DICT_KEY, SUBSAMPLE_RAW_LIST_KEY
 
 
 class ProjectDict(BaseModel):

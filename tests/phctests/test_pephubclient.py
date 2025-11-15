@@ -2,12 +2,10 @@ import os
 from unittest.mock import Mock
 
 import pytest
-
 from peppy.pephubclient.exceptions import ResponseError
-from peppy.pephubclient.pephubclient import PEPHubClient
 from peppy.pephubclient.helpers import is_registry_path
 from peppy.pephubclient.pephub_oauth.models import InitializeDeviceCodeResponse
-
+from peppy.pephubclient.pephubclient import PEPHubClient
 
 
 @pytest.fixture()
@@ -74,7 +72,9 @@ class TestSmoke:
         save_sample_mock = mocker.patch(
             "peppy.pephubclient.files_manager.FilesManager.save_pandas"
         )
-        mocker.patch("peppy.pephubclient.files_manager.FilesManager.create_project_folder")
+        mocker.patch(
+            "peppy.pephubclient.files_manager.FilesManager.create_project_folder"
+        )
 
         PEPHubClient().pull("some/project")
 

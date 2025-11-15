@@ -1,6 +1,6 @@
+import os
 from enum import Enum
 from typing import Optional
-import os
 
 from pydantic import BaseModel, field_validator
 
