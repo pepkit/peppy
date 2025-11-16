@@ -1,3 +1,4 @@
+import argparse
 import logging
 import sys
 from typing import Dict, List
@@ -20,6 +21,29 @@ from .eido.exceptions import EidoFilterError, EidoValidationError
 from .eido.inspection import inspect_project
 from .eido.validation import validate_config, validate_project, validate_sample
 from .project import Project
+
+
+def _get_subparser(parser, *names):
+    """
+    Access nested subparsers by name.
+    Example: _get_subparser(main_parser, "cmdA", "subA1")
+    """
+    current = parser
+    for name in names:
+        # find subparsers action
+        subactions = [
+            a for a in current._actions if isinstance(a, argparse._SubParsersAction)
+        ]
+        if not subactions:
+            raise ValueError(f"{current} has no subparsers")
+
+        action = subactions[0]
+        if name not in action.choices:
+            raise ValueError(f"Subparser '{name}' not found")
+
+        current = action.choices[name]
+
+    return current
 
 
 def _parse_filter_args_str(input):
@@ -94,32 +118,25 @@ def build_argparser():
     return parser
 
 
-def main():
+def main(test_args=None):
     """Primary workflow"""
     parser = logmuse.add_logging_options(build_argparser())
     args, _ = parser.parse_known_args()
+
+    if test_args:
+        args.__dict__.update(test_args)
+
+    global _LOGGER
+    _LOGGER = logmuse.logger_via_cli(args, make_root=True)
+
     if args.command is None:
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    # Set the logging level.
-    if args.dbg:
-        # Debug mode takes precedence and will listen for all messages.
-        level = args.logging_level or logging.DEBUG
-    elif args.verbosity is not None:
-        # Verbosity-framed specification trumps logging_level.
-        level = LEVEL_BY_VERBOSITY[args.verbosity]
-    else:
-        # Normally, we're not in debug mode, and there's not verbosity.
-        level = LOGGING_LEVEL
-
-    logger_kwargs = {"level": level, "devmode": args.dbg}
-    # init_logger(name="peppy", **logger_kwargs)
-    global _LOGGER
-    _LOGGER = init_logger(name=PKG_NAME, **logger_kwargs)
     if args.command == "eido":
 
         if args.subcommand == CONVERT_CMD:
+            convert_sp = _get_subparser(parser, "eido", CONVERT_CMD)
             filters = get_available_pep_filters()
             if args.list:
                 _LOGGER.info("Available filters:")
@@ -130,7 +147,7 @@ def main():
                 sys.exit(0)
             if not "format" in args:
                 _LOGGER.error("The following arguments are required: --format")
-                parser.print_help(sys.stderr)
+                convert_sp.print_help(sys.stderr)
                 sys.exit(1)
             if args.describe:
                 if args.format not in filters:
@@ -141,7 +158,9 @@ def main():
                 print(filter_functions_by_name[args.format].__doc__)
                 sys.exit(0)
             if args.pep is None:
-                parser.print_help(sys.stderr)
+                # parser.print_help(sys.stderr)
+                # sp[CONVERT_CMD].print_help(sys.stderr)
+                convert_sp.print_help(sys.stderr)
                 _LOGGER.info("The following arguments are required: PEP")
                 sys.exit(1)
             if args.paths:
@@ -204,7 +223,7 @@ def main():
             _LOGGER.info("Validation successful")
             sys.exit(0)
 
-        if args.subommand == INSPECT_CMD:
+        if args.subcommand == INSPECT_CMD:
             p = Project(
                 args.pep,
                 sample_table_index=args.st_index,

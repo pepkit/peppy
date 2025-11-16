@@ -6,8 +6,6 @@ from .const import CONVERT_CMD, INSPECT_CMD, SUBPARSER_MSGS, VALIDATE_CMD
 LEVEL_BY_VERBOSITY = [ERROR, CRITICAL, WARN, INFO, DEBUG]
 
 
-
-
 def build_subparser(parser):
     sp = parser.add_subparsers(dest="subcommand")
     subparsers = {}
