@@ -2,10 +2,14 @@ import logging
 import sys
 from typing import Dict, List
 
+import logmuse
 from logmuse import init_logger
+from ubiquerg import VersionInHelpParser
 
+from ._version import __version__
 from .const import PKG_NAME
-from .eido.argparser import LEVEL_BY_VERBOSITY, build_argparser
+from .eido.argparser import LEVEL_BY_VERBOSITY
+from .eido.argparser import build_subparser as eido_subparser
 from .eido.const import CONVERT_CMD, INSPECT_CMD, LOGGING_LEVEL, VALIDATE_CMD
 from .eido.conversion import (
     convert_project,
@@ -57,11 +61,43 @@ def print_error_summary(
     _LOGGER.error(final_msg)
 
 
+def build_argparser():
+    """
+    Builds argument parser.
+
+    :return argparse.ArgumentParser: Argument parser
+    """
+
+    banner = "%(prog)s - Portable Encapsulated Projects toolkit"
+    # additional_description = "\nhttps://geniml.databio.org"
+
+    parser = VersionInHelpParser(
+        prog="peppy",
+        version=f"{__version__}",
+        description=banner,
+    )
+
+    # Individual subcommands
+    msg_by_cmd = {
+        "eido": "PEP validation, conversion, and inspection",
+        "pephubclient": "Client for the PEPhub server",
+    }
+
+    sp = parser.add_subparsers(dest="command")
+    subparsers: Dict[str, VersionInHelpParser] = {}
+    for k, v in msg_by_cmd.items():
+        subparsers[k] = sp.add_parser(k, description=v, help=v)
+
+    # build up subparsers for modules
+    subparsers["eido"] = eido_subparser(subparsers["eido"])
+
+    return parser
+
+
 def main():
     """Primary workflow"""
-    parser, sps = build_argparser()
-    args, remaining_args = parser.parse_known_args()
-
+    parser = logmuse.add_logging_options(build_argparser())
+    args, _ = parser.parse_known_args()
     if args.command is None:
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -81,98 +117,99 @@ def main():
     # init_logger(name="peppy", **logger_kwargs)
     global _LOGGER
     _LOGGER = init_logger(name=PKG_NAME, **logger_kwargs)
+    if args.command == "eido":
 
-    if args.command == CONVERT_CMD:
-        filters = get_available_pep_filters()
-        if args.list:
-            _LOGGER.info("Available filters:")
-            if len(filters) < 1:
-                _LOGGER.info("No available filters")
-            for filter_name in filters:
-                _LOGGER.info(f" - {filter_name}")
+        if args.subcommand == CONVERT_CMD:
+            filters = get_available_pep_filters()
+            if args.list:
+                _LOGGER.info("Available filters:")
+                if len(filters) < 1:
+                    _LOGGER.info("No available filters")
+                for filter_name in filters:
+                    _LOGGER.info(f" - {filter_name}")
+                sys.exit(0)
+            if not "format" in args:
+                _LOGGER.error("The following arguments are required: --format")
+                parser.print_help(sys.stderr)
+                sys.exit(1)
+            if args.describe:
+                if args.format not in filters:
+                    raise EidoFilterError(
+                        f"'{args.format}' filter not found. Available filters: {', '.join(filters)}"
+                    )
+                filter_functions_by_name = pep_conversion_plugins()
+                print(filter_functions_by_name[args.format].__doc__)
+                sys.exit(0)
+            if args.pep is None:
+                parser.print_help(sys.stderr)
+                _LOGGER.info("The following arguments are required: PEP")
+                sys.exit(1)
+            if args.paths:
+                paths = {y[0]: y[1] for y in [x.split("=") for x in args.paths]}
+            else:
+                paths = None
+
+            p = Project(
+                args.pep,
+                sample_table_index=args.st_index,
+                subsample_table_index=args.sst_index,
+                amendments=args.amendments,
+            )
+            plugin_kwargs = _parse_filter_args_str(args.args)
+
+            # append paths
+            plugin_kwargs["paths"] = paths
+
+            convert_project(p, args.format, plugin_kwargs)
+            _LOGGER.info("Conversion successful")
             sys.exit(0)
-        if not "format" in args:
-            _LOGGER.error("The following arguments are required: --format")
-            sps[CONVERT_CMD].print_help(sys.stderr)
-            sys.exit(1)
-        if args.describe:
-            if args.format not in filters:
-                raise EidoFilterError(
-                    f"'{args.format}' filter not found. Available filters: {', '.join(filters)}"
+
+        _LOGGER.debug(f"Creating a Project object from: {args.pep}")
+        if args.subcommand == VALIDATE_CMD:
+            p = Project(
+                args.pep,
+                sample_table_index=args.st_index,
+                subsample_table_index=args.sst_index,
+                amendments=args.amendments,
+            )
+            if args.sample_name:
+                try:
+                    args.sample_name = int(args.sample_name)
+                except ValueError:
+                    # If sample_name is not an integer, leave it as a string.
+                    pass
+                _LOGGER.debug(
+                    f"Comparing Sample ('{args.pep}') in Project ('{args.pep}') "
+                    f"against a schema: {args.schema}"
                 )
-            filter_functions_by_name = pep_conversion_plugins()
-            print(filter_functions_by_name[args.format].__doc__)
-            sys.exit(0)
-        if args.pep is None:
-            sps[CONVERT_CMD].print_help(sys.stderr)
-            _LOGGER.info("The following arguments are required: PEP")
-            sys.exit(1)
-        if args.paths:
-            paths = {y[0]: y[1] for y in [x.split("=") for x in args.paths]}
-        else:
-            paths = None
-
-        p = Project(
-            args.pep,
-            sample_table_index=args.st_index,
-            subsample_table_index=args.sst_index,
-            amendments=args.amendments,
-        )
-        plugin_kwargs = _parse_filter_args_str(args.args)
-
-        # append paths
-        plugin_kwargs["paths"] = paths
-
-        convert_project(p, args.format, plugin_kwargs)
-        _LOGGER.info("Conversion successful")
-        sys.exit(0)
-
-    _LOGGER.debug(f"Creating a Project object from: {args.pep}")
-    if args.command == VALIDATE_CMD:
-        p = Project(
-            args.pep,
-            sample_table_index=args.st_index,
-            subsample_table_index=args.sst_index,
-            amendments=args.amendments,
-        )
-        if args.sample_name:
+                validator = validate_sample
+                arguments = [p, args.sample_name, args.schema]
+            elif args.just_config:
+                _LOGGER.debug(
+                    f"Comparing Project ('{args.pep}') against a schema: {args.schema}"
+                )
+                validator = validate_config
+                arguments = [p, args.schema]
+            else:
+                _LOGGER.debug(
+                    f"Comparing Project ('{args.pep}') against a schema: {args.schema}"
+                )
+                validator = validate_project
+                arguments = [p, args.schema]
             try:
-                args.sample_name = int(args.sample_name)
-            except ValueError:
-                # If sample_name is not an integer, leave it as a string.
-                pass
-            _LOGGER.debug(
-                f"Comparing Sample ('{args.pep}') in Project ('{args.pep}') "
-                f"against a schema: {args.schema}"
-            )
-            validator = validate_sample
-            arguments = [p, args.sample_name, args.schema]
-        elif args.just_config:
-            _LOGGER.debug(
-                f"Comparing Project ('{args.pep}') against a schema: {args.schema}"
-            )
-            validator = validate_config
-            arguments = [p, args.schema]
-        else:
-            _LOGGER.debug(
-                f"Comparing Project ('{args.pep}') against a schema: {args.schema}"
-            )
-            validator = validate_project
-            arguments = [p, args.schema]
-        try:
-            validator(*arguments)
-        except EidoValidationError as e:
-            print_error_summary(e.errors_by_type, _LOGGER)
-            sys.exit(1)
-        _LOGGER.info("Validation successful")
-        sys.exit(0)
+                validator(*arguments)
+            except EidoValidationError as e:
+                print_error_summary(e.errors_by_type, _LOGGER)
+                sys.exit(1)
+            _LOGGER.info("Validation successful")
+            sys.exit(0)
 
-    if args.command == INSPECT_CMD:
-        p = Project(
-            args.pep,
-            sample_table_index=args.st_index,
-            subsample_table_index=args.sst_index,
-            amendments=args.amendments,
-        )
-        inspect_project(p, args.sample_name, args.attr_limit)
-        sys.exit(0)
+        if args.subommand == INSPECT_CMD:
+            p = Project(
+                args.pep,
+                sample_table_index=args.st_index,
+                subsample_table_index=args.sst_index,
+                amendments=args.amendments,
+            )
+            inspect_project(p, args.sample_name, args.attr_limit)
+            sys.exit(0)

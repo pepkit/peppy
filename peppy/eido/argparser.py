@@ -1,75 +1,50 @@
-from argparse import ArgumentParser
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARN
-from typing import Dict, Tuple
 
-from ubiquerg import VersionInHelpParser
-
-from .._version import __version__
 from ..const import PKG_NAME, SAMPLE_NAME_ATTR
 from .const import CONVERT_CMD, INSPECT_CMD, SUBPARSER_MSGS, VALIDATE_CMD
 
 LEVEL_BY_VERBOSITY = [ERROR, CRITICAL, WARN, INFO, DEBUG]
 
 
-def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
-    banner = "%(prog)s - Interact with PEPs"
-    additional_description = "\nhttp://eido.databio.org/"
 
-    parser = VersionInHelpParser(
-        prog=PKG_NAME,
-        description=banner,
-        epilog=additional_description,
-        version=__version__,
-    )
 
-    subparsers = parser.add_subparsers(dest="command")
-    parser.add_argument(
-        "--verbosity",
-        dest="verbosity",
-        type=int,
-        choices=range(len(LEVEL_BY_VERBOSITY)),
-        help="Choose level of verbosity (default: %(default)s)",
-    )
-    parser.add_argument("--logging-level", dest="logging_level", help="logging level")
-    parser.add_argument(
-        "--dbg",
-        dest="dbg",
-        action="store_true",
-        help="Turn on debug mode (default: %(default)s)",
-    )
-    sps = {}
-    for cmd, desc in SUBPARSER_MSGS.items():
-        subparser = subparsers.add_parser(cmd, description=desc, help=desc)
-        subparser.add_argument(
+def build_subparser(parser):
+    sp = parser.add_subparsers(dest="subcommand")
+    subparsers = {}
+
+    for k, v in SUBPARSER_MSGS.items():
+        subparsers[k] = sp.add_parser(k, description=v, help=v)
+        subparsers[k].add_argument(
             "--st-index",
             required=False,
             type=str,
             # default=SAMPLE_NAME_ATTR,
             help=f"Sample table index to use, samples are identified by '{SAMPLE_NAME_ATTR}' by default.",
         )
-        subparser.add_argument(
+        subparsers[k].add_argument(
             "--sst-index",
             required=False,
             type=str,
             # default=SAMPLE_NAME_ATTR,
             help=f"Subsample table index to use, samples are identified by '{SAMPLE_NAME_ATTR}' by default.",
         )
-        subparser.add_argument(
+        subparsers[k].add_argument(
             "--amendments",
             required=False,
             type=str,
             nargs="+",
             help=f"Names of the amendments to activate.",
         )
-        if cmd != CONVERT_CMD:
-            subparser.add_argument(
+
+        if k != CONVERT_CMD:
+            subparsers[k].add_argument(
                 "pep",
                 metavar="PEP",
                 help="Path to a PEP configuration file in yaml format.",
                 default=None,
             )
         else:
-            subparser.add_argument(
+            subparsers[k].add_argument(
                 "pep",
                 metavar="PEP",
                 nargs="?",
@@ -77,9 +52,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
                 default=None,
             )
 
-        sps[cmd] = subparser
-
-    sps[VALIDATE_CMD].add_argument(
+    subparsers[VALIDATE_CMD].add_argument(
         "-s",
         "--schema",
         required=True,
@@ -87,7 +60,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         metavar="S",
     )
 
-    sps[INSPECT_CMD].add_argument(
+    subparsers[INSPECT_CMD].add_argument(
         "-n",
         "--sample-name",
         required=False,
@@ -96,7 +69,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         metavar="SN",
     )
 
-    sps[INSPECT_CMD].add_argument(
+    subparsers[INSPECT_CMD].add_argument(
         "-l",
         "--attr-limit",
         required=False,
@@ -105,7 +78,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="Number of sample attributes to display.",
     )
 
-    group = sps[VALIDATE_CMD].add_mutually_exclusive_group()
+    group = subparsers[VALIDATE_CMD].add_mutually_exclusive_group()
 
     group.add_argument(
         "-n",
@@ -125,7 +98,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="Whether samples should be excluded from the validation.",
     )
 
-    sps[CONVERT_CMD].add_argument(
+    subparsers[CONVERT_CMD].add_argument(
         "-f",
         "--format",
         required=False,
@@ -133,7 +106,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="Output format (name of filter; use -l to see available).",
     )
 
-    sps[CONVERT_CMD].add_argument(
+    subparsers[CONVERT_CMD].add_argument(
         "-n",
         "--sample-name",
         required=False,
@@ -141,7 +114,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="Name of the samples to inspect.",
     )
 
-    sps[CONVERT_CMD].add_argument(
+    subparsers[CONVERT_CMD].add_argument(
         "-a",
         "--args",
         nargs="+",
@@ -151,7 +124,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="Provide arguments to the filter function (e.g. arg1=val1 arg2=val2).",
     )
 
-    sps[CONVERT_CMD].add_argument(
+    subparsers[CONVERT_CMD].add_argument(
         "-l",
         "--list",
         required=False,
@@ -160,7 +133,7 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="List available filters.",
     )
 
-    sps[CONVERT_CMD].add_argument(
+    subparsers[CONVERT_CMD].add_argument(
         "-d",
         "--describe",
         required=False,
@@ -169,10 +142,11 @@ def build_argparser() -> Tuple[ArgumentParser, Dict[str, ArgumentParser]]:
         help="Show description for a given filter.",
     )
 
-    sps[CONVERT_CMD].add_argument(
+    subparsers[CONVERT_CMD].add_argument(
         "-p",
         "--paths",
         nargs="+",
         help="Paths to dump conversion result as key=value pairs.",
     )
-    return parser, sps
+
+    return parser
