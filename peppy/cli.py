@@ -72,7 +72,7 @@ def build_argparser():
     # additional_description = "\nhttps://geniml.databio.org"
 
     parser = VersionInHelpParser(
-        prog="peppy",
+        prog=PKG_NAME,
         version=f"{__version__}",
         description=banner,
     )
@@ -80,7 +80,7 @@ def build_argparser():
     # Individual subcommands
     msg_by_cmd = {
         "eido": "PEP validation, conversion, and inspection",
-        "pephubclient": "Client for the PEPhub server",
+        # "pephubclient": "Client for the PEPhub server",
     }
 
     sp = parser.add_subparsers(dest="command")
