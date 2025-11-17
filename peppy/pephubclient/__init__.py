@@ -1,7 +1,6 @@
 import logging
 
 import coloredlogs
-
 from pephubclient.helpers import is_registry_path, save_pep
 from pephubclient.pephubclient import PEPHubClient
 

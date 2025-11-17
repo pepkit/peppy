@@ -4,14 +4,12 @@ import sys
 from typing import Dict, List
 
 import logmuse
-from logmuse import init_logger
 from ubiquerg import VersionInHelpParser
 
 from ._version import __version__
 from .const import PKG_NAME
-from .eido.argparser import LEVEL_BY_VERBOSITY
 from .eido.argparser import build_subparser as eido_subparser
-from .eido.const import CONVERT_CMD, INSPECT_CMD, LOGGING_LEVEL, VALIDATE_CMD
+from .eido.const import CONVERT_CMD, INSPECT_CMD, VALIDATE_CMD
 from .eido.conversion import (
     convert_project,
     get_available_pep_filters,
@@ -104,6 +102,7 @@ def build_argparser():
     # Individual subcommands
     msg_by_cmd = {
         "eido": "PEP validation, conversion, and inspection",
+        "phc": "Client for the PEPhub server",
         # "pephubclient": "Client for the PEPhub server",
     }
 
@@ -120,8 +119,19 @@ def build_argparser():
 
 def main(test_args=None):
     """Primary workflow"""
+    if len(sys.argv) > 1 and sys.argv[1] == "phc":
+        # Import your Typer app directly
+        from .pephubclient.cli import app
+
+        # Everything after "phc" goes to Typer
+        sub_args = sys.argv[2:]
+        # Show "peppy phc" in usage/help
+        app(
+            args=sub_args,
+            prog_name=f"{PKG_NAME} phc",
+        )
     parser = logmuse.add_logging_options(build_argparser())
-    args, _ = parser.parse_known_args()
+    args, remaining = parser.parse_known_args()
 
     if test_args:
         args.__dict__.update(test_args)
@@ -134,7 +144,6 @@ def main(test_args=None):
         sys.exit(1)
 
     if args.command == "eido":
-
         if args.subcommand == CONVERT_CMD:
             convert_sp = _get_subparser(parser, "eido", CONVERT_CMD)
             filters = get_available_pep_filters()
@@ -232,3 +241,13 @@ def main(test_args=None):
             )
             inspect_project(p, args.sample_name, args.attr_limit)
             sys.exit(0)
+    # if args.command == "phc":
+    #
+    #     # direct import from the old Typer CLI
+    #     from .pephubclient.cli import app
+    #
+    #     # Typer/Click allows overriding program name + args:
+    #     app(
+    #         args=remaining,  # all args after "peppy phc"
+    #         prog_name=f"{PKG_NAME} phc",  # better help/usage text
+    #     )
