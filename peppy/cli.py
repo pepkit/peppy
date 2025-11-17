@@ -120,12 +120,9 @@ def build_argparser():
 def main(test_args=None):
     """Primary workflow"""
     if len(sys.argv) > 1 and sys.argv[1] == "phc":
-        # Import your Typer app directly
         from .pephubclient.cli import app
 
-        # Everything after "phc" goes to Typer
         sub_args = sys.argv[2:]
-        # Show "peppy phc" in usage/help
         app(
             args=sub_args,
             prog_name=f"{PKG_NAME} phc",
