@@ -123,7 +123,7 @@ def convert(
         None, "--st-index", help="Sample table index to use"
     ),
     sst_index: Optional[str] = typer.Option(
-        None, "--sst-index", help=f"Subsample table index to use"
+        None, "--sst-index", help="Subsample table index to use"
     ),
     amendments: Optional[List[str]] = typer.Option(
         None,
