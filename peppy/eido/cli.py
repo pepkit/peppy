@@ -1,15 +1,13 @@
 import sys
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARN, Logger
-
-# import logging
 from typing import Dict, List, Optional
 
 import typer
 from logmuse import init_logger
 
-from ..const import SAMPLE_NAME_ATTR
+from ..const import PKG_NAME, SAMPLE_NAME_ATTR
 from ..project import Project
-from .const import LOGGING_LEVEL, PKG_NAME
+from .const import CONVERT_CMD, INSPECT_CMD, LOGGING_LEVEL, SUBPARSER_MSGS, VALIDATE_CMD
 from .conversion import (
     convert_project,
     get_available_pep_filters,
@@ -20,9 +18,6 @@ from .inspection import inspect_project
 from .validation import validate_config, validate_project, validate_sample
 
 LEVEL_BY_VERBOSITY = [ERROR, CRITICAL, WARN, INFO, DEBUG]
-
-global _LOGGER
-# _LOGGER = logmuse.init_logger("eido")
 
 app = typer.Typer()
 
@@ -83,7 +78,7 @@ def print_error_summary(
 
 
 @app.callback()
-def main(
+def common(
     ctx: typer.Context,
     verbosity: Optional[int] = typer.Option(
         None,
@@ -116,7 +111,7 @@ def main(
     _LOGGER = init_logger(name=PKG_NAME, **logger_kwargs)
 
 
-@app.command()
+@app.command(name=CONVERT_CMD, help=SUBPARSER_MSGS[CONVERT_CMD])
 def convert(
     ctx: typer.Context,
     pep: Optional[str] = typer.Argument(
@@ -217,7 +212,7 @@ def convert(
     sys.exit(0)
 
 
-@app.command()
+@app.command(name=VALIDATE_CMD, help=SUBPARSER_MSGS[VALIDATE_CMD])
 def validate(
     pep: str = typer.Argument(
         None,
@@ -225,7 +220,7 @@ def validate(
         help="Path to a PEP configuration file in yaml format.",
     ),
     schema: str = typer.Option(
-        ...,
+        None,
         "-s",
         "--schema",
         metavar="S",
@@ -309,7 +304,7 @@ def validate(
     sys.exit(0)
 
 
-@app.command()
+@app.command(name=INSPECT_CMD, help=SUBPARSER_MSGS[INSPECT_CMD])
 def inspect(
     pep: str = typer.Argument(
         None,

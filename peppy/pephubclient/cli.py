@@ -1,5 +1,4 @@
 import typer
-from pephubclient import __app_name__, __version__
 
 from .helpers import call_client_func
 from .pephubclient import PEPHubClient
@@ -72,19 +71,3 @@ def push(
         is_private=is_private,
         force=force,
     )
-
-
-def version_callback(value: bool):
-    if value:
-        typer.echo(f"{__app_name__} version: {__version__}")
-        raise typer.Exit()
-
-
-@app.callback()
-def common(
-    ctx: typer.Context,
-    version: bool = typer.Option(
-        None, "--version", "-v", callback=version_callback, help="App version"
-    ),
-):
-    pass
