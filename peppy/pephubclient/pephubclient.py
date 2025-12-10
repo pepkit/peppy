@@ -46,7 +46,7 @@ class PEPHubClient(RequestManager):
     def sample(self) -> PEPHubSample:
         return self.__sample
 
-    def login(self) -> NoReturn:
+    def login(self) -> None:
         """
         Log in to PEPhub
         """
@@ -55,7 +55,7 @@ class PEPHubClient(RequestManager):
         FilesManager.save_jwt_data_to_file(PATH_TO_FILE_WITH_JWT, user_token)
         self.__jwt_data = FilesManager.load_jwt_data_from_file(PATH_TO_FILE_WITH_JWT)
 
-    def logout(self) -> NoReturn:
+    def logout(self) -> None:
         """
         Log out from PEPhub
         """
@@ -153,9 +153,8 @@ class PEPHubClient(RequestManager):
         :param namespace: namespace
         :param name: project name
         :param tag: project tag
-        :param force: Force push to the database. Use it to update, or upload project.
         :param is_private: Make project private
-        :param force: overwrite project if it exists
+        :param force: overwrite project if it exists, use it to update, or upload project.
         :return: None
         """
         if name:
@@ -318,7 +317,7 @@ class PEPHubClient(RequestManager):
 
     def _build_pull_request_url(self, query_param: dict = None) -> str:
         """
-        Build request for getting projects form pephub
+        Build request for getting projects from pephub
 
         :param query_param: dict of parameters used in query string
         :return: url string
@@ -336,7 +335,7 @@ class PEPHubClient(RequestManager):
     @staticmethod
     def _build_project_search_url(namespace: str, query_param: dict = None) -> str:
         """
-        Build request for searching projects form pephub
+        Build request for searching projects from pephub
 
         :param query_param: dict of parameters used in query string
         :return: url string
@@ -350,7 +349,7 @@ class PEPHubClient(RequestManager):
     @staticmethod
     def _build_push_request_url(namespace: str) -> str:
         """
-        Build project uplaod request used in pephub
+        Build project upload request used in pephub
 
         :param namespace: namespace where project will be uploaded
         :return: url string

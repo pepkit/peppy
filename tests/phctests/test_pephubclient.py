@@ -1,7 +1,7 @@
-import os
 from unittest.mock import Mock
 
 import pytest
+
 from peppy.pephubclient.exceptions import ResponseError
 from peppy.pephubclient.helpers import is_registry_path
 from peppy.pephubclient.pephub_oauth.models import InitializeDeviceCodeResponse
@@ -251,7 +251,7 @@ class TestSamples:
         )
         return_value = PEPHubClient().sample.get(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
         )
@@ -281,7 +281,7 @@ class TestSamples:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().sample.get(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
             )
@@ -302,7 +302,7 @@ class TestSamples:
 
         PEPHubClient().sample.create(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
             sample_dict=return_value,
@@ -333,7 +333,7 @@ class TestSamples:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().sample.create(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
                 sample_dict={
@@ -351,7 +351,7 @@ class TestSamples:
 
         PEPHubClient().sample.remove(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
         )
@@ -377,7 +377,7 @@ class TestSamples:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().sample.remove(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
             )
@@ -390,7 +390,7 @@ class TestSamples:
 
         PEPHubClient().sample.update(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
             sample_dict={
@@ -421,7 +421,7 @@ class TestSamples:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().sample.update(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
                 sample_dict={
@@ -446,7 +446,7 @@ class TestViews:
 
         return_value = PEPHubClient().view.get(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
         )
@@ -472,7 +472,7 @@ class TestViews:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().view.get(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
             )
@@ -485,7 +485,7 @@ class TestViews:
 
         PEPHubClient().view.create(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
             sample_list=["sample1", "sample2"],
@@ -512,7 +512,7 @@ class TestViews:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().view.create(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
                 sample_list=["sample1", "sample2"],
@@ -526,7 +526,7 @@ class TestViews:
 
         PEPHubClient().view.delete(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
         )
@@ -552,7 +552,7 @@ class TestViews:
         with pytest.raises(ResponseError, match=expected_error_message):
             PEPHubClient().view.delete(
                 "test_namespace",
-                "taest_name",
+                "test_name",
                 "default",
                 "gg1",
             )
@@ -565,7 +565,7 @@ class TestViews:
 
         PEPHubClient().view.add_sample(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
             "sample1",
@@ -580,7 +580,7 @@ class TestViews:
 
         PEPHubClient().view.remove_sample(
             "test_namespace",
-            "taest_name",
+            "test_name",
             "default",
             "gg1",
             "sample1",
@@ -597,19 +597,19 @@ class TestViews:
 # 3. add with sample_name
 # 4. add without sample_name
 # 5. add with overwrite
-# 6. add to unexisting project 404
+# 6. add to nonexistent project 404
 
 # delete sample:
 # 1. delete existing 202
-# 2. delete unexisting 404
+# 2. delete nonexistent 404
 
 # get sample:
 # 1. get existing 200
-# 2. get unexisting 404
+# 2. get nonexistent 404
 # 3. get with raw 200
-# 4. get from unexisting project 404
+# 4. get from nonexistent project 404
 
 # update sample:
 # 1. update existing 202
-# 2. update unexisting sample 404
-# 3. update unexisting project 404
+# 2. update nonexistent sample 404
+# 3. update nonexistent project 404
