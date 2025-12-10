@@ -61,9 +61,9 @@ class RequestManager:
         response: requests.Response, encoding: str = "utf-8", output_json: bool = False
     ) -> Union[str, dict]:
         """
-        Decode the response from GitHub and pack the returned data into appropriate model.
+        Decode the response from PEPhub and pack the returned data into appropriate model.
 
-        :param response: Response from GitHub.
+        :param response: Response from PEPhub.
         :param encoding: Response encoding [Default: utf-8]
         :param output_json: If True, return response in json format
         :return: Response data as an instance of correct model.
