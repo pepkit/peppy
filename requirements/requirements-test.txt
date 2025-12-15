@@ -5,3 +5,11 @@ pytest-remotedata
 # eido
 coveralls
 pytest-mock==3.6.1
+# pephubclient
+black
+ruff
+python-dotenv
+flake8
+pre-commit
+coverage
+smokeshow

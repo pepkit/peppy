@@ -40,7 +40,13 @@ with open("README.md") as f:
 
 setup(
     name=PACKAGE_NAME,
-    packages=[PACKAGE_NAME, "peppy.eido"],
+    packages=[
+        PACKAGE_NAME,
+        "peppy.eido",
+        "peppy.pephubclient",
+        "peppy.pephubclient.pephub_oauth",
+        "peppy.pephubclient.modules",
+    ],
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
