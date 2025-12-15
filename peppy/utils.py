@@ -6,6 +6,7 @@ import posixpath as psp
 import re
 from collections import defaultdict
 from typing import Any, Dict, Mapping, Optional, Set, Type, Union
+from urllib.parse import urljoin
 from urllib.request import urlopen
 
 import yaml
@@ -37,11 +38,11 @@ def make_abs_via_cfg(
 
     Args:
         maybe_relpath: Path that may be relative
-        cfg_path: Path to configuration file
+        cfg_path: Path to configuration file (can be a local path or URL)
         check_exists: Whether to verify the resulting path exists
 
     Returns:
-        Absolute path
+        Absolute path or URL
 
     Raises:
         TypeError: If maybe_relpath is not a string
@@ -56,6 +57,15 @@ def make_abs_via_cfg(
     if os.path.isabs(maybe_relpath) or is_url(maybe_relpath):
         _LOGGER.debug("Already absolute")
         return maybe_relpath
+
+    # Check if the config path is a URL
+    if is_url(cfg_path):
+        # Use urljoin for URL path resolution (platform-independent)
+        abs_url = urljoin(cfg_path, maybe_relpath)
+        _LOGGER.debug("Resolved URL: {}".format(abs_url))
+        return abs_url
+
+    # For local file paths, continue with filesystem operations
     # Maybe we have env vars that make the path absolute?
     expanded = expandpath(maybe_relpath)
     if os.path.isabs(expanded):
