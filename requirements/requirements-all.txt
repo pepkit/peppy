@@ -2,7 +2,7 @@ pandas>=2.2.0
 pyyaml>=6.0.0
 rich>=10.3.0
 ubiquerg>=0.6.2
-numpy>=2.2.0
+numpy
 logmuse>=0.2.8
 importlib-metadata; python_version < '3.10'
 jsonschema>=3.0.1
