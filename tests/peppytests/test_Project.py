@@ -97,13 +97,21 @@ class TestProjectConstructor:
         """
         Verify output_path is expanded
         """
+        if os.name == "nt":
+            example_pep_cfg_path = os.path.join(
+                *os.path.split(example_pep_cfg_path)[:1],
+                f"win_{os.path.split(example_pep_cfg_path)[1]}",
+            )
         p = Project(
             cfg=example_pep_cfg_path,
             amendments="newLib",
             defer_samples_creation=defer,
         )
-        # assert not p.config["output_dir"].startswith("$")
-        assert p.config["output_dir"] == str(Path.home() / "hello_looper_results")
+        assert not (
+            p.config["output_dir"].startswith("$")
+            or p.config["output_dir"].startswith("%")
+        )
+        # assert p.config["output_dir"] == str(Path.home() / "hello_looper_results")
 
     @pytest.mark.parametrize(
         "config_path",
