@@ -88,7 +88,7 @@ class CSVTableParser(TableParser):
         Parse the sample table
         """
         self.validate_path()
-        print(self.path)
+        print(f"Path: {self.path}")
         self._table = pd.read_csv(self.path, **self._pandas_kwargs)
         self._table = self._table.where(pd.notnull(self._table), None)
         return self.table
