@@ -7,6 +7,7 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, Mapping, Optional, Set, Type, Union
 from urllib.request import urlopen
+import pprint
 
 import yaml
 from ubiquerg import expandpath, is_url
@@ -185,7 +186,10 @@ def load_yaml(filepath: str) -> dict:
     else:
         with open(os.path.abspath(filepath), "r") as f:
             data = yaml.safe_load(f)
-        return expand_paths(data)
+        expd = expandpath(data)
+        print("Expanded:")
+        pprint.pprint(expd)
+        return expd
 
 
 def is_cfg_or_anno(
