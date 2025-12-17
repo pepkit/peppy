@@ -2,6 +2,7 @@ import os
 import pickle
 import socket
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -101,7 +102,8 @@ class TestProjectConstructor:
             amendments="newLib",
             defer_samples_creation=defer,
         )
-        assert not p.config["output_dir"].startswith("$")
+        # assert not p.config["output_dir"].startswith("$")
+        assert p.config["output_dir"] == str(Path.home() / "hello_looper_results")
 
     @pytest.mark.parametrize(
         "config_path",
