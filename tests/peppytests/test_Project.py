@@ -2,7 +2,6 @@ import os
 import pickle
 import socket
 import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -97,6 +96,7 @@ class TestProjectConstructor:
         """
         Verify output_path is expanded
         """
+        # Adjust for Windows-specific config file
         if os.name == "nt":
             example_pep_cfg_path = os.path.join(
                 *os.path.split(example_pep_cfg_path)[:1],
@@ -111,7 +111,6 @@ class TestProjectConstructor:
             p.config["output_dir"].startswith("$")
             or p.config["output_dir"].startswith("%")
         )
-        # assert p.config["output_dir"] == str(Path.home() / "hello_looper_results")
 
     @pytest.mark.parametrize(
         "config_path",
