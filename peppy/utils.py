@@ -62,11 +62,25 @@ def make_abs_via_cfg(
         _LOGGER.debug("Expanded: {}".format(expanded))
         return expanded
     # Set path to an absolute path, relative to project config.
-    config_dirpath = os.path.dirname(cfg_path)
+    # config_dirpath = os.path.dirname(cfg_path)
+    # _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
+    # abs_path = os.path.join(config_dirpath, maybe_relpath)
+    # _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
+    # if check_exists and not os.path.exists(abs_path):
+    #     raise OSError(f"Path made absolute does not exist: {abs_path}")
+    # return abs_path
+    if is_url(cfg_path):
+        config_dirpath = psp.dirname(cfg_path)
+    else:
+        config_dirpath = os.path.dirname(cfg_path)
     _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
-    abs_path = os.path.join(config_dirpath, maybe_relpath)
+
+    if is_url(cfg_path):
+        abs_path = psp.join(config_dirpath, maybe_relpath)
+    else:
+        abs_path = os.path.join(config_dirpath, maybe_relpath)
     _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
-    if check_exists and not os.path.exists(abs_path):
+    if check_exists and not is_url(abs_path) and not os.path.exists(abs_path):
         raise OSError(f"Path made absolute does not exist: {abs_path}")
     return abs_path
 
