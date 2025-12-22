@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 import yaml
@@ -20,8 +20,8 @@ from .const import (
     SAMPLE_SHEET_KEY,
 )
 from .exceptions import InvalidSampleTableFileException
-from .utils import copy, grab_project_data
 from .simple_attr_map import SimpleAttMap
+from .utils import copy, grab_project_data
 
 _LOGGER = getLogger(PKG_NAME)
 
@@ -39,7 +39,9 @@ class Sample(SimpleAttMap):
     :param Mapping | pandas.core.series.Series series: Sample's data.
     """
 
-    def __init__(self, series, prj=None):
+    def __init__(
+        self, series: Union[Mapping, Series], prj: Optional[Any] = None
+    ) -> None:
         super(Sample, self).__init__()
 
         data = dict(series)
@@ -75,25 +77,28 @@ class Sample(SimpleAttMap):
         self._derived_cols_done = []
         self._attributes = list(series.keys())
 
-    def get_sheet_dict(self):
-        """
-        Create a K-V pairs for items originally passed in via the sample sheet.
+    def get_sheet_dict(self) -> Dict:
+        """Create K-V pairs for items originally passed in via the sample sheet.
+
         This is useful for summarizing; it provides a representation of the
         sample that excludes things like config files and derived entries.
 
-        :return OrderedDict: mapping from name to value for data elements
-            originally provided via the sample sheet (i.e., the a map-like
-            representation of the instance, excluding derived items)
+        Returns:
+            Mapping from name to value for data elements originally provided
+            via the sample sheet (i.e., a map-like representation of the
+            instance, excluding derived items)
         """
         return dict([[k, self[k]] for k in self._attributes])
 
-    def to_dict(self, add_prj_ref=False):
-        """
-        Serializes itself as dict object.
+    def to_dict(self, add_prj_ref: bool = False) -> Dict:
+        """Serializes itself as dict object.
 
-        :param bool add_prj_ref: whether the project reference bound do the
-            Sample object should be included in the YAML representation
-        :return dict: dict representation of this Sample
+        Args:
+            add_prj_ref: Whether the project reference bound to the Sample
+                object should be included in the dict representation
+
+        Returns:
+            Dict representation of this Sample
         """
 
         def _obj2dict(obj, name=None):
@@ -136,16 +141,19 @@ class Sample(SimpleAttMap):
         return serial
 
     def to_yaml(
-        self, path: Optional[str] = None, add_prj_ref=False
+        self, path: Optional[str] = None, add_prj_ref: bool = False
     ) -> Union[str, None]:
-        """
-        Serializes itself in YAML format. Writes to file if path is provided, else returns string representation.
+        """Serializes itself in YAML format.
 
-        :param str path: A file path to write yaml to; provide this or
-            the subs_folder_path, defaults to None
-        :param bool add_prj_ref: whether the project reference bound do the
-            Sample object should be included in the YAML representation
-        :return str | None: returns string representation of sample yaml or None
+        Writes to file if path is provided, else returns string representation.
+
+        Args:
+            path: A file path to write YAML to; defaults to None
+            add_prj_ref: Whether the project reference bound to the Sample
+                object should be included in the YAML representation
+
+        Returns:
+            String representation of sample YAML or None if written to file
         """
         serial = self.to_dict(add_prj_ref=add_prj_ref)
         if path:
@@ -199,11 +207,6 @@ class Sample(SimpleAttMap):
             keys = [i[1] for i in Formatter().parse(regex) if i[1] is not None]
             if not keys:
                 return [regex]
-            if "$" in regex:
-                _LOGGER.warning(
-                    "Not all environment variables were populated "
-                    "in derived attribute source: {}".format(regex)
-                )
             attr_lens = [
                 len(v) for k, v in items.items() if (isinstance(v, list) and k in keys)
             ]

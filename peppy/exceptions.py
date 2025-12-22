@@ -2,6 +2,7 @@
 
 from abc import ABCMeta
 from collections.abc import Iterable
+from typing import Optional
 
 __all__ = [
     "IllegalStateException",
@@ -19,7 +20,7 @@ class PeppyError(Exception):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, msg):
+    def __init__(self, msg: str) -> None:
         super(PeppyError, self).__init__(msg)
 
 
@@ -50,12 +51,12 @@ class RemoteYAMLError(PeppyError):
 class MissingAmendmentError(PeppyError):
     """Error when project config lacks a requested subproject."""
 
-    def __init__(self, amendment, defined=None):
-        """
-        Create exception with missing amendment request.
+    def __init__(self, amendment: str, defined: Optional[Iterable[str]] = None) -> None:
+        """Create exception with missing amendment request.
 
-        :param str amendment: the requested (and missing) amendment
-        :param Iterable[str] defined: collection of names of defined amendment
+        Args:
+            amendment: The requested (and missing) amendment
+            defined: Collection of names of defined amendments
         """
         msg = "Amendment '{}' not found".format(amendment)
         if isinstance(defined, Iterable):

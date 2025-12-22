@@ -1,0 +1,5 @@
+file,file_id,protocol,identifier,sample_name
+local_files,,anySampleType,frog1,frog_1
+local_files_unmerged,,anySampleType,frog2,frog_2
+local_files_unmerged,,anySampleType,frog3,frog_3
+local_files_unmerged,,anySampleType,frog4,frog_4

@@ -6,8 +6,9 @@ import os
 import sys
 from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
+from copy import deepcopy
 from logging import getLogger
-from typing import Iterable, List, Tuple, Union, Literal
+from typing import Iterable, List, Literal, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -16,11 +17,11 @@ from pandas.core.common import flatten
 from rich.console import Console
 from rich.progress import track
 from ubiquerg import is_url
-from copy import deepcopy
 
 from .const import (
     ACTIVE_AMENDMENTS_KEY,
     AMENDMENTS_KEY,
+    APPEND_KEY,
     ATTR_KEY_PREFIX,
     CFG_IMPORTS_KEY,
     CFG_SAMPLE_TABLE_KEY,
@@ -28,7 +29,6 @@ from .const import (
     CONFIG_FILE_KEY,
     CONFIG_KEY,
     CONFIG_VERSION_KEY,
-    APPEND_KEY,
     DERIVED_ATTRS_KEY,
     DERIVED_KEY,
     DERIVED_SOURCES_KEY,
@@ -41,6 +41,7 @@ from .const import (
     MAX_PROJECT_SAMPLES_REPR,
     METADATA_KEY,
     NAME_KEY,
+    ORIGINAL_CONFIG_KEY,
     PEP_LATEST_VERSION,
     PKG_NAME,
     PROJ_MODS_KEY,
@@ -60,13 +61,12 @@ from .const import (
     SUBSAMPLE_RAW_LIST_KEY,
     SUBSAMPLE_TABLE_INDEX_KEY,
     SUBSAMPLE_TABLES_FILE_KEY,
-    ORIGINAL_CONFIG_KEY,
 )
 from .exceptions import (
-    InvalidSampleTableFileException,
-    MissingAmendmentError,
     IllegalStateException,
     InvalidConfigFileException,
+    InvalidSampleTableFileException,
+    MissingAmendmentError,
 )
 from .parsers import select_parser
 from .sample import Sample
@@ -76,6 +76,7 @@ from .utils import (
     load_yaml,
     make_abs_via_cfg,
     make_list,
+    unpopulated_env_var,
 )
 
 _LOGGER = getLogger(PKG_NAME)
@@ -669,7 +670,7 @@ class Project(MutableMapping):
             if self.st_index not in sample:
                 message = (
                     f"{CFG_SAMPLE_TABLE_KEY} is missing '{self.st_index}' column; "
-                    f"you must specify {CFG_SAMPLE_TABLE_KEY}s in {self.st_index} or derive them"
+                    f"you must specify a {self.st_index} column for your {CFG_SAMPLE_TABLE_KEY} or derive it"
                 )
                 raise InvalidSampleTableFileException(message)
 
@@ -920,6 +921,7 @@ class Project(MutableMapping):
         ds = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_SOURCES_KEY]
         derivations = attrs or (da if isinstance(da, list) else [da])
         _LOGGER.debug("Derivations to be done: {}".format(derivations))
+        env_var_miss = set()
         for sample in track(
             self.samples,
             description="Deriving sample attributes",
@@ -942,6 +944,9 @@ class Project(MutableMapping):
 
                 derived_attr = sample.derive_attribute(ds, attr)
                 if derived_attr:
+                    if "$" in derived_attr:
+                        env_var_miss.add(derived_attr)
+
                     _LOGGER.debug("Setting '{}' to '{}'".format(attr, derived_attr))
                     sample[attr] = derived_attr
                 else:
@@ -949,6 +954,8 @@ class Project(MutableMapping):
                         f"Not setting null/empty value for data source '{attr}': {type(derived_attr)}"
                     )
                 sample._derived_cols_done.append(attr)
+        if len(env_var_miss) > 0:
+            unpopulated_env_var(env_var_miss)
 
     def activate_amendments(self, amendments):
         """

@@ -1,0 +1,6 @@
+# Usage reference
+
+pephubclient is a command line tool that can be used to interact with the PEPhub API.
+It can be used to create, update, delete PEPs in the PEPhub database.
+
+Below are usage examples for the different commands that can be used with pephubclient.

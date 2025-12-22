@@ -2,7 +2,10 @@
 
 import logging
 import os
-from typing import Dict, Mapping, Type, Union
+import posixpath as psp
+import re
+from collections import defaultdict
+from typing import Any, Dict, Mapping, Optional, Set, Type, Union
 from urllib.request import urlopen
 
 import yaml
@@ -14,7 +17,7 @@ from .exceptions import RemoteYAMLError
 _LOGGER = logging.getLogger(__name__)
 
 
-def copy(obj):
+def copy(obj: Any) -> Any:
     def copy(self):
         """
         Copy self to a new object.
@@ -27,8 +30,23 @@ def copy(obj):
     return obj
 
 
-def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
-    """Ensure that a possibly relative path is absolute."""
+def make_abs_via_cfg(
+    maybe_relpath: str, cfg_path: str, check_exists: bool = False
+) -> str:
+    """Ensure that a possibly relative path is absolute.
+
+    Args:
+        maybe_relpath: Path that may be relative
+        cfg_path: Path to configuration file
+        check_exists: Whether to verify the resulting path exists
+
+    Returns:
+        Absolute path
+
+    Raises:
+        TypeError: If maybe_relpath is not a string
+        OSError: If check_exists is True and path doesn't exist
+    """
     if not isinstance(maybe_relpath, str):
         raise TypeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".format(
@@ -44,28 +62,40 @@ def make_abs_via_cfg(maybe_relpath, cfg_path, check_exists=False):
         _LOGGER.debug("Expanded: {}".format(expanded))
         return expanded
     # Set path to an absolute path, relative to project config.
-    config_dirpath = os.path.dirname(cfg_path)
+    if is_url(cfg_path):
+        config_dirpath = psp.dirname(cfg_path)
+    else:
+        config_dirpath = os.path.dirname(cfg_path)
     _LOGGER.debug("config_dirpath: {}".format(config_dirpath))
-    abs_path = os.path.join(config_dirpath, maybe_relpath)
+
+    if is_url(cfg_path):
+        abs_path = psp.join(config_dirpath, maybe_relpath)
+    else:
+        abs_path = os.path.join(config_dirpath, maybe_relpath)
     _LOGGER.debug("Expanded and/or made absolute: {}".format(abs_path))
-    if check_exists and not os.path.exists(abs_path):
+    if check_exists and not is_url(abs_path) and not os.path.exists(abs_path):
         raise OSError(f"Path made absolute does not exist: {abs_path}")
     return abs_path
 
 
-def grab_project_data(prj):
-    """
-    From the given Project, grab Sample-independent data.
+def grab_project_data(prj: Any) -> Mapping:
+    """From the given Project, grab Sample-independent data.
 
     There are some aspects of a Project of which it's beneficial for a Sample
     to be aware, particularly for post-hoc analysis. Since Sample objects
     within a Project are mutually independent, though, each doesn't need to
-    know about any of the others. A Project manages its, Sample instances,
+    know about any of the others. A Project manages its Sample instances,
     so for each Sample knowledge of Project data is limited. This method
     facilitates adoption of that conceptual model.
 
-    :param Project prj: Project from which to grab data
-    :return Mapping: Sample-independent data sections from given Project
+    Args:
+        prj: Project from which to grab data
+
+    Returns:
+        Sample-independent data sections from given Project
+
+    Raises:
+        KeyError: If project lacks required config section
     """
     if not prj:
         return {}
@@ -77,16 +107,17 @@ def grab_project_data(prj):
 
 
 def make_list(arg: Union[list, str], obj_class: Type) -> list:
-    """
-    Convert an object of predefined class to a list of objects of that class or
-    ensure a list is a list of objects of that class
+    """Convert an object of predefined class to a list or ensure list contains correct type.
 
-    :param list[obj] | obj arg: string or a list of strings to listify
-    :param str obj_class: name of the class of intrest
+    Args:
+        arg: Object or list of objects to listify
+        obj_class: Class that objects should be instances of
 
-    :return list: list of objects of the predefined class
+    Returns:
+        List of objects of the predefined class
 
-    :raise TypeError: if a faulty argument was provided
+    Raises:
+        TypeError: If a faulty argument was provided
     """
 
     def _raise_faulty_arg():
@@ -106,22 +137,26 @@ def make_list(arg: Union[list, str], obj_class: Type) -> list:
         _raise_faulty_arg()
 
 
-def _expandpath(path: str):
-    """
-    Expand a filesystem path that may or may not contain user/env vars.
+def _expandpath(path: str) -> str:
+    """Expand a filesystem path that may or may not contain user/env vars.
 
-    :param str path: path to expand
-    :return str: expanded version of input path
+    Args:
+        path: Path to expand
+
+    Returns:
+        Expanded version of input path
     """
     return os.path.expandvars(os.path.expanduser(path))
 
 
 def expand_paths(x: dict) -> dict:
-    """
-    Recursively expand paths in a dict.
+    """Recursively expand paths in a dict.
 
-    :param dict x: dict to expand
-    :return dict: dict with expanded paths
+    Args:
+        x: Dict to expand
+
+    Returns:
+        Dict with expanded paths
     """
     if isinstance(x, str):
         return expandpath(x)
@@ -130,13 +165,17 @@ def expand_paths(x: dict) -> dict:
     return x
 
 
-def load_yaml(filepath):
-    """
-    Load a local or remote YAML file into a Python dict
+def load_yaml(filepath: str) -> dict:
+    """Load a local or remote YAML file into a Python dict.
 
-    :param str filepath: path to the file to read
-    :raises RemoteYAMLError: if the remote YAML file reading fails
-    :return dict: read data
+    Args:
+        filepath: Path to the file to read
+
+    Returns:
+        Read data
+
+    Raises:
+        RemoteYAMLError: If the remote YAML file reading fails
     """
     if is_url(filepath):
         _LOGGER.debug(f"Got URL: {filepath}")
@@ -156,13 +195,21 @@ def load_yaml(filepath):
         return expand_paths(data)
 
 
-def is_cfg_or_anno(file_path, formats=None):
-    """
-    Determine if the input file seems to be a project config file (based on the file extension).
-    :param str file_path: file path to examine
-    :param dict formats: formats dict to use. Must include 'config' and 'annotation' keys.
-    :raise ValueError: if the file seems to be neither a config nor an annotation
-    :return bool: True if the file is a config, False if the file is an annotation
+def is_cfg_or_anno(
+    file_path: Optional[str], formats: Optional[dict] = None
+) -> Optional[bool]:
+    """Determine if the input file seems to be a project config file (based on extension).
+
+    Args:
+        file_path: File path to examine
+        formats: Formats dict to use. Must include 'config' and 'annotation' keys
+
+    Returns:
+        True if the file is a config, False if the file is an annotation,
+        None if file_path is None
+
+    Raises:
+        ValueError: If the file seems to be neither a config nor an annotation
     """
     formats_dict = formats or {
         "config": (".yaml", ".yml"),
@@ -182,8 +229,15 @@ def is_cfg_or_anno(file_path, formats=None):
     )
 
 
-def extract_custom_index_for_sample_table(pep_dictionary: Dict):
-    """Extracts a custom index for the sample table if it exists"""
+def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]:
+    """Extracts a custom index for the sample table if it exists.
+
+    Args:
+        pep_dictionary: PEP configuration dictionary
+
+    Returns:
+        Custom index name or None if not specified
+    """
     return (
         pep_dictionary[SAMPLE_TABLE_INDEX_KEY]
         if SAMPLE_TABLE_INDEX_KEY in pep_dictionary
@@ -191,10 +245,68 @@ def extract_custom_index_for_sample_table(pep_dictionary: Dict):
     )
 
 
-def extract_custom_index_for_subsample_table(pep_dictionary: Dict):
-    """Extracts a custom index for the subsample table if it exists"""
+def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[str]:
+    """Extracts a custom index for the subsample table if it exists.
+
+    Args:
+        pep_dictionary: PEP configuration dictionary
+
+    Returns:
+        Custom index name or None if not specified
+    """
     return (
         pep_dictionary[SUBSAMPLE_TABLE_INDEX_KEY]
         if SUBSAMPLE_TABLE_INDEX_KEY in pep_dictionary
         else None
     )
+
+
+def unpopulated_env_var(paths: Set[str]) -> None:
+    """Print warnings for unpopulated environment variables in paths.
+
+    Given a set of paths that may contain env vars, group by env var and
+    print a warning for each group with the deepest common directory and
+    the paths relative to that directory.
+
+    Args:
+        paths: Set of paths that may contain environment variables
+    """
+    _VAR_RE = re.compile(r"^\$(\w+)/(.*)$")
+    groups: dict[str, list[str]] = defaultdict(list)
+
+    # 1) Group by env var
+    for s in paths:
+        m = _VAR_RE.match(s.strip())
+        if not m:
+            # Not in "$VAR/..." form — skip or collect under a special key if you prefer
+            continue
+        var, tail = m.group(1), m.group(2)
+        # normalize to POSIX-ish, no leading "./"
+        tail = tail.lstrip("/")
+        groups[var].append(tail)
+
+    # 2) For each var, compute deepest common directory and print
+    for var, tails in groups.items():
+        if not tails:
+            continue
+
+        if len(tails) == 1:
+            # With a single path, use its directory as the common dir
+            common_dir = psp.dirname(tails[0]) or "."
+        else:
+            common_dir = psp.commonpath(tails) or "."
+            # Ensure it's a directory; commonpath is component-wise, so it's fine.
+
+        warning_message = "Not all environment variables were populated in derived attribute source: $%s/{"
+
+        in_env = []
+        for t in tails:
+            rel = psp.relpath(t, start=common_dir or ".")
+            in_env.append(rel)
+
+        warning_message += ", ".join(in_env)
+        warning_message += "}"
+        _LOGGER.warning(
+            warning_message,
+            var,
+        )

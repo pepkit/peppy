@@ -1,0 +1,25 @@
+description: test PEP schema
+type: object
+properties:
+  dcc:
+    type: object
+    properties:
+      compute_packages:
+        type: object
+  samples:
+    type: array
+    items:
+      type: object
+      properties:
+        sample_name:
+          type: string
+        protocol:
+          type: string
+        genome:
+          type: string
+  invalid:
+    type: string
+
+required:
+  - samples
+  - invalid

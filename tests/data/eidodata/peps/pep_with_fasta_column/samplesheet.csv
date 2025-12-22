@@ -1,0 +1,6 @@
+sample,strandedness,instrument_platform
+WT_REP1,reverse,ABI_SOLID
+WT_REP2,reverse,BGISEQ
+RAP1_UNINDUCED_REP1,reverse,CAPILLARY
+RAP1_UNINDUCED_REP2,reverse,COMPLETE_GENOMICS
+RAP1_IAA_30M_REP1,reverse,DNBSEQ

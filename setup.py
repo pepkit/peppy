@@ -40,7 +40,13 @@ with open("README.md") as f:
 
 setup(
     name=PACKAGE_NAME,
-    packages=[PACKAGE_NAME],
+    packages=[
+        PACKAGE_NAME,
+        "peppy.eido",
+        "peppy.pephubclient",
+        "peppy.pephubclient.pephub_oauth",
+        "peppy.pephubclient.modules",
+    ],
     version=version,
     description="A python-based project metadata manager for portable encapsulated projects",
     long_description=long_description,
@@ -59,6 +65,15 @@ setup(
     url="https://github.com/pepkit/peppy/",
     author="Michal Stolarczyk, Nathan Sheffield, Vince Reuter, Andre Rendeiro, Oleksandr Khoroshevskyi",
     license="BSD2",
+    entry_points={
+        "console_scripts": ["peppy = peppy.cli:main"],
+        "pep.filters": [
+            "basic=peppy.eido.conversion_plugins:basic_pep_filter",
+            "yaml=peppy.eido.conversion_plugins:yaml_pep_filter",
+            "csv=peppy.eido.conversion_plugins:csv_pep_filter",
+            "yaml-samples=peppy.eido.conversion_plugins:yaml_samples_pep_filter",
+        ],
+    },
     include_package_data=True,
     tests_require=(["pytest"]),
     setup_requires=(
