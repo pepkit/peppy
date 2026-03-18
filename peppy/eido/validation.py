@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy as dpcpy
 from logging import getLogger
-from typing import Dict, List, Mapping, NoReturn, Union
+from collections.abc import Mapping
 from warnings import warn
 
 import pandas as pd
@@ -20,8 +20,8 @@ _LOGGER = getLogger(__name__)
 
 def _validate_object(
     obj: Mapping,
-    schema: Union[str, dict],
-    sample_name_colname: Union[str, bool] = False,
+    schema: str | dict,
+    sample_name_colname: str | bool = False,
 ) -> None:
     """Generic function to validate object against a schema.
 
@@ -65,7 +65,7 @@ def _validate_object(
         _LOGGER.debug("Validation was successful...")
 
 
-def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
+def validate_project(project: Project, schema: str | dict) -> None:
     """Validate a project object against a schema.
 
     Args:
@@ -85,7 +85,7 @@ def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
         _LOGGER.debug("Project validation successful")
 
 
-def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
+def _validate_sample_object(sample: Sample, schemas: list[dict]) -> None:
     """Validate a peppy.Sample object without requiring a reference to peppy.Project.
 
     Args:
@@ -102,8 +102,8 @@ def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
 
 
 def validate_sample(
-    project: Project, sample_name: Union[str, int], schema: Union[str, dict]
-) -> NoReturn:
+    project: Project, sample_name: str | int, schema: str | dict
+) -> None:
     """Validate the selected sample object against a schema.
 
     Args:
@@ -126,8 +126,8 @@ def validate_sample(
 
 
 def validate_config(
-    project: Union[Project, dict, str], schema: Union[str, dict]
-) -> NoReturn:
+    project: Project | dict | str, schema: str | dict
+) -> None:
     """Validate the config part of the Project object against a schema.
 
     Args:
@@ -166,8 +166,8 @@ def validate_config(
 
 
 def _get_attr_values(
-    obj: Mapping, attrlist: Union[str, List[str]]
-) -> Union[None, List[str]]:
+    obj: Mapping, attrlist: str | list[str]
+) -> list[str] | None:
     """Get value corresponding to each given attribute.
 
     Args:
@@ -190,8 +190,8 @@ def _get_attr_values(
 
 def validate_input_files(
     project: Project,
-    schemas: Union[str, dict],
-    sample_name: Union[str, int, None] = None,
+    schemas: str | dict,
+    sample_name: str | int | None = None,
 ) -> None:
     """Determine which of the required and optional files are missing.
 
@@ -258,7 +258,7 @@ def validate_input_files(
 
 
 def validate_original_samples(
-    samples: Union[str, pd.DataFrame], schema: Union[str, dict]
+    samples: str | pd.DataFrame, schema: str | dict
 ) -> None:
     """Validate the original samples from the csv table against a schema.
 

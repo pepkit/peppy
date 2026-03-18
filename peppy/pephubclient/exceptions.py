@@ -1,4 +1,3 @@
-from typing import Optional
 
 
 class BasePephubclientException(Exception):
@@ -7,7 +6,7 @@ class BasePephubclientException(Exception):
 
 
 class IncorrectQueryStringError(BasePephubclientException):
-    def __init__(self, query_string: Optional[str] = None):
+    def __init__(self, query_string: str | None = None):
         self.query_string = query_string
         super().__init__(
             f"PEP data with passed namespace and project ({self.query_string}) name not found."
@@ -17,7 +16,7 @@ class IncorrectQueryStringError(BasePephubclientException):
 class ResponseError(BasePephubclientException):
     default_message = "The response looks incorrect and must be verified manually."
 
-    def __init__(self, message: Optional[str] = None):
+    def __init__(self, message: str | None = None):
         self.message = message
         super().__init__(self.message or self.default_message)
 
@@ -28,6 +27,6 @@ class PEPExistsError(BasePephubclientException):
         "to overwrite previous PEP"
     )
 
-    def __init__(self, message: Optional[str] = None):
+    def __init__(self, message: str | None = None):
         self.message = message
         super().__init__(self.message or self.default_message)

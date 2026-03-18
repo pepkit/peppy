@@ -1,6 +1,5 @@
 import json
 import time
-from typing import Type, Union
 
 import requests
 from pydantic import BaseModel
@@ -86,8 +85,8 @@ class PEPHubAuth(RequestManager):
 
     @staticmethod
     def _handle_pephub_response(
-        response: requests.Response, model: Type[BaseModel]
-    ) -> Union[BaseModel, InitializeDeviceCodeResponse, PEPHubDeviceTokenResponse]:
+        response: requests.Response, model: type[BaseModel]
+    ) -> BaseModel | InitializeDeviceCodeResponse | PEPHubDeviceTokenResponse:
         """
         Decode the response from PEPhub and pack the returned data into appropriate model.
         :param response: Response from pephub

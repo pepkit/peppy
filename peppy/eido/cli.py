@@ -1,6 +1,5 @@
 import sys
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARN, Logger
-from typing import Dict, List, Optional
 
 import typer
 from logmuse import init_logger
@@ -23,8 +22,8 @@ app = typer.Typer()
 
 
 def _configure_logging(
-    verbosity: Optional[int],
-    logging_level: Optional[str],
+    verbosity: int | None,
+    logging_level: str | None,
     dbg: bool,
 ) -> str:
     """Mimic old verbosity / logging-level behavior."""
@@ -38,7 +37,7 @@ def _configure_logging(
     return level
 
 
-def _parse_filter_args_str(input: Optional[List[str]]) -> Dict[str, str]:
+def _parse_filter_args_str(input: list[str] | None) -> dict[str, str]:
     """
     Parse user input specification.
 
@@ -57,7 +56,7 @@ def _parse_filter_args_str(input: Optional[List[str]]) -> Dict[str, str]:
 
 
 def print_error_summary(
-    errors_by_type: Dict[str, List[Dict[str, str]]], _LOGGER: Logger
+    errors_by_type: dict[str, list[dict[str, str]]], _LOGGER: Logger
 ):
     """Print a summary of errors, organized by error type"""
     n_error_types = len(errors_by_type)
@@ -80,14 +79,14 @@ def print_error_summary(
 @app.callback()
 def common(
     ctx: typer.Context,
-    verbosity: Optional[int] = typer.Option(
+    verbosity: int | None = typer.Option(
         None,
         "--verbosity",
         min=0,
         max=len(LEVEL_BY_VERBOSITY) - 1,
         help=f"Choose level of verbosity (default: {None})",
     ),
-    logging_level: Optional[str] = typer.Option(
+    logging_level: str | None = typer.Option(
         None,
         "--logging-level",
         help="logging level",
@@ -114,18 +113,18 @@ def common(
 @app.command(name=CONVERT_CMD, help=SUBPARSER_MSGS[CONVERT_CMD])
 def convert(
     ctx: typer.Context,
-    pep: Optional[str] = typer.Argument(
+    pep: str | None = typer.Argument(
         None,
         metavar="PEP",
         help="Path to a PEP configuration file in yaml format.",
     ),
-    st_index: Optional[str] = typer.Option(
+    st_index: str | None = typer.Option(
         None, "--st-index", help="Sample table index to use"
     ),
-    sst_index: Optional[str] = typer.Option(
+    sst_index: str | None = typer.Option(
         None, "--sst-index", help="Subsample table index to use"
     ),
-    amendments: Optional[List[str]] = typer.Option(
+    amendments: list[str] | None = typer.Option(
         None,
         "--amendments",
         help="Names of the amendments to activate.",
@@ -136,13 +135,13 @@ def convert(
         "--format",
         help="Output format (name of filter; use -l to see available).",
     ),
-    sample_name: Optional[List[str]] = typer.Option(
+    sample_name: list[str] | None = typer.Option(
         None,
         "-n",
         "--sample-name",
         help="Name of the samples to inspect.",
     ),
-    args: Optional[List[str]] = typer.Option(
+    args: list[str] | None = typer.Option(
         None,
         "-a",
         "--args",
@@ -162,7 +161,7 @@ def convert(
         "--describe",
         help="Show description for a given filter.",
     ),
-    paths_: Optional[List[str]] = typer.Option(
+    paths_: list[str] | None = typer.Option(
         None,
         "-p",
         "--paths",
@@ -226,7 +225,7 @@ def validate(
         metavar="S",
         help="Path to a PEP schema file in yaml format.",
     ),
-    st_index: Optional[str] = typer.Option(
+    st_index: str | None = typer.Option(
         None,
         "--st-index",
         help=(
@@ -234,7 +233,7 @@ def validate(
             f"'{SAMPLE_NAME_ATTR}' by default."
         ),
     ),
-    sst_index: Optional[str] = typer.Option(
+    sst_index: str | None = typer.Option(
         None,
         "--sst-index",
         help=(
@@ -242,12 +241,12 @@ def validate(
             f"'{SAMPLE_NAME_ATTR}' by default."
         ),
     ),
-    amendments: Optional[List[str]] = typer.Option(
+    amendments: list[str] | None = typer.Option(
         None,
         "--amendments",
         help="Names of the amendments to activate.",
     ),
-    sample_name: Optional[str] = typer.Option(
+    sample_name: str | None = typer.Option(
         None,
         "-n",
         "--sample-name",
@@ -311,7 +310,7 @@ def inspect(
         metavar="PEP",
         help="Path to a PEP configuration file in yaml format.",
     ),
-    st_index: Optional[str] = typer.Option(
+    st_index: str | None = typer.Option(
         None,
         "--st-index",
         help=(
@@ -319,7 +318,7 @@ def inspect(
             f"'{SAMPLE_NAME_ATTR}' by default."
         ),
     ),
-    sst_index: Optional[str] = typer.Option(
+    sst_index: str | None = typer.Option(
         None,
         "--sst-index",
         help=(
@@ -327,12 +326,12 @@ def inspect(
             f"'{SAMPLE_NAME_ATTR}' by default."
         ),
     ),
-    amendments: Optional[List[str]] = typer.Option(
+    amendments: list[str] | None = typer.Option(
         None,
         "--amendments",
         help="Names of the amendments to activate.",
     ),
-    sample_name: Optional[List[str]] = typer.Option(
+    sample_name: list[str] | None = typer.Option(
         None,
         "-n",
         "--sample-name",

@@ -1,6 +1,7 @@
 import json
 import os
-from typing import Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlencode
 
 import pandas as pd
@@ -31,10 +32,10 @@ class RequestManager:
     def send_request(
         method: str,
         url: str,
-        headers: Optional[dict] = None,
-        cookies: Optional[dict] = None,
-        params: Optional[dict] = None,
-        json: Optional[Union[dict, list]] = None,
+        headers: dict | None = None,
+        cookies: dict | None = None,
+        params: dict | None = None,
+        json: dict | list | None = None,
     ) -> requests.Response:
         request_return = requests.request(
             method=method,
@@ -59,7 +60,7 @@ class RequestManager:
     @staticmethod
     def decode_response(
         response: requests.Response, encoding: str = "utf-8", output_json: bool = False
-    ) -> Union[str, dict]:
+    ) -> str | dict:
         """
         Decode the response from PEPhub and pack the returned data into appropriate model.
 
@@ -89,7 +90,7 @@ class RequestManager:
         return "?" + urlencode(pep_variables)
 
     @staticmethod
-    def parse_header(jwt_data: Optional[str] = None) -> dict:
+    def parse_header(jwt_data: str | None = None) -> dict:
         """
         Create Authorization header
 
@@ -279,10 +280,10 @@ def _save_unzipped_pep(
 
 
 def save_pep(
-    project: Union[dict, Project],
+    project: dict | Project,
     reg_path: str = None,
     force: bool = False,
-    project_path: Optional[str] = None,
+    project_path: str | None = None,
     zip: bool = False,
 ) -> None:
     """

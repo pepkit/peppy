@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -40,7 +40,7 @@ class Sample(SimpleAttMap):
     """
 
     def __init__(
-        self, series: Union[Mapping, Series], prj: Optional[Any] = None
+        self, series: Mapping | Series, prj: Any | None = None
     ) -> None:
         super(Sample, self).__init__()
 
@@ -77,7 +77,7 @@ class Sample(SimpleAttMap):
         self._derived_cols_done = []
         self._attributes = list(series.keys())
 
-    def get_sheet_dict(self) -> Dict:
+    def get_sheet_dict(self) -> dict:
         """Create K-V pairs for items originally passed in via the sample sheet.
 
         This is useful for summarizing; it provides a representation of the
@@ -90,7 +90,7 @@ class Sample(SimpleAttMap):
         """
         return dict([[k, self[k]] for k in self._attributes])
 
-    def to_dict(self, add_prj_ref: bool = False) -> Dict:
+    def to_dict(self, add_prj_ref: bool = False) -> dict:
         """Serializes itself as dict object.
 
         Args:
@@ -141,8 +141,8 @@ class Sample(SimpleAttMap):
         return serial
 
     def to_yaml(
-        self, path: Optional[str] = None, add_prj_ref: bool = False
-    ) -> Union[str, None]:
+        self, path: str | None = None, add_prj_ref: bool = False
+    ) -> str | None:
         """Serializes itself in YAML format.
 
         Writes to file if path is provided, else returns string representation.

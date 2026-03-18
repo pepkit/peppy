@@ -2,7 +2,6 @@
 
 from abc import ABCMeta
 from collections.abc import Iterable
-from typing import Optional
 
 __all__ = [
     "IllegalStateException",
@@ -51,7 +50,7 @@ class RemoteYAMLError(PeppyError):
 class MissingAmendmentError(PeppyError):
     """Error when project config lacks a requested subproject."""
 
-    def __init__(self, amendment: str, defined: Optional[Iterable[str]] = None) -> None:
+    def __init__(self, amendment: str, defined: Iterable[str] | None = None) -> None:
         """Create exception with missing amendment request.
 
         Args:

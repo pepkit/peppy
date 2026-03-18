@@ -8,7 +8,8 @@ from collections.abc import Mapping, MutableMapping
 from contextlib import suppress
 from copy import deepcopy
 from logging import getLogger
-from typing import Iterable, List, Literal, Tuple, Union
+from collections.abc import Iterable
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -109,9 +110,9 @@ class Project(MutableMapping):
     def __init__(
         self,
         cfg: str = None,
-        amendments: Union[str, Iterable[str]] = None,
-        sample_table_index: Union[str, Iterable[str]] = None,
-        subsample_table_index: Union[str, Iterable[str]] = None,
+        amendments: str | Iterable[str] = None,
+        sample_table_index: str | Iterable[str] = None,
+        subsample_table_index: str | Iterable[str] = None,
         defer_samples_creation: bool = False,
     ):
         _LOGGER.debug(
@@ -176,7 +177,7 @@ class Project(MutableMapping):
     def from_pandas(
         cls,
         samples_df: pd.DataFrame,
-        sub_samples_df: List[pd.DataFrame] = None,
+        sub_samples_df: list[pd.DataFrame] = None,
         config: dict = None,
     ):
         """
@@ -270,9 +271,9 @@ class Project(MutableMapping):
     def from_pep_config(
         cls,
         cfg: str = None,
-        amendments: Union[str, Iterable[str]] = None,
-        sample_table_index: Union[str, Iterable[str]] = None,
-        subsample_table_index: Union[str, Iterable[str]] = None,
+        amendments: str | Iterable[str] = None,
+        sample_table_index: str | Iterable[str] = None,
+        subsample_table_index: str | Iterable[str] = None,
         defer_samples_creation: bool = False,
     ):
         """
@@ -357,7 +358,7 @@ class Project(MutableMapping):
         """
         Populate Project with Sample objects
         """
-        self._samples: List[Sample] = self.load_samples()
+        self._samples: list[Sample] = self.load_samples()
         if self.samples is None:
             _LOGGER.debug("No samples found in the project.")
 
@@ -724,8 +725,8 @@ class Project(MutableMapping):
 
     @staticmethod
     def _get_duplicated_and_not_duplicated_samples(
-        duplication: str, st_index: str, samples: List[Sample]
-    ) -> Tuple[List, List]:
+        duplication: str, st_index: str, samples: list[Sample]
+    ) -> tuple[list, list]:
         """
         Iterates over list of samples and splits them into list of duplicated samples and list of not duplicated.
 
@@ -746,10 +747,10 @@ class Project(MutableMapping):
         return duplicated_samples, not_duplicated_samples
 
     @staticmethod
-    def _all_values_in_the_list_are_the_same(list_of_values: List) -> bool:
+    def _all_values_in_the_list_are_the_same(list_of_values: list) -> bool:
         return all(value == list_of_values[0] for value in list_of_values)
 
-    def _get_duplicated_sample_ids(self, sample_names_list: List) -> set:
+    def _get_duplicated_sample_ids(self, sample_names_list: list) -> set:
         duplicated_ids = set()
         seen = set()
 
@@ -763,7 +764,7 @@ class Project(MutableMapping):
 
     @staticmethod
     def _get_merged_attributes(
-        sample_attributes: List[str], duplicated_samples: List[Sample]
+        sample_attributes: list[str], duplicated_samples: list[Sample]
     ) -> dict:
         merged_attributes = {}
         for attr in sample_attributes:
@@ -1239,7 +1240,7 @@ class Project(MutableMapping):
         2. Config specified
         3. Deafult: `[subasample_name, sample_name]`
 
-        :return List[str]: names of the columns that consist of sample and subsample identifiers
+        :return list[str]: names of the columns that consist of sample and subsample identifiers
         """
         # this property is used solely for documentation purposes
         return self.sst_index
@@ -1331,7 +1332,7 @@ class Project(MutableMapping):
         project config can be overwritten by the optional arguments
 
         :param str sample_table: a path to a sample table
-        :param List[str] sample_table: a list of paths to sample tables
+        :param list[str] sample_table: a list of paths to sample tables
         """
 
         no_metadata_msg = "No {} specified"

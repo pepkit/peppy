@@ -5,7 +5,8 @@ import os
 import posixpath as psp
 import re
 from collections import defaultdict
-from typing import Any, Dict, Mapping, Optional, Set, Type, Union
+from collections.abc import Mapping
+from typing import Any
 from urllib.request import urlopen
 
 import yaml
@@ -44,11 +45,11 @@ def make_abs_via_cfg(
         Absolute path
 
     Raises:
-        TypeError: If maybe_relpath is not a string
+        typeError: If maybe_relpath is not a string
         OSError: If check_exists is True and path doesn't exist
     """
     if not isinstance(maybe_relpath, str):
-        raise TypeError(
+        raise typeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".format(
                 maybe_relpath, type(maybe_relpath)
             )
@@ -106,7 +107,7 @@ def grab_project_data(prj: Any) -> Mapping:
         raise KeyError("Project lacks section '{}'".format(CONFIG_KEY))
 
 
-def make_list(arg: Union[list, str], obj_class: Type) -> list:
+def make_list(arg: list | str, obj_class: type) -> list:
     """Convert an object of predefined class to a list or ensure list contains correct type.
 
     Args:
@@ -117,11 +118,11 @@ def make_list(arg: Union[list, str], obj_class: Type) -> list:
         List of objects of the predefined class
 
     Raises:
-        TypeError: If a faulty argument was provided
+        typeError: If a faulty argument was provided
     """
 
     def _raise_faulty_arg():
-        raise TypeError(
+        raise typeError(
             "Provided argument has to be a List[{o}] or a {o}, "
             "got '{a}'".format(o=obj_class.__name__, a=arg.__class__.__name__)
         )
@@ -153,10 +154,10 @@ def expand_paths(x: dict) -> dict:
     """Recursively expand paths in a dict.
 
     Args:
-        x: Dict to expand
+        x: dict to expand
 
     Returns:
-        Dict with expanded paths
+        dict with expanded paths
     """
     if isinstance(x, str):
         return expandpath(x)
@@ -196,8 +197,8 @@ def load_yaml(filepath: str) -> dict:
 
 
 def is_cfg_or_anno(
-    file_path: Optional[str], formats: Optional[dict] = None
-) -> Optional[bool]:
+    file_path: str | None, formats: dict | None = None
+) -> bool | None:
     """Determine if the input file seems to be a project config file (based on extension).
 
     Args:
@@ -229,7 +230,7 @@ def is_cfg_or_anno(
     )
 
 
-def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]:
+def extract_custom_index_for_sample_table(pep_dictionary: dict) -> str | None:
     """Extracts a custom index for the sample table if it exists.
 
     Args:
@@ -245,7 +246,7 @@ def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]
     )
 
 
-def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[str]:
+def extract_custom_index_for_subsample_table(pep_dictionary: dict) -> str | None:
     """Extracts a custom index for the subsample table if it exists.
 
     Args:
@@ -261,7 +262,7 @@ def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[s
     )
 
 
-def unpopulated_env_var(paths: Set[str]) -> None:
+def unpopulated_env_var(paths: set[str]) -> None:
     """Print warnings for unpopulated environment variables in paths.
 
     Given a set of paths that may contain env vars, group by env var and

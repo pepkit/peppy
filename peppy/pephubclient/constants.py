@@ -1,6 +1,5 @@
 import os
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
@@ -20,11 +19,11 @@ PEPHUB_VIEW_SAMPLE_URL = f"{PEPHUB_BASE_URL}api/v1/projects/{{namespace}}/{{proj
 
 
 class RegistryPath(BaseModel):
-    protocol: Optional[str] = None
+    protocol: str | None = None
     namespace: str
     item: str
-    subitem: Optional[str] = None
-    tag: Optional[str] = "default"
+    subitem: str | None = None
+    tag: str | None = "default"
 
     @field_validator("tag")
     def tag_should_not_be_none(cls, v):

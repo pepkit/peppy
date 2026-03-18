@@ -1,4 +1,4 @@
-from typing import Literal, NoReturn, Optional
+from typing import Literal
 
 import urllib3
 from pydantic import ValidationError
@@ -65,9 +65,9 @@ class PEPHubClient(RequestManager):
     def pull(
         self,
         project_registry_path: str,
-        force: Optional[bool] = False,
-        zip: Optional[bool] = False,
-        output: Optional[str] = None,
+        force: bool | None = False,
+        zip: bool | None = False,
+        output: str | None = None,
     ) -> None:
         """
         Download project locally
@@ -93,7 +93,7 @@ class PEPHubClient(RequestManager):
     def load_project(
         self,
         project_registry_path: str,
-        query_param: Optional[dict] = None,
+        query_param: dict | None = None,
     ) -> Project:
         """
         Load peppy project from PEPhub in Project object
@@ -110,10 +110,10 @@ class PEPHubClient(RequestManager):
         self,
         cfg: str,
         namespace: str,
-        name: Optional[str] = None,
-        tag: Optional[str] = None,
-        is_private: Optional[bool] = False,
-        force: Optional[bool] = False,
+        name: str | None = None,
+        tag: str | None = None,
+        is_private: bool | None = False,
+        force: bool | None = False,
     ) -> None:
         """
         Push (upload/update) project to Pephub using config/csv path
@@ -263,8 +263,8 @@ class PEPHubClient(RequestManager):
     def _load_raw_pep(
         self,
         registry_path: str,
-        jwt_data: Optional[str] = None,
-        query_param: Optional[dict] = None,
+        jwt_data: str | None = None,
+        query_param: dict | None = None,
     ) -> dict:
         """
         !!! This method is deprecated. Use load_raw_pep instead. !!!
@@ -280,7 +280,7 @@ class PEPHubClient(RequestManager):
     def load_raw_pep(
         self,
         registry_path: str,
-        query_param: Optional[dict] = None,
+        query_param: dict | None = None,
     ) -> dict:
         """
         Request PEPhub and return the requested project as Project object.

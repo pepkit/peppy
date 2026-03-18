@@ -1,5 +1,4 @@
 import logging
-from typing import Union
 
 # import peppy
 from ...project import Project
@@ -29,7 +28,7 @@ class PEPHubView(RequestManager):
 
     def get(
         self, namespace: str, name: str, tag: str, view_name: str, raw: bool = False
-    ) -> Union[Project, dict]:
+    ) -> Project | dict:
         """
         Get view from project in PEPhub.
 
