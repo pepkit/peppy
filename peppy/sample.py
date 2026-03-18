@@ -33,7 +33,8 @@ class SafeDict(dict):
 
 @copy
 class Sample(SimpleAttMap):
-    """Class to model Samples based on a pandas Series.
+    """
+    Class to model Samples based on a pandas Series.
 
     Args:
         series: Sample's data.
@@ -76,7 +77,8 @@ class Sample(SimpleAttMap):
         self._attributes = list(series.keys())
 
     def get_sheet_dict(self) -> dict:
-        """Create K-V pairs for items originally passed in via the sample sheet.
+        """
+        Create K-V pairs for items originally passed in via the sample sheet.
 
         This is useful for summarizing; it provides a representation of the
         sample that excludes things like config files and derived entries.
@@ -89,7 +91,8 @@ class Sample(SimpleAttMap):
         return dict([[k, self[k]] for k in self._attributes])
 
     def to_dict(self, add_prj_ref: bool = False) -> dict:
-        """Serializes itself as dict object.
+        """
+        Serializes itself as dict object.
 
         Args:
             add_prj_ref: Whether the project reference bound to the Sample
@@ -100,7 +103,8 @@ class Sample(SimpleAttMap):
         """
 
         def _obj2dict(obj, name=None):
-            """Build representation of object as a dict, recursively for all objects that might be attributes of self.
+            """
+            Build representation of object as a dict, recursively for all objects that might be attributes of self.
 
             Args:
                 obj: what to serialize to write to YAML.
@@ -138,7 +142,8 @@ class Sample(SimpleAttMap):
         return serial
 
     def to_yaml(self, path: str | None = None, add_prj_ref: bool = False) -> str | None:
-        """Serializes itself in YAML format.
+        """
+        Serializes itself in YAML format.
 
         Writes to file if path is provided, else returns string representation.
 
@@ -173,7 +178,8 @@ class Sample(SimpleAttMap):
             return yaml_data
 
     def derive_attribute(self, data_sources, attr_name):
-        """Uses the template path provided in the project config section
+        """
+        Uses the template path provided in the project config section
         "data_sources" to piece together an actual path by substituting
         variables (encoded by "{variable}"") with sample attributes.
 
@@ -192,7 +198,8 @@ class Sample(SimpleAttMap):
         """
 
         def _format_regex(regex, items):
-            """Format derived source with object attributes.
+            """
+            Format derived source with object attributes.
 
             Args:
                 regex: string to format,
@@ -232,7 +239,8 @@ class Sample(SimpleAttMap):
             return vals
 
         def _safe_format(s, values):
-            """Safely format string.
+            """
+            Safely format string.
 
             If the values are missing the key is wrapped in curly braces.
             This is intended to preserve the environment variables specified
@@ -249,7 +257,8 @@ class Sample(SimpleAttMap):
             return Formatter().vformat(s, (), SafeDict(values))
 
         def _glob_regex(patterns):
-            """Perform unix style pathname pattern expansion for multiple patterns.
+            """
+            Perform unix style pathname pattern expansion for multiple patterns.
 
             Args:
                 patterns: patterns to expand
@@ -313,7 +322,8 @@ class Sample(SimpleAttMap):
 
     @property
     def project(self):
-        """Get the project mapping.
+        """
+        Get the project mapping.
 
         Returns:
             Project object the sample was created from.
@@ -322,7 +332,8 @@ class Sample(SimpleAttMap):
 
     @property
     def sample_name(self):
-        """Get the sample's name.
+        """
+        Get the sample's name.
 
         Returns:
             Current sample name derived from project's st_index.

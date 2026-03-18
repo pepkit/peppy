@@ -29,7 +29,8 @@ class FilesManager:
         parent_path: str,
         folder_name: str,
     ) -> str:
-        """Create new project folder.
+        """
+        Create new project folder.
 
         Args:
             parent_path: parent path to create folder in
@@ -77,7 +78,8 @@ class FilesManager:
 
     @staticmethod
     def save_zip_file(files_dict: dict, file_path: str, force: bool = False) -> None:
-        """Save zip file with provided files as dict.
+        """
+        Save zip file with provided files as dict.
 
         Args:
             files_dict: dict with files to save. e.g. {"file1.txt": "file1 content"}

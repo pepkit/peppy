@@ -51,7 +51,8 @@ class MissingAmendmentError(PeppyError):
     """Error when project config lacks a requested subproject."""
 
     def __init__(self, amendment: str, defined: Iterable[str] | None = None) -> None:
-        """Create exception with missing amendment request.
+        """
+        Create exception with missing amendment request.
 
         Args:
             amendment: The requested (and missing) amendment

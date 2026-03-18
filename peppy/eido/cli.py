@@ -38,7 +38,8 @@ def _configure_logging(
 
 
 def _parse_filter_args_str(input: list[str] | None) -> dict[str, str]:
-    """Parse user input specification.
+    """
+    Parse user input specification.
 
     Args:
         input: User command line input, formatted as follows:

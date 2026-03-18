@@ -11,7 +11,8 @@ _LOGGER = logging.getLogger("pephubclient")
 
 
 class PEPHubView(RequestManager):
-    """Class for managing views in PEPhub.
+    """
+    Class for managing views in PEPhub.
 
     Provides methods for getting, creating, updating and removing views.
     This class aims to wrap the Views API for easier maintenance and
@@ -19,7 +20,8 @@ class PEPHubView(RequestManager):
     """
 
     def __init__(self, jwt_data: str = None):
-        """Initialize PEPHubView.
+        """
+        Initialize PEPHubView.
 
         Args:
             jwt_data: jwt token for authorization
@@ -30,7 +32,8 @@ class PEPHubView(RequestManager):
     def get(
         self, namespace: str, name: str, tag: str, view_name: str, raw: bool = False
     ) -> Project | dict:
-        """Get view from project in PEPhub.
+        """
+        Get view from project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -74,7 +77,8 @@ class PEPHubView(RequestManager):
         sample_list: list = None,
         no_fail: bool = False,
     ):
-        """Create view in project in PEPhub.
+        """
+        Create view in project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -118,7 +122,8 @@ class PEPHubView(RequestManager):
             raise ResponseError(f"Unexpected return value.{response.status_code}")
 
     def delete(self, namespace: str, name: str, tag: str, view_name: str) -> None:
-        """Delete view from project in PEPhub.
+        """
+        Delete view from project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -156,7 +161,8 @@ class PEPHubView(RequestManager):
         view_name: str,
         sample_name: str,
     ):
-        """Add sample to view in project in PEPhub.
+        """
+        Add sample to view in project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -203,7 +209,8 @@ class PEPHubView(RequestManager):
         view_name: str,
         sample_name: str,
     ):
-        """Remove sample from view in project in PEPhub.
+        """
+        Remove sample from view in project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -248,7 +255,8 @@ class PEPHubView(RequestManager):
     def _build_view_request_url(
         namespace: str, name: str, view_name: str, sample_name: str = None
     ):
-        """Build URL for view request.
+        """
+        Build URL for view request.
 
         Args:
             namespace: namespace of project

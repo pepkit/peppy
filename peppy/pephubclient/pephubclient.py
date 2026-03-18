@@ -65,7 +65,8 @@ class PEPHubClient(RequestManager):
         zip: bool | None = False,
         output: str | None = None,
     ) -> None:
-        """Download project locally.
+        """
+        Download project locally.
 
         Args:
             project_registry_path: Project registry path in PEPhub
@@ -91,7 +92,8 @@ class PEPHubClient(RequestManager):
         project_registry_path: str,
         query_param: dict | None = None,
     ) -> Project:
-        """Load peppy project from PEPhub in Project object.
+        """
+        Load peppy project from PEPhub in Project object.
 
         Args:
             project_registry_path: registry path of the project
@@ -113,7 +115,8 @@ class PEPHubClient(RequestManager):
         is_private: bool | None = False,
         force: bool | None = False,
     ) -> None:
-        """Push (upload/update) project to Pephub using config/csv path.
+        """
+        Push (upload/update) project to Pephub using config/csv path.
 
         Args:
             cfg: Project config file (YAML) or sample table (CSV/TSV)
@@ -144,7 +147,8 @@ class PEPHubClient(RequestManager):
         is_private: bool = False,
         force: bool = True,
     ) -> None:
-        """Upload peppy project to the PEPhub.
+        """
+        Upload peppy project to the PEPhub.
 
         Args:
             project: Project object that has to be uploaded to the DB
@@ -214,7 +218,8 @@ class PEPHubClient(RequestManager):
         start_date: str = None,
         end_date: str = None,
     ) -> SearchReturnModel:
-        """Find project in specific namespace and return list of PEP annotation.
+        """
+        Find project in specific namespace and return list of PEP annotation.
 
         Args:
             namespace: Namespace where to search for projects
@@ -263,7 +268,8 @@ class PEPHubClient(RequestManager):
         jwt_data: str | None = None,
         query_param: dict | None = None,
     ) -> dict:
-        """This method is deprecated. Use load_raw_pep instead.
+        """
+        This method is deprecated. Use load_raw_pep instead.
 
         Request PEPhub and return the requested project as Project object.
 
@@ -281,7 +287,8 @@ class PEPHubClient(RequestManager):
         registry_path: str,
         query_param: dict | None = None,
     ) -> dict:
-        """Request PEPhub and return the requested project as Project object.
+        """
+        Request PEPhub and return the requested project as Project object.
 
         Args:
             registry_path: Project namespace, eg. "geo/GSE124224:tag"
@@ -315,7 +322,8 @@ class PEPHubClient(RequestManager):
             )
 
     def _set_registry_data(self, query_string: str) -> None:
-        """Parse provided query string to extract project name, sample name, etc.
+        """
+        Parse provided query string to extract project name, sample name, etc.
 
         Args:
             query_string: Passed by user. Contain information needed to locate
@@ -327,7 +335,8 @@ class PEPHubClient(RequestManager):
             raise IncorrectQueryStringError(query_string=query_string)
 
     def _build_pull_request_url(self, query_param: dict = None) -> str:
-        """Build request for getting projects from pephub.
+        """
+        Build request for getting projects from pephub.
 
         Args:
             query_param: dict of parameters used in query string
@@ -347,7 +356,8 @@ class PEPHubClient(RequestManager):
 
     @staticmethod
     def _build_project_search_url(namespace: str, query_param: dict = None) -> str:
-        """Build request for searching projects from pephub.
+        """
+        Build request for searching projects from pephub.
 
         Args:
             query_param: dict of parameters used in query string
@@ -363,7 +373,8 @@ class PEPHubClient(RequestManager):
 
     @staticmethod
     def _build_push_request_url(namespace: str) -> str:
-        """Build project upload request used in pephub.
+        """
+        Build project upload request used in pephub.
 
         Args:
             namespace: namespace where project will be uploaded

@@ -8,14 +8,16 @@ _LOGGER = logging.getLogger("pephubclient")
 
 
 class PEPHubSample(RequestManager):
-    """Class for managing samples in PEPhub.
+    """
+    Class for managing samples in PEPhub.
 
     Provides methods for getting, creating, updating and removing samples.
     This class is not related to peppy.Sample class.
     """
 
     def __init__(self, jwt_data: str = None):
-        """Initialize PEPHubSample.
+        """
+        Initialize PEPHubSample.
 
         Args:
             jwt_data: jwt token for authorization
@@ -30,7 +32,8 @@ class PEPHubSample(RequestManager):
         tag: str,
         sample_name: str = None,
     ) -> dict:
-        """Get sample from project in PEPhub.
+        """
+        Get sample from project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -72,7 +75,8 @@ class PEPHubSample(RequestManager):
         sample_dict: dict,
         overwrite: bool = False,
     ) -> None:
-        """Create sample in project in PEPhub.
+        """
+        Create sample in project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -126,7 +130,8 @@ class PEPHubSample(RequestManager):
         sample_name: str,
         sample_dict: dict,
     ):
-        """Update sample in project in PEPhub.
+        """
+        Update sample in project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -163,7 +168,8 @@ class PEPHubSample(RequestManager):
             )
 
     def remove(self, namespace: str, name: str, tag: str, sample_name: str):
-        """Remove sample from project in PEPhub.
+        """
+        Remove sample from project in PEPhub.
 
         Args:
             namespace: namespace of project
@@ -198,7 +204,8 @@ class PEPHubSample(RequestManager):
 
     @staticmethod
     def _build_sample_request_url(namespace: str, name: str, sample_name: str) -> str:
-        """Build url for sample request.
+        """
+        Build url for sample request.
 
         Args:
             namespace: namespace where project will be uploaded

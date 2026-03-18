@@ -61,7 +61,8 @@ class RequestManager:
     def decode_response(
         response: requests.Response, encoding: str = "utf-8", output_json: bool = False
     ) -> str | dict:
-        """Decode the response from PEPhub and pack the returned data into appropriate model.
+        """
+        Decode the response from PEPhub and pack the returned data into appropriate model.
 
         Args:
             response: Response from PEPhub.
@@ -82,7 +83,8 @@ class RequestManager:
 
     @staticmethod
     def parse_query_param(pep_variables: dict) -> str:
-        """Grab all the variables passed by user (if any) and parse them to match the format
+        """
+        Grab all the variables passed by user (if any) and parse them to match the format
         specified by PEPhub API for query parameters.
 
         Args:
@@ -95,7 +97,8 @@ class RequestManager:
 
     @staticmethod
     def parse_header(jwt_data: str | None = None) -> dict:
-        """Create Authorization header.
+        """
+        Create Authorization header.
 
         Args:
             jwt_data: jwt string
@@ -130,7 +133,8 @@ class MessageHandler:
 
 
 def call_client_func(func: Callable[..., Any], **kwargs) -> Any:
-    """Catch exceptions in functions called through cli.
+    """
+    Catch exceptions in functions called through cli.
 
     Args:
         func: The function to call.
@@ -153,7 +157,8 @@ def call_client_func(func: Callable[..., Any], **kwargs) -> Any:
 
 
 def is_registry_path(input_string: str) -> bool:
-    """Check if input is a registry path to pephub.
+    """
+    Check if input is a registry path to pephub.
 
     Args:
         input_string: path to the PEP (or registry path)
@@ -171,7 +176,8 @@ def is_registry_path(input_string: str) -> bool:
 
 
 def unwrap_registry_path(input_string: str) -> RegistryPath:
-    """Unwrap registry path from string.
+    """
+    Unwrap registry path from string.
 
     Args:
         input_string: path to the PEP (or registry path)
@@ -183,7 +189,8 @@ def unwrap_registry_path(input_string: str) -> RegistryPath:
 
 
 def _build_filename(registry_path: RegistryPath) -> str:
-    """Takes query string and creates output filename to save the project to.
+    """
+    Takes query string and creates output filename to save the project to.
 
     Args:
         registry_path: Query string that was used to find the project.
@@ -198,7 +205,8 @@ def _build_filename(registry_path: RegistryPath) -> str:
 
 
 def _save_zip_pep(project: dict, zip_filepath: str, force: bool = False) -> None:
-    """Zip and save a project.
+    """
+    Zip and save a project.
 
     Args:
         project: peppy project to zip
@@ -239,7 +247,8 @@ def _save_zip_pep(project: dict, zip_filepath: str, force: bool = False) -> None
 def _save_unzipped_pep(
     project_dict: dict, folder_path: str, force: bool = False
 ) -> None:
-    """Save unzipped project to specified folder.
+    """
+    Save unzipped project to specified folder.
 
     Args:
         project_dict: raw pep project
@@ -299,7 +308,8 @@ def save_pep(
     project_path: str | None = None,
     zip: bool = False,
 ) -> None:
-    """Save project locally.
+    """
+    Save project locally.
 
     Args:
         project: PEP dictionary (raw project)

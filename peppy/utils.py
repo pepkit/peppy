@@ -34,7 +34,8 @@ def copy(obj: Any) -> Any:
 def make_abs_via_cfg(
     maybe_relpath: str, cfg_path: str, check_exists: bool = False
 ) -> str:
-    """Ensure that a possibly relative path is absolute.
+    """
+    Ensure that a possibly relative path is absolute.
 
     Args:
         maybe_relpath: Path that may be relative
@@ -80,7 +81,8 @@ def make_abs_via_cfg(
 
 
 def grab_project_data(prj: Any) -> Mapping:
-    """From the given Project, grab Sample-independent data.
+    """
+    From the given Project, grab Sample-independent data.
 
     There are some aspects of a Project of which it's beneficial for a Sample
     to be aware, particularly for post-hoc analysis. Since Sample objects
@@ -108,7 +110,8 @@ def grab_project_data(prj: Any) -> Mapping:
 
 
 def make_list(arg: list | str, obj_class: type) -> list:
-    """Convert an object of predefined class to a list or ensure list contains correct type.
+    """
+    Convert an object of predefined class to a list or ensure list contains correct type.
 
     Args:
         arg: Object or list of objects to listify
@@ -140,7 +143,8 @@ def make_list(arg: list | str, obj_class: type) -> list:
 
 
 def _expandpath(path: str) -> str:
-    """Expand a filesystem path that may or may not contain user/env vars.
+    """
+    Expand a filesystem path that may or may not contain user/env vars.
 
     Args:
         path: Path to expand
@@ -152,7 +156,8 @@ def _expandpath(path: str) -> str:
 
 
 def expand_paths(x: dict) -> dict:
-    """Recursively expand paths in a dict.
+    """
+    Recursively expand paths in a dict.
 
     Args:
         x: dict to expand
@@ -168,7 +173,8 @@ def expand_paths(x: dict) -> dict:
 
 
 def load_yaml(filepath: str) -> dict:
-    """Load a local or remote YAML file into a Python dict.
+    """
+    Load a local or remote YAML file into a Python dict.
 
     Args:
         filepath: Path to the file to read
@@ -198,7 +204,8 @@ def load_yaml(filepath: str) -> dict:
 
 
 def is_cfg_or_anno(file_path: str | None, formats: dict | None = None) -> bool | None:
-    """Determine if the input file seems to be a project config file (based on extension).
+    """
+    Determine if the input file seems to be a project config file (based on extension).
 
     Args:
         file_path: File path to examine
@@ -230,7 +237,8 @@ def is_cfg_or_anno(file_path: str | None, formats: dict | None = None) -> bool |
 
 
 def extract_custom_index_for_sample_table(pep_dictionary: dict) -> str | None:
-    """Extracts a custom index for the sample table if it exists.
+    """
+    Extracts a custom index for the sample table if it exists.
 
     Args:
         pep_dictionary: PEP configuration dictionary
@@ -246,7 +254,8 @@ def extract_custom_index_for_sample_table(pep_dictionary: dict) -> str | None:
 
 
 def extract_custom_index_for_subsample_table(pep_dictionary: dict) -> str | None:
-    """Extracts a custom index for the subsample table if it exists.
+    """
+    Extracts a custom index for the subsample table if it exists.
 
     Args:
         pep_dictionary: PEP configuration dictionary
@@ -262,7 +271,8 @@ def extract_custom_index_for_subsample_table(pep_dictionary: dict) -> str | None
 
 
 def unpopulated_env_var(paths: set[str]) -> None:
-    """Print warnings for unpopulated environment variables in paths.
+    """
+    Print warnings for unpopulated environment variables in paths.
 
     Given a set of paths that may contain env vars, group by env var and
     print a warning for each group with the deepest common directory and

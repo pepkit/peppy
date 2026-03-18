@@ -128,7 +128,8 @@ class XLSXTableParser(TableParser):
 
 
 def select_parser(path: str) -> TableParser:
-    """Select a parser based on the file extension.
+    """
+    Select a parser based on the file extension.
 
     Args:
         path: File path.

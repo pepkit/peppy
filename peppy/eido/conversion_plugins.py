@@ -4,7 +4,8 @@ from .output_formatters import MultilineOutputFormatter
 
 
 def basic_pep_filter(p, **kwargs) -> dict[str, str]:
-    """Basic PEP filter, that does not convert the Project object.
+    """
+    Basic PEP filter, that does not convert the Project object.
 
     This filter can save the PEP representation to file, if kwargs include `path`.
 
@@ -15,7 +16,8 @@ def basic_pep_filter(p, **kwargs) -> dict[str, str]:
 
 
 def yaml_samples_pep_filter(p, **kwargs) -> dict[str, str]:
-    """YAML samples PEP filter, that returns only Sample object representations.
+    """
+    YAML samples PEP filter, that returns only Sample object representations.
 
     This filter can save the YAML to file, if kwargs include `path`.
 
@@ -32,7 +34,8 @@ def yaml_samples_pep_filter(p, **kwargs) -> dict[str, str]:
 
 
 def yaml_pep_filter(p, **kwargs) -> dict[str, str]:
-    """YAML PEP filter, that returns Project object representation.
+    """
+    YAML PEP filter, that returns Project object representation.
 
     This filter can save the YAML to file, if kwargs include `path`.
 
@@ -45,7 +48,8 @@ def yaml_pep_filter(p, **kwargs) -> dict[str, str]:
 
 
 def csv_pep_filter(p, **kwargs) -> dict[str, str]:
-    """CSV PEP filter, that returns Sample object representations.
+    """
+    CSV PEP filter, that returns Sample object representations.
 
     This filter can save the CSVs to files, if kwargs include
     `sample_table_path` and/or `subsample_table_path`.
@@ -57,7 +61,8 @@ def csv_pep_filter(p, **kwargs) -> dict[str, str]:
 
 
 def processed_pep_filter(p, **kwargs) -> dict[str, str]:
-    """Processed PEP filter, that returns the converted sample and subsample tables.
+    """
+    Processed PEP filter, that returns the converted sample and subsample tables.
 
     This filter can return the tables as a table or a document.
 
