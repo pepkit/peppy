@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from typing_extensions import deprecated
 from ubiquerg import parse_registry_path
 
-from ..const import NAME_KEY
+from ..const import NAME_KEY, CONFIG_KEY
 from ..project import Project
 from .constants import (
     PATH_TO_FILE_WITH_JWT,
@@ -157,14 +157,15 @@ class PEPHubClient(RequestManager):
         :param force: overwrite project if it exists, use it to update, or upload project.
         :return: None
         """
+        pep_dict = project.to_dict(
+            extended=True,
+            orient="records",
+        )
         if name:
-            project[NAME_KEY] = name
+            pep_dict[CONFIG_KEY][NAME_KEY] = name
 
         upload_data = ProjectUploadData(
-            pep_dict=project.to_dict(
-                extended=True,
-                orient="records",
-            ),
+            pep_dict=pep_dict,
             tag=tag,
             is_private=is_private,
             overwrite=force,
@@ -191,8 +192,17 @@ class PEPHubClient(RequestManager):
                 "User does not have permission to write to this namespace!"
             )
         else:
+            detail = ""
+            try:
+                detail = self.decode_response(pephub_response, output_json=True).get(
+                    "detail", ""
+                )
+            except Exception:
+                pass
             raise ResponseError(
-                f"Unexpected Response Error. {pephub_response.status_code}"
+                f"Unexpected Response Error. {pephub_response.status_code}: {detail}"
+                if detail
+                else f"Unexpected Response Error. {pephub_response.status_code}"
             )
         return None
 
