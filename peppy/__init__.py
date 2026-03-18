@@ -7,11 +7,14 @@ local level, but this will at least provide a foundation.
 
 """
 
-from ._version import __version__
+from importlib.metadata import version
+
 from .const import *
 from .exceptions import *
 from .project import Project
 from .sample import Sample
+
+__version__ = version("peppy")
 
 __classes__ = ["Project", "Sample"]
 __all__ = __classes__ + ["PeppyError", "__version__"]

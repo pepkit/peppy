@@ -1,6 +1,7 @@
+from importlib.metadata import version
+
 import typer
 
-from ._version import __version__
 from .const import PKG_NAME
 from .eido.cli import app as eido_app
 from .pephubclient.cli import app as phc_app
@@ -8,7 +9,7 @@ from .pephubclient.cli import app as phc_app
 
 def version_callback(value: bool):
     if value:
-        typer.echo(f"{PKG_NAME} version: {__version__}")
+        typer.echo(f"{PKG_NAME} version: {version(PKG_NAME)}")
         raise typer.Exit()
 
 
