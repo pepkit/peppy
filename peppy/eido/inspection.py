@@ -1,6 +1,6 @@
 import os
-from logging import getLogger
 from collections.abc import Iterable
+from logging import getLogger
 from warnings import catch_warnings
 
 from ubiquerg import size
@@ -68,9 +68,7 @@ def get_input_files_size(
     """
 
     def _compute_input_file_size(inputs: Iterable[str]) -> float:
-        """
-        Compute total size of input files.
-        """
+        """Compute total size of input files."""
         with catch_warnings(record=True) as w:
             total_bytes = sum(
                 size(f, size_str=False) or 0.0

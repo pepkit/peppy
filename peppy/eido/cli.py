@@ -38,12 +38,14 @@ def _configure_logging(
 
 
 def _parse_filter_args_str(input: list[str] | None) -> dict[str, str]:
-    """
-    Parse user input specification.
+    """Parse user input specification.
 
-    :param Iterable[Iterable[str]] input: user command line input,
-        formatted as follows: [[arg=txt, arg1=txt]]
-    :return dict: mapping of keys, which are input names and values
+    Args:
+        input: User command line input, formatted as follows:
+            [[arg=txt, arg1=txt]]
+
+    Returns:
+        Mapping of keys, which are input names and values.
     """
     lst = []
     for i in input or []:

@@ -1,10 +1,9 @@
-from importlib.metadata import entry_points
-
 import inspect
 import os
 import sys
-from logging import getLogger
 from collections.abc import Callable
+from importlib.metadata import entry_points
+from logging import getLogger
 
 from ..project import Project
 from .exceptions import EidoFilterError

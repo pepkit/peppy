@@ -8,15 +8,17 @@ _LOGGER = logging.getLogger("pephubclient")
 
 
 class PEPHubSample(RequestManager):
-    """
-    Class for managing samples in PEPhub and provides methods for
-        getting, creating, updating and removing samples.
+    """Class for managing samples in PEPhub.
+
+    Provides methods for getting, creating, updating and removing samples.
     This class is not related to peppy.Sample class.
     """
 
     def __init__(self, jwt_data: str = None):
-        """
-        :param jwt_data: jwt token for authorization
+        """Initialize PEPHubSample.
+
+        Args:
+            jwt_data: jwt token for authorization
         """
 
         self.__jwt_data = jwt_data
@@ -28,14 +30,16 @@ class PEPHubSample(RequestManager):
         tag: str,
         sample_name: str = None,
     ) -> dict:
-        """
-        Get sample from project in PEPhub.
+        """Get sample from project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param sample_name: sample name
-        :return: Sample object
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            sample_name: sample name
+
+        Returns:
+            Sample object.
         """
         url = self._build_sample_request_url(
             namespace=namespace, name=name, sample_name=sample_name
@@ -68,16 +72,15 @@ class PEPHubSample(RequestManager):
         sample_dict: dict,
         overwrite: bool = False,
     ) -> None:
-        """
-        Create sample in project in PEPhub.
+        """Create sample in project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param sample_dict: sample dict
-        :param sample_name: sample name
-        :param overwrite: overwrite sample if it exists
-        :return: None
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            sample_dict: sample dict
+            sample_name: sample name
+            overwrite: overwrite sample if it exists
         """
         url = self._build_sample_request_url(
             namespace=namespace,
@@ -123,15 +126,14 @@ class PEPHubSample(RequestManager):
         sample_name: str,
         sample_dict: dict,
     ):
-        """
-        Update sample in project in PEPhub.
+        """Update sample in project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param sample_name: sample name
-        :param sample_dict: sample dict, that contain elements to update, or
-        :return: None
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            sample_name: sample name
+            sample_dict: sample dict, that contain elements to update
         """
 
         url = self._build_sample_request_url(
@@ -161,14 +163,13 @@ class PEPHubSample(RequestManager):
             )
 
     def remove(self, namespace: str, name: str, tag: str, sample_name: str):
-        """
-        Remove sample from project in PEPhub.
+        """Remove sample from project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param sample_name: sample name
-        :return: None
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            sample_name: sample name
         """
         url = self._build_sample_request_url(
             namespace=namespace, name=name, sample_name=sample_name
@@ -197,11 +198,13 @@ class PEPHubSample(RequestManager):
 
     @staticmethod
     def _build_sample_request_url(namespace: str, name: str, sample_name: str) -> str:
-        """
-        Build url for sample request.
+        """Build url for sample request.
 
-        :param namespace: namespace where project will be uploaded
-        :return: url string
+        Args:
+            namespace: namespace where project will be uploaded
+
+        Returns:
+            url string.
         """
         return PEPHUB_SAMPLE_URL.format(
             namespace=namespace, project=name, sample_name=sample_name

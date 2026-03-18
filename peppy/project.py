@@ -1,14 +1,11 @@
-"""
-Build a Project object.
-"""
+"""Build a Project object."""
 
 import os
 import sys
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from contextlib import suppress
 from copy import deepcopy
 from logging import getLogger
-from collections.abc import Iterable
 from typing import Literal
 
 import numpy as np
@@ -85,20 +82,19 @@ _LOGGER = getLogger(PKG_NAME)
 
 @copy
 class Project(MutableMapping):
-    """
-    A class to model a Project (collection of samples and metadata).
+    """A class to model a Project (collection of samples and metadata).
 
-    :param str cfg: Project config file (YAML) or sample table (CSV/TSV)
-        with one row per sample to constitute project
-    :param str | Iterable[str] sample_table_index: name of the columns to set
-        the sample_table index to
-    :param str | Iterable[str] subsample_table_index: name of the columns to set
-        the subsample_table index to
-    :param str | Iterable[str] amendments: names of the amendments to activate
-    :param Iterable[str] amendments: amendments to use within configuration file
-    :param bool defer_samples_creation: whether the sample creation should be skipped
+    Args:
+        cfg: Project config file (YAML) or sample table (CSV/TSV)
+            with one row per sample to constitute project
+        sample_table_index: name of the columns to set
+            the sample_table index to
+        subsample_table_index: name of the columns to set
+            the subsample_table index to
+        amendments: names of the amendments to activate
+        defer_samples_creation: whether the sample creation should be skipped
 
-    :Example:
+    Example:
 
     .. code-block:: python
 
@@ -180,12 +176,12 @@ class Project(MutableMapping):
         sub_samples_df: list[pd.DataFrame] = None,
         config: dict = None,
     ):
-        """
-        Init a peppy project instance from a pandas Dataframe
+        """Init a peppy project instance from a pandas Dataframe.
 
-        :param samples_df: in-memory pandas DataFrame object of samples
-        :param sub_samples_df: in-memory list of pandas DataFrame objects of sub-samples
-        :param config: dict of yaml file
+        Args:
+            samples_df: in-memory pandas DataFrame object of samples
+            sub_samples_df: in-memory list of pandas DataFrame objects of sub-samples
+            config: dict of yaml file
         """
         tmp_obj = cls()
         if not config:
@@ -205,11 +201,13 @@ class Project(MutableMapping):
 
     @classmethod
     def from_pephub(cls, registry_path: str) -> "Project":
-        """
-        Init project from pephubclient.
+        """Init project from pephubclient.
 
-        :param registry_path: PEPhub registry path
-        :return: peppy Project
+        Args:
+            registry_path: PEPhub registry path
+
+        Returns:
+            peppy Project
         """
         from pephubclient import PEPHubClient
 
@@ -218,27 +216,26 @@ class Project(MutableMapping):
 
     @classmethod
     def from_dict(cls, pep_dictionary: dict):
-        """
-        Init a peppy project instance from a dictionary representation
-        of an already processed PEP.
+        """Init a peppy project instance from a dictionary representation of an already processed PEP.
 
-        :param Dict[Any] pep_dictionary: dict representation of the project {_config: dict,
-                                                                             _samples: list | dict,
-                                                                             _subsamples: list[list | dict]}
+        Args:
+            pep_dictionary: dict representation of the project {_config: dict,
+                _samples: list | dict,
+                _subsamples: list[list | dict]}
         """
         _LOGGER.info("Processing project from dictionary...")
         temp_obj = cls()
         return temp_obj._from_dict(pep_dictionary)
 
     def _from_dict(self, pep_dictionary) -> "Project":
-        """
-        Initiate a peppy project instance from a dictionary representation of an already processed PEP.
+        """Initiate a peppy project instance from a dictionary representation of an already processed PEP.
 
-        # This function is needed in looper to reinit the project after it was created from a dictionary representation.
+        This function is needed in looper to reinit the project after it was created from a dictionary representation.
 
-        :param Dict[Any] pep_dictionary: dict representation of the project {_config: dict,
-                                                                             _samples: list | dict,
-                                                                             _subsamples: list[list | dict]}
+        Args:
+            pep_dictionary: dict representation of the project {_config: dict,
+                _samples: list | dict,
+                _subsamples: list[list | dict]}
         """
         self[SAMPLE_DF_KEY] = pd.DataFrame(pep_dictionary[SAMPLE_RAW_DICT_KEY]).replace(
             np.nan, ""
@@ -276,18 +273,17 @@ class Project(MutableMapping):
         subsample_table_index: str | Iterable[str] = None,
         defer_samples_creation: bool = False,
     ):
-        """
-        Init a peppy project instance from a yaml file
+        """Init a peppy project instance from a yaml file.
 
-        :param str cfg: Project config file (YAML) or sample table (CSV/TSV)
-            with one row per sample to constitute project
-        :param str | Iterable[str] sample_table_index: name of the columns to set
-            the sample_table index to
-        :param str | Iterable[str] subsample_table_index: name of the columns to set
-            the subsample_table index to
-        :param str | Iterable[str] amendments: names of the amendments to activate
-        :param Iterable[str] amendments: amendments to use within configuration file
-        :param bool defer_samples_creation: whether the sample creation should be skipped
+        Args:
+            cfg: Project config file (YAML) or sample table (CSV/TSV)
+                with one row per sample to constitute project
+            sample_table_index: name of the columns to set
+                the sample_table index to
+            subsample_table_index: name of the columns to set
+                the subsample_table index to
+            amendments: names of the amendments to activate
+            defer_samples_creation: whether the sample creation should be skipped
         """
         # TODO: this is just a copy of the __init__ method. It should be refactored
         return cls(
@@ -300,10 +296,10 @@ class Project(MutableMapping):
 
     @classmethod
     def from_sample_yaml(cls, yaml_file: str):
-        """
-        Init a peppy project instance from a yaml file
+        """Init a peppy project instance from a yaml file.
 
-        :param str yaml_file: path to yaml file
+        Args:
+            yaml_file: path to yaml file
         """
         _LOGGER.info("Processing project from yaml...")
         with open(yaml_file, "r") as f:
@@ -319,12 +315,14 @@ class Project(MutableMapping):
             "dict", "list", "series", "split", "tight", "records", "index"
         ] = "dict",
     ) -> dict:
-        """
-        Convert the Project object to a dictionary.
+        """Convert the Project object to a dictionary.
 
-        :param bool extended: whether to produce complete project dict (used to reinit the project)
-        :param Literal orient: orientation of the returned df
-        :return dict: a dictionary representation of the Project object
+        Args:
+            extended: whether to produce complete project dict (used to reinit the project)
+            orient: orientation of the returned df
+
+        Returns:
+            A dictionary representation of the Project object.
         """
         if extended:
             if self[SUBSAMPLE_DF_KEY] is not None:
@@ -355,9 +353,7 @@ class Project(MutableMapping):
         return p_dict
 
     def create_samples(self, modify: bool = False):
-        """
-        Populate Project with Sample objects
-        """
+        """Populate Project with Sample objects."""
         self._samples: list[Sample] = self.load_samples()
         if self.samples is None:
             _LOGGER.debug("No samples found in the project.")
@@ -369,9 +365,7 @@ class Project(MutableMapping):
             self._auto_merge_duplicated_names()
 
     def _reinit(self):
-        """
-        Clear all object attributes and initialize again
-        """
+        """Clear all object attributes and initialize again."""
         if hasattr(self, "config_file"):
             cfg_path = getattr(self, "config_file")
         else:
@@ -382,12 +376,13 @@ class Project(MutableMapping):
         self.__init__(cfg=cfg_path)
 
     def _get_table_from_samples(self, index, initial=False):
-        """
-        Generate a data frame from samples. Excludes private
-        attrs (prepended with an underscore)
+        """Generate a data frame from samples. Excludes private attrs (prepended with an underscore).
 
-        :param str | Iterable[str] index: name of the columns to set the index to
-        :return pandas.DataFrame: a data frame with current samples attributes
+        Args:
+            index: name of the columns to set the index to
+
+        Returns:
+            A data frame with current samples attributes.
         """
         if initial and not self._modifier_exists():
             # if the sample table is generated for the first time
@@ -416,12 +411,14 @@ class Project(MutableMapping):
         cfg_path: str = None,
         amendments: Iterable[str] = None,
     ):
-        """
-        Parse provided yaml config file and check required fields exist.
+        """Parse provided yaml config file and check required fields exist.
 
-        :param str cfg_path: path to the config file to read and parse
-        :param Iterable[str] amendments: Name of amendments to activate
-        :raises KeyError: if config file lacks required section(s)
+        Args:
+            cfg_path: path to the config file to read and parse
+            amendments: Name of amendments to activate
+
+        Raises:
+            KeyError: if config file lacks required section(s)
         """
         if CONFIG_KEY not in self:
             self[CONFIG_KEY] = {}
@@ -499,10 +496,10 @@ class Project(MutableMapping):
         _make_sections_absolute(self[CONFIG_KEY], relative_vars, cfg_path)
 
     def _set_indexes(self, config: Mapping) -> None:
-        """
-        Set sample and subsample indexes if they are different then Default
+        """Set sample and subsample indexes if they are different then Default.
 
-        :param config: project config
+        Args:
+            config: project config
         """
         self.st_index = (
             config[SAMPLE_TABLE_INDEX_KEY]
@@ -517,10 +514,9 @@ class Project(MutableMapping):
         return None
 
     def load_samples(self):
-        """
-        Read the sample_table and subsample_tables into dataframes
-        and store in the object root. The values sourced from the
-        project config can be overwritten by the optional arguments.
+        """Read the sample_table and subsample_tables into dataframes and store in the object root.
+
+        The values sourced from the project config can be overwritten by the optional arguments.
         """
         # To initiate project from pandas or dictionary we shouldn't run
         # this function otherwise it will cause errors
@@ -547,9 +543,7 @@ class Project(MutableMapping):
         return samples_list
 
     def modify_samples(self):
-        """
-        Perform any sample modifications defined in the config.
-        """
+        """Perform any sample modifications defined in the config."""
         if self._modifier_exists():
             # check for unrecognizable modification keys
             mod_diff = set(self[CONFIG_KEY][SAMPLE_MODS_KEY].keys()) - set(
@@ -570,14 +564,16 @@ class Project(MutableMapping):
         self.attr_derive()
 
     def _modifier_exists(self, modifier_key=None):
-        """
-        Check whether a specified sample modifier is defined and can be applied
+        """Check whether a specified sample modifier is defined and can be applied.
 
         If no modifier is specified, only the sample_modifiers section's
-        existence is checked
+        existence is checked.
 
-        :param str modifier_key: modifier key to be checked
-        :return bool: whether the requirements are met
+        Args:
+            modifier_key: modifier key to be checked
+
+        Returns:
+            Whether the requirements are met.
         """
         _LOGGER.debug("Checking existence: {}".format(modifier_key))
         if CONFIG_KEY not in self or SAMPLE_MODS_KEY not in self[CONFIG_KEY]:
@@ -590,9 +586,7 @@ class Project(MutableMapping):
         return True
 
     def attr_remove(self):
-        """
-        Remove declared attributes from all samples that have them defined
-        """
+        """Remove declared attributes from all samples that have them defined."""
 
         def _del_if_in(obj, attr):
             if attr in obj:
@@ -611,8 +605,8 @@ class Project(MutableMapping):
                     _del_if_in(s, attr)
 
     def attr_constants(self):
-        """
-        Update each Sample with constants declared by a Project.
+        """Update each Sample with constants declared by a Project.
+
         If Project does not declare constants, no update occurs.
         """
         if self._modifier_exists(APPEND_KEY):
@@ -630,9 +624,7 @@ class Project(MutableMapping):
                         s.update({attr: val})
 
     def attr_synonyms(self):
-        """
-        Copy attribute values for all samples to a new one
-        """
+        """Copy attribute values for all samples to a new one."""
         if self._modifier_exists(DUPLICATED_KEY):
             synonyms = self[CONFIG_KEY][SAMPLE_MODS_KEY][DUPLICATED_KEY]
             _LOGGER.debug(f"Applying synonyms: {synonyms}")
@@ -651,11 +643,10 @@ class Project(MutableMapping):
                         )
 
     def _assert_samples_have_names(self):
-        """
-        Make sure samples have sample_name attribute specified.
-        Try to derive this attribute first.
+        """Make sure samples have sample_name attribute specified. Try to derive this attribute first.
 
-        :raise InvalidSampleTableFileException: if names are not specified
+        Raises:
+            InvalidSampleTableFileException: if names are not specified
         """
         with suppress(KeyError):
             # before merging, which requires sample_name attribute to map
@@ -676,11 +667,11 @@ class Project(MutableMapping):
                 raise InvalidSampleTableFileException(message)
 
     def _auto_merge_duplicated_names(self):
-        """
-        If sample_table specifies samples with non-unique names, try to merge these samples
+        """If sample_table specifies samples with non-unique names, try to merge these samples.
 
-        :raises IllegalStateException: if both duplicated samples are detected and subsample_table is
-            specified in the config
+        Raises:
+            IllegalStateException: if both duplicated samples are detected and subsample_table is
+                specified in the config
         """
         sample_names_list = [s[self.st_index] for s in self.samples]
         duplicated_sample_ids = self._get_duplicated_sample_ids(sample_names_list)
@@ -727,8 +718,7 @@ class Project(MutableMapping):
     def _get_duplicated_and_not_duplicated_samples(
         duplication: str, st_index: str, samples: list[Sample]
     ) -> tuple[list, list]:
-        """
-        Iterates over list of samples and splits them into list of duplicated samples and list of not duplicated.
+        """Iterates over list of samples and splits them into list of duplicated samples and list of not duplicated.
 
         Args:
             duplication: Sample ID.
@@ -778,10 +768,7 @@ class Project(MutableMapping):
         return merged_attributes
 
     def attr_merge(self):
-        """
-        Merge sample subannotations (from subsample table) with
-        sample annotations (from sample_table)
-        """
+        """Merge sample subannotations (from subsample table) with sample annotations (from sample_table)."""
         if SUBSAMPLE_DF_KEY not in self or self[SUBSAMPLE_DF_KEY] is None:
             _LOGGER.debug("No {} found, skipping merge".format(CFG_SUBSAMPLE_TABLE_KEY))
             return
@@ -831,10 +818,7 @@ class Project(MutableMapping):
                     rowdata = row.to_dict()
 
                     def _select_new_attval(merged_attrs, attname, attval):
-                        """
-                        Select new attribute value for the merged columns
-                        dictionary
-                        """
+                        """Select new attribute value for the merged columns dictionary."""
                         if attname in merged_attrs:
                             return merged_attrs[attname] + [attval]
                         return [str(attval).rstrip()]
@@ -859,8 +843,7 @@ class Project(MutableMapping):
                 sample.update(merged_attrs)
 
     def attr_imply(self):
-        """
-        Infer value for additional field(s) from other field(s).
+        """Infer value for additional field(s) from other field(s).
 
         Add columns/fields to the sample based on values in those already-set
         that the sample's project defines as indicative of implications for
@@ -913,9 +896,7 @@ class Project(MutableMapping):
                         sample.__setitem__(implied_attr, imp_val)
 
     def attr_derive(self, attrs=None):
-        """
-        Set derived attributes for all Samples tied to this Project instance
-        """
+        """Set derived attributes for all Samples tied to this Project instance."""
         if not self._modifier_exists(DERIVED_KEY):
             return
         da = self[CONFIG_KEY][SAMPLE_MODS_KEY][DERIVED_KEY][DERIVED_ATTRS_KEY]
@@ -959,19 +940,22 @@ class Project(MutableMapping):
             unpopulated_env_var(env_var_miss)
 
     def activate_amendments(self, amendments):
-        """
-        Update settings based on amendment-specific values.
+        """Update settings based on amendment-specific values.
 
         This method will update Project attributes, adding new values
         associated with the amendments indicated, and in case of collision with
         an existing key/attribute the amendments' values will be favored.
 
-        :param Iterable[str] amendments: A string with amendment
-            names to be activated
-        :return peppy.Project: Updated Project instance
-        :raise TypeError: if argument to amendment parameter is null
-        :raise NotImplementedError: if this call is made on a project not
-            created from a config file
+        Args:
+            amendments: A string with amendment names to be activated
+
+        Returns:
+            Updated Project instance.
+
+        Raises:
+            TypeError: if argument to amendment parameter is null
+            NotImplementedError: if this call is made on a project not
+                created from a config file
         """
         amendments = [amendments] if isinstance(amendments, str) else amendments
         if amendments is None:
@@ -997,12 +981,14 @@ class Project(MutableMapping):
         return self
 
     def deactivate_amendments(self):
-        """
-        Bring the original project settings back.
+        """Bring the original project settings back.
 
-        :return peppy.Project: Updated Project instance
-        :raise NotImplementedError: if this call is made on a project not
-            created from a config file
+        Returns:
+            Updated Project instance.
+
+        Raises:
+            NotImplementedError: if this call is made on a project not
+                created from a config file
         """
         if ACTIVE_AMENDMENTS_KEY not in self or self[ACTIVE_AMENDMENTS_KEY] is None:
             _LOGGER.warning("No amendments have been activated.")
@@ -1016,10 +1002,10 @@ class Project(MutableMapping):
         return self
 
     def add_samples(self, samples):
-        """
-        Add list of Sample objects
+        """Add list of Sample objects.
 
-        :param peppy.Sample | Iterable[peppy.Sample] samples: samples to add
+        Args:
+            samples: samples to add
         """
         samples = [samples] if isinstance(samples, Sample) else samples
         for sample in samples:
@@ -1030,10 +1016,10 @@ class Project(MutableMapping):
             self[SAMPLE_EDIT_FLAG_KEY] = True
 
     def remove_samples(self, sample_names):
-        """
-        Remove Samples from Project
+        """Remove Samples from Project.
 
-        :param Iterable[str] sample_names: sample names to remove
+        Args:
+            sample_names: sample names to remove
         """
         sample_names = [sample_names] if isinstance(sample_names, str) else sample_names
         samples_keep = [
@@ -1044,17 +1030,19 @@ class Project(MutableMapping):
             self[SAMPLE_EDIT_FLAG_KEY] = True
 
     def infer_name(self):
-        """
-        Infer project name from config file path.
+        """Infer project name from config file path.
 
         First assume the name is the folder in which the config file resides,
         unless that folder is named "metadata", in which case the project name
         is the parent of that folder.
 
-        :return str: inferred name for project.
-        :raise InvalidConfigFileException: if the project lacks both a name and
-            a configuration file (no basis, then, for inference)
-        :raise InvalidConfigFileException: if specified Project name is invalid
+        Returns:
+            Inferred name for project.
+
+        Raises:
+            InvalidConfigFileException: if the project lacks both a name and
+                a configuration file (no basis, then, for inference)
+            InvalidConfigFileException: if specified Project name is invalid
         """
         if CONFIG_KEY not in self:
             return
@@ -1078,14 +1066,16 @@ class Project(MutableMapping):
         return project_name.replace(" ", "_")
 
     def get_description(self):
-        """
-        Infer project description from config file.
+        """Infer project description from config file.
 
-        The provided description has to be of class coercible to string
+        The provided description has to be of class coercible to string.
 
-        :return str: inferred name for project.
-        :raise InvalidConfigFileException: if description is not of class
-            coercible to string
+        Returns:
+            Inferred description for project.
+
+        Raises:
+            InvalidConfigFileException: if description is not of class
+                coercible to string
         """
         if CONFIG_KEY not in self:
             return
@@ -1147,19 +1137,19 @@ class Project(MutableMapping):
 
     @property
     def amendments(self):
-        """
-        Return currently active list of amendments or None if none was activated
+        """Return currently active list of amendments or None if none was activated.
 
-        :return Iterable[str]: a list of currently active amendment names
+        Returns:
+            A list of currently active amendment names.
         """
         return self[ACTIVE_AMENDMENTS_KEY] if ACTIVE_AMENDMENTS_KEY in self else None
 
     @property
     def list_amendments(self):
-        """
-        Return a list of available amendments or None if not declared
+        """Return a list of available amendments or None if not declared.
 
-        :return Iterable[str]: a list of available amendment names
+        Returns:
+            A list of available amendment names.
         """
         try:
             return list(self[CONFIG_KEY][PROJ_MODS_KEY][AMENDMENTS_KEY].keys())
@@ -1173,30 +1163,29 @@ class Project(MutableMapping):
 
     @property
     def config(self):
-        """
-        Get the config mapping
+        """Get the config mapping.
 
-        :return Mapping: config. May be formatted to comply with the most
-            recent version specifications
+        Returns:
+            Config mapping. May be formatted to comply with the most
+            recent version specifications.
         """
         return self[CONFIG_KEY] if CONFIG_KEY in self else {}
 
     @property
     def config_file(self):
-        """
-        Get the config file path
+        """Get the config file path.
 
-        :return str: path to the config file
+        Returns:
+            Path to the config file.
         """
         return self[CONFIG_FILE_KEY]
 
     @property
     def samples(self):
-        """
-        Generic/base Sample instance for each of this Project's samples.
+        """Generic/base Sample instance for each of this Project's samples.
 
-        :return Iterable[Sample]: Sample instance for each
-            of this Project's samples
+        Returns:
+            Sample instance for each of this Project's samples.
         """
         if self._samples is not None:
             return self._samples
@@ -1206,8 +1195,7 @@ class Project(MutableMapping):
 
     @property
     def sample_table_index(self):
-        """
-        The effective sample table index.
+        """The effective sample table index.
 
         It is `sample_name` by default, but could be overwritten by the selected sample table index,
         defined on the object instantiation stage or in the project configuration file
@@ -1219,15 +1207,15 @@ class Project(MutableMapping):
         2. Config specified
         3. Deafult: `sample_table`
 
-        :return str: name of the column that consist of sample identifiers
+        Returns:
+            Name of the column that consist of sample identifiers.
         """
         # this property is used solely for documentation purposes
         return self.st_index
 
     @property
     def subsample_table_index(self):
-        """
-        The effective subsample table indexes.
+        """The effective subsample table indexes.
 
         It is `[subasample_name, sample_name]` by default,
         but could be overwritten by the selected subsample table indexes,
@@ -1240,15 +1228,15 @@ class Project(MutableMapping):
         2. Config specified
         3. Deafult: `[subasample_name, sample_name]`
 
-        :return list[str]: names of the columns that consist of sample and subsample identifiers
+        Returns:
+            Names of the columns that consist of sample and subsample identifiers.
         """
         # this property is used solely for documentation purposes
         return self.sst_index
 
     @property
     def sample_name_colname(self):
-        """
-        **Deprecated, please use `Project.sample_table_index` instead**
+        """**Deprecated, please use `Project.sample_table_index` instead**
 
         Name of the effective sample name containing column in the sample table.
 
@@ -1256,17 +1244,17 @@ class Project(MutableMapping):
         replaced by the selected sample table index, defined on the
         object instantiation stage.
 
-        :return str: name of the column that consist of sample identifiers
+        Returns:
+            Name of the column that consist of sample identifiers.
         """
         return SAMPLE_NAME_ATTR if SAMPLE_NAME_ATTR == self.st_index else self.st_index
 
     @property
     def sample_table(self):
-        """
-        Get sample table. If any sample edits were performed,
-        it will be re-generated
+        """Get sample table. If any sample edits were performed, it will be re-generated.
 
-        :return pandas.DataFrame: a data frame with current samples attributes
+        Returns:
+            A data frame with current samples attributes.
         """
         if self[SAMPLE_EDIT_FLAG_KEY]:
             _LOGGER.debug("Generating new sample_table DataFrame")
@@ -1280,10 +1268,10 @@ class Project(MutableMapping):
 
     @property
     def subsample_table(self):
-        """
-        Get subsample table
+        """Get subsample table.
 
-        :return pandas.DataFrame: a data frame with subsample attributes
+        Returns:
+            A data frame with subsample attributes.
         """
 
         if not self[SUBSAMPLE_DF_KEY]:
@@ -1326,13 +1314,9 @@ class Project(MutableMapping):
         return getattr(self, SAMPLE_DF_LARGE, False)
 
     def _read_sample_data(self):
-        """
-        Read the sample_table and subsample_table into dataframes
-        and store in the object root. The values sourced from the
-        project config can be overwritten by the optional arguments
+        """Read the sample_table and subsample_table into dataframes and store in the object root.
 
-        :param str sample_table: a path to a sample table
-        :param list[str] sample_table: a list of paths to sample tables
+        The values sourced from the project config can be overwritten by the optional arguments.
         """
 
         no_metadata_msg = "No {} specified"
@@ -1377,13 +1361,15 @@ class Project(MutableMapping):
 
     @property
     def pep_version(self):
-        """
-        The declared PEP version string
+        """The declared PEP version string.
 
-        It is validated to make sure it is a valid PEP version string
+        It is validated to make sure it is a valid PEP version string.
 
-        :raise InvalidConfigFileException: in case of invalid PEP version
-        :return str: PEP version string
+        Returns:
+            PEP version string.
+
+        Raises:
+            InvalidConfigFileException: in case of invalid PEP version
         """
         req_version_str = ".".join(REQUIRED_VERSION)
         # if no config file was passed (init with sample table csv)
@@ -1420,16 +1406,20 @@ class Project(MutableMapping):
         return ".".join(list(map(str, v_bundle)))
 
     def get_sample(self, sample_name):
-        """
-        Get an individual sample object from the project.
+        """Get an individual sample object from the project.
 
         Will raise a ValueError if the sample is not found.
         In the case of multiple samples with the same name (which is not
-        typically allowed), a warning is raised and the first sample is returned
+        typically allowed), a warning is raised and the first sample is returned.
 
-        :param str sample_name: The name of a sample to retrieve
-        :raise ValueError: if there's no sample with the specified name defined
-        :return peppy.Sample: The requested Sample object
+        Args:
+            sample_name: The name of a sample to retrieve
+
+        Returns:
+            The requested Sample object.
+
+        Raises:
+            ValueError: if there's no sample with the specified name defined
         """
         samples = self.get_samples([sample_name])
         if len(samples) > 1:
@@ -1442,11 +1432,13 @@ class Project(MutableMapping):
             raise ValueError(f"Project has no sample named {sample_name}.")
 
     def get_samples(self, sample_names):
-        """
-        Returns a list of sample objects given a list of sample names
+        """Returns a list of sample objects given a list of sample names.
 
-        :param list sample_names: A list of sample names to retrieve
-        :return list[peppy.Sample]: A list of Sample objects
+        Args:
+            sample_names: A list of sample names to retrieve
+
+        Returns:
+            A list of Sample objects.
         """
         return [s for s in self.samples if s[self.st_index] in sample_names]
 
@@ -1470,12 +1462,16 @@ class Project(MutableMapping):
         self._project_data[key] = value
 
     def __getitem__(self, item):
-        """
-        Fetch the value of given key.
+        """Fetch the value of given key.
 
-        :param hashable item: key for which to fetch value
-        :return object: value mapped to given key, if available
-        :raise KeyError: if the requested key is unmapped.
+        Args:
+            item: key for which to fetch value
+
+        Returns:
+            Value mapped to given key, if available.
+
+        Raises:
+            KeyError: if the requested key is unmapped.
         """
         return self._project_data[item]
 
@@ -1501,11 +1497,13 @@ class Project(MutableMapping):
 
 
 def infer_delimiter(filepath):
-    """
-    From extension infer delimiter used in a separated values file.
+    """From extension infer delimiter used in a separated values file.
 
-    :param str filepath: path to file about which to make inference
-    :return str | NoneType: extension if inference succeeded; else null
+    Args:
+        filepath: path to file about which to make inference
+
+    Returns:
+        Extension if inference succeeded; else null.
     """
     ext = os.path.splitext(filepath)[1][1:].lower()
     return {"txt": "\t", "tsv": "\t", "csv": ","}.get(ext)

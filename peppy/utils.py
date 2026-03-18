@@ -45,11 +45,11 @@ def make_abs_via_cfg(
         Absolute path
 
     Raises:
-        typeError: If maybe_relpath is not a string
+        TypeError: If maybe_relpath is not a string
         OSError: If check_exists is True and path doesn't exist
     """
     if not isinstance(maybe_relpath, str):
-        raise typeError(
+        raise TypeError(
             "Attempting to ensure non-text value is absolute path: {} ({})".format(
                 maybe_relpath, type(maybe_relpath)
             )
@@ -118,13 +118,14 @@ def make_list(arg: list | str, obj_class: type) -> list:
         List of objects of the predefined class
 
     Raises:
-        typeError: If a faulty argument was provided
+        TypeError: If a faulty argument was provided
     """
 
     def _raise_faulty_arg():
-        raise typeError(
-            "Provided argument has to be a List[{o}] or a {o}, "
-            "got '{a}'".format(o=obj_class.__name__, a=arg.__class__.__name__)
+        raise TypeError(
+            "Provided argument has to be a List[{o}] or a {o}, " "got '{a}'".format(
+                o=obj_class.__name__, a=arg.__class__.__name__
+            )
         )
 
     if isinstance(arg, obj_class):
@@ -196,9 +197,7 @@ def load_yaml(filepath: str) -> dict:
         return expand_paths(data)
 
 
-def is_cfg_or_anno(
-    file_path: str | None, formats: dict | None = None
-) -> bool | None:
+def is_cfg_or_anno(file_path: str | None, formats: dict | None = None) -> bool | None:
     """Determine if the input file seems to be a project config file (based on extension).
 
     Args:

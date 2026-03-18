@@ -1,7 +1,7 @@
 import os
+from collections.abc import Mapping
 from copy import deepcopy as dpcpy
 from logging import getLogger
-from collections.abc import Mapping
 from warnings import warn
 
 import pandas as pd
@@ -41,7 +41,7 @@ def _validate_object(
 
         # Accumulate and restructure error objects by error type
         for error in errors:
-            if not error.message in errors_by_type:
+            if error.message not in errors_by_type:
                 errors_by_type[error.message] = []
 
             try:
@@ -125,9 +125,7 @@ def validate_sample(
     )
 
 
-def validate_config(
-    project: Project | dict | str, schema: str | dict
-) -> None:
+def validate_config(project: Project | dict | str, schema: str | dict) -> None:
     """Validate the config part of the Project object against a schema.
 
     Args:
@@ -165,9 +163,7 @@ def validate_config(
             _LOGGER.debug("Config validation successful")
 
 
-def _get_attr_values(
-    obj: Mapping, attrlist: str | list[str]
-) -> list[str] | None:
+def _get_attr_values(obj: Mapping, attrlist: str | list[str]) -> list[str] | None:
     """Get value corresponding to each given attribute.
 
     Args:
@@ -257,9 +253,7 @@ def validate_input_files(
             )
 
 
-def validate_original_samples(
-    samples: str | pd.DataFrame, schema: str | dict
-) -> None:
+def validate_original_samples(samples: str | pd.DataFrame, schema: str | dict) -> None:
     """Validate the original samples from the csv table against a schema.
 
     Args:

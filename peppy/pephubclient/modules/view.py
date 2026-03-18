@@ -11,17 +11,18 @@ _LOGGER = logging.getLogger("pephubclient")
 
 
 class PEPHubView(RequestManager):
-    """
-    Class for managing views in PEPhub and provides methods for
-        getting, creating, updating and removing views.
+    """Class for managing views in PEPhub.
 
-    This class aims to warp the Views API for easier maintenance and
+    Provides methods for getting, creating, updating and removing views.
+    This class aims to wrap the Views API for easier maintenance and
     better user experience.
     """
 
     def __init__(self, jwt_data: str = None):
-        """
-        :param jwt_data: jwt token for authorization
+        """Initialize PEPHubView.
+
+        Args:
+            jwt_data: jwt token for authorization
         """
 
         self.__jwt_data = jwt_data
@@ -29,15 +30,17 @@ class PEPHubView(RequestManager):
     def get(
         self, namespace: str, name: str, tag: str, view_name: str, raw: bool = False
     ) -> Project | dict:
-        """
-        Get view from project in PEPhub.
+        """Get view from project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param view_name: name of the view
-        :param raw: if True, return raw response
-        :return: peppy.Project object or dictionary of the project (view)
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            view_name: name of the view
+            raw: if True, return raw response
+
+        Returns:
+            peppy.Project object or dictionary of the project (view).
         """
         url = self._build_view_request_url(
             namespace=namespace, name=name, view_name=view_name
@@ -71,16 +74,17 @@ class PEPHubView(RequestManager):
         sample_list: list = None,
         no_fail: bool = False,
     ):
-        """
-        Create view in project in PEPhub.
+        """Create view in project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param description: description of the view
-        :param view_name: name of the view
-        :param sample_list: list of sample names
-        :param no_fail: whether to raise an error if view was not added to the project
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            description: description of the view
+            view_name: name of the view
+            sample_list: list of sample names
+            no_fail: whether to raise an error if view was not added to the
+                project
         """
 
         if not sample_list or not isinstance(sample_list, list):
@@ -114,14 +118,13 @@ class PEPHubView(RequestManager):
             raise ResponseError(f"Unexpected return value.{response.status_code}")
 
     def delete(self, namespace: str, name: str, tag: str, view_name: str) -> None:
-        """
-        Delete view from project in PEPhub.
+        """Delete view from project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param view_name: name of the view
-        :return: None
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            view_name: name of the view
         """
         url = self._build_view_request_url(
             namespace=namespace, name=name, view_name=view_name
@@ -153,14 +156,14 @@ class PEPHubView(RequestManager):
         view_name: str,
         sample_name: str,
     ):
-        """
-        Add sample to view in project in PEPhub.
+        """Add sample to view in project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param view_name: name of the view
-        :param sample_name: name of the sample
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            view_name: name of the view
+            sample_name: name of the sample
         """
         url = self._build_view_request_url(
             namespace=namespace,
@@ -200,15 +203,14 @@ class PEPHubView(RequestManager):
         view_name: str,
         sample_name: str,
     ):
-        """
-        Remove sample from view in project in PEPhub.
+        """Remove sample from view in project in PEPhub.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param tag: tag of project
-        :param view_name: name of the view
-        :param sample_name: name of the sample
-        :return: None
+        Args:
+            namespace: namespace of project
+            name: name of project
+            tag: tag of project
+            view_name: name of the view
+            sample_name: name of the sample
         """
         url = self._build_view_request_url(
             namespace=namespace,
@@ -246,13 +248,15 @@ class PEPHubView(RequestManager):
     def _build_view_request_url(
         namespace: str, name: str, view_name: str, sample_name: str = None
     ):
-        """
-        Build URL for view request.
+        """Build URL for view request.
 
-        :param namespace: namespace of project
-        :param name: name of project
-        :param view_name: name of view
-        :return: URL
+        Args:
+            namespace: namespace of project
+            name: name of project
+            view_name: name of view
+
+        Returns:
+            URL.
         """
         if sample_name:
             return PEPHUB_VIEW_SAMPLE_URL.format(
