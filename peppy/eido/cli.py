@@ -148,9 +148,7 @@ def convert(
         None,
         "-a",
         "--args",
-        help=(
-            "Provide arguments to the filter function " "(e.g. arg1=val1 arg2=val2)."
-        ),
+        help=("Provide arguments to the filter function (e.g. arg1=val1 arg2=val2)."),
     ),
     list_filters: bool = typer.Option(
         False,

@@ -126,7 +126,7 @@ def make_list(arg: list | str, obj_class: type) -> list:
 
     def _raise_faulty_arg():
         raise TypeError(
-            "Provided argument has to be a List[{o}] or a {o}, " "got '{a}'".format(
+            "Provided argument has to be a List[{o}] or a {o}, got '{a}'".format(
                 o=obj_class.__name__, a=arg.__class__.__name__
             )
         )

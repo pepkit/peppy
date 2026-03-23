@@ -443,10 +443,10 @@ class Project(MutableMapping):
             )  # due to some problems with symlinks in Nextflow
         config = load_yaml(cfg_path)
 
-        assert isinstance(
-            config, Mapping
-        ), "Config file parse did not yield a Mapping; got {} ({})".format(
-            config, type(config)
+        assert isinstance(config, Mapping), (
+            "Config file parse did not yield a Mapping; got {} ({})".format(
+                config, type(config)
+            )
         )
 
         _LOGGER.debug(f"Raw ({cfg_path}) config data: {config}")
@@ -470,7 +470,7 @@ class Project(MutableMapping):
                     self.parse_config_file(cfg_path=i)
                 else:
                     _LOGGER.warning(
-                        "External Project configuration does not" " exist: {}".format(i)
+                        "External Project configuration does not exist: {}".format(i)
                     )
 
         self[CONFIG_KEY].update(**config)
@@ -815,8 +815,9 @@ class Project(MutableMapping):
                         "Subannotation requires column '{}'.".format(sample_colname)
                     )
                 _LOGGER.debug(
-                    "Using '{}' as sample name column from "
-                    "subannotation table".format(sample_colname)
+                    "Using '{}' as sample name column from subannotation table".format(
+                        sample_colname
+                    )
                 )
                 sample_indexer = (
                     subsample_table[sample_colname] == sample[self.st_index]
