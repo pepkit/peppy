@@ -12,18 +12,14 @@ from .exceptions import PEPExistsError
 class FilesManager:
     @staticmethod
     def save_jwt_data_to_file(path: str, jwt_data: str) -> None:
-        """
-        Save jwt to provided path
-        """
+        """Save jwt to provided path."""
         Path(os.path.dirname(path)).mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             f.write(jwt_data)
 
     @staticmethod
     def load_jwt_data_from_file(path: str) -> str:
-        """
-        Open the file with username and ID and load this data.
-        """
+        """Open the file with username and ID and load this data."""
         with suppress(FileNotFoundError):
             with open(path, "r") as f:
                 return f.read()
@@ -34,11 +30,14 @@ class FilesManager:
         folder_name: str,
     ) -> str:
         """
-        Create new project folder
+        Create new project folder.
 
-        :param parent_path: parent path to create folder in
-        :param folder_name: folder name
-        :return: folder_path
+        Args:
+            parent_path: parent path to create folder in
+            folder_name: folder name
+
+        Returns:
+            folder_path.
         """
         if parent_path:
             if not Path(parent_path).exists():
@@ -82,10 +81,10 @@ class FilesManager:
         """
         Save zip file with provided files as dict.
 
-        :param files_dict: dict with files to save. e.g. {"file1.txt": "file1 content"}
-        :param file_path: filename to save zip file to
-        :param force: overwrite file if exists
-        :return: None
+        Args:
+            files_dict: dict with files to save. e.g. {"file1.txt": "file1 content"}
+            file_path: filename to save zip file to
+            force: overwrite file if exists
         """
         FilesManager.check_writable(path=file_path, force=force)
         with zipfile.ZipFile(

@@ -1,7 +1,7 @@
 import os
+from collections.abc import Mapping
 from copy import deepcopy as dpcpy
 from logging import getLogger
-from typing import Dict, List, Mapping, NoReturn, Union
 from warnings import warn
 
 import pandas as pd
@@ -20,10 +20,11 @@ _LOGGER = getLogger(__name__)
 
 def _validate_object(
     obj: Mapping,
-    schema: Union[str, dict],
-    sample_name_colname: Union[str, bool] = False,
+    schema: str | dict,
+    sample_name_colname: str | bool = False,
 ) -> None:
-    """Generic function to validate object against a schema.
+    """
+    Generic function to validate object against a schema.
 
     Args:
         obj: An object to validate
@@ -41,7 +42,7 @@ def _validate_object(
 
         # Accumulate and restructure error objects by error type
         for error in errors:
-            if not error.message in errors_by_type:
+            if error.message not in errors_by_type:
                 errors_by_type[error.message] = []
 
             try:
@@ -65,8 +66,9 @@ def _validate_object(
         _LOGGER.debug("Validation was successful...")
 
 
-def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
-    """Validate a project object against a schema.
+def validate_project(project: Project, schema: str | dict) -> None:
+    """
+    Validate a project object against a schema.
 
     Args:
         project: A project object to validate
@@ -85,8 +87,9 @@ def validate_project(project: Project, schema: Union[str, dict]) -> NoReturn:
         _LOGGER.debug("Project validation successful")
 
 
-def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
-    """Validate a peppy.Sample object without requiring a reference to peppy.Project.
+def _validate_sample_object(sample: Sample, schemas: list[dict]) -> None:
+    """
+    Validate a peppy.Sample object without requiring a reference to peppy.Project.
 
     Args:
         sample: A sample object to validate
@@ -102,9 +105,10 @@ def _validate_sample_object(sample: Sample, schemas: List[Dict]) -> None:
 
 
 def validate_sample(
-    project: Project, sample_name: Union[str, int], schema: Union[str, dict]
-) -> NoReturn:
-    """Validate the selected sample object against a schema.
+    project: Project, sample_name: str | int, schema: str | dict
+) -> None:
+    """
+    Validate the selected sample object against a schema.
 
     Args:
         project: A project object to validate
@@ -125,10 +129,9 @@ def validate_sample(
     )
 
 
-def validate_config(
-    project: Union[Project, dict, str], schema: Union[str, dict]
-) -> NoReturn:
-    """Validate the config part of the Project object against a schema.
+def validate_config(project: Project | dict | str, schema: str | dict) -> None:
+    """
+    Validate the config part of the Project object against a schema.
 
     Args:
         project: A project object, dict, or path to config file to validate
@@ -165,10 +168,9 @@ def validate_config(
             _LOGGER.debug("Config validation successful")
 
 
-def _get_attr_values(
-    obj: Mapping, attrlist: Union[str, List[str]]
-) -> Union[None, List[str]]:
-    """Get value corresponding to each given attribute.
+def _get_attr_values(obj: Mapping, attrlist: str | list[str]) -> list[str] | None:
+    """
+    Get value corresponding to each given attribute.
 
     Args:
         obj: An object to get the attributes from
@@ -190,10 +192,11 @@ def _get_attr_values(
 
 def validate_input_files(
     project: Project,
-    schemas: Union[str, dict],
-    sample_name: Union[str, int, None] = None,
+    schemas: str | dict,
+    sample_name: str | int | None = None,
 ) -> None:
-    """Determine which of the required and optional files are missing.
+    """
+    Determine which of the required and optional files are missing.
 
     The names of the attributes that are required and/or deemed as inputs
     are sourced from the schema, more specifically from `required_files`
@@ -257,10 +260,9 @@ def validate_input_files(
             )
 
 
-def validate_original_samples(
-    samples: Union[str, pd.DataFrame], schema: Union[str, dict]
-) -> None:
-    """Validate the original samples from the csv table against a schema.
+def validate_original_samples(samples: str | pd.DataFrame, schema: str | dict) -> None:
+    """
+    Validate the original samples from the csv table against a schema.
 
     Args:
         samples: The path to the sample table csv or the dataframe from the table

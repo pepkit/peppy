@@ -1,5 +1,4 @@
 import datetime
-from typing import List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -12,7 +11,7 @@ class ProjectDict(BaseModel):
     """
 
     config: dict = Field(alias=CONFIG_KEY)
-    subsample_list: Optional[list] = Field(alias=SUBSAMPLE_RAW_LIST_KEY)
+    subsample_list: list | None = Field(alias=SUBSAMPLE_RAW_LIST_KEY)
     sample_list: list = Field(alias=SAMPLE_RAW_DICT_KEY)
 
     model_config = ConfigDict(populate_by_name=True, extra="allow")
@@ -24,9 +23,9 @@ class ProjectUploadData(BaseModel):
     """
 
     pep_dict: ProjectDict
-    tag: Optional[str] = "default"
-    is_private: Optional[bool] = False
-    overwrite: Optional[bool] = False
+    tag: str | None = "default"
+    is_private: bool | None = False
+    overwrite: bool | None = False
 
     @field_validator("tag")
     def tag_should_not_be_none(cls, v):
@@ -43,14 +42,14 @@ class ProjectAnnotationModel(BaseModel):
     last_update_date: datetime.datetime
     submission_date: datetime.datetime
     digest: str
-    pep_schema: Union[str, int, None] = None
+    pep_schema: str | int | None = None
     pop: bool = False
-    stars_number: Optional[int] = 0
-    forked_from: Optional[Union[str, None]] = None
+    stars_number: int | None = 0
+    forked_from: str | None = None
 
 
 class SearchReturnModel(BaseModel):
     count: int
     limit: int
     offset: int
-    results: List[ProjectAnnotationModel]
+    results: list[ProjectAnnotationModel]

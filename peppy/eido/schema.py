@@ -1,6 +1,5 @@
 import os
 from logging import getLogger
-from typing import Dict, List, Union
 
 from ubiquerg import is_url
 
@@ -10,8 +9,9 @@ from .const import PROP_KEY, SAMPLES_KEY
 _LOGGER = getLogger(__name__)
 
 
-def preprocess_schema(schema_dict: Dict) -> Dict:
-    """Preprocess schema before validation for user's convenience.
+def preprocess_schema(schema_dict: dict) -> dict:
+    """
+    Preprocess schema before validation for user's convenience.
 
     Preprocessing includes:
     - renaming 'samples' to '_samples' since in the peppy.Project object
@@ -45,8 +45,9 @@ def preprocess_schema(schema_dict: Dict) -> Dict:
     return schema_dict
 
 
-def read_schema(schema: Union[str, Dict]) -> List[Dict]:
-    """Safely read schema from YAML-formatted file.
+def read_schema(schema: str | dict) -> list[dict]:
+    """
+    Safely read schema from YAML-formatted file.
 
     If the schema imports any other schemas, they will be read recursively.
 
@@ -62,8 +63,8 @@ def read_schema(schema: Union[str, Dict]) -> List[Dict]:
     """
 
     def _recursively_read_schemas(
-        x: Dict, lst: List[Dict], parent_folder: Union[str, None]
-    ) -> List[Dict]:
+        x: dict, lst: list[dict], parent_folder: str | None
+    ) -> list[dict]:
         if "imports" in x:
             if isinstance(x["imports"], list):
                 for sch in x["imports"]:

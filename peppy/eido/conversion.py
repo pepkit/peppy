@@ -1,10 +1,9 @@
-from importlib.metadata import entry_points
-
 import inspect
 import os
 import sys
+from collections.abc import Callable
+from importlib.metadata import entry_points
 from logging import getLogger
-from typing import Callable, Dict, List, NoReturn, Optional
 
 from ..project import Project
 from .exceptions import EidoFilterError
@@ -12,8 +11,9 @@ from .exceptions import EidoFilterError
 _LOGGER = getLogger(__name__)
 
 
-def pep_conversion_plugins() -> Dict[str, Callable]:
-    """Plugins registered by entry points in the current Python env.
+def pep_conversion_plugins() -> dict[str, Callable]:
+    """
+    Plugins registered by entry points in the current Python env.
 
     Returns:
         Dict which keys are names of all possible hooks and values are dicts
@@ -35,9 +35,10 @@ def pep_conversion_plugins() -> Dict[str, Callable]:
 
 
 def convert_project(
-    prj: Project, target_format: str, plugin_kwargs: Optional[Dict] = None
-) -> Dict[str, str]:
-    """Convert a `peppy.Project` object to a selected format.
+    prj: Project, target_format: str, plugin_kwargs: dict | None = None
+) -> dict[str, str]:
+    """
+    Convert a `peppy.Project` object to a selected format.
 
     Args:
         prj: A Project object to convert
@@ -57,9 +58,10 @@ def run_filter(
     prj: Project,
     filter_name: str,
     verbose: bool = True,
-    plugin_kwargs: Optional[Dict] = None,
-) -> Dict[str, str]:
-    """Run a selected filter on a peppy.Project object.
+    plugin_kwargs: dict | None = None,
+) -> dict[str, str]:
+    """
+    Run a selected filter on a peppy.Project object.
 
     Args:
         prj: A Project to run filter on
@@ -124,13 +126,14 @@ def run_filter(
     return conv_result
 
 
-def save_result(result_path: str, content: str) -> NoReturn:
+def save_result(result_path: str, content: str) -> None:
     with open(result_path, "w") as f:
         f.write(content)
 
 
-def get_available_pep_filters() -> List[str]:
-    """Get a list of available target formats.
+def get_available_pep_filters() -> list[str]:
+    """
+    Get a list of available target formats.
 
     Returns:
         A list of available formats

@@ -1,6 +1,7 @@
 import urllib
 
 import pytest
+
 from peppy import Project
 from peppy.eido.exceptions import EidoValidationError, PathAttrNotFoundError
 from peppy.eido.validation import (

@@ -1,5 +1,6 @@
-from peppy.eido.schema import read_schema
 from yaml import safe_load
+
+from peppy.eido.schema import read_schema
 
 
 class TestSchemaReading:
