@@ -1,5 +1,4 @@
-"""built-in PEP filters"""
-
+"""Built-in PEP filters."""
 
 from .output_formatters import MultilineOutputFormatter
 
@@ -10,7 +9,8 @@ def basic_pep_filter(p, **kwargs) -> dict[str, str]:
 
     This filter can save the PEP representation to file, if kwargs include `path`.
 
-    :param peppy.Project p: a Project to run filter on
+    Args:
+        p: A Project to run filter on.
     """
     return {"project": str(p)}
 
@@ -21,7 +21,8 @@ def yaml_samples_pep_filter(p, **kwargs) -> dict[str, str]:
 
     This filter can save the YAML to file, if kwargs include `path`.
 
-    :param peppy.Project p: a Project to run filter on
+    Args:
+        p: A Project to run filter on.
     """
     from yaml import dump
 
@@ -38,7 +39,8 @@ def yaml_pep_filter(p, **kwargs) -> dict[str, str]:
 
     This filter can save the YAML to file, if kwargs include `path`.
 
-    :param peppy.Project p: a Project to run filter on
+    Args:
+        p: A Project to run filter on.
     """
     from yaml import dump
 
@@ -47,12 +49,13 @@ def yaml_pep_filter(p, **kwargs) -> dict[str, str]:
 
 def csv_pep_filter(p, **kwargs) -> dict[str, str]:
     """
-    CSV PEP filter, that returns Sample object representations
+    CSV PEP filter, that returns Sample object representations.
 
     This filter can save the CSVs to files, if kwargs include
     `sample_table_path` and/or `subsample_table_path`.
 
-    :param peppy.Project p: a Project to run filter on
+    Args:
+        p: A Project to run filter on.
     """
     return {"samples": MultilineOutputFormatter.format(p.samples)}
 
@@ -60,10 +63,13 @@ def csv_pep_filter(p, **kwargs) -> dict[str, str]:
 def processed_pep_filter(p, **kwargs) -> dict[str, str]:
     """
     Processed PEP filter, that returns the converted sample and subsample tables.
+
     This filter can return the tables as a table or a document.
-    :param peppy.Project p: a Project to run filter on
-    :param bool samples_as_objects: Flag to write as a table
-    :param bool subsamples_as_objects: Flag to write as a table
+
+    Args:
+        p: A Project to run filter on.
+        **kwargs: Optional keyword arguments including samples_as_objects
+            and subsamples_as_objects flags to write as a table.
     """
     # get params
     samples_as_objects = kwargs.get("samples_as_objects")

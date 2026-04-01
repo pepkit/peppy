@@ -8,9 +8,7 @@ class BaseOutputFormatter(ABC):
     @staticmethod
     @abstractmethod
     def format(samples: list[Sample]) -> str:
-        """
-        Convert the samples to correct format.
-        """
+        """Convert the samples to correct format."""
         pass
 
 

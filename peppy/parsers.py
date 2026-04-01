@@ -129,11 +129,16 @@ class XLSXTableParser(TableParser):
 
 def select_parser(path: str) -> TableParser:
     """
-    Select a parser based on the file extension
+    Select a parser based on the file extension.
 
-    :param str path: file path
-    :return SampleTableParser: the selected parser
-    :raises InvalidSampleTableFileException: if no parser is found for the extension
+    Args:
+        path: File path.
+
+    Returns:
+        The selected parser.
+
+    Raises:
+        InvalidSampleTableFileException: If no parser is found for the extension.
     """
     parsers_by_ext = parser_by_ext()
     ext = os.path.splitext(path)[1].split(".")[-1]
@@ -146,11 +151,7 @@ def select_parser(path: str) -> TableParser:
 
 
 def parser_by_ext() -> dict[str, TableParser]:
-    """
-    Return a dict of parsers indexed by extension
-
-    :return Dict[str, SampleTableParser]: dict of parsers indexed by extension
-    """
+    """Return a dict of parsers indexed by extension."""
     parsers_by_ext = {}
     for parser in [cls for cls in TableParser.__subclasses__()]:
         for ext in parser("").extensions:

@@ -10,7 +10,8 @@ _LOGGER = getLogger(__name__)
 
 
 def preprocess_schema(schema_dict: dict) -> dict:
-    """Preprocess schema before validation for user's convenience.
+    """
+    Preprocess schema before validation for user's convenience.
 
     Preprocessing includes:
     - renaming 'samples' to '_samples' since in the peppy.Project object
@@ -45,7 +46,8 @@ def preprocess_schema(schema_dict: dict) -> dict:
 
 
 def read_schema(schema: str | dict) -> list[dict]:
-    """Safely read schema from YAML-formatted file.
+    """
+    Safely read schema from YAML-formatted file.
 
     If the schema imports any other schemas, they will be read recursively.
 

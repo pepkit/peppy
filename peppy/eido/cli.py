@@ -41,9 +41,12 @@ def _parse_filter_args_str(input: list[str] | None) -> dict[str, str]:
     """
     Parse user input specification.
 
-    :param Iterable[Iterable[str]] input: user command line input,
-        formatted as follows: [[arg=txt, arg1=txt]]
-    :return dict: mapping of keys, which are input names and values
+    Args:
+        input: User command line input, formatted as follows:
+            [[arg=txt, arg1=txt]]
+
+    Returns:
+        Mapping of keys, which are input names and values.
     """
     lst = []
     for i in input or []:
@@ -145,9 +148,7 @@ def convert(
         None,
         "-a",
         "--args",
-        help=(
-            "Provide arguments to the filter function " "(e.g. arg1=val1 arg2=val2)."
-        ),
+        help=("Provide arguments to the filter function (e.g. arg1=val1 arg2=val2)."),
     ),
     list_filters: bool = typer.Option(
         False,

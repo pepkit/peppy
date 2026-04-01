@@ -64,10 +64,13 @@ class RequestManager:
         """
         Decode the response from PEPhub and pack the returned data into appropriate model.
 
-        :param response: Response from PEPhub.
-        :param encoding: Response encoding [Default: utf-8]
-        :param output_json: If True, return response in json format
-        :return: Response data as an instance of correct model.
+        Args:
+            response: Response from PEPhub.
+            encoding: Response encoding [Default: utf-8]
+            output_json: If True, return response in json format
+
+        Returns:
+            Response data as an instance of correct model.
         """
 
         try:
@@ -81,21 +84,27 @@ class RequestManager:
     @staticmethod
     def parse_query_param(pep_variables: dict) -> str:
         """
-        Grab all the variables passed by user (if any) and parse them to match the format specified
-        by PEPhub API for query parameters.
+        Grab all the variables passed by user (if any) and parse them to match the format
+        specified by PEPhub API for query parameters.
 
-        :param pep_variables: dict of query parameters
-        :return: PEPHubClient variables transformed into string in correct format.
+        Args:
+            pep_variables: dict of query parameters
+
+        Returns:
+            PEPHubClient variables transformed into string in correct format.
         """
         return "?" + urlencode(pep_variables)
 
     @staticmethod
     def parse_header(jwt_data: str | None = None) -> dict:
         """
-        Create Authorization header
+        Create Authorization header.
 
-        :param jwt_data: jwt string
-        :return: Authorization dict
+        Args:
+            jwt_data: jwt string
+
+        Returns:
+            Authorization dict.
         """
         if jwt_data:
             return {"Authorization": jwt_data}
@@ -104,9 +113,7 @@ class RequestManager:
 
 
 class MessageHandler:
-    """
-    Class holding print function in different colors
-    """
+    """Class holding print function in different colors."""
 
     RED = 9
     YELLOW = 11
@@ -129,9 +136,12 @@ def call_client_func(func: Callable[..., Any], **kwargs) -> Any:
     """
     Catch exceptions in functions called through cli.
 
-    :param func: The function to call.
-    :param kwargs: The keyword arguments to pass to the function.
-    :return: The result of the function call.
+    Args:
+        func: The function to call.
+        **kwargs: The keyword arguments to pass to the function.
+
+    Returns:
+        The result of the function call.
     """
 
     try:
@@ -148,9 +158,13 @@ def call_client_func(func: Callable[..., Any], **kwargs) -> Any:
 
 def is_registry_path(input_string: str) -> bool:
     """
-    Check if input is a registry path to pephub
-    :param str input_string: path to the PEP (or registry path)
-    :return bool: True if input is a registry path
+    Check if input is a registry path to pephub.
+
+    Args:
+        input_string: path to the PEP (or registry path)
+
+    Returns:
+        True if input is a registry path.
     """
     if input_string.endswith(".yaml"):
         return False
@@ -163,9 +177,13 @@ def is_registry_path(input_string: str) -> bool:
 
 def unwrap_registry_path(input_string: str) -> RegistryPath:
     """
-    Unwrap registry path from string
-    :param str input_string: path to the PEP (or registry path)
-    :return RegistryPath: RegistryPath object
+    Unwrap registry path from string.
+
+    Args:
+        input_string: path to the PEP (or registry path)
+
+    Returns:
+        RegistryPath object.
     """
     return RegistryPath(**parse_registry_path(input_string))
 
@@ -174,8 +192,11 @@ def _build_filename(registry_path: RegistryPath) -> str:
     """
     Takes query string and creates output filename to save the project to.
 
-    :param registry_path: Query string that was used to find the project.
-    :return: Filename uniquely identifying the project.
+    Args:
+        registry_path: Query string that was used to find the project.
+
+    Returns:
+        Filename uniquely identifying the project.
     """
     filename = "_".join(filter(bool, [registry_path.namespace, registry_path.item]))
     if registry_path.tag:
@@ -185,11 +206,12 @@ def _build_filename(registry_path: RegistryPath) -> str:
 
 def _save_zip_pep(project: dict, zip_filepath: str, force: bool = False) -> None:
     """
-    Zip and save a project
+    Zip and save a project.
 
-    :param project: peppy project to zip
-    :param zip_filepath: path to save zip file
-    :param force: overwrite project if exists
+    Args:
+        project: peppy project to zip
+        zip_filepath: path to save zip file
+        force: overwrite project if exists
     """
 
     content_to_zip = {}
@@ -226,12 +248,12 @@ def _save_unzipped_pep(
     project_dict: dict, folder_path: str, force: bool = False
 ) -> None:
     """
-    Save unzipped project to specified folder
+    Save unzipped project to specified folder.
 
-    :param project_dict: raw pep project
-    :param folder_path: path to save project
-    :param force: overwrite project if exists
-    :return: None
+    Args:
+        project_dict: raw pep project
+        folder_path: path to save project
+        force: overwrite project if exists
     """
 
     def full_path(fn: str) -> str:
@@ -289,13 +311,14 @@ def save_pep(
     """
     Save project locally.
 
-    :param dict project: PEP dictionary (raw project)
-    :param str reg_path: Project registry path in PEPhub (e.g. databio/base:default). If not provided,
-        folder will be created with just project name.
-    :param bool force: overwrite project if exists
-    :param str project_path: Path where project will be saved. By default, it will be saved in current directory.
-    :param bool zip: If True, save project as zip file
-    :return: None
+    Args:
+        project: PEP dictionary (raw project)
+        reg_path: Project registry path in PEPhub (e.g. databio/base:default). If not
+            provided, folder will be created with just project name.
+        force: overwrite project if exists
+        project_path: Path where project will be saved. By default, it will be saved in
+            current directory.
+        zip: If True, save project as zip file
     """
     if isinstance(project, Project):
         project = project.to_dict(extended=True, orient="records")

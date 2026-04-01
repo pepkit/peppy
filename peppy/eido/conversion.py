@@ -1,10 +1,9 @@
-from importlib.metadata import entry_points
-
 import inspect
 import os
 import sys
-from logging import getLogger
 from collections.abc import Callable
+from importlib.metadata import entry_points
+from logging import getLogger
 
 from ..project import Project
 from .exceptions import EidoFilterError
@@ -13,7 +12,8 @@ _LOGGER = getLogger(__name__)
 
 
 def pep_conversion_plugins() -> dict[str, Callable]:
-    """Plugins registered by entry points in the current Python env.
+    """
+    Plugins registered by entry points in the current Python env.
 
     Returns:
         Dict which keys are names of all possible hooks and values are dicts
@@ -37,7 +37,8 @@ def pep_conversion_plugins() -> dict[str, Callable]:
 def convert_project(
     prj: Project, target_format: str, plugin_kwargs: dict | None = None
 ) -> dict[str, str]:
-    """Convert a `peppy.Project` object to a selected format.
+    """
+    Convert a `peppy.Project` object to a selected format.
 
     Args:
         prj: A Project object to convert
@@ -59,7 +60,8 @@ def run_filter(
     verbose: bool = True,
     plugin_kwargs: dict | None = None,
 ) -> dict[str, str]:
-    """Run a selected filter on a peppy.Project object.
+    """
+    Run a selected filter on a peppy.Project object.
 
     Args:
         prj: A Project to run filter on
@@ -130,7 +132,8 @@ def save_result(result_path: str, content: str) -> None:
 
 
 def get_available_pep_filters() -> list[str]:
-    """Get a list of available target formats.
+    """
+    Get a list of available target formats.
 
     Returns:
         A list of available formats

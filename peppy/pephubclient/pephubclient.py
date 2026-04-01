@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from typing_extensions import deprecated
 from ubiquerg import parse_registry_path
 
-from ..const import NAME_KEY, CONFIG_KEY
+from ..const import CONFIG_KEY, NAME_KEY
 from ..project import Project
 from .constants import (
     PATH_TO_FILE_WITH_JWT,
@@ -47,18 +47,14 @@ class PEPHubClient(RequestManager):
         return self.__sample
 
     def login(self) -> None:
-        """
-        Log in to PEPhub
-        """
+        """Log in to PEPhub."""
         user_token = PEPHubAuth().login_to_pephub()
 
         FilesManager.save_jwt_data_to_file(PATH_TO_FILE_WITH_JWT, user_token)
         self.__jwt_data = FilesManager.load_jwt_data_from_file(PATH_TO_FILE_WITH_JWT)
 
     def logout(self) -> None:
-        """
-        Log out from PEPhub
-        """
+        """Log out from PEPhub."""
         FilesManager.delete_file_if_exists(PATH_TO_FILE_WITH_JWT)
         self.__jwt_data = None
 
@@ -70,13 +66,14 @@ class PEPHubClient(RequestManager):
         output: str | None = None,
     ) -> None:
         """
-        Download project locally
+        Download project locally.
 
-        :param str project_registry_path: Project registry path in PEPhub (e.g. databio/base:default)
-        :param bool force: if project exists, overwrite it.
-        :param bool zip: if True, save project as zip file
-        :param str output: path where project will be saved
-        :return: None
+        Args:
+            project_registry_path: Project registry path in PEPhub
+                (e.g. databio/base:default)
+            force: if project exists, overwrite it.
+            zip: if True, save project as zip file
+            output: path where project will be saved
         """
         project_dict = self.load_raw_pep(
             registry_path=project_registry_path,
@@ -96,11 +93,14 @@ class PEPHubClient(RequestManager):
         query_param: dict | None = None,
     ) -> Project:
         """
-        Load peppy project from PEPhub in Project object
+        Load peppy project from PEPhub in Project object.
 
-        :param project_registry_path: registry path of the project
-        :param query_param: query parameters used in get request
-        :return Project: peppy project.
+        Args:
+            project_registry_path: registry path of the project
+            query_param: query parameters used in get request
+
+        Returns:
+            peppy project.
         """
         raw_pep = self.load_raw_pep(project_registry_path, query_param)
         peppy_project = Project().from_dict(raw_pep)
@@ -116,16 +116,17 @@ class PEPHubClient(RequestManager):
         force: bool | None = False,
     ) -> None:
         """
-        Push (upload/update) project to Pephub using config/csv path
+        Push (upload/update) project to Pephub using config/csv path.
 
-        :param str cfg: Project config file (YAML) or sample table (CSV/TSV)
-            with one row per sample to constitute project
-        :param str namespace: namespace
-        :param str name: project name
-        :param str tag: project tag
-        :param bool is_private: Specifies whether project should be private [Default= False]
-        :param bool force: Force push to the database. Use it to update, or upload project. [Default= False]
-        :return: None
+        Args:
+            cfg: Project config file (YAML) or sample table (CSV/TSV)
+                with one row per sample to constitute project
+            namespace: namespace
+            name: project name
+            tag: project tag
+            is_private: Specifies whether project should be private [Default= False]
+            force: Force push to the database. Use it to update, or upload
+                project. [Default= False]
         """
         peppy_project = Project(cfg=cfg)
         self.upload(
@@ -149,13 +150,14 @@ class PEPHubClient(RequestManager):
         """
         Upload peppy project to the PEPhub.
 
-        :param Project project: Project object that has to be uploaded to the DB
-        :param namespace: namespace
-        :param name: project name
-        :param tag: project tag
-        :param is_private: Make project private
-        :param force: overwrite project if it exists, use it to update, or upload project.
-        :return: None
+        Args:
+            project: Project object that has to be uploaded to the DB
+            namespace: namespace
+            name: project name
+            tag: project tag
+            is_private: Make project private
+            force: overwrite project if it exists, use it to update, or upload
+                project.
         """
         pep_dict = project.to_dict(
             extended=True,
@@ -217,16 +219,16 @@ class PEPHubClient(RequestManager):
         end_date: str = None,
     ) -> SearchReturnModel:
         """
-        Find project in specific namespace and return list of PEP annotation
+        Find project in specific namespace and return list of PEP annotation.
 
-        :param namespace: Namespace where to search for projects
-        :param query_string: Search query
-        :param limit: Return limit
-        :param offset: Return offset
-        :param filter_by: Use filter date. Option: [submission_date, last_update_date]
-        :param start_date: filter beginning date
-        :param end_date: filter end date (if none today's date is used)
-        :return:
+        Args:
+            namespace: Namespace where to search for projects
+            query_string: Search query
+            limit: Return limit
+            offset: Return offset
+            filter_by: Use filter date. Option: [submission_date, last_update_date]
+            start_date: filter beginning date
+            end_date: filter end date (if none today's date is used)
         """
 
         query_param = {
@@ -267,13 +269,16 @@ class PEPHubClient(RequestManager):
         query_param: dict | None = None,
     ) -> dict:
         """
-        !!! This method is deprecated. Use load_raw_pep instead. !!!
+        This method is deprecated. Use load_raw_pep instead.
 
         Request PEPhub and return the requested project as Project object.
 
-        :param registry_path: Project namespace, eg. "geo/GSE124224:tag"
-        :param query_param: Optional variables to be passed to PEPhub
-        :return: Raw project in dict.
+        Args:
+            registry_path: Project namespace, eg. "geo/GSE124224:tag"
+            query_param: Optional variables to be passed to PEPhub
+
+        Returns:
+            Raw project in dict.
         """
         return self.load_raw_pep(registry_path, query_param)
 
@@ -285,9 +290,12 @@ class PEPHubClient(RequestManager):
         """
         Request PEPhub and return the requested project as Project object.
 
-        :param registry_path: Project namespace, eg. "geo/GSE124224:tag"
-        :param query_param: Optional variables to be passed to PEPhub
-        :return: Raw project in dict.
+        Args:
+            registry_path: Project namespace, eg. "geo/GSE124224:tag"
+            query_param: Optional variables to be passed to PEPhub
+
+        Returns:
+            Raw project in dict.
         """
         query_param = query_param or {}
         query_param["raw"] = "true"
@@ -317,8 +325,9 @@ class PEPHubClient(RequestManager):
         """
         Parse provided query string to extract project name, sample name, etc.
 
-        :param query_string: Passed by user. Contain information needed to locate the project.
-        :return: Parsed query string.
+        Args:
+            query_string: Passed by user. Contain information needed to locate
+                the project.
         """
         try:
             self.registry_path = RegistryPath(**parse_registry_path(query_string))
@@ -327,10 +336,13 @@ class PEPHubClient(RequestManager):
 
     def _build_pull_request_url(self, query_param: dict = None) -> str:
         """
-        Build request for getting projects from pephub
+        Build request for getting projects from pephub.
 
-        :param query_param: dict of parameters used in query string
-        :return: url string
+        Args:
+            query_param: dict of parameters used in query string
+
+        Returns:
+            url string.
         """
         query_param = query_param or {}
         query_param["tag"] = self.registry_path.tag
@@ -345,10 +357,13 @@ class PEPHubClient(RequestManager):
     @staticmethod
     def _build_project_search_url(namespace: str, query_param: dict = None) -> str:
         """
-        Build request for searching projects from pephub
+        Build request for searching projects from pephub.
 
-        :param query_param: dict of parameters used in query string
-        :return: url string
+        Args:
+            query_param: dict of parameters used in query string
+
+        Returns:
+            url string.
         """
 
         variables_string = RequestManager.parse_query_param(query_param)
@@ -359,9 +374,12 @@ class PEPHubClient(RequestManager):
     @staticmethod
     def _build_push_request_url(namespace: str) -> str:
         """
-        Build project upload request used in pephub
+        Build project upload request used in pephub.
 
-        :param namespace: namespace where project will be uploaded
-        :return: url string
+        Args:
+            namespace: namespace where project will be uploaded
+
+        Returns:
+            url string.
         """
         return PEPHUB_PUSH_URL.format(namespace=namespace)
