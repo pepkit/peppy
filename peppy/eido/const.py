@@ -1,6 +1,4 @@
-"""
-Constant variables for eido package
-"""
+"""Constant variables for eido package."""
 
 LOGGING_LEVEL = "INFO"
 PKG_NAME = "eido"

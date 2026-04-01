@@ -5,7 +5,8 @@ import os
 import posixpath as psp
 import re
 from collections import defaultdict
-from typing import Any, Dict, Mapping, Optional, Set, Type, Union
+from collections.abc import Mapping
+from typing import Any
 from urllib.request import urlopen
 
 import yaml
@@ -33,7 +34,8 @@ def copy(obj: Any) -> Any:
 def make_abs_via_cfg(
     maybe_relpath: str, cfg_path: str, check_exists: bool = False
 ) -> str:
-    """Ensure that a possibly relative path is absolute.
+    """
+    Ensure that a possibly relative path is absolute.
 
     Args:
         maybe_relpath: Path that may be relative
@@ -79,7 +81,8 @@ def make_abs_via_cfg(
 
 
 def grab_project_data(prj: Any) -> Mapping:
-    """From the given Project, grab Sample-independent data.
+    """
+    From the given Project, grab Sample-independent data.
 
     There are some aspects of a Project of which it's beneficial for a Sample
     to be aware, particularly for post-hoc analysis. Since Sample objects
@@ -106,8 +109,9 @@ def grab_project_data(prj: Any) -> Mapping:
         raise KeyError("Project lacks section '{}'".format(CONFIG_KEY))
 
 
-def make_list(arg: Union[list, str], obj_class: Type) -> list:
-    """Convert an object of predefined class to a list or ensure list contains correct type.
+def make_list(arg: list | str, obj_class: type) -> list:
+    """
+    Convert an object of predefined class to a list or ensure list contains correct type.
 
     Args:
         arg: Object or list of objects to listify
@@ -122,8 +126,9 @@ def make_list(arg: Union[list, str], obj_class: Type) -> list:
 
     def _raise_faulty_arg():
         raise TypeError(
-            "Provided argument has to be a List[{o}] or a {o}, "
-            "got '{a}'".format(o=obj_class.__name__, a=arg.__class__.__name__)
+            "Provided argument has to be a List[{o}] or a {o}, got '{a}'".format(
+                o=obj_class.__name__, a=arg.__class__.__name__
+            )
         )
 
     if isinstance(arg, obj_class):
@@ -138,7 +143,8 @@ def make_list(arg: Union[list, str], obj_class: Type) -> list:
 
 
 def _expandpath(path: str) -> str:
-    """Expand a filesystem path that may or may not contain user/env vars.
+    """
+    Expand a filesystem path that may or may not contain user/env vars.
 
     Args:
         path: Path to expand
@@ -150,13 +156,14 @@ def _expandpath(path: str) -> str:
 
 
 def expand_paths(x: dict) -> dict:
-    """Recursively expand paths in a dict.
+    """
+    Recursively expand paths in a dict.
 
     Args:
-        x: Dict to expand
+        x: dict to expand
 
     Returns:
-        Dict with expanded paths
+        dict with expanded paths
     """
     if isinstance(x, str):
         return expandpath(x)
@@ -166,7 +173,8 @@ def expand_paths(x: dict) -> dict:
 
 
 def load_yaml(filepath: str) -> dict:
-    """Load a local or remote YAML file into a Python dict.
+    """
+    Load a local or remote YAML file into a Python dict.
 
     Args:
         filepath: Path to the file to read
@@ -195,10 +203,9 @@ def load_yaml(filepath: str) -> dict:
         return expand_paths(data)
 
 
-def is_cfg_or_anno(
-    file_path: Optional[str], formats: Optional[dict] = None
-) -> Optional[bool]:
-    """Determine if the input file seems to be a project config file (based on extension).
+def is_cfg_or_anno(file_path: str | None, formats: dict | None = None) -> bool | None:
+    """
+    Determine if the input file seems to be a project config file (based on extension).
 
     Args:
         file_path: File path to examine
@@ -229,8 +236,9 @@ def is_cfg_or_anno(
     )
 
 
-def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]:
-    """Extracts a custom index for the sample table if it exists.
+def extract_custom_index_for_sample_table(pep_dictionary: dict) -> str | None:
+    """
+    Extracts a custom index for the sample table if it exists.
 
     Args:
         pep_dictionary: PEP configuration dictionary
@@ -245,8 +253,9 @@ def extract_custom_index_for_sample_table(pep_dictionary: Dict) -> Optional[str]
     )
 
 
-def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[str]:
-    """Extracts a custom index for the subsample table if it exists.
+def extract_custom_index_for_subsample_table(pep_dictionary: dict) -> str | None:
+    """
+    Extracts a custom index for the subsample table if it exists.
 
     Args:
         pep_dictionary: PEP configuration dictionary
@@ -261,8 +270,9 @@ def extract_custom_index_for_subsample_table(pep_dictionary: Dict) -> Optional[s
     )
 
 
-def unpopulated_env_var(paths: Set[str]) -> None:
-    """Print warnings for unpopulated environment variables in paths.
+def unpopulated_env_var(paths: set[str]) -> None:
+    """
+    Print warnings for unpopulated environment variables in paths.
 
     Given a set of paths that may contain env vars, group by env var and
     print a warning for each group with the deepest common directory and

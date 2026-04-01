@@ -2,11 +2,12 @@ import os
 import pickle
 import socket
 import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
 from pandas import DataFrame
+from yaml import dump, safe_load
+
 from peppy import Project
 from peppy.const import SAMPLE_NAME_ATTR, SAMPLE_TABLE_FILE_KEY
 from peppy.exceptions import (
@@ -15,7 +16,6 @@ from peppy.exceptions import (
     MissingAmendmentError,
     RemoteYAMLError,
 )
-from yaml import dump, safe_load
 
 __author__ = "Michal Stolarczyk"
 __email__ = "michal.stolarczyk@nih.gov"

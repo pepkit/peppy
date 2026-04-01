@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import copy as cp
 from logging import getLogger
 from string import Formatter
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -36,12 +36,11 @@ class Sample(SimpleAttMap):
     """
     Class to model Samples based on a pandas Series.
 
-    :param Mapping | pandas.core.series.Series series: Sample's data.
+    Args:
+        series: Sample's data.
     """
 
-    def __init__(
-        self, series: Union[Mapping, Series], prj: Optional[Any] = None
-    ) -> None:
+    def __init__(self, series: Mapping | Series, prj: Any | None = None) -> None:
         super(Sample, self).__init__()
 
         data = dict(series)
@@ -77,8 +76,9 @@ class Sample(SimpleAttMap):
         self._derived_cols_done = []
         self._attributes = list(series.keys())
 
-    def get_sheet_dict(self) -> Dict:
-        """Create K-V pairs for items originally passed in via the sample sheet.
+    def get_sheet_dict(self) -> dict:
+        """
+        Create K-V pairs for items originally passed in via the sample sheet.
 
         This is useful for summarizing; it provides a representation of the
         sample that excludes things like config files and derived entries.
@@ -90,8 +90,9 @@ class Sample(SimpleAttMap):
         """
         return dict([[k, self[k]] for k in self._attributes])
 
-    def to_dict(self, add_prj_ref: bool = False) -> Dict:
-        """Serializes itself as dict object.
+    def to_dict(self, add_prj_ref: bool = False) -> dict:
+        """
+        Serializes itself as dict object.
 
         Args:
             add_prj_ref: Whether the project reference bound to the Sample
@@ -103,12 +104,12 @@ class Sample(SimpleAttMap):
 
         def _obj2dict(obj, name=None):
             """
-            Build representation of object as a dict, recursively
-            for all objects that might be attributes of self.
+            Build representation of object as a dict, recursively for all objects that might be attributes of self.
 
-            :param object obj: what to serialize to write to YAML.
-            :param str name: name of the object to represent.
-            :param Iterable[str] to_skip: names of attributes to ignore.
+            Args:
+                obj: what to serialize to write to YAML.
+                name: name of the object to represent.
+                to_skip: names of attributes to ignore.
             """
             if name:
                 _LOGGER.log(5, "Converting to dict: {name}")
@@ -140,10 +141,9 @@ class Sample(SimpleAttMap):
             serial.update({"prj": grab_project_data(self[PRJ_REF])})
         return serial
 
-    def to_yaml(
-        self, path: Optional[str] = None, add_prj_ref: bool = False
-    ) -> Union[str, None]:
-        """Serializes itself in YAML format.
+    def to_yaml(self, path: str | None = None, add_prj_ref: bool = False) -> str | None:
+        """
+        Serializes itself in YAML format.
 
         Writes to file if path is provided, else returns string representation.
 
@@ -183,26 +183,35 @@ class Sample(SimpleAttMap):
         "data_sources" to piece together an actual path by substituting
         variables (encoded by "{variable}"") with sample attributes.
 
-        :param Mapping data_sources: mapping from key name (as a value in
-            a cell of a tabular data structure) to, e.g., filepath
-        :param str attr_name: Name of sample attribute
-            (equivalently, sample sheet column) specifying a derived column.
-        :return str: regex expansion of data source specified in configuration,
-            with variable substitutions made
-        :raises ValueError: if argument to data_sources parameter is null/empty
+        Args:
+            data_sources: mapping from key name (as a value in
+                a cell of a tabular data structure) to, e.g., filepath
+            attr_name: Name of sample attribute
+                (equivalently, sample sheet column) specifying a derived column.
+
+        Returns:
+            Regex expansion of data source specified in configuration,
+            with variable substitutions made.
+
+        Raises:
+            ValueError: if argument to data_sources parameter is null/empty
         """
 
         def _format_regex(regex, items):
             """
-            Format derived source with object attributes
+            Format derived source with object attributes.
 
-            :param str regex: string to format,
-                e.g. {identifier}{file_id}_data.txt
-            :param Iterable[Iterable[Iterable | str]] items: items to format
-                the string with
-            :raise InvalidSampleTableFileException: if after merging
-                subannotations the lengths of multi-value attrs are not even
-            :return Iterable | str: formatted regex string(s)
+            Args:
+                regex: string to format,
+                    e.g. {identifier}{file_id}_data.txt
+                items: items to format the string with
+
+            Returns:
+                Formatted regex string(s).
+
+            Raises:
+                InvalidSampleTableFileException: if after merging
+                    subannotations the lengths of multi-value attrs are not even
             """
             keys = [i[1] for i in Formatter().parse(regex) if i[1] is not None]
             if not keys:
@@ -238,18 +247,24 @@ class Sample(SimpleAttMap):
             using curly braces notation, for example: "${ENVVAR}/{sample_attr}"
             would result in "${ENVVAR}/populated" rather than a KeyError.
 
-            :param str s: string with curly braces placeholders to populate
-            :param Mapping values: key-value pairs to pupulate string with
-            :return str: populated string
+            Args:
+                s: string with curly braces placeholders to populate
+                values: key-value pairs to populate string with
+
+            Returns:
+                Populated string.
             """
             return Formatter().vformat(s, (), SafeDict(values))
 
         def _glob_regex(patterns):
             """
-            Perform unix style pathname pattern expansion for multiple patterns
+            Perform unix style pathname pattern expansion for multiple patterns.
 
-            :param Iterable[str] patterns: patterns to expand
-            :return str | Iterable[str]: expanded patterns
+            Args:
+                patterns: patterns to expand
+
+            Returns:
+                Expanded patterns.
             """
             outputs = []
             for p in patterns:
@@ -308,18 +323,20 @@ class Sample(SimpleAttMap):
     @property
     def project(self):
         """
-        Get the project mapping
+        Get the project mapping.
 
-        :return peppy.Project: project object the sample was created from
+        Returns:
+            Project object the sample was created from.
         """
         return self[PRJ_REF]
 
     @property
     def sample_name(self):
         """
-        Get the sample's name
+        Get the sample's name.
 
-        :return str: current sample name derived from project's st_index
+        Returns:
+            Current sample name derived from project's st_index.
         """
 
         return self[self[PRJ_REF].st_index]
@@ -389,9 +406,7 @@ class Sample(SimpleAttMap):
         return (pd.DataFrame,)
 
     def _try_touch_samples(self):
-        """
-        Safely sets sample edited flag to true
-        """
+        """Safely sets sample edited flag to true."""
         try:
             self[PRJ_REF][SAMPLE_EDIT_FLAG_KEY] = True
         except (KeyError, AttributeError, TypeError):

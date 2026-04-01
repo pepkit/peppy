@@ -6,23 +6,16 @@ on:
 
 jobs:
   cli-coverage-report:
-    strategy:
-      matrix:
-        python-version: [ "3.12" ]
-        os: [ ubuntu-latest ]
-        r: [ release ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.13"
 
-      - name: Install test dependencies
-        run: if [ -f requirements/requirements-test.txt ]; then pip install -r requirements/requirements-test.txt; fi
-
-      - run: pip install .
+      - name: Install package with test dependencies
+        run: pip install ".[test]"
 
       - name: Run tests
         run: coverage run -m pytest

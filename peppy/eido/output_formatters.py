@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Union
+from collections.abc import Iterable
 
 from ..sample import Sample
 
@@ -7,16 +7,14 @@ from ..sample import Sample
 class BaseOutputFormatter(ABC):
     @staticmethod
     @abstractmethod
-    def format(samples: List[Sample]) -> str:
-        """
-        Convert the samples to correct format.
-        """
+    def format(samples: list[Sample]) -> str:
+        """Convert the samples to correct format."""
         pass
 
 
 class MultilineOutputFormatter(BaseOutputFormatter):
     @staticmethod
-    def format(samples: List[Sample]) -> str:
+    def format(samples: list[Sample]) -> str:
         output_rows = []
         sample_attributes = [
             attribute
@@ -43,20 +41,20 @@ class MultilineOutputFormatter(BaseOutputFormatter):
         return "\n".join(header + output_rows) + "\n"
 
     @staticmethod
-    def _get_header(header_column_names: List[str]) -> List[str]:
+    def _get_header(header_column_names: list[str]) -> list[str]:
         return [",".join(header_column_names)]
 
     @staticmethod
     def _get_the_name_of_the_first_attribute_with_multiple_properties(
-        sample: Sample, sample_attributes: List[str]
-    ) -> Union[str, None]:
+        sample: Sample, sample_attributes: list[str]
+    ) -> str | None:
         for attribute in sample_attributes:
             if MultilineOutputFormatter._sample_attribute_is_list(sample, attribute):
                 return attribute
 
     @staticmethod
     def _split_sample_to_multiple_rows(
-        sample: Sample, sample_attributes: List, attribute_with_multiple_properties: str
+        sample: Sample, sample_attributes: list, attribute_with_multiple_properties: str
     ) -> Iterable[str]:
         """
         If one sample object contains array properties instead of single value, then it will be converted
@@ -84,7 +82,7 @@ class MultilineOutputFormatter(BaseOutputFormatter):
 
     @staticmethod
     def _convert_sample_to_row(
-        sample: Sample, sample_attributes: List, sample_index: int = 0
+        sample: Sample, sample_attributes: list, sample_index: int = 0
     ) -> str:
         """
         Converts single sample object to CSV row.
@@ -122,5 +120,5 @@ class MultilineOutputFormatter(BaseOutputFormatter):
 
 
 class SampleSubsampleOutputFormatter(BaseOutputFormatter):
-    def format(self, samples: List[Sample]) -> str:
+    def format(self, samples: list[Sample]) -> str:
         pass

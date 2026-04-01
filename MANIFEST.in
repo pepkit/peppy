@@ -1,6 +1,0 @@
-include requirements/*
-include README.md
-include peppy/pephubclient/*
-include peppy/eido/*
-include peppy/pephubclient/pephub_oauth/*
-include peppy/pephubclient/modules/*
