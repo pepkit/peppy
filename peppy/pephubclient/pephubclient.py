@@ -5,13 +5,15 @@ from pydantic import ValidationError
 from typing_extensions import deprecated
 from ubiquerg import parse_registry_path
 
-from ..const import CONFIG_KEY, NAME_KEY
+from ..const import (
+    CONFIG_KEY,
+    NAME_KEY,
+    SAMPLE_RAW_DICT_KEY,
+    SUBSAMPLE_RAW_LIST_KEY,
+)
 from ..project import Project
 from .constants import (
-    PATH_TO_FILE_WITH_JWT,
-    PEPHUB_PEP_API_BASE_URL,
-    PEPHUB_PEP_SEARCH_URL,
-    PEPHUB_PUSH_URL,
+    PATH_TO_TOKEN_FILE,
     RegistryPath,
     ResponseStatusCodes,
 )
@@ -27,16 +29,20 @@ from .models import (
 from .modules.sample import PEPHubSample
 from .modules.view import PEPHubView
 from .pephub_oauth.pephub_oauth import PEPHubAuth
+from .schemas.schema import PEPHubSchema
 
 urllib3.disable_warnings()
 
 
 class PEPHubClient(RequestManager):
     def __init__(self):
-        self.__jwt_data = FilesManager.load_jwt_data_from_file(PATH_TO_FILE_WITH_JWT)
+        cached = FilesManager.load_token_data(PATH_TO_TOKEN_FILE)
+        self.__jwt_data = cached.token
+        self.__base_url = cached.base_url.rstrip("/") + "/"
 
         self.__view = PEPHubView(self.__jwt_data)
         self.__sample = PEPHubSample(self.__jwt_data)
+        self.__schema = PEPHubSchema(self.__jwt_data)
 
     @property
     def view(self) -> PEPHubView:
@@ -46,16 +52,35 @@ class PEPHubClient(RequestManager):
     def sample(self) -> PEPHubSample:
         return self.__sample
 
-    def login(self) -> None:
-        """Log in to PEPhub."""
-        user_token = PEPHubAuth().login_to_pephub()
+    @property
+    def schema(self) -> PEPHubSchema:
+        return self.__schema
 
-        FilesManager.save_jwt_data_to_file(PATH_TO_FILE_WITH_JWT, user_token)
-        self.__jwt_data = FilesManager.load_jwt_data_from_file(PATH_TO_FILE_WITH_JWT)
+    def login(self, token: str | None = None, url: str | None = None) -> None:
+        """
+        Log in to PEPhub.
+
+        Args:
+            token: JWT token to register directly. If provided, the browser
+                device-code flow is skipped.
+            url: Base URL for PEPhub. If provided, overrides the cached/default URL.
+        """
+        cached = FilesManager.load_token_data(PATH_TO_TOKEN_FILE)
+        if url:
+            cached.base_url = url
+        if token:
+            MessageHandler.print_warning("Token provided. Registering...")
+            cached.token = token
+        else:
+            cached.token = PEPHubAuth().login_to_pephub(base_url=cached.base_url)
+
+        FilesManager.save_token_data(PATH_TO_TOKEN_FILE, cached)
+        self.__jwt_data = cached.token
+        self.__base_url = cached.base_url.rstrip("/") + "/"
 
     def logout(self) -> None:
         """Log out from PEPhub."""
-        FilesManager.delete_file_if_exists(PATH_TO_FILE_WITH_JWT)
+        FilesManager.delete_file_if_exists(PATH_TO_TOKEN_FILE)
         self.__jwt_data = None
 
     def pull(
@@ -166,6 +191,9 @@ class PEPHubClient(RequestManager):
         if name:
             pep_dict[CONFIG_KEY][NAME_KEY] = name
 
+        pep_dict["config"] = pep_dict.pop(CONFIG_KEY)
+        pep_dict["samples"] = pep_dict.pop(SAMPLE_RAW_DICT_KEY)
+        pep_dict["subsamples"] = pep_dict.pop(SUBSAMPLE_RAW_LIST_KEY)
         upload_data = ProjectUploadData(
             pep_dict=pep_dict,
             tag=tag,
@@ -212,6 +240,7 @@ class PEPHubClient(RequestManager):
         self,
         namespace: str,
         query_string: str = "",
+        tag: str = None,
         limit: int = 100,
         offset: int = 0,
         filter_by: Literal["submission_date", "last_update_date"] = None,
@@ -224,6 +253,7 @@ class PEPHubClient(RequestManager):
         Args:
             namespace: Namespace where to search for projects
             query_string: Search query
+            tag: Project tag
             limit: Return limit
             offset: Return offset
             filter_by: Use filter date. Option: [submission_date, last_update_date]
@@ -235,6 +265,7 @@ class PEPHubClient(RequestManager):
             "q": query_string,
             "limit": limit,
             "offset": offset,
+            "tag": tag,
         }
         if filter_by in ["submission_date", "last_update_date"]:
             query_param["filter_by"] = filter_by
@@ -352,10 +383,11 @@ class PEPHubClient(RequestManager):
         variables_string = self.parse_query_param(query_param)
         endpoint += variables_string
 
-        return PEPHUB_PEP_API_BASE_URL + endpoint
+        return f"{self.__base_url}api/v1/projects/" + endpoint
 
-    @staticmethod
-    def _build_project_search_url(namespace: str, query_param: dict = None) -> str:
+    def _build_project_search_url(
+        self, namespace: str, query_param: dict = None
+    ) -> str:
         """
         Build request for searching projects from pephub.
 
@@ -369,10 +401,9 @@ class PEPHubClient(RequestManager):
         variables_string = RequestManager.parse_query_param(query_param)
         endpoint = variables_string
 
-        return PEPHUB_PEP_SEARCH_URL.format(namespace=namespace) + endpoint
+        return f"{self.__base_url}api/v1/namespaces/{namespace}/projects" + endpoint
 
-    @staticmethod
-    def _build_push_request_url(namespace: str) -> str:
+    def _build_push_request_url(self, namespace: str) -> str:
         """
         Build project upload request used in pephub.
 
@@ -382,4 +413,4 @@ class PEPHubClient(RequestManager):
         Returns:
             url string.
         """
-        return PEPHUB_PUSH_URL.format(namespace=namespace)
+        return f"{self.__base_url}api/v1/namespaces/{namespace}/projects/json"

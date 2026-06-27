@@ -4,25 +4,28 @@ from contextlib import suppress
 from pathlib import Path
 
 import pandas
+import toml
 import yaml
 
+from .constants import CachedToken
 from .exceptions import PEPExistsError
 
 
 class FilesManager:
     @staticmethod
-    def save_jwt_data_to_file(path: str, jwt_data: str) -> None:
-        """Save jwt to provided path."""
+    def save_token_data(path: str, token: CachedToken) -> None:
+        """Save cached token data (jwt + base url) to provided path as TOML."""
         Path(os.path.dirname(path)).mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
-            f.write(jwt_data)
+            toml.dump(token.model_dump(), f)
 
     @staticmethod
-    def load_jwt_data_from_file(path: str) -> str:
-        """Open the file with username and ID and load this data."""
+    def load_token_data(path: str) -> CachedToken:
+        """Load cached token data from the TOML file, or return defaults if missing."""
         with suppress(FileNotFoundError):
             with open(path, "r") as f:
-                return f.read()
+                return CachedToken(**toml.load(f))
+        return CachedToken()
 
     @staticmethod
     def create_project_folder(
