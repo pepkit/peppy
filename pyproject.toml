@@ -1,6 +1,6 @@
 [project]
 name = "peppy"
-version = "0.50.0a2"
+version = "0.50.0a3"
 description = "A python-based project metadata manager for portable encapsulated projects"
 readme = "README.md"
 license = "BSD-2-Clause"
