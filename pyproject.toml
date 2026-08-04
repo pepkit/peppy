@@ -58,6 +58,7 @@ test = [
     "python-dotenv",
     "coverage",
     "smokeshow",
+    "ruff",
 ]
 
 [build-system]
