@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["project", "metadata", "bioinformatics", "sequencing", "ngs", "workflow"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
