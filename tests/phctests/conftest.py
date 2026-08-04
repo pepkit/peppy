@@ -22,8 +22,8 @@ def test_raw_pep_return():
             "description": "desc",
             "name": "sample name",
         },
-        "subsample_list": [],
-        "sample_list": [
+        "subsamples": [],
+        "samples": [
             {"time": "0", "file_path": "source1", "sample_name": "pig_0h"},
             {"time": "1", "file_path": "source1", "sample_name": "pig_1h"},
             {"time": "0", "file_path": "source1", "sample_name": "frog_0h"},

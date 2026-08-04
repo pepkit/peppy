@@ -1,6 +1,6 @@
 [project]
 name = "peppy"
-version = "0.50.0a2"
+version = "0.50.0a3"
 description = "A python-based project metadata manager for portable encapsulated projects"
 readme = "README.md"
 license = "BSD-2-Clause"
@@ -34,6 +34,7 @@ dependencies = [
     "requests>=2.28.2",
     "pydantic>2.5.0",
     "coloredlogs>=15.0.1",
+    "toml>=0.10.2",
 ]
 
 [project.urls]
