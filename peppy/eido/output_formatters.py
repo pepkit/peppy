@@ -110,6 +110,11 @@ class MultilineOutputFormatter(BaseOutputFormatter):
             else:
                 value = sample.get(attribute)
 
+            if isinstance(value, float) and value != value:
+                # pandas (>=3.0) yields float('nan') instead of None for missing
+                # values when a Sample's attributes originate from a DataFrame
+                value = None
+
             sample_row.append(value or "")
 
         return ",".join(sample_row)

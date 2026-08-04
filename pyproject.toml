@@ -1,6 +1,6 @@
 [project]
 name = "peppy"
-version = "0.50.0a3"
+version = "0.50.0"
 description = "A python-based project metadata manager for portable encapsulated projects"
 readme = "README.md"
 license = "BSD-2-Clause"
@@ -14,16 +14,17 @@ authors = [
 ]
 keywords = ["project", "metadata", "bioinformatics", "sequencing", "ngs", "workflow"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "pandas>=2.2.0,<3.0.0",
+    "pandas>=2.2.0",
     "pyyaml>=6.0.0",
     "rich>=10.3.0",
     "ubiquerg>=0.6.2",
@@ -58,6 +59,7 @@ test = [
     "python-dotenv",
     "coverage",
     "smokeshow",
+    "ruff",
 ]
 
 [build-system]
