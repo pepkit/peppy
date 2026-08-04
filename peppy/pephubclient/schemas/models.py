@@ -69,7 +69,7 @@ class UpdateSchemaRecordFields(BaseModel):
 
 class UpdateSchemaVersionFields(BaseModel):
     contributors: str | None = None
-    schema_value: str | None = None
+    schema_value: dict | None = None
     release_notes: str | None = None
 
     model_config = ConfigDict(extra="forbid")
