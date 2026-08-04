@@ -4,7 +4,9 @@ from peppy.eido.conversion import (
     pep_conversion_plugins,
     run_filter,
 )
+from peppy.eido.output_formatters import MultilineOutputFormatter
 from peppy.project import Project
+from peppy.sample import Sample
 
 
 class TestConversionInfrastructure:
@@ -104,3 +106,30 @@ class TestConversionInfrastructure:
             "yaml-samples",
         )
         assert isinstance(conversion["samples"], str)
+
+
+class TestMultilineOutputFormatterMissingValues:
+    """
+    Under pandas >=3.0 a missing attribute reaches the formatter as float('nan')
+    rather than as an empty string, which used to raise TypeError from the join.
+    """
+
+    def test_missing_attribute_becomes_empty_field(self):
+        sample = Sample({"sample": "frog_1", "fasta": float("nan")})
+
+        assert MultilineOutputFormatter.format([sample]) == "sample,fasta\nfrog_1,\n"
+
+    def test_missing_subsample_attribute_becomes_empty_field(self):
+        # Merging a subsample table that lacks a column produces a list of nan
+        sample = Sample(
+            {
+                "sample": "frog_1",
+                "fasta": [float("nan"), float("nan")],
+                "subsample_name": ["0", "1"],
+            }
+        )
+
+        assert (
+            MultilineOutputFormatter.format([sample])
+            == "sample,fasta\nfrog_1,\nfrog_1,\n"
+        )

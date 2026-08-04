@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "pandas>=2.2.0,<3.0.0",
+    "pandas>=2.2.0",
     "pyyaml>=6.0.0",
     "rich>=10.3.0",
     "ubiquerg>=0.6.2",
