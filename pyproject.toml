@@ -1,6 +1,6 @@
 [project]
 name = "peppy"
-version = "0.50.0a2"
+version = "0.50.0"
 description = "A python-based project metadata manager for portable encapsulated projects"
 readme = "README.md"
 license = "BSD-2-Clause"
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
