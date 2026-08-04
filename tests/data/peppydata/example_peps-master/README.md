@@ -45,6 +45,7 @@ Your basic python workflow uses the [`peppy`](http://github.com/pepkit/peppy) pa
 
 ```python
 import peppy
+
 proj1 = peppy.Project("example_basic/project_config.yaml")
 ```
 More detailed Python vignettes are available as part of the [documentation for the `peppy` package](http://peppy.databio.org/en/latest/).
