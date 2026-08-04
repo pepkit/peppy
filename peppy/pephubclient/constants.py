@@ -3,13 +3,9 @@ from enum import Enum
 
 from pydantic import BaseModel, field_validator
 
-PEPHUB_BASE_URL = os.getenv(
-    "PEPHUB_BASE_URL", default="https://pephub-api.databio.org/"
-)
+DEFAULT_BASE_URL = "https://pephub-api.databio.org/"
+PEPHUB_BASE_URL = os.getenv("PEPHUB_BASE_URL", default=DEFAULT_BASE_URL)
 # PEPHUB_BASE_URL = "http://0.0.0.0:8000/"
-PEPHUB_PEP_API_BASE_URL = f"{PEPHUB_BASE_URL}api/v1/projects/"
-PEPHUB_PEP_SEARCH_URL = f"{PEPHUB_BASE_URL}api/v1/namespaces/{{namespace}}/projects"
-PEPHUB_PUSH_URL = f"{PEPHUB_BASE_URL}api/v1/namespaces/{{namespace}}/projects/json"
 
 PEPHUB_SAMPLE_URL = f"{PEPHUB_BASE_URL}api/v1/projects/{{namespace}}/{{project}}/samples/{{sample_name}}"
 PEPHUB_VIEW_URL = (
@@ -30,6 +26,13 @@ class RegistryPath(BaseModel):
         return v or "default"
 
 
+class CachedToken(BaseModel):
+    """Credentials persisted to the TOML cache file."""
+
+    token: str | None = None
+    base_url: str = DEFAULT_BASE_URL
+
+
 class ResponseStatusCodes(int, Enum):
     OK = 200
     ACCEPTED = 202
@@ -40,8 +43,12 @@ class ResponseStatusCodes(int, Enum):
     INTERNAL_ERROR = 500
 
 
-USER_DATA_FILE_NAME = "jwt.txt"
-HOME_PATH = os.getenv("HOME")
-if not HOME_PATH:
-    HOME_PATH = os.path.expanduser("~")
-PATH_TO_FILE_WITH_JWT = os.path.join(HOME_PATH, ".pephubclient/") + USER_DATA_FILE_NAME
+USER_DATA_FILE_NAME = "jwt.toml"
+
+PH_HOME = os.getenv("PH_HOME")
+if PH_HOME:
+    _CACHE_DIR = PH_HOME
+else:
+    HOME_PATH = os.getenv("HOME") or os.path.expanduser("~")
+    _CACHE_DIR = os.path.join(HOME_PATH, ".pephubclient")
+PATH_TO_TOKEN_FILE = os.path.join(_CACHE_DIR, USER_DATA_FILE_NAME)

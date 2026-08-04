@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from peppy.pephubclient.constants import CachedToken
 from peppy.pephubclient.exceptions import ResponseError
 from peppy.pephubclient.helpers import is_registry_path
 from peppy.pephubclient.pephub_oauth.models import InitializeDeviceCodeResponse
@@ -37,7 +38,7 @@ class TestSmoke:
         )
 
         pathlib_mock = mocker.patch(
-            "peppy.pephubclient.files_manager.FilesManager.save_jwt_data_to_file"
+            "peppy.pephubclient.files_manager.FilesManager.save_token_data"
         )
 
         PEPHubClient().login()
@@ -47,6 +48,34 @@ class TestSmoke:
         assert pephub_exchange_code_mock.called
         assert pathlib_mock.called
 
+    def test_login_with_token_skips_device_flow(self, mocker, test_jwt):
+        """Providing a token registers it directly without the device flow."""
+        login_mock = mocker.patch(
+            "peppy.pephubclient.pephub_oauth.pephub_oauth.PEPHubAuth.login_to_pephub"
+        )
+        save_mock = mocker.patch(
+            "peppy.pephubclient.files_manager.FilesManager.save_token_data"
+        )
+
+        PEPHubClient().login(token=test_jwt, url="https://example.org/")
+
+        assert not login_mock.called
+        saved = save_mock.call_args.args[1]
+        assert saved.token == test_jwt
+        assert saved.base_url == "https://example.org/"
+
+    def test_login_url_passed_to_device_flow(self, mocker, test_jwt):
+        """Without a token, the url is forwarded to the device-code flow."""
+        login_mock = mocker.patch(
+            "peppy.pephubclient.pephub_oauth.pephub_oauth.PEPHubAuth.login_to_pephub",
+            return_value=test_jwt,
+        )
+        mocker.patch("peppy.pephubclient.files_manager.FilesManager.save_token_data")
+
+        PEPHubClient().login(url="https://example.org/")
+
+        login_mock.assert_called_once_with(base_url="https://example.org/")
+
     def test_logout(self, mocker):
         os_remove_mock = mocker.patch("os.remove")
         PEPHubClient().logout()
@@ -55,8 +84,8 @@ class TestSmoke:
 
     def test_pull(self, mocker, test_jwt, test_raw_pep_return):
         jwt_mock = mocker.patch(
-            "peppy.pephubclient.files_manager.FilesManager.load_jwt_data_from_file",
-            return_value=test_jwt,
+            "peppy.pephubclient.files_manager.FilesManager.load_token_data",
+            return_value=CachedToken(token=test_jwt),
         )
         requests_mock = mocker.patch(
             "requests.request",
@@ -100,8 +129,8 @@ class TestSmoke:
         self, mocker, test_jwt, status_code, expected_error_message
     ):
         mocker.patch(
-            "peppy.pephubclient.files_manager.FilesManager.load_jwt_data_from_file",
-            return_value=test_jwt,
+            "peppy.pephubclient.files_manager.FilesManager.load_token_data",
+            return_value=CachedToken(token=test_jwt),
         )
         mocker.patch(
             "requests.request",
