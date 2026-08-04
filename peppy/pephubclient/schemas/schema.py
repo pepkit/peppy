@@ -373,7 +373,7 @@ class PEPHubSchema(RequestManager):
 
         if pephub_response.status_code == ResponseStatusCodes.ACCEPTED:
             _LOGGER.info(
-                f"Schema record '{namespace}/{schema_name}' was updated successfully!"
+                f"Schema record '{namespace}/{schema_name}' was deleted successfully!"
             )
             return None
 
