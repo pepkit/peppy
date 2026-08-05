@@ -3,8 +3,7 @@
 ![Run pytests](https://github.com/pepkit/peppy/workflows/Run%20pytests/badge.svg)
 [![codecov](https://codecov.io/gh/pepkit/peppy/branch/master/graph/badge.svg)](https://codecov.io/gh/pepkit/peppy)
 [![PEP compatible](https://pepkit.github.io/img/PEP-compatible-green.svg)](https://pep.databio.org)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 `peppy` is the official python package for reading **Portable Encapsulated Projects** or **PEP**s in Python.
 
 Links to complete documentation:
