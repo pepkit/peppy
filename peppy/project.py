@@ -67,6 +67,7 @@ from .exceptions import (
     MissingAmendmentError,
 )
 from .parsers import select_parser
+from .pephubclient.pephubclient import PEPHubClient
 from .sample import Sample
 from .utils import (
     copy,
@@ -212,7 +213,6 @@ class Project(MutableMapping):
         Returns:
             peppy Project
         """
-        from pephubclient import PEPHubClient
 
         phc = PEPHubClient()
         return phc.load_project(project_registry_path=registry_path)
