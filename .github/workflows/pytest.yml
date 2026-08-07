@@ -4,7 +4,7 @@ on:
   push:
     branches: [dev]
   pull_request:
-    branches: [main, dev, peppy0_50]
+    branches: [master, dev, peppy0_50]
 
 jobs:
   pytest:
