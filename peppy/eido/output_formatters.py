@@ -114,6 +114,12 @@ class MultilineOutputFormatter(BaseOutputFormatter):
                 # Missing value: pandas (>=3.0) yields float('nan') instead of
                 # None when a Sample's attributes originate from a DataFrame.
                 value = ""
+            elif isinstance(value, list):
+                # An empty list represents a missing multi-value attribute
+                # (e.g. an absent fastq_2). Older pandas/Python versions yield
+                # an empty list here instead of None/NaN. Render it as blank
+                # rather than the literal "[]".
+                value = ""
             elif not isinstance(value, str):
                 # Numeric (and any other non-string) attribute values must be
                 # stringified before being joined into a CSV row.
