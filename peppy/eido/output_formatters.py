@@ -110,12 +110,16 @@ class MultilineOutputFormatter(BaseOutputFormatter):
             else:
                 value = sample.get(attribute)
 
-            if isinstance(value, float) and value != value:
-                # pandas (>=3.0) yields float('nan') instead of None for missing
-                # values when a Sample's attributes originate from a DataFrame
-                value = None
+            if value is None or (isinstance(value, float) and value != value):
+                # Missing value: pandas (>=3.0) yields float('nan') instead of
+                # None when a Sample's attributes originate from a DataFrame.
+                value = ""
+            elif not isinstance(value, str):
+                # Numeric (and any other non-string) attribute values must be
+                # stringified before being joined into a CSV row.
+                value = str(value)
 
-            sample_row.append(value or "")
+            sample_row.append(value)
 
         return ",".join(sample_row)
 

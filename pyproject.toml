@@ -69,6 +69,7 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 addopts = "-rfE"
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 88
