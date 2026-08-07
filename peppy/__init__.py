@@ -8,14 +8,18 @@ local level, but this will at least provide a foundation.
 
 """
 
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
 from .const import *
 from .exceptions import *
 from .project import Project
 from .sample import Sample
 
-__version__ = version("peppy")
+try:
+    __version__ = version("peppy")
+except PackageNotFoundError:
+    # package is not installed (e.g. running from a source checkout)
+    __version__ = "0.0.0"
 
 __all__ = ["Project", "Sample", "PeppyError", "__version__"]
 
