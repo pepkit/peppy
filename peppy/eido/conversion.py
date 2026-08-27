@@ -113,10 +113,9 @@ def run_filter(
                 )
             else:
                 # create path if it doesn't exist
-                if not os.path.exists(result_path) and not os.path.isdir(
-                    os.path.dirname(result_path)
-                ):
-                    os.makedirs(os.path.dirname(result_path), exist_ok=True)
+                parent = os.path.dirname(result_path)
+                if parent and not os.path.isdir(parent):
+                    os.makedirs(parent, exist_ok=True)
                 save_result(result_path, conv_result[result_key])
 
     if verbose:
