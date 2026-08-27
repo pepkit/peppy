@@ -58,9 +58,12 @@ def _validate_object(
             except KeyError:
                 instance_name = "project"
             except (TypeError, IndexError):
-                instance_name = obj["samples"][error.absolute_path[1]][
-                    sample_name_colname
-                ]
+                try:
+                    instance_name = obj["samples"][error.absolute_path[1]][
+                        sample_name_colname
+                    ]
+                except (KeyError, TypeError, IndexError):
+                    instance_name = "unknown"
             errors_by_type[error.message].append(
                 {
                     "type": error.message,
