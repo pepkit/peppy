@@ -85,7 +85,7 @@ def run_filter(
     env = plugin_kwargs.get("env")
 
     # set environment
-    if env is not None:
+    if env is not None and isinstance(env, dict):
         for var in env:
             os.environ[var] = env[var]
 
@@ -113,7 +113,7 @@ def run_filter(
                 )
             else:
                 # create path if it doesn't exist
-                if not os.path.exists(result_path) and os.path.isdir(
+                if not os.path.exists(result_path) and not os.path.isdir(
                     os.path.dirname(result_path)
                 ):
                     os.makedirs(os.path.dirname(result_path), exist_ok=True)

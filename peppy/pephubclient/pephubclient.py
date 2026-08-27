@@ -1,6 +1,5 @@
 from typing import Literal
 
-import urllib3
 from pydantic import ValidationError
 from typing_extensions import deprecated
 from ubiquerg import parse_registry_path
@@ -30,9 +29,6 @@ from .modules.sample import PEPHubSample
 from .modules.view import PEPHubView
 from .pephub_oauth.pephub_oauth import PEPHubAuth
 from .schemas.schema import PEPHubSchema
-
-urllib3.disable_warnings()
-
 
 class PEPHubClient(RequestManager):
     def __init__(self):
@@ -291,6 +287,7 @@ class PEPHubClient(RequestManager):
             for project_found in decoded_response["results"]:
                 project_list.append(ProjectAnnotationModel(**project_found))
             return SearchReturnModel(**decoded_response)
+        raise ResponseError(f"Unexpected response: {pephub_response.status_code}")
 
     @deprecated("This method is deprecated. Use load_raw_pep instead.")
     def _load_raw_pep(
@@ -351,6 +348,7 @@ class PEPHubClient(RequestManager):
             raise ResponseError(
                 f"Internal server error. Unexpected return value. Error: {pephub_response.status_code}"
             )
+        raise ResponseError(f"Unexpected response: {pephub_response.status_code}")
 
     def _set_registry_data(self, query_string: str) -> None:
         """

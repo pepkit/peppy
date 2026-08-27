@@ -6,7 +6,15 @@ from warnings import warn
 
 import pandas as pd
 from jsonschema import Draft7Validator
-from pandas.core.common import flatten
+from collections.abc import Iterable
+
+
+def flatten(lst):
+    for item in lst:
+        if isinstance(item, Iterable) and not isinstance(item, str):
+            yield from flatten(item)
+        else:
+            yield item
 
 from ..project import Project
 from ..sample import Sample
@@ -49,7 +57,7 @@ def _validate_object(
                 instance_name = error.instance[sample_name_colname]
             except KeyError:
                 instance_name = "project"
-            except TypeError:
+            except (TypeError, IndexError):
                 instance_name = obj["samples"][error.absolute_path[1]][
                     sample_name_colname
                 ]

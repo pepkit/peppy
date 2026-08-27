@@ -955,8 +955,10 @@ class Project(MutableMapping):
 
                 derived_attr = sample.derive_attribute(ds, attr)
                 if derived_attr:
-                    if "$" in derived_attr:
-                        env_var_miss.add(derived_attr)
+                    values = derived_attr if isinstance(derived_attr, list) else [derived_attr]
+                    for v in values:
+                        if isinstance(v, str) and "$" in v:
+                            env_var_miss.add(v)
 
                     _LOGGER.debug("Setting '{}' to '{}'".format(attr, derived_attr))
                     sample[attr] = derived_attr

@@ -41,7 +41,7 @@ class RequestManager:
         request_return = requests.request(
             method=method,
             url=url,
-            verify=False,
+            verify=True,
             cookies=cookies,
             headers=headers,
             params=params,
