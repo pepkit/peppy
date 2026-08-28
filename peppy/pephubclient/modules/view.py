@@ -1,8 +1,14 @@
 import logging
+from urllib.parse import quote
 
 # import peppy
 from ...project import Project
-from ..constants import PEPHUB_VIEW_SAMPLE_URL, PEPHUB_VIEW_URL, ResponseStatusCodes
+from ..constants import (
+    PEPHUB_BASE_URL,
+    PEPHUB_VIEW_PATH,
+    PEPHUB_VIEW_SAMPLE_PATH,
+    ResponseStatusCodes,
+)
 from ..exceptions import ResponseError
 from ..helpers import RequestManager
 from ..models import ProjectDict
@@ -19,15 +25,17 @@ class PEPHubView(RequestManager):
     better user experience.
     """
 
-    def __init__(self, jwt_data: str = None):
+    def __init__(self, jwt_data: str = None, base_url: str = None):
         """
         Initialize PEPHubView.
 
         Args:
             jwt_data: jwt token for authorization
+            base_url: base URL of the PEPhub instance to talk to
         """
 
         self.__jwt_data = jwt_data
+        self.__base_url = (base_url or PEPHUB_BASE_URL).rstrip("/") + "/"
 
     def get(
         self, namespace: str, name: str, tag: str, view_name: str, raw: bool = False
@@ -251,9 +259,8 @@ class PEPHubView(RequestManager):
                 f"Unexpected return value. Error: {response.status_code}"
             )
 
-    @staticmethod
     def _build_view_request_url(
-        namespace: str, name: str, view_name: str, sample_name: str = None
+        self, namespace: str, name: str, view_name: str, sample_name: str = None
     ):
         """
         Build URL for view request.
@@ -267,14 +274,14 @@ class PEPHubView(RequestManager):
             URL.
         """
         if sample_name:
-            return PEPHUB_VIEW_SAMPLE_URL.format(
-                namespace=namespace,
-                project=name,
-                view_name=view_name,
-                sample_name=sample_name,
+            return self.__base_url + PEPHUB_VIEW_SAMPLE_PATH.format(
+                namespace=quote(str(namespace), safe=""),
+                project=quote(str(name), safe=""),
+                view_name=quote(str(view_name), safe=""),
+                sample_name=quote(str(sample_name), safe=""),
             )
-        return PEPHUB_VIEW_URL.format(
-            namespace=namespace,
-            project=name,
-            view_name=view_name,
+        return self.__base_url + PEPHUB_VIEW_PATH.format(
+            namespace=quote(str(namespace), safe=""),
+            project=quote(str(name), safe=""),
+            view_name=quote(str(view_name), safe=""),
         )

@@ -1,4 +1,5 @@
 from typing import Literal
+from urllib.parse import quote
 
 from pydantic import ValidationError
 from typing_extensions import deprecated
@@ -37,9 +38,7 @@ class PEPHubClient(RequestManager):
         self.__jwt_data = cached.token
         self.__base_url = cached.base_url.rstrip("/") + "/"
 
-        self.__view = PEPHubView(self.__jwt_data)
-        self.__sample = PEPHubSample(self.__jwt_data)
-        self.__schema = PEPHubSchema(self.__jwt_data)
+        self.__refresh_subclients()
 
     @property
     def view(self) -> PEPHubView:
@@ -52,6 +51,12 @@ class PEPHubClient(RequestManager):
     @property
     def schema(self) -> PEPHubSchema:
         return self.__schema
+
+    def __refresh_subclients(self) -> None:
+        """Recreate the view/sample/schema sub-clients with the current jwt and base_url."""
+        self.__view = PEPHubView(self.__jwt_data, self.__base_url)
+        self.__sample = PEPHubSample(self.__jwt_data, self.__base_url)
+        self.__schema = PEPHubSchema(self.__jwt_data, self.__base_url)
 
     def login(self, token: str | None = None, url: str | None = None) -> None:
         """
@@ -74,11 +79,13 @@ class PEPHubClient(RequestManager):
         FilesManager.save_token_data(PATH_TO_TOKEN_FILE, cached)
         self.__jwt_data = cached.token
         self.__base_url = cached.base_url.rstrip("/") + "/"
+        self.__refresh_subclients()
 
     def logout(self) -> None:
         """Log out from PEPhub."""
         FilesManager.delete_file_if_exists(PATH_TO_TOKEN_FILE)
         self.__jwt_data = None
+        self.__refresh_subclients()
 
     def pull(
         self,
@@ -377,7 +384,11 @@ class PEPHubClient(RequestManager):
         query_param = query_param or {}
         query_param["tag"] = self.registry_path.tag
 
-        endpoint = self.registry_path.namespace + "/" + self.registry_path.item
+        endpoint = (
+            quote(str(self.registry_path.namespace), safe="")
+            + "/"
+            + quote(str(self.registry_path.item), safe="")
+        )
 
         variables_string = self.parse_query_param(query_param)
         endpoint += variables_string
@@ -400,7 +411,10 @@ class PEPHubClient(RequestManager):
         variables_string = RequestManager.parse_query_param(query_param)
         endpoint = variables_string
 
-        return f"{self.__base_url}api/v1/namespaces/{namespace}/projects" + endpoint
+        return (
+            f"{self.__base_url}api/v1/namespaces/{quote(str(namespace), safe='')}/projects"
+            + endpoint
+        )
 
     def _build_push_request_url(self, namespace: str) -> str:
         """
@@ -412,4 +426,4 @@ class PEPHubClient(RequestManager):
         Returns:
             url string.
         """
-        return f"{self.__base_url}api/v1/namespaces/{namespace}/projects/json"
+        return f"{self.__base_url}api/v1/namespaces/{quote(str(namespace), safe='')}/projects/json"

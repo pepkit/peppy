@@ -1,6 +1,7 @@
 import logging
+from urllib.parse import quote
 
-from ..constants import PEPHUB_SAMPLE_URL, ResponseStatusCodes
+from ..constants import PEPHUB_BASE_URL, PEPHUB_SAMPLE_PATH, ResponseStatusCodes
 from ..exceptions import ResponseError
 from ..helpers import RequestManager
 
@@ -15,15 +16,17 @@ class PEPHubSample(RequestManager):
     This class is not related to peppy.Sample class.
     """
 
-    def __init__(self, jwt_data: str = None):
+    def __init__(self, jwt_data: str = None, base_url: str = None):
         """
         Initialize PEPHubSample.
 
         Args:
             jwt_data: jwt token for authorization
+            base_url: base URL of the PEPhub instance to talk to
         """
 
         self.__jwt_data = jwt_data
+        self.__base_url = (base_url or PEPHUB_BASE_URL).rstrip("/") + "/"
 
     def get(
         self,
@@ -202,8 +205,9 @@ class PEPHubSample(RequestManager):
                 f"Unexpected return value. Error: {response.status_code}"
             )
 
-    @staticmethod
-    def _build_sample_request_url(namespace: str, name: str, sample_name: str) -> str:
+    def _build_sample_request_url(
+        self, namespace: str, name: str, sample_name: str
+    ) -> str:
         """
         Build url for sample request.
 
@@ -213,6 +217,8 @@ class PEPHubSample(RequestManager):
         Returns:
             url string.
         """
-        return PEPHUB_SAMPLE_URL.format(
-            namespace=namespace, project=name, sample_name=sample_name
+        return self.__base_url + PEPHUB_SAMPLE_PATH.format(
+            namespace=quote(str(namespace), safe=""),
+            project=quote(str(name), safe=""),
+            sample_name=quote(str(sample_name), safe=""),
         )

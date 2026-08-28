@@ -7,11 +7,11 @@ DEFAULT_BASE_URL = "https://pephub-api.databio.org/"
 PEPHUB_BASE_URL = os.getenv("PEPHUB_BASE_URL", default=DEFAULT_BASE_URL)
 # PEPHUB_BASE_URL = "http://0.0.0.0:8000/"
 
-PEPHUB_SAMPLE_URL = f"{PEPHUB_BASE_URL}api/v1/projects/{{namespace}}/{{project}}/samples/{{sample_name}}"
-PEPHUB_VIEW_URL = (
-    f"{PEPHUB_BASE_URL}api/v1/projects/{{namespace}}/{{project}}/views/{{view_name}}"
+PEPHUB_SAMPLE_PATH = "api/v1/projects/{namespace}/{project}/samples/{sample_name}"
+PEPHUB_VIEW_PATH = "api/v1/projects/{namespace}/{project}/views/{view_name}"
+PEPHUB_VIEW_SAMPLE_PATH = (
+    "api/v1/projects/{namespace}/{project}/views/{view_name}/{sample_name}"
 )
-PEPHUB_VIEW_SAMPLE_URL = f"{PEPHUB_BASE_URL}api/v1/projects/{{namespace}}/{{project}}/views/{{view_name}}/{{sample_name}}"
 
 
 class RegistryPath(BaseModel):
