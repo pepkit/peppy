@@ -37,6 +37,7 @@ dependencies = [
     "coloredlogs>=15.0.1",
     "toml>=0.10.2",
     "typing-extensions>=4.0",
+    "urllib3",
 ]
 
 [project.urls]
