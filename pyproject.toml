@@ -45,8 +45,6 @@ Homepage = "https://github.com/pepkit/peppy/"
 
 [project.scripts]
 peppy = "peppy.cli:main"
-eido = "peppy.eido.cli:app"
-phc = "peppy.pephubclient.cli:app"
 
 [project.entry-points."pep.filters"]
 basic = "peppy.eido.conversion_plugins:basic_pep_filter"
