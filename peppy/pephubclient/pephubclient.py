@@ -30,6 +30,7 @@ from .modules.view import PEPHubView
 from .pephub_oauth.pephub_oauth import PEPHubAuth
 from .schemas.schema import PEPHubSchema
 
+
 class PEPHubClient(RequestManager):
     def __init__(self):
         cached = FilesManager.load_token_data(PATH_TO_TOKEN_FILE)
