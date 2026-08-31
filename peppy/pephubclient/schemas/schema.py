@@ -1,15 +1,16 @@
 import logging
+from urllib.parse import quote
 
-from ..constants import ResponseStatusCodes
+from ..constants import PEPHUB_BASE_URL, ResponseStatusCodes
 from ..exceptions import ResponseError
 from ..helpers import RequestManager
 from .constants import (
     LATEST_VERSION,
-    PEPHUB_SCHEMA_NEW_SCHEMA_URL,
-    PEPHUB_SCHEMA_NEW_VERSION_URL,
-    PEPHUB_SCHEMA_RECORD_URL,
-    PEPHUB_SCHEMA_VERSION_URL,
-    PEPHUB_SCHEMA_VERSIONS_URL,
+    PEPHUB_SCHEMA_NEW_SCHEMA_PATH,
+    PEPHUB_SCHEMA_NEW_VERSION_PATH,
+    PEPHUB_SCHEMA_RECORD_PATH,
+    PEPHUB_SCHEMA_VERSION_PATH,
+    PEPHUB_SCHEMA_VERSIONS_PATH,
 )
 from .models import (
     NewSchemaRecordModel,
@@ -30,14 +31,30 @@ class PEPHubSchema(RequestManager):
     and schema versions.
     """
 
-    def __init__(self, jwt_data: str = None):
+    def __init__(self, jwt_data: str = None, base_url: str = None):
         """
         Initialize PEPHubSchema.
 
         Args:
             jwt_data: jwt token for authorization
+            base_url: base URL of the PEPhub instance to talk to
         """
         self.__jwt_data = jwt_data
+        self.__base_url = (base_url or PEPHUB_BASE_URL).rstrip("/") + "/"
+
+    def _build_url(self, path_template: str, **segments) -> str:
+        """
+        Build a URL against this client's base_url, URL-encoding each segment.
+
+        Args:
+            path_template: path template with `{name}` placeholders
+            **segments: values to substitute into the placeholders
+
+        Returns:
+            URL string.
+        """
+        quoted = {k: quote(str(v), safe="") for k, v in segments.items()}
+        return self.__base_url + path_template.format(**quoted)
 
     def get(
         self, namespace: str, schema_name: str, version: str = LATEST_VERSION
@@ -55,8 +72,11 @@ class PEPHubSchema(RequestManager):
         """
         pephub_response = self.send_request(
             method="GET",
-            url=PEPHUB_SCHEMA_VERSION_URL.format(
-                namespace=namespace, schema_name=schema_name, version=version
+            url=self._build_url(
+                PEPHUB_SCHEMA_VERSION_PATH,
+                namespace=namespace,
+                schema_name=schema_name,
+                version=version,
             ),
             headers=self.parse_header(self.__jwt_data),
             cookies=None,
@@ -89,8 +109,10 @@ class PEPHubSchema(RequestManager):
         """
         pephub_response = self.send_request(
             method="GET",
-            url=PEPHUB_SCHEMA_VERSIONS_URL.format(
-                namespace=namespace, schema_name=schema_name
+            url=self._build_url(
+                PEPHUB_SCHEMA_VERSIONS_PATH,
+                namespace=namespace,
+                schema_name=schema_name,
             ),
             headers=self.parse_header(self.__jwt_data),
             cookies=None,
@@ -144,7 +166,7 @@ class PEPHubSchema(RequestManager):
         Raises:
             ResponseError: if status not 202.
         """
-        url = PEPHUB_SCHEMA_NEW_SCHEMA_URL.format(namespace=namespace)
+        url = self._build_url(PEPHUB_SCHEMA_NEW_SCHEMA_PATH, namespace=namespace)
         request_body = NewSchemaRecordModel(
             schema_name=schema_name,
             description=description,
@@ -207,8 +229,8 @@ class PEPHubSchema(RequestManager):
         Raises:
             ResponseError: if status not 202.
         """
-        url = PEPHUB_SCHEMA_NEW_VERSION_URL.format(
-            namespace=namespace, schema_name=schema_name
+        url = self._build_url(
+            PEPHUB_SCHEMA_NEW_VERSION_PATH, namespace=namespace, schema_name=schema_name
         )
         request_body = NewSchemaVersionModel(
             contributors=contributors,
@@ -265,8 +287,8 @@ class PEPHubSchema(RequestManager):
 
         update_fields = update_fields.model_dump(exclude_none=True, exclude_unset=True)
 
-        url = PEPHUB_SCHEMA_RECORD_URL.format(
-            namespace=namespace, schema_name=schema_name
+        url = self._build_url(
+            PEPHUB_SCHEMA_RECORD_PATH, namespace=namespace, schema_name=schema_name
         )
 
         pephub_response = self.send_request(
@@ -316,8 +338,11 @@ class PEPHubSchema(RequestManager):
         Raises:
             ResponseError: if status not 202.
         """
-        url = PEPHUB_SCHEMA_VERSION_URL.format(
-            namespace=namespace, schema_name=schema_name, version=version
+        url = self._build_url(
+            PEPHUB_SCHEMA_VERSION_PATH,
+            namespace=namespace,
+            schema_name=schema_name,
+            version=version,
         )
 
         if isinstance(update_fields, dict):
@@ -360,8 +385,8 @@ class PEPHubSchema(RequestManager):
             namespace: Namespace of the schema
             schema_name: Name of the schema version
         """
-        url = PEPHUB_SCHEMA_RECORD_URL.format(
-            namespace=namespace, schema_name=schema_name
+        url = self._build_url(
+            PEPHUB_SCHEMA_RECORD_PATH, namespace=namespace, schema_name=schema_name
         )
 
         pephub_response = self.send_request(
@@ -407,8 +432,11 @@ class PEPHubSchema(RequestManager):
         Raises:
             ResponseError: if status not 202.
         """
-        url = PEPHUB_SCHEMA_VERSION_URL.format(
-            namespace=namespace, schema_name=schema_name, version=version
+        url = self._build_url(
+            PEPHUB_SCHEMA_VERSION_PATH,
+            namespace=namespace,
+            schema_name=schema_name,
+            version=version,
         )
 
         pephub_response = self.send_request(

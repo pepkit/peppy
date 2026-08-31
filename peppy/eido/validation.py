@@ -1,12 +1,11 @@
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from copy import deepcopy as dpcpy
 from logging import getLogger
 from warnings import warn
 
 import pandas as pd
 from jsonschema import Draft7Validator
-from pandas.core.common import flatten
 
 from ..project import Project
 from ..sample import Sample
@@ -16,6 +15,14 @@ from .exceptions import EidoValidationError, PathAttrNotFoundError
 from .schema import preprocess_schema, read_schema
 
 _LOGGER = getLogger(__name__)
+
+
+def flatten(lst):
+    for item in lst:
+        if isinstance(item, Iterable) and not isinstance(item, str):
+            yield from flatten(item)
+        else:
+            yield item
 
 
 def _validate_object(
@@ -49,10 +56,13 @@ def _validate_object(
                 instance_name = error.instance[sample_name_colname]
             except KeyError:
                 instance_name = "project"
-            except TypeError:
-                instance_name = obj["samples"][error.absolute_path[1]][
-                    sample_name_colname
-                ]
+            except (TypeError, IndexError):
+                try:
+                    instance_name = obj["samples"][error.absolute_path[1]][
+                        sample_name_colname
+                    ]
+                except (KeyError, TypeError, IndexError):
+                    instance_name = "unknown"
             errors_by_type[error.message].append(
                 {
                     "type": error.message,

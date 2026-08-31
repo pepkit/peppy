@@ -1,7 +1,7 @@
 import inspect
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from importlib.metadata import entry_points
 from logging import getLogger
 
@@ -23,6 +23,7 @@ def pep_conversion_plugins() -> dict[str, Callable]:
         EidoFilterError: If any of the filters has an invalid signature
     """
     plugins = {}
+    sources: dict[str, set[str]] = {}
     for ep in entry_points(group="pep.filters"):
         plugin_fun = ep.load()
         if len(list(inspect.signature(plugin_fun).parameters)) != 2:
@@ -31,6 +32,19 @@ def pep_conversion_plugins() -> dict[str, Callable]:
                 f"Filter functions must take 2 arguments: peppy.Project and **kwargs"
             )
         plugins[ep.name] = plugin_fun
+        sources.setdefault(ep.name, set()).add(ep.dist.name if ep.dist else "unknown")
+
+    conflicting = {name for name, dists in sources.items() if len(dists) > 1}
+    if conflicting:
+        all_dists = sorted(set.union(*(sources[name] for name in conflicting)))
+        _LOGGER.warning(
+            f"Multiple installed packages register the same PEP filter plugins "
+            f"({', '.join(sorted(conflicting))}), from: {', '.join(all_dists)}. "
+            "This usually means both the standalone 'eido' package and 'peppy' "
+            "(which now bundles eido) are installed, and it's undefined which "
+            "one's filters actually run. Run `pip uninstall eido` to fix this."
+        )
+
     return plugins
 
 
@@ -86,6 +100,11 @@ def run_filter(
 
     # set environment
     if env is not None:
+        if not isinstance(env, Mapping):
+            raise EidoFilterError(
+                f"'env' must be a mapping of variable names to values, "
+                f"got {type(env).__name__}."
+            )
         for var in env:
             os.environ[var] = env[var]
 
@@ -113,10 +132,9 @@ def run_filter(
                 )
             else:
                 # create path if it doesn't exist
-                if not os.path.exists(result_path) and os.path.isdir(
-                    os.path.dirname(result_path)
-                ):
-                    os.makedirs(os.path.dirname(result_path), exist_ok=True)
+                parent = os.path.dirname(result_path)
+                if parent and not os.path.isdir(parent):
+                    os.makedirs(parent, exist_ok=True)
                 save_result(result_path, conv_result[result_key])
 
     if verbose:

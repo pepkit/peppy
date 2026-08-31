@@ -281,12 +281,12 @@ def unpopulated_env_var(paths: set[str]) -> None:
     Args:
         paths: Set of paths that may contain environment variables
     """
-    _VAR_RE = re.compile(r"^\$(\w+)/(.*)$")
+    _VAR_RE = re.compile(r"\$(\w+)/(.*)")
     groups: dict[str, list[str]] = defaultdict(list)
 
     # 1) Group by env var
     for s in paths:
-        m = _VAR_RE.match(s.strip())
+        m = _VAR_RE.search(s.strip())
         if not m:
             # Not in "$VAR/..." form — skip or collect under a special key if you prefer
             continue
@@ -307,16 +307,6 @@ def unpopulated_env_var(paths: set[str]) -> None:
             common_dir = psp.commonpath(tails) or "."
             # Ensure it's a directory; commonpath is component-wise, so it's fine.
 
-        warning_message = "Not all environment variables were populated in derived attribute source: $%s/{"
-
-        in_env = []
-        for t in tails:
-            rel = psp.relpath(t, start=common_dir or ".")
-            in_env.append(rel)
-
-        warning_message += ", ".join(in_env)
-        warning_message += "}"
-        _LOGGER.warning(
-            warning_message,
-            var,
-        )
+        in_env = [psp.relpath(t, start=common_dir or ".") for t in tails]
+        msg = f"Not all environment variables were populated in derived attribute source: ${var}/{{{', '.join(in_env)}}}"
+        _LOGGER.warning(msg)

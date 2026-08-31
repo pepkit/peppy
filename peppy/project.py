@@ -11,7 +11,6 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 import yaml
-from pandas.core.common import flatten
 from rich.console import Console
 from rich.progress import track
 from ubiquerg import is_url
@@ -78,6 +77,14 @@ from .utils import (
 )
 
 _LOGGER = getLogger(PKG_NAME)
+
+
+def flatten(lst):
+    for item in lst:
+        if isinstance(item, Iterable) and not isinstance(item, str):
+            yield from flatten(item)
+        else:
+            yield item
 
 
 @copy
@@ -955,8 +962,14 @@ class Project(MutableMapping):
 
                 derived_attr = sample.derive_attribute(ds, attr)
                 if derived_attr:
-                    if "$" in derived_attr:
-                        env_var_miss.add(derived_attr)
+                    values = (
+                        derived_attr
+                        if isinstance(derived_attr, list)
+                        else [derived_attr]
+                    )
+                    for v in values:
+                        if isinstance(v, str) and "$" in v:
+                            env_var_miss.add(v)
 
                     _LOGGER.debug("Setting '{}' to '{}'".format(attr, derived_attr))
                     sample[attr] = derived_attr

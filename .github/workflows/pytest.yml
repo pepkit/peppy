@@ -26,4 +26,4 @@ jobs:
       run: python -m pip install ".[test]"
 
     - name: Run pytest tests
-      run: pytest tests -v
+      run: pytest tests -v --remote-data

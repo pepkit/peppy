@@ -16,7 +16,8 @@ class FilesManager:
     def save_token_data(path: str, token: CachedToken) -> None:
         """Save cached token data (jwt + base url) to provided path as TOML."""
         Path(os.path.dirname(path)).mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
             toml.dump(token.model_dump(), f)
 
     @staticmethod
