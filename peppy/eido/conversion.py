@@ -1,7 +1,7 @@
 import inspect
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from importlib.metadata import entry_points
 from logging import getLogger
 
@@ -99,7 +99,12 @@ def run_filter(
     env = plugin_kwargs.get("env")
 
     # set environment
-    if env is not None and isinstance(env, dict):
+    if env is not None:
+        if not isinstance(env, Mapping):
+            raise EidoFilterError(
+                f"'env' must be a mapping of variable names to values, "
+                f"got {type(env).__name__}."
+            )
         for var in env:
             os.environ[var] = env[var]
 
