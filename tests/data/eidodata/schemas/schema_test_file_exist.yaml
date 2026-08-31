@@ -1,0 +1,35 @@
+description: test existing files in subsamples
+
+properties:
+  dcc:
+    type: object
+    properties:
+      compute_packages:
+        type: object
+  samples:
+    type: array
+    items:
+      type: object
+      properties:
+        sample_name:
+          type: string
+        protocol:
+          type: string
+        local_files:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+      sizing:
+        - local_files
+
+      tangible:
+        - local_files
+
+      required:
+        - sample_name
+        - local_files
+
+required:
+  - samples

@@ -1,0 +1,8 @@
+sample,strandedness,instrument_platform,run_accession,fastq_1,fastq_2,fasta
+WT_REP1,reverse,ABI_SOLID,runaccession1,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357076_1.fastq.gz,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357076_2.fastq.gz,
+WT_REP1,reverse,ABI_SOLID,runaccession2,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357071_1.fastq.gz,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357071_2.fastq.gz,
+WT_REP2,reverse,BGISEQ,123123123,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357072_1.fastq.gz,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357072_2.fastq.gz,
+RAP1_UNINDUCED_REP1,reverse,CAPILLARY,somerunaccesion,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357073_1.fastq.gz,,
+RAP1_UNINDUCED_REP2,reverse,COMPLETE_GENOMICS,ERR2412421,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357074_1.fastq.gz,,
+RAP1_UNINDUCED_REP2,reverse,COMPLETE_GENOMICS,xxxxxxxxxx,https://raw.githubusercontent.com/nf-core/test-datasets/rnaseq/testdata/GSE110004/SRR6357075_1.fastq.gz,,
+RAP1_IAA_30M_REP1,reverse,DNBSEQ,None,,,https://raw.githubusercontent.com/nf-core/test-datasets/taxprofiler/data/fasta/ERX5474930_ERR5766174_1.fa.gz

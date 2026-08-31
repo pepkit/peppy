@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
@@ -15,11 +15,11 @@ class TableParser:
         - ...
     """
 
-    def __init__(self, path: str, exts: List[str]) -> None:
+    def __init__(self, path: str, exts: list[str]) -> None:
         self._path = path
         self._exts = exts
         self._table: pd.DataFrame = None
-        self._pandas_kwargs: Dict[str, Any] = {
+        self._pandas_kwargs: dict[str, Any] = {
             "dtype": str,
             "index_col": False,
             "keep_default_na": False,
@@ -34,7 +34,7 @@ class TableParser:
         return self._path
 
     @property
-    def extensions(self) -> List[str]:
+    def extensions(self) -> list[str]:
         """
         Return the list of extensions supported by the parser
         """
@@ -129,11 +129,16 @@ class XLSXTableParser(TableParser):
 
 def select_parser(path: str) -> TableParser:
     """
-    Select a parser based on the file extension
+    Select a parser based on the file extension.
 
-    :param str path: file path
-    :return SampleTableParser: the selected parser
-    :raises InvalidSampleTableFileException: if no parser is found for the extension
+    Args:
+        path: File path.
+
+    Returns:
+        The selected parser.
+
+    Raises:
+        InvalidSampleTableFileException: If no parser is found for the extension.
     """
     parsers_by_ext = parser_by_ext()
     ext = os.path.splitext(path)[1].split(".")[-1]
@@ -145,12 +150,8 @@ def select_parser(path: str) -> TableParser:
     )
 
 
-def parser_by_ext() -> Dict[str, TableParser]:
-    """
-    Return a dict of parsers indexed by extension
-
-    :return Dict[str, SampleTableParser]: dict of parsers indexed by extension
-    """
+def parser_by_ext() -> dict[str, TableParser]:
+    """Return a dict of parsers indexed by extension."""
     parsers_by_ext = {}
     for parser in [cls for cls in TableParser.__subclasses__()]:
         for ext in parser("").extensions:

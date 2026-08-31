@@ -1,0 +1,16 @@
+description: bedboss run-all pep schema
+properties:
+  samples:
+    items:
+      properties:
+        format_type:
+          description: whether the regions are narrow (transcription factor implies
+            narrow, histone mark implies broad peaks)
+          enum:
+          - narrowPeak
+          - broadPeak
+          type: string
+      type: object
+    type: array
+required:
+- samples

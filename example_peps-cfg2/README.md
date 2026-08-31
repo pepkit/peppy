@@ -9,6 +9,7 @@ Your basic python workflow uses the [peppy](http://github.com/pepkit/peppy) pack
 
 ```{python}
 import peppy
+
 proj1 = peppy.Project("example_basic/project_config.yaml")
 ```
 More detailed Python vignettes are available as part of the [documentation for the peppy package](https://peppy.readthedocs.io/en/latest/index.html).
