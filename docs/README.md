@@ -1,4 +1,12 @@
-# peppy
+# <img src="img/peppy_logo.svg" alt="peppy" class="img-header"/>
+
+<p align="center">
+<a href="https://pep.databio.org" alt="PEP compatible"><img src="https://pepkit.github.io/img/PEP-compatible-green.svg"/></a>
+<a href="https://github.com/pepkit/peppy/actions/workflows/run-pytest.yml" alt="Run pytests"><img src="https://github.com/pepkit/peppy/workflows/Run%20pytests/badge.svg"/></a>
+<a href="https://codecov.io/gh/pepkit/peppy" alt="codecov"><img src="https://codecov.io/gh/pepkit/peppy/branch/master/graph/badge.svg"/></a>
+<a href="https://pypi.org/project/peppy" alt="PyPI badge"><img src="https://img.shields.io/pypi/v/peppy"/></a>
+<a href="https://github.com/pepkit/peppy" alt="GitHub source code"><img src="https://img.shields.io/badge/source-github-354a75?logo=github"/></a>
+</p>
 
 ## Introduction
 
