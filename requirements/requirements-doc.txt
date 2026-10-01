@@ -1,6 +1,0 @@
-https://github.com/databio/mkdocs-databio/archive/master.zip
-markdown-include
-mkdocs>=1.0
-peppy
-pydoc-markdown
-ubiquerg

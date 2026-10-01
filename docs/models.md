@@ -26,7 +26,7 @@ and used.
 
 ## Extending sample objects
 
-By default we use *generic* models (see [API docs](autodoc_build/peppy.md) for more) that can be used in many contexts
+By default we use *generic* models (see [Peppy API docs](code/python-api.md) for more) that can be used in many contexts
 via Python import, or by object serialization and deserialization via YAML.
 
 Since these models provide useful methods to store, update, and read attributes in the objects created from them

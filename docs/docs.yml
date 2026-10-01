@@ -1,0 +1,30 @@
+site_name: Peppy
+nav:
+  - Peppy: README.md
+  - Getting started:
+    - Installing and Hello World: hello-world.md
+  - How-to guides:
+    - How to initialize a Project: initialize.md
+    - How to use peppy: code/tutorial.md
+    - How to use subsample table: code/feature4_subsample_table.md
+    - How to use amendments: code/feature5_amend.md
+    - How to use append sample modifier: code/feature1_append.md
+    - How to use imply sample modifier: code/feature2_imply.md
+    - How to validate a PEP: validating.md
+  - Reference:
+    - Project models: models.md
+    - How to cite: /citations/
+    - API: code/python-api.md
+    - Support: support.md
+    - Contributing: contributing.md
+    - Changelog: changelog.md
+
+renderers:
+  - hub-notebooks:
+      include: [notebooks/*.ipynb]
+      execute: false
+  - hub-python-api:
+      package_root: ..
+      packages: [peppy]
+      include: [code/python-api.md]
+      docstring_style: google

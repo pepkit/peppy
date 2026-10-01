@@ -2,6 +2,41 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
+## [0.50.0a1] -- 2025-12-22
+### Added
+- Merged [`eido`](https://github.com/pepkit/eido) ([#492](https://github.com/pepkit/peppy/issues/492)) and [`pephubclient`](https://github.com/pepkit/pephubclient) into `peppy`.
+- Command line interface based on `typer` for `eido` and `pephubclient`.
+- Pytest for Windows.
+
+### Fixed
+- Fixed incorrect path expanding from config file URL in Windows.
+- Ambiguity ([#498](https://github.com/pepkit/peppy/issues/498)) and redundancy ([#499](https://github.com/pepkit/peppy/issues/499)) in error messages.
+
+## [0.40.7] -- 2024-09-30
+### Fixed
+- Fixed incorrect sample table index in subtables
+
+## [0.40.6] -- 2024-09-10
+### Changed
+- [#493](https://github.com/pepkit/peppy/issues/493)
+
+## [0.40.5] -- 2024-07-25
+### Fixed
+- Fixed bug in initialization of peppy object from csv
+
+## [0.40.4] -- 2024-07-17
+### Changed
+- minor change, [PR #490](https://github.com/pepkit/peppy/pull/490)
+
+## [0.40.3] -- 2024-07-17
+### Fixed
+- [#393](https://github.com/pepkit/peppy/issues/393)
+- [#480](https://github.com/pepkit/peppy/issues/480)
+- [#369](https://github.com/pepkit/peppy/issues/369)
+- [#399](https://github.com/pepkit/peppy/issues/399)
+- [#476](https://github.com/pepkit/peppy/issues/476)
+- [#471](https://github.com/pepkit/peppy/issues/471)
+
 ## [0.40.2] -- 2024-05-28
 ### Added
 - added `sample_name` property to samples object.
@@ -110,12 +145,12 @@ _Due to the changes mentioned above, a few functionalities may be disabled. For 
 ### Fixed
 
 - Performance issues during sample parsing. Two list comprehensions were combined to speed up this functionality.
-- `KeyError` is thrown when attempting to access the `pep_version` of a `peppy.Project` instance instatiated from a sample table (`csv`)
+- `KeyError` is thrown when attempting to access the `pep_version` of a `peppy.Project` instance instantiated from a sample table (`csv`)
 
 ### Added
 
 - Implementation of `__eq__` for the `peppy.Project` class such that two instances of the class can be compared using python's equality operators (`==`, `!=`).
-- New `from_dict` function that lets a user instatiate a new `peppy.Project` object using an in-memory representation of a PEP (a `dict`). This supports database storage of PEPs.
+- New `from_dict` function that lets a user instantiate a new `peppy.Project` object using an in-memory representation of a PEP (a `dict`). This supports database storage of PEPs.
 - New `extended` flag for the `to_dict` method on `peppy.Project` objects. This creates a **richer** dictionary representation of PEPs.
 - Better sample parsing
 
